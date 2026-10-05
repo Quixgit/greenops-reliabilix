@@ -17,20 +17,28 @@ import (
 	"time"
 )
 
-// DevVerifier accepts "dev:<subject>:<tenant>:<role>". Only constructed when ENV=dev.
+// DevVerifier accepts "dev:<subject>:<tenant|->:<role|->[:<email>]". "-" means "no tenant yet": the
+// caller then goes through membership resolution/onboarding like a real Auth0 user. Dev builds only.
 type DevVerifier struct{}
 
 func (DevVerifier) Verify(_ context.Context, token string) (Claims, error) {
 	p := strings.Split(token, ":")
-	if len(p) != 4 || p[0] != "dev" {
+	if (len(p) != 4 && len(p) != 5) || p[0] != "dev" {
 		return Claims{}, ErrUnauthenticated
 	}
-	return Claims{Subject: p[1], TenantID: p[2], Role: Role(p[3])}, nil
+	c := Claims{Subject: p[1]}
+	if p[2] != "-" {
+		c.TenantID, c.Role = p[2], Role(p[3])
+	}
+	if len(p) == 5 {
+		c.Email, c.EmailVerified = p[4], true
+	}
+	return c, nil
 }
 
-// OIDCVerifier validates RS256 JWTs issued by Auth0 (or any OIDC provider):
-// signature via cached JWKS, iss, aud, exp, nbf. Tenant and role are read from
-// namespaced custom claims set by an Auth0 Action. HS256/none are rejected.
+// OIDCVerifier validates RS256 JWTs issued by Auth0 (or any OIDC provider): signature via cached
+// JWKS, iss, aud, exp, nbf. HS256/none are rejected. The token identifies the user (sub, and the
+// namespaced email/email_verified claims added by an Auth0 Action); tenant and role come from the DB.
 type OIDCVerifier struct {
 	Issuer   string // with trailing slash, e.g. https://tenant.auth0.com/
 	Audience string
@@ -91,12 +99,12 @@ func (v *OIDCVerifier) Verify(ctx context.Context, token string) (Claims, error)
 		return Claims{}, ErrUnauthenticated
 	}
 	sub, _ := c["sub"].(string)
-	tenant, _ := c[v.ClaimNS+"tenant_id"].(string)
-	role, _ := c[v.ClaimNS+"role"].(string)
-	if sub == "" || tenant == "" {
+	if sub == "" {
 		return Claims{}, ErrUnauthenticated
 	}
-	return Claims{Subject: sub, TenantID: tenant, Role: Role(role)}, nil
+	email, _ := c[v.ClaimNS+"email"].(string)
+	verified, _ := c[v.ClaimNS+"email_verified"].(bool)
+	return Claims{Subject: sub, Email: email, EmailVerified: verified}, nil
 }
 
 func audMatches(aud any, want string) bool {

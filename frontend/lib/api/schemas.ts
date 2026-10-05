@@ -5,17 +5,18 @@ import { z } from "zod";
 const totals = z.object({
   energy_kwh: z.number(),
   carbon_kg_co2e: z.number(),
-  sci_score: z.number(),
+  sci_score: z.number().nullable(), // null until the customer reports functional units: never guessed
   carbon_intensity_g_per_kwh: z.number(),
 });
 
-export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals });
+export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals, comparable: z.boolean() });
 export type CarbonSummary = z.infer<typeof carbonSummary>;
 
 export const finopsSummary = z.object({
   has_data: z.boolean(),
   total_cost: z.number(),
   previous_total_cost: z.number(),
+  previous_comparable: z.boolean(),
   currency: z.string(),
   by_service: z.array(z.object({ service: z.string(), cost: z.number() })),
 });
@@ -53,4 +54,15 @@ export const connection = z.object({
   sync_status: z.string(), last_sync_at: z.string().nullable(),
 });
 export const connections = items(connection);
+
+export const setup = z.object({
+  external_id: z.string(),
+  platform_account_id: z.string().optional(),
+  trust_policy: z.record(z.string(), z.unknown()).optional(),
+  permissions_policy: z.record(z.string(), z.unknown()),
+  required_permissions: z.array(z.string()),
+});
+export const connectResponse = z.object({ connection: connection, setup });
+export type ConnectResponse = z.infer<typeof connectResponse>;
+export const tenantRef = z.object({ tenant_id: z.string() });
 export type Connection = z.infer<typeof connection>;

@@ -10,26 +10,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/app"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/automation"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/finops"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/projects"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/reports"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/usage"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/users"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
 
 func main() {
@@ -42,41 +27,37 @@ func main() {
 		log.Error("config", "err", err)
 		os.Exit(1)
 	}
-	flush, err := observability.InitTracing(ctx, "api", cfg.OTLPEndpoint)
+	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
+	if err != nil {
+		log.Error("sentry", "err", err)
+		os.Exit(1)
+	}
+	defer flushSentry()
+	httpx.PanicHook = func(v any) { observability.CaptureError(panicError{v}) }
+
+	flushTraces, err := observability.InitTracing(ctx, "api", cfg.OTLPEndpoint)
 	if err != nil {
 		log.Error("tracing", "err", err)
 		os.Exit(1)
 	}
-	defer func() { _ = flush(context.Background()) }()
+	defer func() { _ = flushTraces(context.Background()) }()
 
-	var verifier auth.Verifier = auth.NewOIDCVerifier(cfg.Auth0Domain, cfg.Auth0Audience, cfg.ClaimNS)
-	if cfg.IsDev() {
-		verifier = auth.DevVerifier{}
-	}
-
-	pool, err := database.Connect(ctx, cfg.DatabaseURL)
+	pool, err := database.Connect(ctx, cfg.DatabaseURL) // DSN uses the greenops_api role
 	if err != nil {
 		log.Error("database", "err", err)
 		os.Exit(1)
 	}
 	defer pool.Close()
 
-	var grid domain.CarbonDataProvider
-	switch {
-	case cfg.ElectricityMapsKey != "":
-		grid = electricitymaps.New(cfg.ElectricityMapsKey)
-	case cfg.IsDev():
-		grid = electricitymaps.Static{GPerKWh: 400}
-	default:
-		log.Warn("no ELECTRICITYMAPS_API_KEY: /carbon/calculate will fail closed")
-	}
+	q := queue.NewClient(cfg.RedisAddr)
+	defer func() { _ = q.Close() }()
 
-	modules := []httpx.Module{
-		tenants.New(pool), users.New(), projects.New(pool), cloudaccounts.New(pool, log),
-		ingestion.New(), usage.New(pool), carbon.New(pool, grid, log), finops.New(pool),
-		dashboard.New(pool), recommendations.New(), kubernetes.New(), reports.New(), automation.New(),
+	c, err := app.Build(ctx, cfg, log, pool, q)
+	if err != nil {
+		log.Error("wiring", "err", err)
+		os.Exit(1)
 	}
-	router := app.NewRouter(cfg, log, verifier, pool.Ping, modules...)
+	router := app.NewRouter(cfg, log, c.Verifier, c.Resolver, pool.Ping, c.Modules()...)
 
 	go func() { // metrics on an internal-only address
 		if err := httpx.NewServer(cfg.MetricsAddr, observability.MetricsHandler()).ListenAndServe(); err != nil {
@@ -90,3 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+type panicError struct{ v any }
+
+func (p panicError) Error() string { return "panic recovered in HTTP handler" }

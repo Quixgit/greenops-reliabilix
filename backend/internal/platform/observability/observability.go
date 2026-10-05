@@ -3,6 +3,10 @@ package observability
 
 import (
 	"context"
+	"fmt"
+	"time"
+
+	"github.com/getsentry/sentry-go"
 	"log/slog"
 	"net/http"
 	"os"
@@ -58,3 +62,18 @@ var (
 	CarbonAPIErrors = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "carbon_api_errors_total", Help: "Errors from the grid carbon data provider."})
 )
+
+// InitSentry enables error tracking when a DSN is configured. The returned func flushes pending events.
+// PII is not sent (the SDK default); request bodies and headers are never attached.
+func InitSentry(dsn, env, release string) (func(), error) {
+	if dsn == "" {
+		return func() {}, nil
+	}
+	if err := sentry.Init(sentry.ClientOptions{Dsn: dsn, Environment: env, Release: release, AttachStacktrace: true}); err != nil {
+		return nil, fmt.Errorf("sentry: %w", err)
+	}
+	return func() { sentry.Flush(2 * time.Second) }, nil
+}
+
+// CaptureError reports an unexpected error (no-op when Sentry is not initialised).
+func CaptureError(err error) { sentry.CaptureException(err) }

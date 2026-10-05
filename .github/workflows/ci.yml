@@ -14,21 +14,30 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
     env:
       DSN: postgres://postgres:ci@localhost:5432/greenops?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with: {go-version: "1.27", cache-dependency-path: backend/go.sum}
+      - name: Generated code is up to date (sqlc)
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@latest generate && git diff --exit-code -- internal
       - run: go vet ./...
-      - run: go test -race ./...
-      - name: Migrate and run integration tests (RLS, roles)
+      - run: go test -race ./...    # includes the OpenAPI <-> routes parity test
+      - name: Migrate and run integration tests (RLS, roles, end-to-end pipeline, real Asynq)
         run: |
           go run github.com/pressly/goose/v3/cmd/goose@latest -dir migrations postgres "$DSN" up
+          psql "$DSN" -c "ALTER ROLE greenops_api PASSWORD 'ci'" -c "ALTER ROLE greenops_worker PASSWORD 'ci'"
           TEST_OWNER_DSN="$DSN" \
-          TEST_API_DSN="postgres://greenops_api@localhost:5432/greenops?sslmode=disable" \
-          TEST_WORKER_DSN="postgres://greenops_worker@localhost:5432/greenops?sslmode=disable" \
+          TEST_API_DSN="postgres://greenops_api:ci@localhost:5432/greenops?sslmode=disable" \
+          TEST_WORKER_DSN="postgres://greenops_worker:ci@localhost:5432/greenops?sslmode=disable" \
+          TEST_REDIS_ADDR=localhost:6379 \
           go test -tags integration -count=1 ./tests/...
+      - name: OpenAPI is valid
+        run: npx --yes @redocly/cli@latest lint api/openapi.yaml
       # Built from source with the repo's Go toolchain: prebuilt binaries lag behind new Go versions.
       - run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest && golangci-lint run ./...
       - run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
@@ -40,6 +49,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: {node-version: 22}
       - run: npm ci --no-audit --no-fund
+      - name: TypeScript API types are up to date (OpenAPI)
+        run: npm run gen:api && git diff --exit-code -- lib/api/schema.d.ts
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

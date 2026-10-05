@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/layout/app-shell";
+import { checkMembership } from "@/lib/api/server";
 import { getUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic"; // always evaluated per request: depends on the session
@@ -8,5 +9,6 @@ export const dynamic = "force-dynamic"; // always evaluated per request: depends
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const user = await getUser();
   if (!user) redirect("/login");
+  if ((await checkMembership()) === "onboarding") redirect("/onboarding"); // signed in but not part of any organization yet
   return <AppShell user={user}>{children}</AppShell>;
 }

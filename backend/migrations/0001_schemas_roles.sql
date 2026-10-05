@@ -10,20 +10,21 @@ CREATE SCHEMA reports;
 CREATE SCHEMA audit;
 CREATE SCHEMA platform;
 
--- Least-privilege runtime roles. Passwords/secrets are set by the deployment
--- (secret manager), never in migrations. Neither role owns tables or has
--- BYPASSRLS, so Row Level Security always applies to them.
+-- Runtime roles are least-privilege: they own nothing and have no BYPASSRLS, so Row Level
+-- Security always applies to them. Passwords are set by the deployment, never here.
+-- greenops_fanout (NOLOGIN, BYPASSRLS) owns a handful of narrow SECURITY DEFINER functions
+-- that must look across tenants (membership resolution, API-key lookup, job fan-out).
 -- +goose StatementBegin
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'greenops_api')    THEN CREATE ROLE greenops_api    LOGIN; END IF;
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'greenops_worker') THEN CREATE ROLE greenops_worker LOGIN; END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'greenops_fanout') THEN CREATE ROLE greenops_fanout NOLOGIN BYPASSRLS; END IF;
 END $$;
 -- +goose StatementEnd
 
--- Enables and FORCES RLS on a table, scoped by the transaction-local setting
--- app.tenant_id (set by backend/internal/platform/database.WithTenantTx).
--- Missing setting => NULL => no rows (fail closed).
+-- Enables and FORCES RLS on a table keyed by the transaction-local setting app.tenant_id
+-- (set by backend/internal/platform/database.WithTenantTx). Missing setting => NULL => no rows.
 -- +goose StatementBegin
 CREATE FUNCTION platform.enable_tenant_rls(tbl regclass, col text) RETURNS void
 LANGUAGE plpgsql AS $$
@@ -36,7 +37,7 @@ BEGIN
 END $$;
 -- +goose StatementEnd
 
--- Creates the monthly partition of a range-partitioned table for the month of d.
+-- Creates the monthly partition of a managed range-partitioned table for the month of d.
 -- +goose StatementBegin
 CREATE FUNCTION platform.ensure_month_partition(parent regclass, col text, d date) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
@@ -45,7 +46,6 @@ DECLARE
   to_d   date := (date_trunc('month', d) + interval '1 month')::date;
   part   text := format('%s_%s', parent::text, to_char(from_d, 'YYYY_MM'));
 BEGIN
-  -- SECURITY DEFINER: only the known partitioned tables may be touched.
   IF parent::text NOT IN ('usage.usage_records', 'carbon.calculations') THEN
     RAISE EXCEPTION 'ensure_month_partition: % is not a managed partitioned table', parent;
   END IF;
@@ -54,7 +54,6 @@ BEGIN
   END IF;
 END $$;
 -- +goose StatementEnd
-
 REVOKE ALL ON FUNCTION platform.enable_tenant_rls(regclass, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION platform.ensure_month_partition(regclass, text, date) FROM PUBLIC;
 

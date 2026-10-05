@@ -3,10 +3,14 @@ package domain
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
+	"regexp"
 	"time"
+
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 )
 
 type ProviderType string
@@ -27,8 +31,17 @@ const (
 	StatusError   SyncStatus = "error"
 )
 
-// Connection links a project to a cloud account. CredentialRef is a *reference*
-// (IAM role ARN + External ID path / secret-manager path), never a secret.
+var (
+	ErrInvalidConnection   = errors.New("invalid cloud connection")
+	ErrUnsupportedProvider = errors.New("provider not supported yet")
+	ErrNotFound            = errors.New("not found")
+	ErrDuplicate           = errors.New("cloud account already connected")
+	// ErrAccessDenied: the granted access is missing or too narrow. Retrying cannot help.
+	ErrAccessDenied = errors.New("access denied by the cloud provider")
+)
+
+// Connection links a project to a cloud account. CredentialRef is a *reference* (IAM role ARN),
+// never a secret. ExternalID is the per-connection STS ExternalId (confused-deputy protection).
 type Connection struct {
 	ID            string       `json:"id"`
 	TenantID      string       `json:"tenant_id"`
@@ -36,50 +49,68 @@ type Connection struct {
 	Provider      ProviderType `json:"provider"`
 	AccountRef    string       `json:"account_ref"` // AWS account id / subscription id / GCP project id
 	CredentialRef string       `json:"credential_ref"`
-	LastSyncAt    *time.Time   `json:"last_sync_at"`
+	ExternalID    string       `json:"external_id"`
 	SyncStatus    SyncStatus   `json:"sync_status"`
+	LastError     *string      `json:"last_error"`
+	LastSyncAt    *time.Time   `json:"last_sync_at"`
+	SyncedThrough *time.Time   `json:"synced_through"`
 }
 
-var ErrInvalidConnection = errors.New("invalid cloud connection")
+var (
+	awsAccountRe = regexp.MustCompile(`^\d{12}$`)
+	awsRoleRe    = regexp.MustCompile(`^arn:aws:iam::(\d{12}):role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+	// secretLike catches raw credentials pasted into credential_ref.
+	secretLike = regexp.MustCompile(`AKIA|ASIA|-----BEGIN|aws_secret_access_key`)
+)
 
-// secretLike catches values that look like raw credentials being pasted in.
-var secretLike = []string{"AKIA", "ASIA", "-----BEGIN", "aws_secret_access_key"}
-
-// Validate rejects unknown providers and raw secrets in credential_ref.
+// Validate rejects unknown providers, malformed identifiers and raw secrets in credential_ref.
 func (c Connection) Validate() error {
-	switch {
-	case !c.Provider.Valid():
+	if !c.Provider.Valid() {
 		return fmt.Errorf("%w: unknown provider", ErrInvalidConnection)
-	case c.ProjectID == "" || c.AccountRef == "" || c.CredentialRef == "":
+	}
+	if c.ProjectID == "" || c.AccountRef == "" || c.CredentialRef == "" {
 		return fmt.Errorf("%w: project_id, account_ref, credential_ref required", ErrInvalidConnection)
 	}
-	for _, s := range secretLike {
-		if strings.Contains(c.CredentialRef, s) {
-			return fmt.Errorf("%w: credential_ref must be a reference, not a secret", ErrInvalidConnection)
+	if secretLike.MatchString(c.CredentialRef) {
+		return fmt.Errorf("%w: credential_ref must be a reference, not a secret", ErrInvalidConnection)
+	}
+	if c.Provider == AWS {
+		if !awsAccountRe.MatchString(c.AccountRef) {
+			return fmt.Errorf("%w: AWS account id must be 12 digits", ErrInvalidConnection)
+		}
+		m := awsRoleRe.FindStringSubmatch(c.CredentialRef)
+		if m == nil {
+			return fmt.Errorf("%w: credential_ref must be an IAM role ARN", ErrInvalidConnection)
+		}
+		if m[1] != c.AccountRef {
+			return fmt.Errorf("%w: role ARN belongs to a different AWS account", ErrInvalidConnection)
 		}
 	}
 	return nil
 }
 
-// UsageRequest asks a provider for usage in a window.
+// NewExternalID returns an unguessable ExternalId for a new connection.
+func NewExternalID() (string, error) {
+	b := make([]byte, 20)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "rlx-" + hex.EncodeToString(b), nil
+}
+
+// UsageRequest asks a provider for usage in [From, To) (dates).
 type UsageRequest struct {
 	Connection Connection
 	From, To   time.Time
 }
 
-// RawUsage is provider-specific data handed to ingestion for normalization.
-type RawUsage struct {
-	Provider ProviderType
-	Source   string // cost_explorer | cur | ...
-	Payload  []byte
-}
-
-// CloudProvider is the plugin contract implemented by AWS, Azure and GCP.
+// CloudProvider is the plugin contract implemented by AWS (now), Azure and GCP (phase 2).
 type CloudProvider interface {
 	Provider() ProviderType
-	// Validate checks that granted access works (and is read-only).
+	// Validate checks that the granted access works.
 	Validate(ctx context.Context, c Connection) error
-	GetUsage(ctx context.Context, req UsageRequest) ([]RawUsage, error)
+	// GetUsage returns raw, provider-specific billing data for ingestion to normalize into FOCUS.
+	GetUsage(ctx context.Context, req UsageRequest) ([]focus.RawBatch, error)
 }
 
 // Registry resolves providers by type.
@@ -98,13 +129,34 @@ func NewRegistry(ps ...CloudProvider) *Registry {
 func (r *Registry) Get(t ProviderType) (CloudProvider, error) {
 	p, ok := r.m[t]
 	if !ok {
-		return nil, fmt.Errorf("unsupported cloud provider %q", t)
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedProvider, t)
 	}
 	return p, nil
 }
 
+// SyncRun is one execution of a connection sync.
+type SyncRun struct {
+	ID         string     `json:"id"`
+	StartedAt  time.Time  `json:"started_at"`
+	FinishedAt *time.Time `json:"finished_at"`
+	Status     string     `json:"status"`
+	Records    int        `json:"records"`
+	Error      *string    `json:"error"`
+}
+
+// JobRef identifies a connection for cross-tenant job fan-out.
+type JobRef struct{ TenantID, ProjectID, ConnectionID string }
+
 // Repository is tenant-scoped (explicit tenantID + RLS).
 type Repository interface {
 	List(ctx context.Context, tenantID string) ([]Connection, error)
+	Get(ctx context.Context, tenantID, id string) (Connection, error)
 	Create(ctx context.Context, c Connection) (Connection, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	SetStatus(ctx context.Context, tenantID, id string, status SyncStatus, lastError *string) error
+	StartRun(ctx context.Context, tenantID, connectionID string) (string, error)
+	FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string) error
+	MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int) error
+	ListRuns(ctx context.Context, tenantID, connectionID string) ([]SyncRun, error)
+	ListForSync(ctx context.Context) ([]JobRef, error)
 }

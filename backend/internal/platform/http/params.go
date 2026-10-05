@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"regexp"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -41,4 +43,18 @@ func Period(r *http.Request) (from, to time.Time, err error) {
 		err = errors.New("invalid period")
 	}
 	return
+}
+
+// PathUUID reads a UUID path parameter (chi). ok=false means malformed: respond 404, never touch the DB.
+func PathUUID(r *http.Request, name string) (string, bool) {
+	v := chi.URLParam(r, name)
+	return v, uuidRe.MatchString(v)
+}
+
+// ParseUUID reports whether s is a canonical UUID.
+func ParseUUID(s string) bool { return uuidRe.MatchString(s) }
+
+// NotFound writes the standard 404 problem.
+func NotFound(w http.ResponseWriter, r *http.Request) {
+	WriteProblem(w, r, http.StatusNotFound, "not found", "")
 }

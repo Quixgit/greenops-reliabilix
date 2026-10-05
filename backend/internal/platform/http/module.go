@@ -11,3 +11,9 @@ type Module interface {
 	// already applied; handlers add auth.Require(<permission>) per route.
 	Routes(r chi.Router)
 }
+
+// IdentityModule is implemented by modules that also expose routes for callers who have a valid identity
+// but may not belong to a tenant yet (onboarding, invitation acceptance).
+type IdentityModule interface {
+	IdentityRoutes(r chi.Router)
+}

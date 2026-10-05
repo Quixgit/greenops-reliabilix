@@ -1,9 +1,9 @@
 // Package auth provides identity claims, RBAC and HTTP middleware.
-// Authentication itself is delegated to an external OIDC provider (ADR-0008);
-// services only verify tokens and enforce authorization.
+// Authentication is delegated to Auth0 (ADR-0004); the database is authoritative for who belongs
+// to which tenant and with which role, so a role change takes effect immediately.
 package auth
 
-// Role is a tenant-scoped role.
+// Role is a tenant-scoped role. RoleCI exists only for API keys.
 type Role string
 
 const (
@@ -12,6 +12,7 @@ const (
 	RoleEngineer Role = "engineer"
 	RoleViewer   Role = "viewer"
 	RoleBilling  Role = "billing"
+	RoleCI       Role = "ci"
 )
 
 // Permission is a fine-grained capability checked by handlers.
@@ -26,29 +27,38 @@ const (
 	PermCarbonRead     Permission = "carbon:read"
 	PermCarbonCompute  Permission = "carbon:compute"
 	PermRecommendRead  Permission = "recommendation:read"
-	PermRecommendApply Permission = "recommendation:apply"
+	PermRecommendApply Permission = "recommendation:apply" // approve, apply and dismiss
 	PermReportRead     Permission = "report:read"
+	PermReportWrite    Permission = "report:write"
 	PermBillingRead    Permission = "billing:read"
+	PermBudgetWrite    Permission = "budget:write"
 	PermAuditRead      Permission = "audit:read"
-	PermTenantAdmin    Permission = "tenant:admin"
+	PermTenantAdmin    Permission = "tenant:admin" // members, invitations, API keys
+	PermCIEvaluate     Permission = "ci:evaluate"
 )
 
-var read = []Permission{PermProjectRead, PermCloudRead, PermUsageRead, PermCarbonRead, PermRecommendRead, PermReportRead}
-
-var matrix = map[Role]map[Permission]struct{}{
-	RoleOwner:    set(append(read, PermProjectWrite, PermCloudWrite, PermCarbonCompute, PermRecommendApply, PermBillingRead, PermAuditRead, PermTenantAdmin)...),
-	RoleAdmin:    set(append(read, PermProjectWrite, PermCloudWrite, PermCarbonCompute, PermAuditRead, PermTenantAdmin)...),
-	RoleEngineer: set(append(read, PermCarbonCompute, PermRecommendApply)...),
-	RoleViewer:   set(read...),
-	RoleBilling:  set(PermUsageRead, PermCarbonRead, PermReportRead, PermBillingRead),
-}
-
-func set(p ...Permission) map[Permission]struct{} {
-	m := make(map[Permission]struct{}, len(p))
-	for _, x := range p {
-		m[x] = struct{}{}
+func perms(groups ...[]Permission) map[Permission]struct{} {
+	m := map[Permission]struct{}{}
+	for _, g := range groups {
+		for _, p := range g {
+			m[p] = struct{}{}
+		}
 	}
 	return m
+}
+
+var (
+	read   = []Permission{PermProjectRead, PermCloudRead, PermUsageRead, PermCarbonRead, PermRecommendRead, PermReportRead}
+	manage = []Permission{PermProjectWrite, PermCloudWrite, PermCarbonCompute, PermReportWrite, PermBillingRead, PermBudgetWrite, PermAuditRead, PermTenantAdmin, PermCIEvaluate}
+)
+
+var matrix = map[Role]map[Permission]struct{}{
+	RoleOwner:    perms(read, manage, []Permission{PermRecommendApply}),
+	RoleAdmin:    perms(read, manage), // manages people, connections, settings; does not approve infrastructure changes
+	RoleEngineer: perms(read, []Permission{PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate}),
+	RoleViewer:   perms(read),
+	RoleBilling:  perms([]Permission{PermUsageRead, PermCarbonRead, PermReportRead, PermReportWrite, PermBillingRead, PermBudgetWrite}),
+	RoleCI:       perms([]Permission{PermCIEvaluate}),
 }
 
 // Can reports whether the role grants the permission. Unknown roles grant nothing.

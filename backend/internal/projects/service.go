@@ -1,4 +1,4 @@
-// Package projects is the project domain module.
+// Package projects is the project domain module: projects, SCI functional units, policies.
 package projects
 
 import (
@@ -10,10 +10,14 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/projects/repository"
 )
 
-type Module struct{ h phttp.Handlers }
+type Module struct {
+	h   phttp.Handlers
+	Svc application.Service // used by the composition root (job fan-out, SCI denominator)
+}
 
 func New(pool *pgxpool.Pool) *Module {
-	return &Module{h: phttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: pool}}}}
+	svc := application.Service{Repo: repository.Postgres{Pool: pool}}
+	return &Module{h: phttp.Handlers{Svc: svc}, Svc: svc}
 }
 
 func (*Module) Name() string          { return "projects" }

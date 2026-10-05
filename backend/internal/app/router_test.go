@@ -18,7 +18,7 @@ func (fake) Name() string        { return "fake" }
 func (fake) Routes(r chi.Router) {}
 
 func TestRouter(t *testing.T) {
-	h := NewRouter(config.Config{RatePerSec: 1000, RateBurst: 1000}, nil2(), devVerifier(), func(context.Context) error { return nil }, users.New(), fake{})
+	h := NewRouter(config.Config{RatePerSec: 1000, RateBurst: 1000}, nil2(), devVerifier(), nil, func(context.Context) error { return nil }, users.New(), fake{})
 	get := func(path, token string) *httptest.ResponseRecorder {
 		req := httptest.NewRequestWithContext(context.Background(), "GET", path, nil)
 		if token != "" {

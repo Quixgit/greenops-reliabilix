@@ -1,38 +1,69 @@
 # Architecture overview (modular monolith)
 
 ```
-Browser -> Next.js (UI, session, /api/proxy) -> Go API (chi) -> PostgreSQL (schema per domain, RLS)
-                                                  |-> Redis (Asynq queue, rate limits)
-cmd/scheduler --cron--> Redis --> cmd/worker --> cloud APIs, Electricity Maps, S3
+Browser -> Next.js (UI, httpOnly session, /api/proxy) -> Go API (chi) -> PostgreSQL 18 (schema per domain, RLS)
+                                                          |                  ^
+                                                          +-> Redis (Asynq) -+- cmd/worker  -> AWS (STS+Cost Explorer), Electricity Maps, S3
+                                                                              +- cmd/scheduler (cron -> jobs)
 ```
-One repository, one Go module, three processes (`api`, `worker`, `scheduler`). Each business domain is a package
-`internal/<domain>/{domain,application,repository,http}` + `service.go` exposing a `Module`
-(`Routes(chi.Router)`, optionally `RegisterJobs(*asynq.ServeMux)`). Extraction rules: ADR-0005.
 
-## Boundaries (enforced)
-- `domain/` imports no HTTP, SQL, queue or cloud SDK (golangci depguard).
-- A domain never imports another domain's `domain|application|repository|http|providers` (depguard).
-- Tenant id always comes from the verified token, never from request input; every tenant query runs inside `database.WithTenantTx` (sets `app.tenant_id` for RLS).
-- `dashboard` is the one deliberate exception: a read-only composition over usage/carbon/audit tables (ADR-0009).
+One repository, one Go module, three long-running processes (`api`, `worker`, `scheduler`) and an `admin` CLI.
 
-## Overview screen: widget -> data source
-| Widget | Endpoint | Source |
-|---|---|---|
-| Stat cards (CO2e, cost, intensity, SCI) + deltas | `GET /carbon/summary`, `GET /finops/summary` | `carbon.calculations`, `usage.usage_records` (current vs previous window of equal length) |
-| Cost vs Carbon | `GET /dashboard/trend` | both tables joined per day |
-| Carbon by provider | `GET /dashboard/providers` | `carbon.calculations.provider` (only providers with data) |
-| Details by service | `GET /dashboard/services?category=` | usage (cost) + calculations (CO2e, daily sparkline); `service_category` follows FOCUS |
-| Carbon intensity by region | `GET /dashboard/regions` | `carbon.grid_intensity` (hourly Electricity Maps job), 24h change |
-| Recent activity | `GET /dashboard/activity` | `audit.audit_logs`, allowlisted user-facing actions only |
-| Connected accounts | `GET /cloud-accounts` | `cloudaccounts.connections` |
-| Top recommendations | none (phase 2) | honest empty state; `RecommendationCard` is built but unused |
+## The Phase 1 pipeline (all jobs carry tenant_id; every step is idempotent)
 
-Editable copy (promo texts, empty-state messages, tagline) lives in `frontend/content/overview.json`, validated by `content/schema.ts`.
-SCI is carbon per functional unit, so a **falling** SCI is the green direction.
+```
+scheduler: cloudaccounts:sync_all (6h) ---> one cloudaccounts:sync_aws_account per connection
+   sync_aws_account:  STS AssumeRole(ExternalId) -> Cost Explorer (daily, SERVICE x REGION) -> raw payload archived to S3
+                      -> ingestion normalizes to FOCUS -> usage.usage_records (upsert) -> connection.synced_through
+        -> carbon:calculate (touched days):  usage_based or cost_based energy x grid intensity -> carbon.calculations,
+                                             SCI where functional units are reported
+              -> recommendations:calculate:  region_shift into allowed regions only -> recommendations (open)
+scheduler also: ensure_partitions (daily), refresh_grid_intensity (hourly), carbon:recalculate_all (daily, last 35 days),
+                recommendations:calculate_all (daily)
+```
 
-## Phase 1 deviations from the written spec (and why)
-- Added `tenant_id` to `cloudaccounts.connections`, `carbon.calculations`, `recommendations.recommendations` (each table carries its own RLS policy).
-- Added FOCUS-aligned `service_name`/`service_category` to usage, and denormalized `provider/region/service_*` to calculations.
-- Added the read-only `dashboard` module and `GET /dashboard/*`.
-- `finops/summary` requires `usage:read` (not `billing:read`) so viewers/engineers see the cost card; billing-specific data stays behind `billing:read`.
-- `CloudProvider.GetUsage` returns provider-specific `RawUsage`; the ingestion domain normalizes it into `UsageRecord` (keeps cloudaccounts independent of ingestion).
+A failed sync is retried; "access denied" marks the connection `error` with a safe message and is not retried.
+Re-running any step replaces rows keyed by natural keys, so redelivery never duplicates data.
+
+## Modules (internal/)
+
+| Module | Owns |
+|---|---|
+| `tenants` | organizations, memberships, invitations, API keys, onboarding, audit-log view, identity resolution |
+| `users` | `GET /me` |
+| `projects` | projects, SCI functional units, policies (data-residency allow-list, CI thresholds) |
+| `cloudaccounts` | connections, ExternalId, verify, sync runs; AWS provider (Azure/GCP: phase 2) |
+| `ingestion` | raw -> FOCUS normalizers (AWS Cost Explorer now), raw archive, validation |
+| `usage` | FOCUS usage storage (partitioned, idempotent upsert), listing, daily aggregates |
+| `carbon` | versioned methodology use, energy/CO2e engine, SCI, grid intensity (Electricity Maps), CI gate |
+| `finops` | spend summary, budgets with state, anomalies |
+| `recommendations` | region_shift generator, workflow open -> approved -> applied, compliance re-check |
+| `reports` | carbon / SCI / cost reports as CSV, JSON, PDF in object storage |
+| `dashboard` | read models of the Overview screen (ADR-0012) |
+| `kubernetes`, `automation` | phase 2 / phase 3: layers in place, no logic (Plan.CanExecute already refuses without approval and rollback) |
+| `platform/*` | config, http hardening, auth, RBAC, database (tenant tx), queue, observability, storage, audit, focus, methodology |
+| `app` | composition root: builds modules, wires ports, builds the router |
+
+Rules (enforced): domains never import each other; `domain/` has no HTTP/SQL/queue/SDK imports; every tenant query runs in
+`database.WithTenantTx`; the tenant comes from the verified identity; every calculation stores `methodology_version`.
+
+## Roles
+
+| Role | Can |
+|---|---|
+| owner | everything, including approving recommendations |
+| admin | people, connections, projects, settings, budgets, audit; **not** approving infrastructure changes |
+| engineer | read all, compute carbon, approve/apply/dismiss recommendations, reports, CI gate |
+| viewer | read |
+| billing | usage, carbon, cost, budgets, reports |
+| ci (API keys only) | `POST /ci/evaluate` and nothing else |
+
+## Honest limitations (Phase 1)
+
+- AWS is the only connector and uses Cost Explorer, which has no resource or usage granularity: carbon is **cost_based**
+  (low confidence) until the CUR/FOCUS export path lands. The coefficient set is **provisional** (`GET /carbon/methodology`).
+- Cost-based estimates need USD; other currencies are skipped (FX normalization is phase 2). Global services have no grid and are skipped.
+- Cost impact of region_shift is `null` (not estimated) unless `finops.region_price_index` is populated.
+- Only region_shift is generated; rightsizing, time_shift and spot need utilization or forecast data and are not implemented.
+- Invitations return a token; there is no email delivery. Azure, GCP, Kepler, WattTime, Stripe, Terraform automation and white-label are later phases.
+- The Auth0 integration and the AWS provider are tested against fakes and a fake S3, not against live services.

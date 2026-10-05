@@ -1,12 +1,15 @@
 # Security model (baseline: OWASP ASVS 5.0)
 
-- **AuthN**: Auth0 (OIDC, MFA there). The API verifies RS256 JWTs itself: JWKS cache with rotation handling, `iss`, `aud`, `exp`, `nbf`; `none`/HS256 rejected. Outside `ENV=dev` the dev verifier cannot be constructed.
-- **Browser never holds tokens**: the Next.js session cookie is httpOnly; calls go browser -> `/api/proxy/*` -> API with the access token attached server-side. Only GET/POST under `/api/v1` are reachable.
-- **AuthZ**: RBAC (owner/admin/engineer/viewer/billing) enforced per route (`auth.Require`), server-side. UI role checks are hints only.
-- **Tenant isolation**: token tenant -> repository argument -> `app.tenant_id` -> PostgreSQL RLS (`FORCE ROW LEVEL SECURITY` on every tenant table; integration test fails if one is missing). Missing context returns zero rows (fail closed).
-- **DB roles**: `greenops_api` / `greenops_worker` own nothing and have no BYPASSRLS; audit is INSERT/SELECT only. Worker fan-out uses one narrow SECURITY DEFINER function owned by a NOLOGIN BYPASSRLS role.
-- **HTTP**: timeouts, 1 MiB body cap, strict JSON, RFC 9457 errors without internals, security headers, per-IP rate limit, exact-match CORS, request ids, no header/body logging.
-- **Secrets**: never in DB/repo/frontend. Cloud access by IAM role + External ID (Azure/GCP workload identity); `credential_ref` is a reference and secret-looking values are rejected.
-- **Audit**: written in the same transaction as the change; Recent Activity shows an allowlist only.
-- **Automation**: `Plan.CanExecute` refuses without human approval and rollback plan.
-- **TODO before production**: CSP nonces (currently `unsafe-inline` for Next bootstrap), Redis-backed rate limits for multi-replica, SBOM/image signing, live Auth0 end-to-end test, pen test.
+- **AuthN**: Auth0 (OIDC, MFA there). The API verifies RS256 JWTs itself: cached JWKS with rotation handling, `iss`, `aud`, `exp`, `nbf`; `none`/HS256 rejected. The dev verifier exists only when `ENV=dev`. Machine access: API keys (`grk_`), stored as SHA-256 only, shown once, revocable, role `ci` (may call only `/ci/evaluate`).
+- **Tenancy and roles from the database, not the token**: membership is resolved through a SECURITY DEFINER lookup; removing a member or changing a role applies immediately. Self-service onboarding and invitation acceptance are the only routes that run without a tenant; an invitation is one-time, expires in 7 days and is bound to a verified email address.
+- **AuthZ**: RBAC per route (`auth.Require(permission)`), server-side only. Last-owner protection and "only owners touch owners" are domain rules with tests. Machines can never approve recommendations.
+- **Tenant isolation**: tenant from the verified identity -> repository argument -> `app.tenant_id` -> PostgreSQL RLS (`FORCE ROW LEVEL SECURITY` on every tenant table, enforced by an integration test). Missing context returns zero rows. Object keys are tenant-prefixed and built by `storage.Key` (path traversal rejected).
+- **DB roles**: `greenops_api` (reads usage/carbon, never writes them) and `greenops_worker` own nothing and have no BYPASSRLS; audit is INSERT/SELECT only. Cross-tenant needs (membership lookup, API-key lookup, job fan-out) are a handful of `SECURITY DEFINER` functions owned by a NOLOGIN BYPASSRLS role; EXECUTE is granted per role and tested.
+- **HTTP**: timeouts, 1 MiB body cap, strict JSON decoding, RFC 9457 errors without internals, security headers, per-IP rate limit (in-process; move to Redis for several replicas), exact-match CORS, request ids, no header/body logging.
+- **Cloud access**: customer-created read-only IAM role + per-connection ExternalId (confused-deputy protection); `credential_ref` is a reference and key-like values are rejected. The platform stores no customer secrets.
+- **Reports/exports**: files in S3-compatible storage under `tenants/{id}/`; downloads are tenant-checked through RLS; CSV neutralizes formula injection.
+- **Audit**: written in the same transaction as the change (login-adjacent events, onboarding, invitations, role changes, removals, API keys, cloud connections and syncs, recommendation decisions, reports, budgets, policy changes). `GET /audit-log` for owners/admins; the Overview shows an allow-list of user-facing actions only.
+- **Automation**: nothing changes infrastructure without explicit human approval; `Plan.CanExecute` also demands a rollback plan.
+- **Supply chain / CI**: govulncheck, golangci-lint (gosec + module-isolation rules), gitleaks, trivy, semgrep, distroless nonroot images, read-only containers with dropped capabilities.
+- **Observability**: request ids, structured logs without PII payloads, Prometheus business metrics, optional OTLP traces, Sentry (no PII by default).
+- **TODO before production**: CSP nonces for the frontend (currently `unsafe-inline` for Next bootstrap), Redis-backed rate limits for multiple API replicas, mTLS or network policy between processes, SBOM + image signing, live Auth0/AWS end-to-end checks, pen test.

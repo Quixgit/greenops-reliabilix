@@ -1,4 +1,4 @@
-// Command worker processes Asynq background jobs (sync, calculations, reports).
+// Command worker processes Asynq background jobs: sync, normalization, carbon, recommendations, reports.
 package main
 
 import (
@@ -10,10 +10,7 @@ import (
 
 	"github.com/hibiken/asynq"
 
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
-	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/app"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
@@ -31,6 +28,13 @@ func main() {
 		log.Error("config", "err", err)
 		os.Exit(1)
 	}
+	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
+	if err != nil {
+		log.Error("sentry", "err", err)
+		os.Exit(1)
+	}
+	defer flushSentry()
+
 	pool, err := database.Connect(ctx, cfg.DatabaseURL) // DSN uses the greenops_worker role
 	if err != nil {
 		log.Error("database", "err", err)
@@ -38,16 +42,17 @@ func main() {
 	}
 	defer pool.Close()
 
-	var grid domain.CarbonDataProvider
-	switch {
-	case cfg.ElectricityMapsKey != "":
-		grid = electricitymaps.New(cfg.ElectricityMapsKey)
-	case cfg.IsDev():
-		grid = electricitymaps.Static{GPerKWh: 400}
+	q := queue.NewClient(cfg.RedisAddr)
+	defer func() { _ = q.Close() }()
+
+	c, err := app.Build(ctx, cfg, log, pool, q)
+	if err != nil {
+		log.Error("wiring", "err", err)
+		os.Exit(1)
 	}
 
 	mux := asynq.NewServeMux()
-	for _, m := range []queue.JobRegistrar{cloudaccounts.New(pool, log), carbon.New(pool, grid, log)} {
+	for _, m := range c.JobRegistrars() {
 		m.RegisterJobs(mux)
 	}
 	mux.HandleFunc(queue.TaskEnsurePartitions, func(ctx context.Context, _ *asynq.Task) error {
@@ -60,7 +65,10 @@ func main() {
 		}
 	}()
 
-	srv := queue.NewServer(cfg.RedisAddr, config.Int("WORKER_CONCURRENCY", 10))
+	srv := queue.NewServer(cfg.RedisAddr, config.Int("WORKER_CONCURRENCY", 10), func(_ context.Context, taskType string, err error) {
+		log.Error("job failed", "task", taskType, "err", err)
+		observability.CaptureError(err)
+	})
 	go func() { <-ctx.Done(); srv.Shutdown() }()
 	if err := srv.Run(mux); err != nil {
 		log.Error("worker", "err", err)

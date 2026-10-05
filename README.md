@@ -22,7 +22,8 @@ The dev tenant starts **empty**: every Overview widget shows its honest empty st
 (clearly labelled demo rows in the *database*; the frontend contains no mock data):
 
 ```bash
-make seed-demo      # needs psql; one AWS account, 60 days of usage/carbon, grid intensity, audit events
+make seed-demo      # needs psql: one AWS account, 60 days of FOCUS usage, grid intensity, audit events
+make recalc         # runs the real carbon engine + recommendations on it (no Redis needed)
 ```
 
 ### Without Docker
@@ -38,16 +39,17 @@ Set `AUTH0_*` (see `frontend/.env.example`), `ENV=prod`, and an Auth0 Action tha
 With `ENV!=dev` the API only accepts RS256 tokens verified against your Auth0 JWKS (iss/aud/exp/nbf).
 
 ## Quality gates
-`make test` · `make test-integration` (real PostgreSQL: RLS on every tenant table, tenant isolation,
-least-privilege roles, dashboard queries) · `make lint` (gosec + module-boundary rules) · `make vuln` · `make web-test`.
+`make test` (unit, incl. OpenAPI <-> routes parity) | `make test-integration` (real PostgreSQL + Redis: RLS on every tenant table, role privileges, the end-to-end pipeline through the real HTTP router, real Asynq) | `make lint` (gosec + module-isolation rules) | `make vuln` | `make web-test` | `make sqlc` / `make api-types` regenerate code (CI fails on drift).
 
-## Status (honest)
+## Backend status (honest)
 | Area | State |
 |---|---|
-| Platform (config, http hardening, Auth0 JWKS verifier, RBAC, RLS tx helper, Asynq, OTel/Prometheus, storage iface, audit) | done, tested |
-| Schemas, RLS, roles, partitioning | done, verified on PostgreSQL 16 |
-| projects, cloudaccounts (list/create), usage, carbon (calc/summary/trend/SCI), finops summary, dashboard read models, audit-log | done |
-| Grid intensity (Electricity Maps) hourly job -> `carbon.grid_intensity` | done (needs API key; dev uses a static provider) |
-| **AWS connector / sync / normalization -> usage & carbon rows** | **not implemented**: the pipeline that fills the tables is the next Phase 1 task; until then data comes only from `make seed-demo`. Connecting a real AWS account currently fails with "could not verify cloud access". |
-| recommendations, reports, kubernetes, automation | Phase 2/3: empty modules; UI shows empty states |
-| Frontend: Overview + all routes | done; Auth0 login code written but **not exercised against a live Auth0 tenant** |
+| Auth0 JWKS verifier, DB-resolved tenancy/roles, onboarding, invitations, API keys, RBAC, audit log | done, tested (Auth0 itself not exercised live) |
+| Schema (FOCUS usage, partitions, RLS, least-privilege roles) | done, verified on PostgreSQL 16 |
+| AWS connector: ExternalId flow, verify, STS AssumeRole + Cost Explorer sync, incremental windows, access-denied handling | done, tested with fakes (not against live AWS) |
+| Ingestion -> FOCUS, usage, carbon engine (usage/cost based), SCI, grid intensity job, methodology versioning | done |
+| Recommendations: region_shift, approval workflow, compliance re-check | done |
+| Reports CSV/JSON/PDF to S3-compatible storage; finops summary, budgets, anomalies; CI gate; dashboard read models | done |
+| OpenAPI (46 paths) + generated TS types, route parity test | done |
+| Azure, GCP, Kubernetes (Kepler), WattTime, rightsizing/time-shift/spot, Terraform automation, Stripe, email delivery | later phases |
+| Frontend | Overview + routes exist; screens for recommendations, reports, members, API keys are not built yet |

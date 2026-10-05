@@ -46,7 +46,7 @@ type Activity struct {
 // Security-sensitive or system actions (role changes, credential changes...) never appear here.
 var UserFacingActions = []string{
 	"project.created", "cloud_connection.created", "cloud_sync.completed",
-	"report.generated", "recommendation.created", "recommendation.applied",
+	"report.generated", "recommendation.created", "recommendation.approved", "recommendation.applied",
 }
 
 type Filter struct {

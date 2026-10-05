@@ -42,12 +42,12 @@ func TestOIDCVerifier(t *testing.T) {
 	v.JWKSURL = jwks.URL
 	good := func() map[string]any {
 		return map[string]any{"iss": v.Issuer, "aud": "https://api.reliabilix.com", "sub": "auth0|1",
-			"exp": time.Now().Add(time.Hour).Unix(), v.ClaimNS + "tenant_id": "t1", v.ClaimNS + "role": "admin"}
+			"exp": time.Now().Add(time.Hour).Unix(), v.ClaimNS + "email": "a@b.co", v.ClaimNS + "email_verified": true}
 	}
 	ctx := context.Background()
 
 	c, err := v.Verify(ctx, sign(t, key, "RS256", good()))
-	if err != nil || c.TenantID != "t1" || c.Role != RoleAdmin {
+	if err != nil || c.Subject != "auth0|1" || c.Email != "a@b.co" || !c.EmailVerified || c.TenantID != "" {
 		t.Fatalf("valid token rejected: %v %+v", err, c)
 	}
 	mut := func(f func(m map[string]any)) string { m := good(); f(m); return sign(t, key, "RS256", m) }
@@ -55,7 +55,7 @@ func TestOIDCVerifier(t *testing.T) {
 		"expired":   mut(func(m map[string]any) { m["exp"] = time.Now().Add(-time.Hour).Unix() }),
 		"wrong iss": mut(func(m map[string]any) { m["iss"] = "https://evil/" }),
 		"wrong aud": mut(func(m map[string]any) { m["aud"] = "other" }),
-		"no tenant": mut(func(m map[string]any) { delete(m, v.ClaimNS+"tenant_id") }),
+		"no sub":    mut(func(m map[string]any) { delete(m, "sub") }),
 		"hs256":     sign(t, key, "HS256", good()),
 	}
 	other, _ := rsa.GenerateKey(rand.Reader, 2048)

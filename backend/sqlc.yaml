@@ -1,0 +1,201 @@
+# Generated code lives in internal/<domain>/repository/db. Regenerate with: make sqlc
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: internal/tenants/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/tenants/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/projects/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/projects/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/cloudaccounts/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/cloudaccounts/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/usage/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/usage/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/carbon/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/carbon/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/finops/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/finops/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/recommendations/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/recommendations/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/reports/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/reports/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
+    queries: internal/dashboard/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/dashboard/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}

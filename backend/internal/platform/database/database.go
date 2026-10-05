@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -49,3 +50,12 @@ func WithTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID string, fn f
 	}
 	return tx.Commit(ctx)
 }
+
+// IsUniqueViolation reports a PostgreSQL unique-constraint violation (SQLSTATE 23505).
+func IsUniqueViolation(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.Code == "23505"
+}
+
+// IsNotFound reports pgx.ErrNoRows.
+func IsNotFound(err error) bool { return errors.Is(err, pgx.ErrNoRows) }

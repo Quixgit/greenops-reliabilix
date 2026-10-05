@@ -31,7 +31,7 @@ function StatCard({ icon: Icon, tone, label, value, unit, delta, loading, emptyT
       ) : (
         <>
           <p className="mt-3 flex items-baseline gap-1.5 whitespace-nowrap text-3xl font-bold tracking-tight">{value}{unit && <span className="text-xs font-medium text-muted">{unit}</span>}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">{delta}<span>{compare}</span></div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">{delta}<span>{delta ? compare : "Not enough history to compare yet"}</span></div>
         </>
       )}
     </Card>
@@ -55,17 +55,18 @@ export function StatCards() {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard icon={Leaf} tone="green" label="Total CO₂e" loading={carbon.isLoading || conns.isLoading}
         value={hasCarbon ? formatCarbon(c!.carbon_kg_co2e) : null} emptyText={emptyText} compare={compare}
-        delta={c && <DeltaBadge pct={pctChange(c.carbon_kg_co2e, c.previous.carbon_kg_co2e)} />} />
+        delta={c?.comparable ? <DeltaBadge pct={pctChange(c.carbon_kg_co2e, c.previous.carbon_kg_co2e)} /> : null} />
       <StatCard icon={Wallet} tone="blue" label="Total Cloud Cost" loading={cost.isLoading || conns.isLoading}
         value={f?.has_data ? formatCost(f.total_cost, f.currency || "USD") : null} emptyText={emptyText} compare={compare}
-        delta={f && <DeltaBadge pct={pctChange(f.total_cost, f.previous_total_cost)} />} />
+        delta={f?.previous_comparable ? <DeltaBadge pct={pctChange(f.total_cost, f.previous_total_cost)} /> : null} />
       <StatCard icon={Zap} tone="green" label="Carbon Intensity" loading={carbon.isLoading || conns.isLoading}
         value={hasCarbon && c!.carbon_intensity_g_per_kwh > 0 ? nf(0).format(c!.carbon_intensity_g_per_kwh) : null} unit="gCO₂e/kWh" emptyText={emptyText} compare={compare}
-        delta={c && <DeltaBadge pct={pctChange(c.carbon_intensity_g_per_kwh, c.previous.carbon_intensity_g_per_kwh)} />} />
+        delta={c?.comparable ? <DeltaBadge pct={pctChange(c.carbon_intensity_g_per_kwh, c.previous.carbon_intensity_g_per_kwh)} /> : null} />
       {/* SCI = carbon per functional unit: lower is better, so a falling score is the green direction. */}
       <StatCard icon={Gauge} tone="blue" label="SCI Score" loading={carbon.isLoading || conns.isLoading}
-        value={hasCarbon && c!.sci_score > 0 ? nf(1).format(c!.sci_score) : null} unit="gCO₂e/unit" emptyText={emptyText} compare={compare}
-        delta={c && <DeltaBadge pct={pctChange(c.sci_score, c.previous.sci_score)} better="lower" />} />
+        value={hasCarbon && c!.sci_score !== null ? nf(1).format(c!.sci_score) : null} unit="gCO₂e/unit"
+        emptyText={hasCarbon ? "Report functional units to see SCI" : emptyText} compare={compare}
+        delta={c?.comparable && c.sci_score !== null && c.previous.sci_score !== null ? <DeltaBadge pct={pctChange(c.sci_score, c.previous.sci_score)} better="lower" /> : null} />
     </div>
   );
 }

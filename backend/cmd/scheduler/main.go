@@ -26,9 +26,11 @@ func main() {
 
 	s := asynq.NewScheduler(asynq.RedisClientOpt{Addr: cfg.RedisAddr}, nil)
 	for spec, task := range map[string]string{
-		"0 */6 * * *": queue.TaskSyncAll,          // fan-out: one sync job per healthy connection
+		"0 */6 * * *": queue.TaskSyncAll,          // fan-out: one sync job per connection (sync -> carbon -> recommendations chain)
 		"0 2 * * *":   queue.TaskEnsurePartitions, // monthly partitions ahead of time
 		"5 * * * *":   queue.TaskRefreshGrid,      // hourly grid intensity (Electricity Maps)
+		"30 3 * * *":  queue.TaskRecalculateAll,   // last 35 days: picks up newly reported functional units (SCI)
+		"30 4 * * *":  queue.TaskRecommendAll,     // re-evaluate after policy or grid changes
 	} {
 		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}"))); err != nil {
 			log.Error("register", "task", task, "err", err)

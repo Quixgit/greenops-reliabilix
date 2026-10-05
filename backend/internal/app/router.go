@@ -15,7 +15,7 @@ import (
 )
 
 // NewRouter builds the API. ready reports dependency health for /readyz.
-func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, ready func(context.Context) error, modules ...httpx.Module) http.Handler {
+func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, res auth.Resolver, ready func(context.Context) error, modules ...httpx.Module) http.Handler {
 	r := chi.NewRouter()
 	r.Use(
 		httpx.WithRequestID(),
@@ -37,10 +37,22 @@ func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, ready func(
 		w.WriteHeader(http.StatusOK)
 	})
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Use(auth.Authenticate(v))
-		for _, m := range modules {
-			m.Routes(r)
-		}
+		// Identity-only routes: a valid token is enough (onboarding, accepting an invitation).
+		r.Group(func(r chi.Router) {
+			r.Use(auth.AuthenticateIdentity(v))
+			for _, m := range modules {
+				if im, ok := m.(httpx.IdentityModule); ok {
+					im.IdentityRoutes(r)
+				}
+			}
+		})
+		// Everything else requires a tenant membership (resolved from the database) or an API key.
+		r.Group(func(r chi.Router) {
+			r.Use(auth.Authenticate(v, res))
+			for _, m := range modules {
+				m.Routes(r)
+			}
+		})
 	})
 	return r
 }

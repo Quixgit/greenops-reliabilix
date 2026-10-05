@@ -16,8 +16,9 @@ import (
 )
 
 type memRepo struct {
-	mu sync.Mutex
-	m  map[string][]domain.Project
+	domain.Repository // unimplemented methods panic: the test only exercises list/create/get
+	mu                sync.Mutex
+	m                 map[string][]domain.Project
 }
 
 func (r *memRepo) List(_ context.Context, t string) ([]domain.Project, error) {
@@ -38,15 +39,30 @@ func (r *memRepo) Create(_ context.Context, p domain.Project) (domain.Project, e
 	return p, nil
 }
 
+func (r *memRepo) Get(_ context.Context, t, id string) (domain.Project, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, p := range r.m[t] {
+		if p.ID == id {
+			return p, nil
+		}
+	}
+	return domain.Project{}, domain.ErrNotFound
+}
+
 func srv() http.Handler {
 	r := chi.NewRouter()
-	r.Use(auth.Authenticate(auth.DevVerifier{}))
+	r.Use(auth.Authenticate(auth.DevVerifier{}, nil))
 	Handlers{Svc: application.Service{Repo: &memRepo{m: map[string][]domain.Project{}}}}.Routes(r)
 	return r
 }
 
 func do(h http.Handler, method, token, body string) *httptest.ResponseRecorder {
-	req := httptest.NewRequestWithContext(context.Background(), method, "/projects", strings.NewReader(body))
+	return doPath(h, method, "/projects", token, body)
+}
+
+func doPath(h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader(body))
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -74,5 +90,13 @@ func TestTenantIsolationAndRBAC(t *testing.T) {
 	}
 	if c := do(h, "POST", "dev:u1:A:admin", `{"name":"api","functional_unit":"request"}`).Code; c != 409 {
 		t.Fatalf("duplicate = %d, want 409", c)
+	}
+	// Cross-tenant read by id is a 404, never the other tenant's project.
+	id := "id-api"
+	if c := doPath(h, "GET", "/projects/"+id, "dev:u3:B:admin", "").Code; c != 404 && c != 400 {
+		t.Fatalf("cross-tenant get = %d, want 404", c)
+	}
+	if c := doPath(h, "GET", "/projects/not-a-uuid", "dev:u1:A:admin", "").Code; c != 404 {
+		t.Fatalf("malformed id = %d, want 404", c)
 	}
 }

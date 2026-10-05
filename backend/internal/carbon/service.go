@@ -1,4 +1,4 @@
-// Package carbon is the carbon accounting domain module (energy, CO2e, SCI).
+// Package carbon is the carbon accounting domain module: energy, CO2e, SCI, grid intensity and the CI gate.
 package carbon
 
 import (
@@ -16,18 +16,27 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
 
-type Module struct {
-	h        chttp.Handlers
-	repo     repository.Postgres
-	provider domain.CarbonDataProvider
-	log      *slog.Logger
+// Deps are supplied by the composition root. Provider may be nil: live lookups then fail closed.
+type Deps struct {
+	Pool     *pgxpool.Pool
+	Log      *slog.Logger
+	Queue    queue.Enqueuer
+	Provider domain.CarbonDataProvider
+	Usage    application.UsageSource
+	Units    application.UnitsSource
+	Policies application.PolicySource
+	Projects application.ProjectLister
 }
 
-// New wires the module. provider may be nil: /carbon/calculate then fails closed.
-func New(pool *pgxpool.Pool, provider domain.CarbonDataProvider, log *slog.Logger) *Module {
-	repo := repository.Postgres{Pool: pool}
-	svc := &application.Service{Provider: provider}
-	return &Module{h: chttp.Handlers{Svc: svc, Repo: repo}, repo: repo, provider: provider, log: log}
+type Module struct {
+	h   chttp.Handlers
+	Svc *application.Service
+}
+
+func New(d Deps) *Module {
+	svc := &application.Service{Store: repository.Postgres{Pool: d.Pool}, Usage: d.Usage, Units: d.Units, Policies: d.Policies,
+		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log}
+	return &Module{h: chttp.Handlers{Svc: svc}, Svc: svc}
 }
 
 func (*Module) Name() string          { return "carbon" }
@@ -35,29 +44,16 @@ func (m *Module) Routes(r chi.Router) { m.h.Routes(r) }
 
 // RegisterJobs implements queue.JobRegistrar.
 func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
-	mux.HandleFunc(queue.TaskRefreshGrid, m.refreshGrid)
-}
-
-// refreshGrid persists the latest grid intensity of every supported region, so
-// dashboards read local data and never call the provider per request.
-func (m *Module) refreshGrid(ctx context.Context, _ *asynq.Task) error {
-	lister, ok := m.provider.(domain.RegionLister)
-	if !ok {
-		m.log.Warn("grid refresh skipped: no provider configured")
-		return nil
-	}
-	var firstErr error
-	for _, region := range lister.Regions() {
-		in, err := m.provider.GetIntensity(ctx, region)
-		if err == nil {
-			err = m.repo.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false)
-		}
+	mux.HandleFunc(queue.TaskCalculateCarbon, func(ctx context.Context, t *asynq.Task) error {
+		p, err := queue.DecodeAs[queue.WindowPayload](t)
 		if err != nil {
-			m.log.Error("grid refresh", "region", region, "err", err)
-			if firstErr == nil {
-				firstErr = err
-			}
+			return err
 		}
-	}
-	return firstErr
+		return m.Svc.RunWindowJob(ctx, p)
+	})
+	mux.HandleFunc(queue.TaskRecalculateAll, func(ctx context.Context, _ *asynq.Task) error {
+		_, err := m.Svc.RecalculateAll(ctx)
+		return err
+	})
+	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
 }

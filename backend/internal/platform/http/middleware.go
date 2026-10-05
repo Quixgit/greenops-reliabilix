@@ -47,12 +47,18 @@ func WithRequestID() Middleware {
 	}
 }
 
+// PanicHook, when set, is called with every recovered panic (wired to Sentry by the binaries).
+var PanicHook func(v any)
+
 // Recover turns panics into 500 problem responses.
 func Recover(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if rec := recover(); rec != nil {
+					if PanicHook != nil {
+						PanicHook(rec)
+					}
 					log.Error("panic", "panic", rec, "stack", string(debug.Stack()), "request_id", RequestID(r.Context()))
 					WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
 				}
