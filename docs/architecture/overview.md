@@ -1,36 +1,38 @@
-# Architecture overview
+# Architecture overview (modular monolith)
 
 ```
-Browser -> Next.js -> Gateway -> { tenant, project, cloudintegration, ingestion, carbon }
-                                      |  gRPC (sync, internal)   |  NATS JetStream (async events)
-                                      v                          v
-                                 PostgreSQL (db per service)   S3 (raw billing, reports)   Redis (cache, limits)
+Browser -> Next.js (UI, session, /api/proxy) -> Go API (chi) -> PostgreSQL (schema per domain, RLS)
+                                                  |-> Redis (Asynq queue, rate limits)
+cmd/scheduler --cron--> Redis --> cmd/worker --> cloud APIs, Electricity Maps, S3
 ```
+One repository, one Go module, three processes (`api`, `worker`, `scheduler`). Each business domain is a package
+`internal/<domain>/{domain,application,repository,http}` + `service.go` exposing a `Module`
+(`Routes(chi.Router)`, optionally `RegisterJobs(*asynq.ServeMux)`). Extraction rules: ADR-0005.
 
-Data flow: `cloud.sync_completed -> ingestion -> usage.normalized -> carbon -> carbon.calculated -> recommendation/reporting`.
+## Boundaries (enforced)
+- `domain/` imports no HTTP, SQL, queue or cloud SDK (golangci depguard).
+- A domain never imports another domain's `domain|application|repository|http|providers` (depguard).
+- Tenant id always comes from the verified token, never from request input; every tenant query runs inside `database.WithTenantTx` (sets `app.tenant_id` for RLS).
+- `dashboard` is the one deliberate exception: a read-only composition over usage/carbon/audit tables (ADR-0009).
 
-## Services
-
-MVP (scaffolded): gateway, tenant, project, cloudintegration, ingestion, carbon.
-Next: finops, recommendation (OPEN -> APPROVED -> APPLIED, human approval), reporting (PDF/CSV to S3), automation (policy + approval + rollback).
-
-## Rules
-
-1. A service owns its database; no cross-service SQL. Sync calls via gRPC, state changes via events.
-2. Services never import each other (Go `internal/` + CI lint). Shared code lives only in `pkg/` and must stay domain-neutral.
-3. `domain/` is pure: no HTTP, SQL, SDK or NATS imports (depguard).
-4. Every tenant-scoped table has `tenant_id` + RLS; every query runs through `pkg/db.WithTenantTx`.
-5. Tenant id comes from the verified token, never from request input.
-6. Every calculation stores `methodology_version`.
-7. Providers (cloud, grid carbon, k8s energy) are plugins behind interfaces.
-
-## Changes vs. the original proposal
-
-| Original | Here | Why |
+## Overview screen: widget -> data source
+| Widget | Endpoint | Source |
 |---|---|---|
-| Chi router | stdlib `net/http` ServeMux | Go 1.22+ supports method/path patterns; no dependency needed, one less supply-chain surface |
-| Separate Identity service | IdP (Zitadel/Keycloak/Auth0) + tenant service for memberships | Do not own passwords/MFA/OAuth; services only verify tokens |
-| Gateway trusted by services | Services re-verify the token (zero trust) | A bypassed gateway must not bypass authz |
-| Redis Streams / Asynq for events | NATS JetStream (Redis only for cache/limits) | One bus; durable, replayable, per-consumer ack |
-| Repo with go.mod per service | Single Go module, many binaries | Simpler tooling at 6-10 services; split later if teams need it |
-| 10 services at once | 6 MVP services | Avoid a distributed monolith before the domain is proven |
+| Stat cards (CO2e, cost, intensity, SCI) + deltas | `GET /carbon/summary`, `GET /finops/summary` | `carbon.calculations`, `usage.usage_records` (current vs previous window of equal length) |
+| Cost vs Carbon | `GET /dashboard/trend` | both tables joined per day |
+| Carbon by provider | `GET /dashboard/providers` | `carbon.calculations.provider` (only providers with data) |
+| Details by service | `GET /dashboard/services?category=` | usage (cost) + calculations (CO2e, daily sparkline); `service_category` follows FOCUS |
+| Carbon intensity by region | `GET /dashboard/regions` | `carbon.grid_intensity` (hourly Electricity Maps job), 24h change |
+| Recent activity | `GET /dashboard/activity` | `audit.audit_logs`, allowlisted user-facing actions only |
+| Connected accounts | `GET /cloud-accounts` | `cloudaccounts.connections` |
+| Top recommendations | none (phase 2) | honest empty state; `RecommendationCard` is built but unused |
+
+Editable copy (promo texts, empty-state messages, tagline) lives in `frontend/content/overview.json`, validated by `content/schema.ts`.
+SCI is carbon per functional unit, so a **falling** SCI is the green direction.
+
+## Phase 1 deviations from the written spec (and why)
+- Added `tenant_id` to `cloudaccounts.connections`, `carbon.calculations`, `recommendations.recommendations` (each table carries its own RLS policy).
+- Added FOCUS-aligned `service_name`/`service_category` to usage, and denormalized `provider/region/service_*` to calculations.
+- Added the read-only `dashboard` module and `GET /dashboard/*`.
+- `finops/summary` requires `usage:read` (not `billing:read`) so viewers/engineers see the cost card; billing-specific data stays behind `billing:read`.
+- `CloudProvider.GetUsage` returns provider-specific `RawUsage`; the ingestion domain normalizes it into `UsageRecord` (keeps cloudaccounts independent of ingestion).

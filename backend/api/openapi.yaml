@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: Reliabilix GreenOps API
+  version: 1.0.0
+servers:
+  - url: https://api.reliabilix.green
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/me:
+    get: {operationId: getMe, summary: Current user, responses: {"200": {description: OK, content: {application/json: {schema: {$ref: "#/components/schemas/Me"}}}}, "401": {$ref: "#/components/responses/Problem"}}}
+  /api/v1/projects:
+    get:
+      operationId: listProjects
+      responses: {"200": {description: OK, content: {application/json: {schema: {type: object, properties: {items: {type: array, items: {$ref: "#/components/schemas/Project"}}}}}}}, "401": {$ref: "#/components/responses/Problem"}}
+    post:
+      operationId: createProject
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ProjectInput"}}}}
+      responses: {"201": {description: Created, content: {application/json: {schema: {$ref: "#/components/schemas/Project"}}}}, "403": {$ref: "#/components/responses/Problem"}, "409": {$ref: "#/components/responses/Problem"}, "422": {$ref: "#/components/responses/Problem"}}
+  /api/v1/cloud-accounts:
+    get: {operationId: listCloudAccounts, responses: {"200": {description: OK}}}
+    post:
+      operationId: connectCloudAccount
+      description: credential_ref is a reference (IAM role ARN / secret path). Raw secrets are rejected.
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ConnectionInput"}}}}
+      responses: {"201": {description: Created}, "422": {$ref: "#/components/responses/Problem"}}
+  /api/v1/usage:
+    get:
+      operationId: listUsage
+      parameters: [{$ref: "#/components/parameters/from"}, {$ref: "#/components/parameters/to"}, {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 1000, default: 100}}]
+      responses: {"200": {description: OK}}
+  /api/v1/carbon/summary:
+    get:
+      operationId: getCarbonSummary
+      parameters: [{$ref: "#/components/parameters/from"}, {$ref: "#/components/parameters/to"}]
+      responses: {"200": {description: OK, content: {application/json: {schema: {$ref: "#/components/schemas/CarbonSummary"}}}}}
+  /api/v1/carbon/trend:
+    get:
+      operationId: getCarbonTrend
+      parameters: [{$ref: "#/components/parameters/from"}, {$ref: "#/components/parameters/to"}]
+      responses: {"200": {description: OK}}
+  /api/v1/carbon/calculate:
+    post:
+      operationId: calculateCarbon
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/CalculateInput"}}}}
+      responses: {"200": {description: OK, content: {application/json: {schema: {$ref: "#/components/schemas/CalculateResult"}}}}, "422": {$ref: "#/components/responses/Problem"}}
+  /api/v1/finops/summary:
+    get:
+      operationId: getFinopsSummary
+      parameters: [{$ref: "#/components/parameters/from"}, {$ref: "#/components/parameters/to"}]
+      responses: {"200": {description: OK}}
+  # Phase 1, not implemented yet: GET /api/v1/audit-log
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  parameters:
+    from: {name: from, in: query, schema: {type: string, format: date}}
+    to: {name: to, in: query, schema: {type: string, format: date}}
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/Problem"}}}
+  schemas:
+    Problem: {type: object, required: [title, status], properties: {title: {type: string}, status: {type: integer}, detail: {type: string}, request_id: {type: string}}}
+    Me: {type: object, properties: {user_id: {type: string}, tenant_id: {type: string}, role: {type: string, enum: [owner, admin, engineer, viewer, billing]}}}
+    Project: {type: object, properties: {id: {type: string, format: uuid}, tenant_id: {type: string, format: uuid}, name: {type: string}, functional_unit: {type: string}, created_at: {type: string, format: date-time}}}
+    ProjectInput: {type: object, required: [name, functional_unit], additionalProperties: false, properties: {name: {type: string, minLength: 1, maxLength: 120}, functional_unit: {type: string, minLength: 1, maxLength: 60}}}
+    ConnectionInput: {type: object, required: [project_id, provider, account_ref, credential_ref], additionalProperties: false, properties: {project_id: {type: string, format: uuid}, provider: {type: string, enum: [aws, azure, gcp]}, account_ref: {type: string}, credential_ref: {type: string}}}
+    CalculateInput: {type: object, required: [kind, amount, region], additionalProperties: false, properties: {kind: {type: string, enum: [vcpu_hours, memory_gb_hours, storage_gb_months]}, amount: {type: number, minimum: 0}, region: {type: string}}}
+    CalculateResult: {type: object, properties: {energy_kwh: {type: number}, co2e_kg: {type: number}, methodology_version: {type: string}}}
+    CarbonSummary: {type: object, properties: {energy_kwh: {type: number}, carbon_kg_co2e: {type: number}, sci_score: {type: number}}}

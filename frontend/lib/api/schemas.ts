@@ -1,0 +1,56 @@
+import { z } from "zod";
+
+// Response contracts of the Go API (see backend/api/openapi.yaml). Parsing at the boundary means a
+// backend change shows up as a clear error here instead of a broken chart.
+const totals = z.object({
+  energy_kwh: z.number(),
+  carbon_kg_co2e: z.number(),
+  sci_score: z.number(),
+  carbon_intensity_g_per_kwh: z.number(),
+});
+
+export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals });
+export type CarbonSummary = z.infer<typeof carbonSummary>;
+
+export const finopsSummary = z.object({
+  has_data: z.boolean(),
+  total_cost: z.number(),
+  previous_total_cost: z.number(),
+  currency: z.string(),
+  by_service: z.array(z.object({ service: z.string(), cost: z.number() })),
+});
+export type FinopsSummary = z.infer<typeof finopsSummary>;
+
+const items = <T extends z.ZodTypeAny>(t: T) => z.object({ items: z.array(t) }).transform((o) => o.items);
+
+export const trend = items(z.object({ day: z.string(), cost: z.number(), carbon_kg_co2e: z.number() }));
+export type TrendPoint = z.infer<typeof trend>[number];
+
+export const providers = items(z.object({ provider: z.string(), carbon_kg_co2e: z.number(), share_pct: z.number() }));
+export type ProviderShare = z.infer<typeof providers>[number];
+
+export const services = items(z.object({
+  service: z.string(), category: z.string(), cost: z.number(), carbon_kg_co2e: z.number(), trend: z.array(z.number()),
+}));
+export type ServiceRow = z.infer<typeof services>[number];
+
+export const regions = items(z.object({
+  region: z.string(), g_per_kwh: z.number(), change_pct: z.number().nullable(), at: z.string(),
+}));
+export type RegionIntensity = z.infer<typeof regions>[number];
+
+export const activity = items(z.object({ id: z.number(), action: z.string(), target: z.string(), at: z.string() }));
+export type Activity = z.infer<typeof activity>[number];
+
+export const project = z.object({
+  id: z.string(), name: z.string(), functional_unit: z.string(), created_at: z.string(),
+});
+export const projects = items(project);
+export type Project = z.infer<typeof project>;
+
+export const connection = z.object({
+  id: z.string(), project_id: z.string(), provider: z.string(), account_ref: z.string(),
+  sync_status: z.string(), last_sync_at: z.string().nullable(),
+});
+export const connections = items(connection);
+export type Connection = z.infer<typeof connection>;
