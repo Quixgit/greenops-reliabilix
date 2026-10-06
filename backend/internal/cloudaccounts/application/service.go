@@ -23,11 +23,15 @@ type Ingestor interface {
 
 // Setup is what the customer needs to create the cross-account role.
 type Setup struct {
+	// ExternalID is the connection's ownership token: the AWS ExternalId, or the label key the customer puts on
+	// the BigQuery dataset.
 	ExternalID          string         `json:"external_id"`
 	PlatformAccountID   string         `json:"platform_account_id,omitempty"`
 	TrustPolicy         map[string]any `json:"trust_policy,omitempty"`
 	PermissionsPolicy   map[string]any `json:"permissions_policy"`
 	RequiredPermissions []string       `json:"required_permissions"`
+	// Steps are the human-readable instructions, in order (GCP: prerequisites, export, label, access).
+	Steps []string `json:"steps,omitempty"`
 }
 
 type Service struct {
@@ -40,8 +44,10 @@ type Service struct {
 	Log         *slog.Logger
 
 	PlatformAWSAccountID string
-	BackfillDays         int // first sync window, capped at 365
-	Now                  func() time.Time
+	// PlatformGCPServiceAccount is the principal GCP customers grant read access to their billing dataset.
+	PlatformGCPServiceAccount string
+	BackfillDays              int // first sync window, capped at 365
+	Now                       func() time.Time
 }
 
 // overlap re-fetches the most recent days on every sync: cloud billing is adjusted retroactively.
@@ -95,6 +101,9 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 }
 
 func (s Service) setup(c domain.Connection) Setup {
+	if c.Provider == domain.GCP {
+		return s.gcpSetup(c)
+	}
 	st := Setup{
 		ExternalID:        c.ExternalID,
 		PlatformAccountID: s.PlatformAWSAccountID,
@@ -110,6 +119,40 @@ func (s Service) setup(c domain.Connection) Setup {
 			"Condition": map[string]any{"StringEquals": map[string]any{"sts:ExternalId": c.ExternalID}},
 		}}}
 	}
+	return st
+}
+
+// gcpSetup explains how a customer connects their Cloud Billing export. Nothing here is a secret: the label key
+// is the connection's ownership token and the member is the platform's public service account email.
+func (s Service) gcpSetup(c domain.Connection) Setup {
+	t, err := domain.ParseBigQueryRef(c.CredentialRef)
+	if err != nil { // validated on creation; defensive
+		return Setup{ExternalID: c.ExternalID, RequiredPermissions: []string{}, PermissionsPolicy: map[string]any{}}
+	}
+	member := s.PlatformGCPServiceAccount
+	st := Setup{
+		ExternalID:          c.ExternalID,
+		PlatformAccountID:   member,
+		RequiredPermissions: []string{"roles/bigquery.dataViewer on the billing export dataset (read-only)"},
+		PermissionsPolicy: map[string]any{
+			"dataset":       t.Project + ":" + t.Dataset,
+			"dataset_label": map[string]string{"key": c.ExternalID, "value": "1"},
+			"dataset_iam":   map[string]string{"role": "roles/bigquery.dataViewer", "member": "serviceAccount:" + member},
+		},
+	}
+	st.Steps = []string{
+		fmt.Sprintf("Enable the BigQuery API in project %s: gcloud services enable bigquery.googleapis.com --project %s", t.Project, t.Project),
+		"Turn on Cloud Billing export to BigQuery (Billing > Billing export > BigQuery export > Standard usage cost) into the dataset " + t.Dataset +
+			". This needs the Billing Account Administrator role. Data is exported from the day you enable it (there is no history), and the first delivery can take up to 48 hours.",
+		fmt.Sprintf("Prove you control the dataset by adding this label: bq update --set_label %s:1 %s:%s", c.ExternalID, t.Project, t.Dataset),
+	}
+	if member != "" {
+		st.Steps = append(st.Steps,
+			fmt.Sprintf("Share the dataset with serviceAccount:%s as BigQuery Data Viewer (read-only); deploy/gcp/customer-access.tf does steps 3 and 4 in Terraform.", member))
+	} else {
+		st.Steps = append(st.Steps, "Contact support for the service account to share the dataset with (it is not configured on this platform yet).")
+	}
+	st.Steps = append(st.Steps, "Verify the connection. Nothing else is shared: the platform reads only the billing export table of the dataset.")
 	return st
 }
 
@@ -290,7 +333,7 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 	fail := func(cause error) error {
 		msg := safeMessage(cause)
 		_ = s.Repo.FinishRun(ctx, tenantID, runID, false, 0, &msg)
-		if errors.Is(cause, domain.ErrAccessDenied) || errors.Is(cause, domain.ErrExportNotFound) {
+		if domain.NeedsCustomerAction(cause) {
 			_ = s.Repo.SetStatus(ctx, tenantID, connectionID, domain.StatusError, &msg)
 			observability.CloudSyncTotal.WithLabelValues(label, "denied").Inc()
 		} else {
@@ -333,9 +376,13 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 func safeMessage(err error) string {
 	switch {
 	case errors.Is(err, domain.ErrAccessDenied):
-		return "Access denied: check the IAM role trust policy (ExternalId) and its read permissions (Cost Explorer, or the S3 export)."
+		return "Access denied: check the access you granted (AWS role and its read permissions, or the platform's read access to the BigQuery dataset)."
+	case errors.Is(err, domain.ErrBigQueryDisabled):
+		return "BigQuery is not enabled in your Google Cloud project. Enable the BigQuery API, turn on Cloud Billing export to BigQuery, then verify again."
+	case errors.Is(err, domain.ErrOwnershipNotProven):
+		return "Ownership of the billing dataset is not proven: add the connection's label to the dataset (see the setup steps), then verify again."
 	case errors.Is(err, domain.ErrExportNotFound):
-		return "FOCUS export not found: check the bucket, prefix and export name, and that the first delivery has happened."
+		return "Billing export not found: check that the export is enabled, delivered (the first delivery can take up to 48 hours) and that the location is correct, then verify again."
 	default:
 		return "Sync failed; it will be retried automatically."
 	}

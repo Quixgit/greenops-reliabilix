@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,6 +26,44 @@ func (fakeAWS) Provider() clouddomain.ProviderType                     { return 
 func (fakeAWS) Validate(context.Context, clouddomain.Connection) error { return nil }
 func (f fakeAWS) GetUsage(context.Context, clouddomain.UsageRequest) ([]focus.RawBatch, error) {
 	return []focus.RawBatch{{Provider: "aws", Source: "cost_explorer", Payload: f.payload}}, nil
+}
+
+// fakeGCP stands in for the GCP provider: ownership is not proven until ready is set (the customer adds the dataset
+// label), then it returns a BigQuery-style aggregate.
+type fakeGCP struct {
+	payload []byte
+	ready   *atomic.Bool
+}
+
+func (fakeGCP) Provider() clouddomain.ProviderType { return clouddomain.GCP }
+func (f fakeGCP) Validate(context.Context, clouddomain.Connection) error {
+	if !f.ready.Load() {
+		return clouddomain.ErrOwnershipNotProven
+	}
+	return nil
+}
+func (f fakeGCP) GetUsage(context.Context, clouddomain.UsageRequest) ([]focus.RawBatch, error) {
+	if !f.ready.Load() {
+		return nil, clouddomain.ErrOwnershipNotProven
+	}
+	return []focus.RawBatch{{Provider: "gcp", Source: "bigquery_export", Payload: f.payload}}, nil
+}
+
+// gcpPayload builds three days of Compute Engine core/RAM, a GPU line and Cloud Storage capacity in one region.
+func gcpPayload(days []time.Time, region string) []byte {
+	var rows []string
+	for _, d := range days {
+		line := func(service, sku, unit, cost, qty string) string {
+			return fmt.Sprintf(`{"day":"%s","service":"%s","sku":"%s","region":"%s","currency":"USD","pricing_unit":"%s","cost":"%s","credits":"0","quantity":"%s"}`,
+				d.Format(time.DateOnly), service, sku, region, unit, cost, qty)
+		}
+		rows = append(rows,
+			line("Compute Engine", "N2 Instance Core running in Frankfurt", "hour", "10", "100"),
+			line("Compute Engine", "N2 Instance Ram running in Frankfurt", "gibibyte hour", "5", "400"),
+			line("Compute Engine", "Nvidia Tesla T4 GPU running in Frankfurt", "hour", "7", "10"),
+			line("Cloud Storage", "Standard Storage Frankfurt", "gibibyte month", "2", "50"))
+	}
+	return []byte(`{"rows":[` + strings.Join(rows, ",") + `]}`)
 }
 
 // cePayload builds three final days of cost: EC2 $100 and S3 $20 in us-east-1, Lambda $5 in eu-central-1,
@@ -52,7 +91,8 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	use1, usw2, euc1, eun1 := "use1-"+suffix, "usw2-"+suffix, "euc1-"+suffix, "eun1-"+suffix
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	days := []time.Time{today.AddDate(0, 0, -3), today.AddDate(0, 0, -2), today.AddDate(0, 0, -1)}
-	reg := clouddomain.NewRegistry(fakeAWS{payload: cePayload(days, use1, euc1)})
+	gcpReady := &atomic.Bool{}
+	reg := clouddomain.NewRegistry(fakeAWS{payload: cePayload(days, use1, euc1)}, fakeGCP{payload: gcpPayload(days, euc1), ready: gcpReady})
 
 	cfg := devConfig(t.TempDir())
 	cfg.PlatformAWSAccountID = "111122223333"
@@ -395,6 +435,47 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		if !strings.Contains(log, action) {
 			t.Errorf("audit log lacks %q", action)
 		}
+	}
+
+	// ---- GCP: BigQuery billing export, ownership proven by a dataset label ----
+	gcpProj := str(c.must("POST", "/api/v1/projects", alice, `{"name":"gcp-data","functional_unit":"request"}`, 201), "id")
+	const bqRef = "bq://acme-billing-1/billing_export/gcp_billing_export_v1_AAAAAA_BBBBBB_CCCCCC"
+	c.must("POST", "/api/v1/cloud-accounts", alice, fmt.Sprintf(`{"project_id":"%s","provider":"gcp","account_ref":"acme-prod-123","credential_ref":"bq://acme/ds/customers"}`, gcpProj), 422)
+	gcpCreated := c.must("POST", "/api/v1/cloud-accounts", alice, fmt.Sprintf(`{"project_id":"%s","provider":"gcp","account_ref":"acme-prod-123","credential_ref":"%s"}`, gcpProj, bqRef), 201)
+	gcpConn, gcpSetup := sub(gcpCreated, "connection"), sub(gcpCreated, "setup")
+	gcpID := str(gcpConn, "id")
+	if steps := fmt.Sprint(gcpSetup["steps"]); !strings.Contains(steps, "set_label "+str(gcpSetup, "external_id")+":1 acme-billing-1:billing_export") ||
+		!strings.Contains(steps, "gcloud services enable bigquery.googleapis.com") || gcpSetup["trust_policy"] != nil {
+		t.Fatalf("GCP setup steps: %v", gcpSetup)
+	}
+	c.must("PUT", "/api/v1/cloud-accounts/"+gcpID+"/export", alice, `{"bucket":"acme-billing","name":"rlx","region":"eu-central-1"}`, 422) // AWS only
+	c.must("POST", "/api/v1/cloud-accounts/"+gcpID+"/verify", alice, "", 422)                                                              // label missing
+	if g := c.must("GET", "/api/v1/cloud-accounts/"+gcpID, alice, "", 200); str(sub(g, "connection"), "sync_status") != "error" {
+		t.Fatalf("an unproven connection must be errored until fixed: %v", g)
+	}
+	gcpReady.Store(true) // the customer adds the label and shares the dataset
+	if v := c.must("POST", "/api/v1/cloud-accounts/"+gcpID+"/verify", alice, "", 200); str(v, "sync_status") != "healthy" {
+		t.Fatalf("verify GCP: %v", v)
+	}
+	if ran := pump(t, mux, recA, recW); !strings.Contains(strings.Join(ran, ","), "cloudaccounts:sync_aws_account,carbon:calculate") {
+		t.Fatalf("GCP job chain = %v", ran)
+	}
+	gcpUsage := fmt.Sprint(c.must("GET", "/api/v1/usage?limit=200&project_id="+gcpProj, alice, "", 200))
+	if !strings.Contains(gcpUsage, "vCPU-Hrs") || !strings.Contains(gcpUsage, "GB-Hrs") || !strings.Contains(gcpUsage, "Cloud Storage - Capacity") || !strings.Contains(gcpUsage, "gcp") {
+		t.Fatalf("GCP usage lacks measured records: %.600s", gcpUsage)
+	}
+	gcpSum := c.must("GET", "/api/v1/carbon/summary?project_id="+gcpProj, alice, "", 200)
+	if gcpSum["has_data"] != true || gcpSum["carbon_kg_co2e"].(float64) <= 0 {
+		t.Fatalf("GCP carbon summary: %v", gcpSum)
+	}
+	var superseded, methodsUsed int
+	if err := owner.QueryRow(ctx, `SELECT count(*) FILTER (WHERE method = 'usage_based'), count(DISTINCT method) FROM carbon.calculations WHERE tenant_id = $1 AND project_id = $2 AND provider = 'gcp'`,
+		tenant, gcpProj).Scan(&superseded, &methodsUsed); err != nil || superseded == 0 {
+		t.Fatalf("GCP compute must be usage based: %d %v", superseded, err)
+	}
+	// the GPU line stays cost based: it must not disappear behind the measured compute line
+	if n := count(`SELECT count(*) FROM carbon.calculations WHERE tenant_id = $1 AND project_id = $2 AND provider = 'gcp' AND service_name = 'Compute Engine - Accelerators' AND method = 'cost_based'`, tenant, gcpProj); n != 3 {
+		t.Fatalf("GPU cost-based rows = %d, want 3 (one per day)", n)
 	}
 
 	// ---- another tenant sees none of it ----
