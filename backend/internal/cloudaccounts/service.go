@@ -66,8 +66,8 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 			return err
 		}
 		err = m.svc.RunSync(ctx, p.TenantID, p.RefID)
-		if errors.Is(err, domain.ErrAccessDenied) {
-			return errors.Join(asynq.SkipRetry, err) // the customer must fix the role; retrying cannot help
+		if errors.Is(err, domain.ErrAccessDenied) || errors.Is(err, domain.ErrExportNotFound) {
+			return errors.Join(asynq.SkipRetry, err) // the customer must fix the role or the export location; retrying cannot help
 		}
 		return err
 	})

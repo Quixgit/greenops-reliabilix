@@ -13,7 +13,7 @@ import (
 const createConnection = `-- name: CreateConnection :one
 INSERT INTO cloudaccounts.connections (tenant_id, project_id, provider, account_ref, credential_ref, external_id)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at
+RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region
 `
 
 type CreateConnectionParams struct {
@@ -48,6 +48,10 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 		&i.LastSyncAt,
 		&i.SyncedThrough,
 		&i.CreatedAt,
+		&i.ExportBucket,
+		&i.ExportPrefix,
+		&i.ExportName,
+		&i.ExportRegion,
 	)
 	return i, err
 }
@@ -94,7 +98,7 @@ func (q *Queries) FinishSyncRun(ctx context.Context, arg FinishSyncRunParams) er
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region
 FROM cloudaccounts.connections WHERE tenant_id = $1 AND id = $2
 `
 
@@ -119,12 +123,16 @@ func (q *Queries) GetConnection(ctx context.Context, arg GetConnectionParams) (C
 		&i.LastSyncAt,
 		&i.SyncedThrough,
 		&i.CreatedAt,
+		&i.ExportBucket,
+		&i.ExportPrefix,
+		&i.ExportName,
+		&i.ExportRegion,
 	)
 	return i, err
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region
 FROM cloudaccounts.connections WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 500
 `
 
@@ -150,6 +158,10 @@ func (q *Queries) ListConnections(ctx context.Context, tenantID string) ([]Cloud
 			&i.LastSyncAt,
 			&i.SyncedThrough,
 			&i.CreatedAt,
+			&i.ExportBucket,
+			&i.ExportPrefix,
+			&i.ExportName,
+			&i.ExportRegion,
 		); err != nil {
 			return nil, err
 		}
@@ -225,6 +237,39 @@ type MarkConnectionSyncedParams struct {
 func (q *Queries) MarkConnectionSynced(ctx context.Context, arg MarkConnectionSyncedParams) error {
 	_, err := q.db.Exec(ctx, markConnectionSynced, arg.SyncedThrough, arg.TenantID, arg.ID)
 	return err
+}
+
+const setConnectionExport = `-- name: SetConnectionExport :execrows
+UPDATE cloudaccounts.connections
+SET export_bucket = $1, export_prefix = $2,
+    export_name = $3, export_region = $4,
+    sync_status = 'pending', last_error = NULL, synced_through = NULL
+WHERE tenant_id = $5 AND id = $6
+`
+
+type SetConnectionExportParams struct {
+	ExportBucket *string `json:"export_bucket"`
+	ExportPrefix *string `json:"export_prefix"`
+	ExportName   *string `json:"export_name"`
+	ExportRegion *string `json:"export_region"`
+	TenantID     string  `json:"tenant_id"`
+	ID           string  `json:"id"`
+}
+
+// All four columns are set together or cleared together (a table constraint enforces it).
+func (q *Queries) SetConnectionExport(ctx context.Context, arg SetConnectionExportParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setConnectionExport,
+		arg.ExportBucket,
+		arg.ExportPrefix,
+		arg.ExportName,
+		arg.ExportRegion,
+		arg.TenantID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setConnectionStatus = `-- name: SetConnectionStatus :exec

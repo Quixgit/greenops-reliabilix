@@ -78,6 +78,20 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
 4. Each sync makes three Cost Explorer queries (cost, EC2 hours, S3 storage; $0.01 per result page). No extra permission is needed.
 5. Enable Cost Explorer in the customer's account (first activation takes up to 24 h).
 
+### 5b. Recommended: FOCUS data export (invoice-level data)
+
+Cost Explorer works out of the box. For invoice-level data and exact instance hours, the customer creates an
+**AWS Data Export** (Billing and Cost Management → Data Exports → *Standard data export*, table
+**FOCUS 1.0 with AWS columns**, format **Text or CSV, gzip**, daily refresh, overwrite) into an S3 bucket.
+
+1. Deploy the role template with `ExportBucketName` and `ExportPrefix` (read access to that prefix only,
+   `s3:GetObject`, nothing else).
+2. `PUT /api/v1/cloud-accounts/{id}/export` with `{"bucket","prefix","name","region"}` (locations only).
+3. Verify again. The connection then reads the export instead of Cost Explorer (switch back with `DELETE`).
+
+The platform reads the month's manifest, accepts only files inside the export's own folder, streams them with
+size limits and stores daily aggregates. Delivery lags by up to a day, and the first delivery can take 24 h.
+
 ## 6. Electricity Maps (grid carbon intensity)
 
 1. Get an API key at <https://www.electricitymaps.com/> (Free tier is enough for testing).

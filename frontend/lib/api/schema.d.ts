@@ -407,6 +407,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cloud-accounts/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Read billing from the customer's FOCUS data export in S3 instead of Cost Explorer
+         * @description Requires permission `cloud:write`. Locations only, never credentials: access is by the connection's
+         *     read-only role. The connection becomes `pending`; verify it again to prove the role can read the export.
+         */
+        put: operations["setCloudAccountExport"];
+        post?: never;
+        /**
+         * Switch the connection back to Cost Explorer
+         * @description Requires permission `cloud:write`.
+         */
+        delete: operations["clearCloudAccountExport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cloud-accounts/{id}/sync": {
         parameters: {
             query?: never;
@@ -1153,6 +1178,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        ExportConfig: {
+            bucket: string;
+            /** @description Key prefix without leading or trailing slash; may be empty. */
+            prefix?: string;
+            name: string;
+            /** @description Region of the bucket. */
+            region: string;
+        };
         Connection: {
             /** Format: uuid */
             id?: string;
@@ -1172,6 +1205,8 @@ export interface components {
             last_sync_at?: string | null;
             /** Format: date-time */
             synced_through?: string | null;
+            /** @description FOCUS data export the connection reads instead of Cost Explorer (null = Cost Explorer). */
+            export?: components["schemas"]["ExportConfig"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -2211,6 +2246,63 @@ export interface operations {
         };
     };
     verifyCloudAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    setCloudAccountExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportConfig"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    clearCloudAccountExport: {
         parameters: {
             query?: never;
             header?: never;

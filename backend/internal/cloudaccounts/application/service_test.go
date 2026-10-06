@@ -16,6 +16,7 @@ import (
 )
 
 type memRepo struct {
+	exports map[string]*domain.ExportConfig
 	conns   map[string]domain.Connection
 	status  map[string]domain.SyncStatus
 	through map[string]time.Time
@@ -44,6 +45,16 @@ func (r *memRepo) Create(_ context.Context, c domain.Connection) (domain.Connect
 	return c, nil
 }
 func (r *memRepo) Delete(context.Context, string, string) error { return nil }
+func (r *memRepo) SetExport(_ context.Context, _, id string, e *domain.ExportConfig) error {
+	if r.exports == nil {
+		r.exports = map[string]*domain.ExportConfig{}
+	}
+	r.exports[id] = e
+	c := r.conns[id]
+	c.Export = e
+	r.conns[id] = c
+	return nil
+}
 func (r *memRepo) SetStatus(_ context.Context, _, id string, s domain.SyncStatus, _ *string) error {
 	r.status[id] = s
 	return nil
@@ -265,5 +276,29 @@ func TestRunRightsizingWithoutSinkIsNoop(t *testing.T) {
 	s := newSvc(newRepo(awsConn()), &fakeProvider{findings: []domain.RightsizingFinding{{}}}, fakeIngestor{}, &recorder{})
 	if err := s.RunRightsizing(context.Background(), "t", "c1"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetExport(t *testing.T) {
+	s := newSvc(newRepo(awsConn()), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	good := &domain.ExportConfig{Bucket: "acme-billing", Prefix: "exports", Name: "reliabilix", Region: "eu-central-1"}
+	c, err := s.SetExport(context.Background(), "t", "c1", good)
+	if err != nil || c.Export == nil || c.Export.Bucket != "acme-billing" {
+		t.Fatalf("set export: %+v %v", c, err)
+	}
+	if _, err := s.SetExport(context.Background(), "t", "c1", &domain.ExportConfig{Bucket: "acme-billing", Prefix: "../x", Name: "n", Region: "eu-central-1"}); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Fatalf("a traversal prefix must be rejected, got %v", err)
+	}
+	if c, err := s.SetExport(context.Background(), "t", "c1", nil); err != nil || c.Export != nil {
+		t.Fatalf("clear export: %+v %v", c, err)
+	}
+	if _, err := s.SetExport(context.Background(), "t", "missing", good); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("unknown connection: %v", err)
+	}
+	azure := awsConn()
+	azure.ID, azure.Provider = "c2", domain.Azure
+	s2 := newSvc(newRepo(azure), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	if _, err := s2.SetExport(context.Background(), "t", "c2", good); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Fatalf("exports are AWS only: %v", err)
 	}
 }

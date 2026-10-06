@@ -83,6 +83,10 @@ type CloudaccountsConnection struct {
 	LastSyncAt    *time.Time `json:"last_sync_at"`
 	SyncedThrough *time.Time `json:"synced_through"`
 	CreatedAt     time.Time  `json:"created_at"`
+	ExportBucket  *string    `json:"export_bucket"`
+	ExportPrefix  *string    `json:"export_prefix"`
+	ExportName    *string    `json:"export_name"`
+	ExportRegion  *string    `json:"export_region"`
 }
 
 type CloudaccountsSyncRun struct {

@@ -97,43 +97,56 @@ func normalizeEC2(source string, in results) ([]focus.Record, error) {
 		if err != nil {
 			return nil, err
 		}
-		type shape struct{ vcpuHours, memHours float64 }
-		byRegion := map[string]map[string]shape{} // region -> instance type -> hours-weighted shape
-		complete := map[string]bool{}
+		hours := map[string]map[string]float64{} // region -> instance type -> hours
 		for _, g := range res.Groups {
 			if len(g.Keys) != 2 {
 				return nil, fmt.Errorf("awsceusage: EC2 group has %d keys, want REGION and INSTANCE_TYPE", len(g.Keys))
 			}
 			region, itype := strings.ToLower(g.Keys[0]), strings.ToLower(g.Keys[1])
-			if _, seen := complete[region]; !seen {
-				complete[region] = true
+			if hours[region] == nil {
+				hours[region] = map[string]float64{} // keep regions whose only rows are unmeasurable, see EC2Records
 			}
-			hours, ok := quantity(g, "Hrs")
-			if !ok {
-				continue // zero or unexpected unit: nothing measurable here
+			if h, ok := quantity(g, "Hrs"); ok {
+				hours[region][itype] += h
+			}
+		}
+		out = append(out, EC2Records(source, start, end, hours)...)
+	}
+	return out, nil
+}
+
+// EC2Records converts one day of instance hours (region -> instance type -> hours) into measured vCPU and
+// memory records. A region is emitted only when every instance type in it has a known shape: a partial figure
+// would replace the cost-based estimate of the whole service with an undercount. It is shared by every AWS
+// source that can report instance hours, so they all behave identically.
+func EC2Records(source string, start, end time.Time, hoursByRegionType map[string]map[string]float64) []focus.Record {
+	var out []focus.Record
+	for region, byType := range hoursByRegionType {
+		recs, complete := []focus.Record{}, true
+		for itype, hours := range byType {
+			if hours <= 0 {
+				continue
 			}
 			spec, known := ec2spec.Parse(itype)
 			if !known {
-				complete[region] = false
-				continue
+				complete = false
+				break
 			}
-			if byRegion[region] == nil {
-				byRegion[region] = map[string]shape{}
-			}
-			byRegion[region][itype] = shape{vcpuHours: hours * spec.VCPU, memHours: hours * spec.MemoryGB}
+			id := "instance-type/" + itype
+			recs = append(recs,
+				measured(source, ec2Service, "compute", region, id, hours*spec.VCPU, unitVCPUHours, start, end),
+				measured(source, ec2Service, "compute", region, id, hours*spec.MemoryGB, unitMemoryHour, start, end))
 		}
-		for region, types := range byRegion {
-			if !complete[region] {
-				continue
-			}
-			for itype, sh := range types {
-				out = append(out,
-					measured(source, ec2Service, "compute", region, "instance-type/"+itype, sh.vcpuHours, unitVCPUHours, start, end),
-					measured(source, ec2Service, "compute", region, "instance-type/"+itype, sh.memHours, unitMemoryHour, start, end))
-			}
+		if complete {
+			out = append(out, recs...)
 		}
 	}
-	return out, nil
+	return out
+}
+
+// StorageRecord is a measured S3 storage record for one region and day.
+func StorageRecord(source, region string, gbMonths float64, start, end time.Time) focus.Record {
+	return measured(source, s3Service, "storage", region, "", gbMonths, unitStorage, start, end)
 }
 
 func normalizeS3(source string, in results) ([]focus.Record, error) {
@@ -154,7 +167,7 @@ func normalizeS3(source string, in results) ([]focus.Record, error) {
 			if !ok {
 				continue
 			}
-			out = append(out, measured(source, s3Service, "storage", strings.ToLower(g.Keys[0]), "", gbMonths, unitStorage, start, end))
+			out = append(out, StorageRecord(source, strings.ToLower(g.Keys[0]), gbMonths, start, end))
 		}
 	}
 	return out, nil

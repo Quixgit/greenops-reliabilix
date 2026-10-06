@@ -671,6 +671,63 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}/export:
+    put:
+      operationId: setCloudAccountExport
+      summary: Read billing from the customer's FOCUS data export in S3 instead of Cost Explorer
+      tags:
+      - cloud
+      description: |
+        Requires permission `cloud:write`. Locations only, never credentials: access is by the connection's
+        read-only role. The connection becomes `pending`; verify it again to prove the role can read the export.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportConfig'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: clearCloudAccountExport
+      summary: Switch the connection back to Cost Explorer
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
   /api/v1/cloud-accounts/{id}/sync:
     post:
       operationId: syncCloudAccount
@@ -1867,6 +1924,25 @@ components:
           type: number
           nullable: true
       additionalProperties: true
+    ExportConfig:
+      type: object
+      required:
+      - bucket
+      - name
+      - region
+      properties:
+        bucket:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$
+        prefix:
+          type: string
+          description: Key prefix without leading or trailing slash; may be empty.
+        name:
+          type: string
+          pattern: ^[A-Za-z0-9_.-]{1,128}$
+        region:
+          type: string
+          description: Region of the bucket.
     Connection:
       type: object
       properties:
@@ -1908,6 +1984,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        export:
+          nullable: true
+          description: FOCUS data export the connection reads instead of Cost Explorer (null = Cost Explorer).
+          allOf:
+          - $ref: '#/components/schemas/ExportConfig'
       additionalProperties: true
     ConnectionInput:
       type: object

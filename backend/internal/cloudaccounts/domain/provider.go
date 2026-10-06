@@ -36,6 +36,9 @@ var (
 	ErrUnsupportedProvider = errors.New("provider not supported yet")
 	ErrNotFound            = errors.New("not found")
 	ErrDuplicate           = errors.New("cloud account already connected")
+	// ErrExportNotFound: the FOCUS export has no manifest for the requested months (wrong location, or the
+	// first delivery has not happened yet). Retrying immediately cannot help.
+	ErrExportNotFound = errors.New("FOCUS export not found")
 	// ErrAccessDenied: the granted access is missing or too narrow. Retrying cannot help.
 	ErrAccessDenied = errors.New("access denied by the cloud provider")
 )
@@ -54,10 +57,16 @@ type Connection struct {
 	LastError     *string      `json:"last_error"`
 	LastSyncAt    *time.Time   `json:"last_sync_at"`
 	SyncedThrough *time.Time   `json:"synced_through"`
+	// Export, when set, makes the connection read the customer's FOCUS data export from S3 instead of
+	// Cost Explorer (invoice-level data, exact instance hours). nil = Cost Explorer.
+	Export *ExportConfig `json:"export"`
 }
 
 var (
 	awsAccountRe = regexp.MustCompile(`^\d{12}$`)
+	bucketRe     = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
+	exportPartRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+	regionRe     = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-\d$`)
 	// The platform identity is only allowed to assume roles named Reliabilix* (see deploy/aws/platform-policy.json);
 	// enforcing the same rule here keeps a pasted ARN from ever steering the platform into an arbitrary role.
 	awsRoleRe = regexp.MustCompile(`^arn:aws:iam::(\d{12}):role/(Reliabilix[A-Za-z0-9+=,.@_-]{0,100})$`)
@@ -155,6 +164,8 @@ type Repository interface {
 	Get(ctx context.Context, tenantID, id string) (Connection, error)
 	Create(ctx context.Context, c Connection) (Connection, error)
 	Delete(ctx context.Context, tenantID, id string) error
+	// SetExport sets or clears (nil) the FOCUS export location, resetting the sync cursor; audited.
+	SetExport(ctx context.Context, tenantID, id string, e *ExportConfig) error
 	SetStatus(ctx context.Context, tenantID, id string, status SyncStatus, lastError *string) error
 	StartRun(ctx context.Context, tenantID, connectionID string) (string, error)
 	FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string) error

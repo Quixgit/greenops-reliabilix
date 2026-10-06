@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer"
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
 
@@ -52,7 +53,9 @@ type Assumer func(ctx context.Context, roleARN, externalID string) (CEAPI, error
 
 type Provider struct {
 	Assume Assumer
-	Log    *slog.Logger // optional; nil uses slog.Default()
+	// AssumeS3 is needed only for connections that read a FOCUS data export from S3.
+	AssumeS3 S3Assumer
+	Log      *slog.Logger // optional; nil uses slog.Default()
 }
 
 // New builds the provider from the default AWS credential chain (the platform's own identity,
@@ -63,16 +66,27 @@ func New(ctx context.Context) (*Provider, error) {
 		return nil, fmt.Errorf("aws: load config: %w", err)
 	}
 	stsClient := sts.NewFromConfig(cfg)
-	return &Provider{Assume: func(_ context.Context, roleARN, externalID string) (CEAPI, error) {
-		creds := stscreds.NewAssumeRoleProvider(stsClient, roleARN, func(o *stscreds.AssumeRoleOptions) {
+	// credentials returns a cached provider that assumes the customer's role with the connection's ExternalId.
+	credentials := func(roleARN, externalID string) *awssdk.CredentialsCache {
+		return awssdk.NewCredentialsCache(stscreds.NewAssumeRoleProvider(stsClient, roleARN, func(o *stscreds.AssumeRoleOptions) {
 			o.ExternalID = awssdk.String(externalID)
 			o.RoleSessionName = "reliabilix-greenops"
 			o.Duration = 15 * time.Minute
-		})
-		c := cfg.Copy()
-		c.Credentials = awssdk.NewCredentialsCache(creds)
-		return costexplorer.NewFromConfig(c), nil // Cost Explorer is a global service homed in us-east-1
-	}}, nil
+		}))
+	}
+	return &Provider{
+		Assume: func(_ context.Context, roleARN, externalID string) (CEAPI, error) {
+			c := cfg.Copy()
+			c.Credentials = credentials(roleARN, externalID)
+			return costexplorer.NewFromConfig(c), nil // Cost Explorer is a global service homed in us-east-1
+		},
+		AssumeS3: func(_ context.Context, roleARN, externalID, region string) (S3API, error) {
+			c := cfg.Copy()
+			c.Credentials = credentials(roleARN, externalID)
+			c.Region = region // the bucket's region (validated against a strict pattern)
+			return s3.NewFromConfig(c), nil
+		},
+	}, nil
 }
 
 func (*Provider) Provider() domain.ProviderType { return domain.AWS }
@@ -89,8 +103,12 @@ func classify(err error) error {
 	return err
 }
 
-// Validate proves the role can be assumed with the ExternalId and may call ce:GetCostAndUsage.
+// Validate proves the role can be assumed with the ExternalId and may read the data source of the connection:
+// ce:GetCostAndUsage, or the FOCUS export in S3 when the connection has one.
 func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
+	if c.Export != nil {
+		return p.validateExport(ctx, c)
+	}
 	ce, err := p.Assume(ctx, c.CredentialRef, c.ExternalID)
 	if err != nil {
 		return classify(err)
@@ -104,9 +122,18 @@ func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
 	return classify(err)
 }
 
-// GetUsage returns daily cost grouped by SERVICE and REGION for [From, To). It costs one Cost Explorer
+// GetUsage returns the raw billing data for [From, To): the customer's FOCUS export when the connection has
+// one, otherwise daily Cost Explorer cost grouped by SERVICE and REGION. Cost Explorer costs one Cost Explorer
 // request ($0.01) per result page, so callers keep the window small (incremental syncs).
 func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]focus.RawBatch, error) {
+	if req.Connection.Export != nil {
+		// The export is the complete, invoice-level source: Cost Explorer would only add duplicate cost lines.
+		b, err := p.exportBatch(ctx, req.Connection, req.From, req.To)
+		if err != nil {
+			return nil, err
+		}
+		return []focus.RawBatch{b}, nil
+	}
 	ce, err := p.Assume(ctx, req.Connection.CredentialRef, req.Connection.ExternalID)
 	if err != nil {
 		return nil, classify(err)

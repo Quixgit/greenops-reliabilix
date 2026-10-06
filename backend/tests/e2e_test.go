@@ -124,6 +124,17 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	}
 	c.must("POST", "/api/v1/cloud-accounts", alice,
 		fmt.Sprintf(`{"project_id":"%s","provider":"aws","account_ref":"123456789012","credential_ref":"arn:aws:iam::123456789012:role/ReliabilixOther"}`, proj), 409)
+	// ---- FOCUS export location: validated, audited, reversible ----
+	c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","prefix":"../x","name":"rlx","region":"eu-central-1"}`, 422)
+	c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","name":"rlx","region":"https://evil"}`, 422)
+	withExport := c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","prefix":"exports","name":"rlx","region":"eu-central-1"}`, 200)
+	if e := sub(withExport, "export"); str(e, "bucket") != "acme-billing" || str(withExport, "sync_status") != "pending" {
+		t.Fatalf("export not stored: %v", withExport)
+	}
+	if cleared := c.must("DELETE", "/api/v1/cloud-accounts/"+connID+"/export", alice, "", 200); cleared["export"] != nil {
+		t.Fatalf("export not cleared: %v", cleared)
+	}
+
 	if v := c.must("POST", "/api/v1/cloud-accounts/"+connID+"/verify", alice, "", 200); str(v, "sync_status") != "healthy" {
 		t.Fatalf("verify: %v", v)
 	}

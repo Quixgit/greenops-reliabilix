@@ -16,6 +16,7 @@ Connect one cloud, see cost and carbon together, get an SCI score.
 | ✅ | Tenant isolation with PostgreSQL Row Level Security and least-privilege DB roles |
 | ✅ | AWS connector (read-only role with External ID, Cost Explorer) |
 | ✅ | FOCUS v1.4 usage records, partitioned, idempotent ingestion |
+| ✅ | AWS FOCUS data export (S3) as an invoice-level source, read-only role, no credentials stored |
 | ✅ | Usage-based carbon for AWS EC2 hours and S3 storage (Cost Explorer quantities, no extra customer setup) |
 | ✅ | Rightsizing recommendations from AWS findings with a modelled carbon effect and approval workflow |
 | ✅ | Carbon engine with SCI, versioned methodology, grid intensity (Electricity Maps) with caching |
@@ -32,7 +33,6 @@ Broader coverage and smarter advice.
 |---|---|
 | 🗓️ | Azure connector (Cost Management API) |
 | 🗓️ | GCP connector (Cloud Billing export in BigQuery) |
-| 🗓️ | AWS CUR → S3 → Athena for resource-level, usage-based carbon |
 | 🗓️ | Kubernetes: Kepler → Prometheus → agent → ingestion API |
 | 🗓️ | WattTime as secondary grid-data provider |
 | 🗓️ | More recommendation types: rightsizing, time shifting, spot migration |

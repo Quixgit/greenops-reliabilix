@@ -85,14 +85,14 @@ Step-by-step guide: [`docs/setup/README.md`](docs/setup/README.md) (database, Re
 timeline
     title Product roadmap
     Now · Phase 1 Measure : Multi-tenant core and RBAC : AWS connector : FOCUS usage and SCI carbon engine : Dashboard, reports, CI gate
-    Next · Phase 2 Recommend : Azure and GCP connectors : AWS CUR, usage-based carbon : Kubernetes via Kepler : Rightsizing, time-shift, spot advice
+    Next · Phase 2 Recommend : Azure and GCP connectors :  usage-based carbon : Kubernetes via Kepler : Rightsizing, time-shift, spot advice
     Later · Phase 3 Automate : Approved changes via Terraform and Kubernetes : Verification and rollback info : CI action for GitHub / Azure DevOps : Billing, white-label, benchmarking
 ```
 
 | Phase | Theme | Status | Highlights |
 |---|---|---|---|
 | **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS connector, FOCUS v1.4 usage, SCI engine, region-shift and AWS rightsizing advice with approval, reports, CI gate |
-| **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, GCP, AWS CUR, Kubernetes (Kepler), WattTime, rightsizing / time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
+| **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, GCP,  Kubernetes (Kepler), WattTime, rightsizing / time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
 | **3 · Automate** | Controlled change execution | 🗓️ planned | Automation jobs with risk analysis, Terraform / Kubernetes executors, reusable CI action, Stripe billing, white-label, benchmarking |
 
 **Guiding rules**
@@ -106,5 +106,5 @@ Detailed checklist: [`ROADMAP.md`](ROADMAP.md).
 
 ## Honest status
 
-- Carbon is **usage-based** for EC2 running hours and S3 storage (from Cost Explorer quantities) and **cost-based** for everything else, with **provisional** coefficients (methodology `CCF-2026.1`); resource-level accounting arrives with CUR ingestion.
+- Carbon is **usage-based** for EC2 running hours and S3 storage (from Cost Explorer quantities) and **cost-based** for everything else, with **provisional** coefficients (methodology `CCF-2026.1`); FOCUS data exports (S3) provide invoice-level quantities.
 - The AWS connector, Auth0, object storage and the Docker stack are covered by fakes and integration tests but have not yet been exercised against live services.

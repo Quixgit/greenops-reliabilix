@@ -122,6 +122,27 @@ func (s Service) SetupFor(ctx context.Context, tenantID, id string) (Setup, erro
 	return s.setup(c), nil
 }
 
+// SetExport points an AWS connection at the customer's FOCUS data export (nil switches back to Cost Explorer).
+// The connection becomes pending: the customer verifies again, which also proves the role can read the export.
+func (s Service) SetExport(ctx context.Context, tenantID, id string, e *domain.ExportConfig) (domain.Connection, error) {
+	c, err := s.Repo.Get(ctx, tenantID, id)
+	if err != nil {
+		return domain.Connection{}, err
+	}
+	if c.Provider != domain.AWS {
+		return domain.Connection{}, fmt.Errorf("%w: data exports are supported for AWS only", domain.ErrInvalidConnection)
+	}
+	if e != nil {
+		if err := e.Validate(); err != nil {
+			return domain.Connection{}, err
+		}
+	}
+	if err := s.Repo.SetExport(ctx, tenantID, id, e); err != nil {
+		return domain.Connection{}, err
+	}
+	return s.Repo.Get(ctx, tenantID, id)
+}
+
 // Verify checks the granted access. On success the connection becomes healthy and a first sync is queued.
 func (s Service) Verify(ctx context.Context, tenantID, id string) (domain.Connection, error) {
 	c, err := s.Repo.Get(ctx, tenantID, id)
@@ -269,7 +290,7 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 	fail := func(cause error) error {
 		msg := safeMessage(cause)
 		_ = s.Repo.FinishRun(ctx, tenantID, runID, false, 0, &msg)
-		if errors.Is(cause, domain.ErrAccessDenied) {
+		if errors.Is(cause, domain.ErrAccessDenied) || errors.Is(cause, domain.ErrExportNotFound) {
 			_ = s.Repo.SetStatus(ctx, tenantID, connectionID, domain.StatusError, &msg)
 			observability.CloudSyncTotal.WithLabelValues(label, "denied").Inc()
 		} else {
@@ -312,7 +333,9 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 func safeMessage(err error) string {
 	switch {
 	case errors.Is(err, domain.ErrAccessDenied):
-		return "Access denied: check the IAM role trust policy (ExternalId) and the ce:GetCostAndUsage permission."
+		return "Access denied: check the IAM role trust policy (ExternalId) and its read permissions (Cost Explorer, or the S3 export)."
+	case errors.Is(err, domain.ErrExportNotFound):
+		return "FOCUS export not found: check the bucket, prefix and export name, and that the first delivery has happened."
 	default:
 		return "Sync failed; it will be retried automatically."
 	}

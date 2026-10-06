@@ -10,7 +10,7 @@ import (
 
 // ExpectedMigration is the newest goose migration this build needs. A unit test ties it to the files in
 // backend/migrations, so adding a migration without bumping it fails the build.
-const ExpectedMigration = 9
+const ExpectedMigration = 10
 
 // SchemaStatus is what `admin doctor` learns about the database the process is connected to.
 type SchemaStatus struct {

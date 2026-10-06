@@ -10,6 +10,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/application"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsce"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsceusage"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsexport"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
 )
 
@@ -21,6 +22,7 @@ func New(store application.UsageStore, archive storage.Store, log *slog.Logger) 
 		Normalizers: map[string]application.Normalizer{
 			"aws/cost_explorer":       awsce.Normalizer{},
 			"aws/cost_explorer_usage": awsceusage.Normalizer{},
+			"aws/focus_export":        awsexport.Normalizer{},
 		},
 		Store: store, Archive: archive, Log: log,
 	}}
