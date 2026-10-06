@@ -59,11 +59,10 @@ func (r Postgres) Trend(ctx context.Context, tenantID string, project *string, f
 
 const batchSize = 500
 
-// UpsertCalculations stores calculations idempotently. Partitions are ensured first (see usage repository).
-func (r Postgres) UpsertCalculations(ctx context.Context, tenantID, projectID string, calcs []domain.Calculation) error {
-	if len(calcs) == 0 {
-		return nil
-	}
+// ReplaceCalculations makes [from, to) of the current methodology version equal to calcs, atomically:
+// stale rows are deleted and the new ones upserted in one transaction, so readers never see a half-written window.
+// Partitions are ensured first (see usage repository).
+func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, calcs []domain.Calculation) error {
 	months := map[time.Time]bool{}
 	for _, c := range calcs {
 		months[time.Date(c.PeriodStart.Year(), c.PeriodStart.Month(), 1, 0, 0, 0, 0, time.UTC)] = true
@@ -75,6 +74,10 @@ func (r Postgres) UpsertCalculations(ctx context.Context, tenantID, projectID st
 	}
 	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		q := db.New(tx)
+		if err := q.DeleteCalculationsInWindow(ctx, db.DeleteCalculationsInWindowParams{
+			TenantID: tenantID, ProjectID: projectID, FromTs: from, ToTs: to, MethodologyVersion: domain.MethodologyVersion}); err != nil {
+			return err
+		}
 		for start := 0; start < len(calcs); start += batchSize {
 			end := min(start+batchSize, len(calcs))
 			params := make([]db.UpsertCalculationParams, 0, end-start)

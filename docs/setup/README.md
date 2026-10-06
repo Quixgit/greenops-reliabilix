@@ -75,7 +75,8 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
    other names.
 3. They paste the role ARN, then call verify. The result is audited
    (`cloud_connection.verified` / `verification_failed`).
-4. Enable Cost Explorer in the customer's account (first activation takes up to 24 h).
+4. Each sync makes three Cost Explorer queries (cost, EC2 hours, S3 storage; $0.01 per result page). No extra permission is needed.
+5. Enable Cost Explorer in the customer's account (first activation takes up to 24 h).
 
 ## 6. Electricity Maps (grid carbon intensity)
 

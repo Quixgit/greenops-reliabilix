@@ -32,6 +32,9 @@ const (
 	SkipNoGridData = "no_grid_data"         // no carbon intensity known for the region
 	SkipCurrency   = "unsupported_currency" // cost-based estimates need USD until FX normalization exists
 	SkipNoMeasure  = "no_measurable_usage"
+	// SkipSuperseded: a cost-based row was dropped because measured usage exists for the same
+	// service, region and day. Counting both would double the energy.
+	SkipSuperseded = "superseded_by_measured_usage"
 )
 
 // IntensityLookup returns the grid intensity (gCO2e/kWh) for a region at a time; ok=false when unknown.
@@ -41,6 +44,7 @@ type IntensityLookup func(ctx context.Context, region string, at time.Time) (g f
 // SCI stays NULL). It is pure apart from the IntensityLookup callback, which makes it fully testable.
 func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, unitsByDay map[time.Time]float64) (out []Calculation, skipped map[string]int, err error) {
 	skipped = map[string]int{}
+	measured := measuredKeys(rows)
 	for _, u := range rows {
 		if u.RegionID == "" || u.RegionID == "global" {
 			skipped[SkipNoRegion]++
@@ -57,6 +61,10 @@ func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, units
 			}
 			method = UsageBased
 		} else {
+			if measured[workloadKey(u)] {
+				skipped[SkipSuperseded]++
+				continue
+			}
 			if u.Currency != "USD" {
 				skipped[SkipCurrency]++
 				continue
@@ -91,6 +99,22 @@ func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, units
 		out = append(out, c)
 	}
 	return out, skipped, nil
+}
+
+// workloadKey identifies the service, region and day that a measured row and a cost row share.
+func workloadKey(u UsageDay) string {
+	return u.Provider + "|" + u.ServiceName + "|" + u.RegionID + "|" + u.Day.Format(time.DateOnly)
+}
+
+// measuredKeys lists the workloads that have at least one measured (usage-based) row.
+func measuredKeys(rows []UsageDay) map[string]bool {
+	out := map[string]bool{}
+	for _, u := range rows {
+		if _, ok := measurableKind(u); ok {
+			out[workloadKey(u)] = true
+		}
+	}
+	return out
 }
 
 func measurableKind(u UsageDay) (UsageKind, bool) {

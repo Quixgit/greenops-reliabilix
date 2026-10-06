@@ -85,3 +85,36 @@ func TestSCIFormula(t *testing.T) {
 		t.Error("zero units accepted")
 	}
 }
+
+func TestMeasuredUsageSupersedesCostBasedRowOfTheSameWorkload(t *testing.T) {
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	vcpu, mem := "vCPU-Hrs", "GB-Hrs"
+	rows := []UsageDay{
+		{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "eu-central-1", Currency: "USD", Day: day, BilledCost: 100},
+		{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "eu-central-1", Currency: "USD", Day: day, ConsumedUnit: &vcpu, Quantity: 48, HasQuantity: true},
+		{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "eu-central-1", Currency: "USD", Day: day, ConsumedUnit: &mem, Quantity: 192, HasQuantity: true},
+		// another region on the same day has no measurement: it keeps its cost-based estimate
+		{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "us-east-1", Currency: "USD", Day: day, BilledCost: 10},
+	}
+	lookup := func(context.Context, string, time.Time) (float64, bool, error) { return 300, true, nil }
+	out, skipped, err := Compute(context.Background(), rows, lookup, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if skipped[SkipSuperseded] != 1 {
+		t.Errorf("skipped = %v, want exactly the measured region's cost row superseded", skipped)
+	}
+	methods := map[string]map[Method]int{}
+	for _, c := range out {
+		if methods[c.RegionID] == nil {
+			methods[c.RegionID] = map[Method]int{}
+		}
+		methods[c.RegionID][c.Method]++
+	}
+	if methods["eu-central-1"][UsageBased] != 2 || methods["eu-central-1"][CostBased] != 0 {
+		t.Errorf("eu-central-1 must be usage based only: %v", methods["eu-central-1"])
+	}
+	if methods["us-east-1"][CostBased] != 1 {
+		t.Errorf("us-east-1 must stay cost based: %v", methods["us-east-1"])
+	}
+}

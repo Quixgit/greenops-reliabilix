@@ -16,6 +16,7 @@ Connect one cloud, see cost and carbon together, get an SCI score.
 | ✅ | Tenant isolation with PostgreSQL Row Level Security and least-privilege DB roles |
 | ✅ | AWS connector (read-only role with External ID, Cost Explorer) |
 | ✅ | FOCUS v1.4 usage records, partitioned, idempotent ingestion |
+| ✅ | Usage-based carbon for AWS EC2 hours and S3 storage (Cost Explorer quantities, no extra customer setup) |
 | ✅ | Carbon engine with SCI, versioned methodology, grid intensity (Electricity Maps) with caching |
 | ✅ | Recommendations (region shift) with approval workflow and residency re-check |
 | ✅ | Reports (CSV / JSON / PDF), budgets, anomalies, CI gate, OpenAPI |

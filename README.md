@@ -106,5 +106,5 @@ Detailed checklist: [`ROADMAP.md`](ROADMAP.md).
 
 ## Honest status
 
-- Carbon is currently **cost-based** with **provisional** coefficients (methodology `CCF-2026.1`); usage-based accounting arrives with CUR ingestion.
+- Carbon is **usage-based** for EC2 running hours and S3 storage (from Cost Explorer quantities) and **cost-based** for everything else, with **provisional** coefficients (methodology `CCF-2026.1`); resource-level accounting arrives with CUR ingestion.
 - The AWS connector, Auth0, object storage and the Docker stack are covered by fakes and integration tests but have not yet been exercised against live services.

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
@@ -22,8 +23,23 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 )
 
-// SourceCostExplorer is the focus.RawBatch.Source of payloads produced here.
-const SourceCostExplorer = "cost_explorer"
+// Sources of the payloads produced here (focus.RawBatch.Source).
+const (
+	SourceCostExplorer = "cost_explorer"
+	// SourceCostExplorerUsage carries measured consumption (EC2 running hours, S3 storage) so that the
+	// carbon engine can use usage-based energy instead of a spend-based estimate.
+	SourceCostExplorerUsage = "cost_explorer_usage"
+)
+
+// Usage-type groups that expose a physical quantity. EC2 hours are grouped by instance type, which the
+// normalizer converts into vCPU-hours and memory GB-hours.
+var (
+	ec2HoursGroups  = []string{"EC2: Running Hours"}
+	s3StorageGroups = []string{
+		"S3: Storage - Standard", "S3: Storage - Standard Infrequent Access", "S3: Storage - One Zone Infrequent Access",
+		"S3: Storage - Intelligent Tiering Frequent Access", "S3: Storage - Glacier Instant Retrieval",
+	}
+)
 
 // CEAPI is the slice of the Cost Explorer client the provider needs (faked in tests).
 type CEAPI interface {
@@ -33,7 +49,10 @@ type CEAPI interface {
 // Assumer returns a Cost Explorer client acting as roleARN with the given ExternalId.
 type Assumer func(ctx context.Context, roleARN, externalID string) (CEAPI, error)
 
-type Provider struct{ Assume Assumer }
+type Provider struct {
+	Assume Assumer
+	Log    *slog.Logger // optional; nil uses slog.Default()
+}
 
 // New builds the provider from the default AWS credential chain (the platform's own identity,
 // which only needs sts:AssumeRole on customer roles).
@@ -100,21 +119,77 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 			{Type: types.GroupDefinitionTypeDimension, Key: awssdk.String("REGION")},
 		},
 	}
+	results, err := fetchAll(ctx, ce, in)
+	if err != nil {
+		return nil, err
+	}
+	payload, err := json.Marshal(map[string]any{"ResultsByTime": results})
+	if err != nil {
+		return nil, err
+	}
+	batches := []focus.RawBatch{{Provider: "aws", Source: SourceCostExplorer, Payload: payload}}
+
+	// Measured usage is an enrichment: when it cannot be fetched the cost data still flows and the carbon
+	// engine falls back to the cost-based estimate, so a failure here must not block the sync.
+	if usage, err := p.usageBatch(ctx, ce, req); err != nil {
+		if errors.Is(err, domain.ErrAccessDenied) {
+			return nil, err
+		}
+		p.logger().Warn("aws usage quantities unavailable, carbon stays cost-based", "err", err)
+	} else {
+		batches = append(batches, usage)
+	}
+	return batches, nil
+}
+
+func (p *Provider) logger() *slog.Logger {
+	if p.Log != nil {
+		return p.Log
+	}
+	return slog.Default()
+}
+
+// fetchAll follows Cost Explorer pagination. The page cap stops a runaway token loop from billing forever.
+func fetchAll(ctx context.Context, ce CEAPI, in *costexplorer.GetCostAndUsageInput) ([]types.ResultByTime, error) {
 	var results []types.ResultByTime
-	for page := 0; page < 200; page++ { // hard cap: a runaway token loop must not bill indefinitely
+	for page := 0; page < 200; page++ {
 		out, err := ce.GetCostAndUsage(ctx, in)
 		if err != nil {
 			return nil, classify(err)
 		}
 		results = append(results, out.ResultsByTime...)
 		if out.NextPageToken == nil || *out.NextPageToken == "" {
-			break
+			return results, nil
 		}
 		in.NextPageToken = out.NextPageToken
 	}
-	payload, err := json.Marshal(map[string]any{"ResultsByTime": results})
-	if err != nil {
-		return nil, err
+	return results, nil
+}
+
+// usageBatch fetches daily UsageQuantity for EC2 running hours (by instance type) and S3 storage.
+func (p *Provider) usageBatch(ctx context.Context, ce CEAPI, req domain.UsageRequest) (focus.RawBatch, error) {
+	period := &types.DateInterval{Start: awssdk.String(req.From.Format(time.DateOnly)), End: awssdk.String(req.To.Format(time.DateOnly))}
+	query := func(groups []string, extra ...string) *costexplorer.GetCostAndUsageInput {
+		gb := []types.GroupDefinition{{Type: types.GroupDefinitionTypeDimension, Key: awssdk.String("REGION")}}
+		for _, k := range extra {
+			gb = append(gb, types.GroupDefinition{Type: types.GroupDefinitionTypeDimension, Key: awssdk.String(k)})
+		}
+		return &costexplorer.GetCostAndUsageInput{
+			TimePeriod: period, Granularity: types.GranularityDaily, Metrics: []string{"UsageQuantity"}, GroupBy: gb,
+			Filter: &types.Expression{Dimensions: &types.DimensionValues{Key: types.DimensionUsageTypeGroup, Values: groups}},
+		}
 	}
-	return []focus.RawBatch{{Provider: "aws", Source: SourceCostExplorer, Payload: payload}}, nil
+	ec2, err := fetchAll(ctx, ce, query(ec2HoursGroups, "INSTANCE_TYPE"))
+	if err != nil {
+		return focus.RawBatch{}, err
+	}
+	s3, err := fetchAll(ctx, ce, query(s3StorageGroups))
+	if err != nil {
+		return focus.RawBatch{}, err
+	}
+	payload, err := json.Marshal(map[string]any{"EC2Hours": ec2, "S3Storage": s3})
+	if err != nil {
+		return focus.RawBatch{}, err
+	}
+	return focus.RawBatch{Provider: "aws", Source: SourceCostExplorerUsage, Payload: payload}, nil
 }
