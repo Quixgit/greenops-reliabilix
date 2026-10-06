@@ -23,5 +23,5 @@ CUR via S3/Athena gives resource-level detail but needs customer-side setup; it 
   superseded rows disappear; rows of older methodology versions are history and stay.
 
 ## Consequences
-Usage-based figures use provisional coefficients (`CCF-2026.1`) and operational energy only (embodied = 0).
+Usage-based figures use provisional coefficients (`RLX-PROVISIONAL-1`) and operational energy only (embodied = 0).
 They are more specific than spend-based estimates but remain estimates, labelled by `method`.

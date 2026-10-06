@@ -1,0 +1,25 @@
+{
+  "version": "RLX-PROVISIONAL-1",
+  "status": "provisional",
+  "provenance": "author_estimate_unverified",
+  "notes": "Coefficients chosen by the platform authors. They follow the shape of the Cloud Carbon Footprint (CCF) method (energy per unit of use x PUE x grid intensity) and several values were recalled from CCF's published constants, but this set is NOT imported from the published CCF datasets and has NOT been verified against them. The cost_based values have no CCF counterpart at all: they are the authors' rough kWh-per-USD fallbacks for sources that expose cost only. Before any figure is used for external reporting, replace this file with an import of a published, citable dataset; that MUST be a new version, never an edit of this one.",
+  "caveats": [
+    "Embodied emissions (the M term of SCI) are not included: figures are operational emissions only.",
+    "Coefficients are provisional estimates chosen by the platform authors, not imported from or verified against the published Cloud Carbon Footprint datasets.",
+    "Rows marked cost_based are rough estimates derived from spend and have low confidence."
+  ],
+  "pue": 1.135,
+  "energy_kwh_per_unit": {
+    "vcpu_hours": 0.0021,
+    "memory_gb_hours": 0.000392,
+    "storage_gb_months": 0.0004745
+  },
+  "cost_based_kwh_per_usd": {
+    "compute": 0.9,
+    "storage": 0.35,
+    "database": 0.7,
+    "networking": 0.12,
+    "other": 0.25
+  },
+  "embodied_g_per_kwh": 0
+}

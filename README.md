@@ -84,15 +84,15 @@ Step-by-step guide: [`docs/setup/README.md`](docs/setup/README.md) (database, Re
 ```mermaid
 timeline
     title Product roadmap
-    Now · Phase 1 Measure : Multi-tenant core and RBAC : AWS connector : FOCUS usage and SCI carbon engine : Dashboard, reports, CI gate
-    Next · Phase 2 Recommend : Azure and GCP connectors :  usage-based carbon : Kubernetes via Kepler : Rightsizing, time-shift, spot advice
+    Now · Phase 1 Measure : Multi-tenant core and RBAC : AWS and GCP connectors : FOCUS usage and SCI carbon engine : Dashboard, reports, CI gate
+    Next · Phase 2 Recommend : Azure connector : Kubernetes via Kepler : WattTime : Time-shift and spot advice
     Later · Phase 3 Automate : Approved changes via Terraform and Kubernetes : Verification and rollback info : CI action for GitHub / Azure DevOps : Billing, white-label, benchmarking
 ```
 
 | Phase | Theme | Status | Highlights |
 |---|---|---|---|
-| **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS connector, FOCUS v1.4 usage, SCI engine, region-shift and AWS rightsizing advice with approval, reports, CI gate |
-| **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, GCP,  Kubernetes (Kepler), WattTime, rightsizing / time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
+| **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS and GCP connectors, FOCUS v1.4 usage, SCI engine, region-shift and AWS rightsizing advice with approval, reports, CI gate |
+| **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, Kubernetes (Kepler), WattTime, time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
 | **3 · Automate** | Controlled change execution | 🚧 plans done, executors planned | Automation jobs with risk analysis and approval (done), Terraform / Kubernetes executors, reusable CI action, Stripe billing, white-label, benchmarking |
 
 **Guiding rules**
@@ -106,5 +106,6 @@ Detailed checklist: [`ROADMAP.md`](ROADMAP.md).
 
 ## Honest status
 
-- Carbon is **usage-based** for EC2 running hours and S3 storage (from Cost Explorer quantities) and **cost-based** for everything else, with **provisional** coefficients (methodology `CCF-2026.1`); FOCUS data exports (S3) provide invoice-level quantities.
+- **Carbon coefficients are the authors' provisional estimates** (methodology `RLX-PROVISIONAL-1`, provenance `author_estimate_unverified`): they follow the shape of the Cloud Carbon Footprint method but are **not imported from or verified against its published datasets**, and the spend-based values have no published counterpart. **Embodied emissions (SCI's M) are not included.** The API returns these caveats with every carbon summary and CI verdict, reports print them, and the dashboard shows them next to the numbers. Do not use the figures for external reporting until a citable dataset replaces this set.
+- Carbon is **usage-based** for EC2 running hours, S3 storage and (GCP) Compute Engine and storage capacity, and **cost-based** for everything else; FOCUS data exports (S3) provide invoice-level quantities.
 - The AWS connector, Auth0, object storage and the Docker stack are covered by fakes and integration tests but have not yet been exercised against live services.

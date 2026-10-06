@@ -40,10 +40,16 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "provider not supported yet", "")
 	case errors.Is(err, domain.ErrAccessDenied):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "access verification failed",
-			"The role could not be assumed or lacks read access (ce:GetCostAndUsage, or the S3 export). Check the trust policy ExternalId.")
+			"The platform could not read your billing data. Check the granted access: the AWS role (trust policy ExternalId, read permissions) or the platform service account's read access to the BigQuery dataset.")
+	case errors.Is(err, domain.ErrBigQueryDisabled):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "BigQuery is not enabled",
+			"Enable the BigQuery API in your Google Cloud project and turn on Cloud Billing export to BigQuery, then verify again.")
+	case errors.Is(err, domain.ErrOwnershipNotProven):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "ownership not proven",
+			"Add the connection's label to the billing dataset (see the setup steps), then verify again.")
 	case errors.Is(err, domain.ErrExportNotFound):
-		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "export not found",
-			"No manifest was found for the FOCUS export. Check the bucket, prefix and export name, and that the first delivery has happened.")
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "billing export not found",
+			"No billing export was found. Check that it is enabled and delivered (the first delivery can take up to 48 hours) and that the location is correct.")
 	default:
 		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
 	}

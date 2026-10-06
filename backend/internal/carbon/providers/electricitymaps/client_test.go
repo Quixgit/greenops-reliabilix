@@ -123,3 +123,15 @@ func TestFailuresAreNotCached(t *testing.T) {
 		t.Fatalf("calls = %d, want 2 (errors must be retried)", calls)
 	}
 }
+
+func TestGoogleCloudRegionsAreMapped(t *testing.T) {
+	c := New("k", nil)
+	for region, zone := range map[string]string{"europe-west3": "DE", "europe-north1": "FI", "us-west1": "US-NW-PACW", "asia-northeast1": "JP-TK"} {
+		if got := c.ZoneMap()[region]; got != zone {
+			t.Errorf("%s -> %q, want %q", region, got, zone)
+		}
+	}
+	if c.ZoneMap()["eu-central-1"] != "DE" {
+		t.Error("AWS regions must keep working next to Google Cloud regions")
+	}
+}

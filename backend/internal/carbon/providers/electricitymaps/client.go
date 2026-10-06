@@ -29,6 +29,19 @@ var defaultZones = map[string]string{
 	"ap-northeast-1": "JP-TK", "ap-northeast-2": "KR", "ap-northeast-3": "JP-KN", "ap-southeast-1": "SG",
 	"ap-southeast-2": "AU-NSW", "ap-southeast-4": "AU-VIC", "ap-south-1": "IN-WE", "ap-east-1": "HK",
 	"sa-east-1": "BR-S", "il-central-1": "IL", "af-south-1": "ZA", "me-south-1": "BH",
+	// Google Cloud regions (ids never collide with AWS ones). Like the AWS entries they are verified against the
+	// account's available zones by `admin doctor` and can be corrected with ELECTRICITYMAPS_ZONE_OVERRIDES.
+	"us-central1": "US-MIDW-MISO", "us-east1": "US-CAR-SC", "us-east4": "US-MIDA-PJM", "us-east5": "US-MIDA-PJM",
+	"us-south1": "US-TEX-ERCO", "us-west1": "US-NW-PACW", "us-west2": "US-CAL-CISO", "us-west3": "US-NW-PACE",
+	"northamerica-northeast1": "CA-QC", "northamerica-northeast2": "CA-ON",
+	"southamerica-east1": "BR-S", "southamerica-west1": "CL-SEN",
+	"europe-north1": "FI", "europe-west1": "BE", "europe-west2": "GB", "europe-west3": "DE", "europe-west4": "NL",
+	"europe-west6": "CH", "europe-west8": "IT-NO", "europe-west9": "FR", "europe-west12": "IT-NO",
+	"europe-southwest1": "ES", "europe-central2": "PL",
+	"asia-east1": "TW", "asia-east2": "HK", "asia-northeast1": "JP-TK", "asia-northeast2": "JP-KN", "asia-northeast3": "KR",
+	"asia-south1": "IN-WE", "asia-south2": "IN-NO", "asia-southeast1": "SG",
+	"australia-southeast1": "AU-NSW", "australia-southeast2": "AU-VIC",
+	"me-west1": "IL", "me-central1": "QA", "africa-south1": "ZA",
 }
 
 var (

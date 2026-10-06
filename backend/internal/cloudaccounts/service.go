@@ -26,7 +26,9 @@ type Deps struct {
 	Ingestor             application.Ingestor
 	Rightsizing          domain.RightsizingSink // optional
 	PlatformAWSAccountID string
-	BackfillDays         int
+	// PlatformGCPServiceAccount is shown to GCP customers as the principal to grant dataset read access to.
+	PlatformGCPServiceAccount string
+	BackfillDays              int
 }
 
 type Module struct {
@@ -36,7 +38,7 @@ type Module struct {
 
 func New(d Deps) *Module {
 	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Queue: d.Queue,
-		Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, BackfillDays: d.BackfillDays}
+		Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, PlatformGCPServiceAccount: d.PlatformGCPServiceAccount, BackfillDays: d.BackfillDays}
 	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc}
 }
 
@@ -66,8 +68,8 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 			return err
 		}
 		err = m.svc.RunSync(ctx, p.TenantID, p.RefID)
-		if errors.Is(err, domain.ErrAccessDenied) || errors.Is(err, domain.ErrExportNotFound) {
-			return errors.Join(asynq.SkipRetry, err) // the customer must fix the role or the export location; retrying cannot help
+		if domain.NeedsCustomerAction(err) {
+			return errors.Join(asynq.SkipRetry, err) // the customer must fix access or the export; retrying cannot help
 		}
 		return err
 	})

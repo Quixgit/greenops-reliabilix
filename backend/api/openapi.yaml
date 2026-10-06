@@ -2281,13 +2281,17 @@ components:
           type: string
           enum:
           - aws
-          description: Azure and GCP arrive in phase 2.
+          - gcp
+          description: Azure arrives later. GCP is available when the platform has a Google identity configured.
         account_ref:
           type: string
-          pattern: ^\d{12}$
+          description: AWS account id (12 digits) or GCP project id (6-30 lowercase letters, digits, hyphens).
         credential_ref:
           type: string
-          description: IAM role ARN. Raw access keys are rejected.
+          description: |
+            A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
+            GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
+            `gcp_billing_export_resource_v1_*`). Raw keys are rejected.
       required:
       - project_id
       - provider
@@ -2299,14 +2303,21 @@ components:
       properties:
         external_id:
           type: string
+          description: Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset.
         platform_account_id:
           type: string
+          description: AWS account or GCP service account the customer grants access to.
         trust_policy:
           type: object
         permissions_policy:
           type: object
         required_permissions:
           type: array
+          items:
+            type: string
+        steps:
+          type: array
+          description: Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access).
           items:
             type: string
       additionalProperties: true
@@ -2407,6 +2418,27 @@ components:
     CarbonSummary:
       type: object
       properties:
+        methodology:
+          type: object
+          description: How the figures were produced. Clients must show the caveats next to the numbers.
+          properties:
+            version:
+              type: string
+            status:
+              type: string
+              enum:
+              - provisional
+              - final
+            provenance:
+              type: string
+              description: Where the coefficients come from, for example `author_estimate_unverified`.
+            embodied_carbon_included:
+              type: boolean
+              description: false means the SCI term M (embodied emissions) is not included, so SCI is operational only.
+            caveats:
+              type: array
+              items:
+                type: string
         energy_kwh:
           type: number
         carbon_kg_co2e:
@@ -2582,6 +2614,13 @@ components:
           type: boolean
         methodology_version:
           type: string
+        embodied_carbon_included:
+          type: boolean
+          description: false means the verdict rests on operational emissions only (embodied emissions are not modelled).
+        caveats:
+          type: array
+          items:
+            type: string
       additionalProperties: true
     FinopsSummary:
       type: object

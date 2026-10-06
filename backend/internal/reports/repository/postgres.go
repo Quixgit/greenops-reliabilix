@@ -84,9 +84,13 @@ func period(from, to time.Time) string {
 	return fmt.Sprintf("%s to %s", day(from), day(to.AddDate(0, 0, -1)))
 }
 
+// methodologyNotes states the methodology and every caveat on the report itself, so a file that leaves the
+// platform still says what its numbers are (and are not).
 func methodologyNotes() []string {
-	n := []string{fmt.Sprintf("Methodology %s (%s). cost_based rows are spend-derived estimates with low confidence; usage_based rows use measured consumption.", methodology.Current.Version, methodology.Current.Status)}
-	if methodology.Current.Status == "provisional" {
+	m := methodology.Current
+	n := []string{fmt.Sprintf("Methodology %s (%s, provenance: %s). cost_based rows are spend-derived estimates with low confidence; usage_based rows use measured consumption.", m.Version, m.Status, m.Provenance)}
+	n = append(n, m.Caveats...)
+	if m.Status == "provisional" {
 		n = append(n, "Coefficients are provisional: do not use these figures for external sustainability reporting yet.")
 	}
 	return n
