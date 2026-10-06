@@ -28,7 +28,7 @@ func (q *Queries) GetPolicyRegions(ctx context.Context, arg GetPolicyRegionsPara
 }
 
 const getRecommendation = `-- name: GetRecommendation :one
-SELECT id, tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region, estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, status, fingerprint, decided_by, decided_at, applied_at, created_at FROM recommendations.recommendations WHERE tenant_id = $1 AND id = $2 FOR UPDATE
+SELECT id, tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region, estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, status, fingerprint, decided_by, decided_at, applied_at, created_at, details FROM recommendations.recommendations WHERE tenant_id = $1 AND id = $2 FOR UPDATE
 `
 
 type GetRecommendationParams struct {
@@ -61,16 +61,17 @@ func (q *Queries) GetRecommendation(ctx context.Context, arg GetRecommendationPa
 		&i.DecidedAt,
 		&i.AppliedAt,
 		&i.CreatedAt,
+		&i.Details,
 	)
 	return i, err
 }
 
 const insertRecommendation = `-- name: InsertRecommendation :one
 INSERT INTO recommendations.recommendations (tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region,
-    estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, fingerprint)
+    estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, fingerprint, details)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, $11,
-    $12, $13, $14, $15)
+    $12, $13, $14, $15, $16)
 ON CONFLICT (tenant_id, fingerprint) DO NOTHING
 RETURNING id
 `
@@ -91,6 +92,7 @@ type InsertRecommendationParams struct {
 	Confidence                  float64         `json:"confidence"`
 	ComplianceCheck             json.RawMessage `json:"compliance_check"`
 	Fingerprint                 string          `json:"fingerprint"`
+	Details                     json.RawMessage `json:"details"`
 }
 
 func (q *Queries) InsertRecommendation(ctx context.Context, arg InsertRecommendationParams) (string, error) {
@@ -110,6 +112,7 @@ func (q *Queries) InsertRecommendation(ctx context.Context, arg InsertRecommenda
 		arg.Confidence,
 		arg.ComplianceCheck,
 		arg.Fingerprint,
+		arg.Details,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -148,7 +151,7 @@ func (q *Queries) LatestIntensities(ctx context.Context) ([]LatestIntensitiesRow
 }
 
 const listRecommendations = `-- name: ListRecommendations :many
-SELECT id, tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region, estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, status, fingerprint, decided_by, decided_at, applied_at, created_at FROM recommendations.recommendations
+SELECT id, tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region, estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, status, fingerprint, decided_by, decided_at, applied_at, created_at, details FROM recommendations.recommendations
 WHERE tenant_id = $1 AND ($2::text = '' OR status = $2::text)
   AND ($3::uuid IS NULL OR project_id = $3)
 ORDER BY carbon_reduction_kg_month DESC, created_at DESC LIMIT $4
@@ -197,6 +200,7 @@ func (q *Queries) ListRecommendations(ctx context.Context, arg ListRecommendatio
 			&i.DecidedAt,
 			&i.AppliedAt,
 			&i.CreatedAt,
+			&i.Details,
 		); err != nil {
 			return nil, err
 		}

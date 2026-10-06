@@ -60,3 +60,8 @@ poll `GET /reports/{id}` until `ready`, then `GET /reports/{id}/download`. Files
 ## Cloud connection role names
 
 The IAM role ARN must match `arn:aws:iam::<12 digits>:role/Reliabilix*`; other names are rejected (limits the blast radius of the platform's `sts:AssumeRole`). Verification results are audited.
+
+## Automation and exports
+
+- `POST /automation/jobs` plans an *approved* recommendation; `/approve`, `/result` (`completed|failed|rolled_back`) and `/cancel` follow. The platform never executes the plan.
+- `PUT/DELETE /cloud-accounts/{id}/export` points a connection at a FOCUS data export in S3 (locations only).

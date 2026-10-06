@@ -21,6 +21,8 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(write).Post("/cloud-accounts", h.create)
 	r.With(read).Get("/cloud-accounts/{id}", h.get)
 	r.With(write).Delete("/cloud-accounts/{id}", h.delete)
+	r.With(write).Put("/cloud-accounts/{id}/export", h.setExport)
+	r.With(write).Delete("/cloud-accounts/{id}/export", h.clearExport)
 	r.With(write).Post("/cloud-accounts/{id}/verify", h.verify)
 	r.With(write).Post("/cloud-accounts/{id}/sync", h.sync)
 	r.With(read).Get("/cloud-accounts/{id}/sync-runs", h.runs)
@@ -38,7 +40,10 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "provider not supported yet", "")
 	case errors.Is(err, domain.ErrAccessDenied):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "access verification failed",
-			"The role could not be assumed or lacks ce:GetCostAndUsage. Check the trust policy ExternalId.")
+			"The role could not be assumed or lacks read access (ce:GetCostAndUsage, or the S3 export). Check the trust policy ExternalId.")
+	case errors.Is(err, domain.ErrExportNotFound):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "export not found",
+			"No manifest was found for the FOCUS export. Check the bucket, prefix and export name, and that the first delivery has happened.")
 	default:
 		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
 	}
@@ -104,6 +109,41 @@ func (h Handlers) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"connection": conn, "setup": setup})
+}
+
+// setExport points the connection at a FOCUS data export in S3 (locations only, never credentials).
+func (h Handlers) setExport(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	var in domain.ExportConfig
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+		return
+	}
+	conn, err := h.Svc.SetExport(r.Context(), c.TenantID, id, &in)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, conn)
+}
+
+// clearExport switches the connection back to Cost Explorer.
+func (h Handlers) clearExport(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := idParam(w, r)
+	if !ok {
+		return
+	}
+	conn, err := h.Svc.SetExport(r.Context(), c.TenantID, id, nil)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, conn)
 }
 
 func (h Handlers) delete(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 # Give this template to a customer. It creates the read-only role Reliabilix assumes to read cost data.
 # ExternalId and PlatformAccountId are shown by the product (POST /api/v1/cloud-accounts).
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Reliabilix GreenOps - read-only cost access (ce:GetCostAndUsage only)
+Description: Reliabilix GreenOps - read-only cost access (Cost Explorer read APIs only)
 Parameters:
   PlatformAccountId:
     Type: String
@@ -11,6 +11,17 @@ Parameters:
     Type: String
     AllowedPattern: '^rlx-[0-9a-f]{40}$'
     Description: The External ID shown in Reliabilix for this connection
+  ExportBucketName:
+    Type: String
+    Default: ""
+    Description: Optional. Bucket of your FOCUS data export; grants read access to it (see docs/setup).
+  ExportPrefix:
+    Type: String
+    Default: ""
+    Description: Optional. Key prefix of the export inside the bucket (no leading or trailing slash).
+Conditions:
+  ReadExport: !Not [!Equals [!Ref ExportBucketName, ""]]
+  HasPrefix: !Not [!Equals [!Ref ExportPrefix, ""]]
 Resources:
   ReliabilixReadOnly:
     Type: AWS::IAM::Role
@@ -30,8 +41,24 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: ce:GetCostAndUsage
+                Action:
+                  - ce:GetCostAndUsage
+                  - ce:GetRightsizingRecommendation   # optional: enables rightsizing advice
                 Resource: "*"
+        - !If
+          - ReadExport
+          - PolicyName: ReadFocusExport
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                # GetObject only, and only below the export's own prefix (no ListBucket, no other objects).
+                - Effect: Allow
+                  Action: s3:GetObject
+                  Resource: !If
+                    - HasPrefix
+                    - !Sub "arn:aws:s3:::${ExportBucketName}/${ExportPrefix}/*"
+                    - !Sub "arn:aws:s3:::${ExportBucketName}/*"
+          - !Ref AWS::NoValue
 Outputs:
   RoleArn:
     Description: Paste this into Reliabilix as the IAM role ARN

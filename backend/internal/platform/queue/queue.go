@@ -16,6 +16,8 @@ const (
 	TaskSyncAWSAccount     = "cloudaccounts:sync_aws_account"
 	TaskRecommendAll       = "recommendations:calculate_all"
 	TaskSyncAll            = "cloudaccounts:sync_all"
+	TaskRightsizingAll     = "cloudaccounts:rightsizing_all" // fan-out: one rightsizing job per connection
+	TaskSyncRightsizing    = "cloudaccounts:sync_rightsizing"
 	TaskCalculateCarbon    = "carbon:calculate"
 	TaskEnsurePartitions   = "platform:ensure_partitions"
 	TaskRefreshGrid        = "carbon:refresh_grid_intensity"

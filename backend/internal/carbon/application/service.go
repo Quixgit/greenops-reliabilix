@@ -18,7 +18,7 @@ import (
 type Store interface {
 	Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.Summary, error)
 	Trend(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.TrendPoint, error)
-	UpsertCalculations(ctx context.Context, tenantID, projectID string, calcs []domain.Calculation) error
+	ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, calcs []domain.Calculation) error
 	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool) error
 	IntensityAt(ctx context.Context, region string, ts time.Time) (float64, bool, error)
 }
@@ -117,7 +117,7 @@ type WindowResult struct {
 }
 
 // CalculateWindow recomputes carbon for [from, to) of a project from stored FOCUS usage. It is idempotent:
-// rerunning replaces the rows of the same methodology version (new versions add rows, history is kept).
+// rerunning replaces the window's rows of the same methodology version (new versions add rows, history is kept).
 func (s *Service) CalculateWindow(ctx context.Context, tenantID, projectID string, from, to time.Time) (WindowResult, error) {
 	rows, err := s.Usage.DailyAggregates(ctx, tenantID, projectID, from, to)
 	if err != nil {
@@ -160,7 +160,7 @@ func (s *Service) CalculateWindow(ctx context.Context, tenantID, projectID strin
 	if err != nil {
 		return WindowResult{}, err
 	}
-	if err := s.Store.UpsertCalculations(ctx, tenantID, projectID, calcs); err != nil {
+	if err := s.Store.ReplaceCalculations(ctx, tenantID, projectID, from, to, calcs); err != nil {
 		return WindowResult{}, fmt.Errorf("carbon: persist: %w", err)
 	}
 	observability.CarbonCalculations.Add(float64(len(calcs)))
@@ -229,6 +229,9 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 		if err == nil {
 			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false)
 		}
+		if err == nil {
+			s.saveForecast(ctx, region)
+		}
 		if err != nil {
 			observability.CarbonAPIErrors.Inc()
 			s.Log.Error("grid refresh", "region", region, "err", err)
@@ -238,6 +241,22 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 		}
 	}
 	return firstErr
+}
+
+// saveForecast persists the provider forecast for a region. A forecast is optional (not every plan includes
+// it), so a failure is logged and never fails the refresh of the current readings.
+func (s *Service) saveForecast(ctx context.Context, region string) {
+	f, err := s.Provider.GetForecast(ctx, region)
+	if err != nil {
+		s.Log.Warn("grid forecast unavailable", "region", region, "err", err)
+		return
+	}
+	for _, p := range f.Points {
+		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true); err != nil {
+			s.Log.Error("save grid forecast", "region", region, "err", err)
+			return
+		}
+	}
 }
 
 // ---- CI gate ----

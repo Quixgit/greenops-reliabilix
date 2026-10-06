@@ -16,6 +16,7 @@ import (
 )
 
 type memRepo struct {
+	exports map[string]*domain.ExportConfig
 	conns   map[string]domain.Connection
 	status  map[string]domain.SyncStatus
 	through map[string]time.Time
@@ -44,6 +45,16 @@ func (r *memRepo) Create(_ context.Context, c domain.Connection) (domain.Connect
 	return c, nil
 }
 func (r *memRepo) Delete(context.Context, string, string) error { return nil }
+func (r *memRepo) SetExport(_ context.Context, _, id string, e *domain.ExportConfig) error {
+	if r.exports == nil {
+		r.exports = map[string]*domain.ExportConfig{}
+	}
+	r.exports[id] = e
+	c := r.conns[id]
+	c.Export = e
+	r.conns[id] = c
+	return nil
+}
 func (r *memRepo) SetStatus(_ context.Context, _, id string, s domain.SyncStatus, _ *string) error {
 	r.status[id] = s
 	return nil
@@ -72,6 +83,24 @@ func (r *memRepo) ListForSync(context.Context) ([]domain.JobRef, error) {
 type fakeProvider struct {
 	validateErr, usageErr error
 	gotReq                domain.UsageRequest
+	findings              []domain.RightsizingFinding
+	rightsizingErr        error
+}
+
+// GetRightsizing makes fakeProvider a domain.RightsizingProvider.
+func (f *fakeProvider) GetRightsizing(context.Context, domain.Connection) ([]domain.RightsizingFinding, error) {
+	return f.findings, f.rightsizingErr
+}
+
+type fakeSink struct {
+	project  string
+	findings []domain.RightsizingFinding
+	calls    int
+}
+
+func (f *fakeSink) SubmitRightsizing(_ context.Context, _, project string, fs []domain.RightsizingFinding) error {
+	f.calls, f.project, f.findings = f.calls+1, project, fs
+	return nil
 }
 
 func (*fakeProvider) Provider() domain.ProviderType                       { return domain.AWS }
@@ -201,5 +230,75 @@ func TestFanOut(t *testing.T) {
 	n, err := newSvc(newRepo(), &fakeProvider{}, fakeIngestor{}, q).FanOut(context.Background())
 	if err != nil || n != 1 || q.tasks[0] != queue.TaskSyncAWSAccount {
 		t.Errorf("fanout: %d %v %v", n, err, q.tasks)
+	}
+}
+
+func TestRunRightsizingSubmitsFindingsToTheSink(t *testing.T) {
+	sink := &fakeSink{}
+	p := &fakeProvider{findings: []domain.RightsizingFinding{{ResourceID: "i-1", Region: "eu-central-1"}}}
+	s := newSvc(newRepo(awsConn()), p, fakeIngestor{}, &recorder{})
+	s.Rightsizing = sink
+	if err := s.RunRightsizing(context.Background(), "t", "c1"); err != nil {
+		t.Fatal(err)
+	}
+	if sink.calls != 1 || sink.project != "p" || len(sink.findings) != 1 {
+		t.Fatalf("sink got %+v", sink)
+	}
+}
+
+func TestRunRightsizingToleratesMissingPermissionAndConnection(t *testing.T) {
+	sink := &fakeSink{}
+	denied := &fakeProvider{rightsizingErr: domain.ErrAccessDenied}
+	s := newSvc(newRepo(awsConn()), denied, fakeIngestor{}, &recorder{})
+	s.Rightsizing = sink
+	repo := s.Repo.(*memRepo)
+	if err := s.RunRightsizing(context.Background(), "t", "c1"); err != nil {
+		t.Fatalf("a missing optional permission must not fail the job: %v", err)
+	}
+	if repo.status["c1"] == domain.StatusError {
+		t.Fatal("a missing rightsizing permission must not mark the connection unhealthy")
+	}
+	if err := s.RunRightsizing(context.Background(), "t", "gone"); err != nil {
+		t.Fatalf("a deleted connection is a no-op: %v", err)
+	}
+	if sink.calls != 0 {
+		t.Fatalf("nothing may be submitted, got %d calls", sink.calls)
+	}
+	boom := &fakeProvider{rightsizingErr: errors.New("throttled")}
+	s2 := newSvc(newRepo(awsConn()), boom, fakeIngestor{}, &recorder{})
+	s2.Rightsizing = sink
+	if err := s2.RunRightsizing(context.Background(), "t", "c1"); err == nil {
+		t.Fatal("transient errors must surface so the job is retried")
+	}
+}
+
+func TestRunRightsizingWithoutSinkIsNoop(t *testing.T) {
+	s := newSvc(newRepo(awsConn()), &fakeProvider{findings: []domain.RightsizingFinding{{}}}, fakeIngestor{}, &recorder{})
+	if err := s.RunRightsizing(context.Background(), "t", "c1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSetExport(t *testing.T) {
+	s := newSvc(newRepo(awsConn()), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	good := &domain.ExportConfig{Bucket: "acme-billing", Prefix: "exports", Name: "reliabilix", Region: "eu-central-1"}
+	c, err := s.SetExport(context.Background(), "t", "c1", good)
+	if err != nil || c.Export == nil || c.Export.Bucket != "acme-billing" {
+		t.Fatalf("set export: %+v %v", c, err)
+	}
+	if _, err := s.SetExport(context.Background(), "t", "c1", &domain.ExportConfig{Bucket: "acme-billing", Prefix: "../x", Name: "n", Region: "eu-central-1"}); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Fatalf("a traversal prefix must be rejected, got %v", err)
+	}
+	if c, err := s.SetExport(context.Background(), "t", "c1", nil); err != nil || c.Export != nil {
+		t.Fatalf("clear export: %+v %v", c, err)
+	}
+	if _, err := s.SetExport(context.Background(), "t", "missing", good); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("unknown connection: %v", err)
+	}
+	azure := awsConn()
+	azure.ID, azure.Provider = "c2", domain.Azure
+	s2 := newSvc(newRepo(azure), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	if _, err := s2.SetExport(context.Background(), "t", "c2", good); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Fatalf("exports are AWS only: %v", err)
 	}
 }

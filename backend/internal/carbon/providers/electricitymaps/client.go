@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
@@ -59,6 +60,23 @@ type Client struct {
 	APIKey  string
 	HTTP    *http.Client
 	zones   map[string]string
+
+	// Responses are cached so dashboards and jobs do not hit the provider API on every request.
+	// Keys come from the fixed region -> zone map, so the cache cannot grow without bound.
+	mu    sync.Mutex
+	cache map[string]cacheEntry
+	now   func() time.Time // replaced in tests
+}
+
+// Cache lifetimes: the latest reading changes hourly; a forecast is refreshed about once per hour.
+const (
+	intensityTTL = 15 * time.Minute
+	forecastTTL  = time.Hour
+)
+
+type cacheEntry struct {
+	value   any
+	expires time.Time
 }
 
 // New builds a client. overrides (may be nil) replace or extend the default region -> zone map.
@@ -70,7 +88,7 @@ func New(apiKey string, overrides map[string]string) *Client {
 	for k, v := range overrides {
 		z[k] = v
 	}
-	return &Client{BaseURL: "https://api.electricitymaps.com/v3", APIKey: apiKey, zones: z,
+	return &Client{BaseURL: "https://api.electricitymaps.com/v3", APIKey: apiKey, zones: z, cache: map[string]cacheEntry{}, now: time.Now,
 		HTTP: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 }
 
@@ -108,11 +126,36 @@ func sortedRegions(zones map[string]string) []string {
 	return out
 }
 
+// cached returns a fresh cached value for key or computes it with load. Only successful results are cached,
+// so a provider outage is retried on the next call instead of being remembered.
+func cached[T any](c *Client, key string, ttl time.Duration, load func() (T, error)) (T, error) {
+	c.mu.Lock()
+	if e, ok := c.cache[key]; ok && c.now().Before(e.expires) {
+		c.mu.Unlock()
+		return e.value.(T), nil
+	}
+	c.mu.Unlock()
+
+	v, err := load()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	c.mu.Lock()
+	c.cache[key] = cacheEntry{value: v, expires: c.now().Add(ttl)}
+	c.mu.Unlock()
+	return v, nil
+}
+
 func (c *Client) GetIntensity(ctx context.Context, region string) (domain.Intensity, error) {
 	zone, ok := c.zones[region]
 	if !ok {
 		return domain.Intensity{}, fmt.Errorf("electricitymaps: no zone for region %q", region)
 	}
+	return cached(c, "latest:"+zone, intensityTTL, func() (domain.Intensity, error) { return c.fetchIntensity(ctx, region, zone) })
+}
+
+func (c *Client) fetchIntensity(ctx context.Context, region, zone string) (domain.Intensity, error) {
 	var body struct {
 		CarbonIntensity float64   `json:"carbonIntensity"`
 		Datetime        time.Time `json:"datetime"`
@@ -128,6 +171,10 @@ func (c *Client) GetForecast(ctx context.Context, region string) (domain.Forecas
 	if !ok {
 		return domain.Forecast{}, fmt.Errorf("electricitymaps: no zone for region %q", region)
 	}
+	return cached(c, "forecast:"+zone, forecastTTL, func() (domain.Forecast, error) { return c.fetchForecast(ctx, region, zone) })
+}
+
+func (c *Client) fetchForecast(ctx context.Context, region, zone string) (domain.Forecast, error) {
 	var body struct {
 		Forecast []struct {
 			CarbonIntensity float64   `json:"carbonIntensity"`

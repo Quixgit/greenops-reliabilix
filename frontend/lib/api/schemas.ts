@@ -90,7 +90,7 @@ export const recommendations = items(recommendation);
 export const report = z.object({
   id: z.string(),
   project_id: z.string().nullable(),
-  kind: z.enum(["carbon", "sci", "finops"]),
+  kind: z.enum(["carbon", "sci", "finops", "sustainability"]),
   format: z.enum(["csv", "json", "pdf"]),
   period_start: z.string(),
   period_end: z.string(),

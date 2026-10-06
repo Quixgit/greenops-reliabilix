@@ -71,11 +71,26 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
    response contains the `external_id` and the platform account id.
 2. They deploy `deploy/aws/customer-role.yaml` (CloudFormation) or `customer-role.tf`
    (Terraform) with those two values. It creates **`ReliabilixReadOnly`** with
-   `ce:GetCostAndUsage` only. The role name must start with `Reliabilix`; the API rejects
+   `ce:GetCostAndUsage` and the optional `ce:GetRightsizingRecommendation` (rightsizing advice; without it everything else keeps working, and the customer must also opt in to rightsizing recommendations in Cost Explorer preferences). The role name must start with `Reliabilix`; the API rejects
    other names.
 3. They paste the role ARN, then call verify. The result is audited
    (`cloud_connection.verified` / `verification_failed`).
-4. Enable Cost Explorer in the customer's account (first activation takes up to 24 h).
+4. Each sync makes three Cost Explorer queries (cost, EC2 hours, S3 storage; $0.01 per result page). No extra permission is needed.
+5. Enable Cost Explorer in the customer's account (first activation takes up to 24 h).
+
+### 5b. Recommended: FOCUS data export (invoice-level data)
+
+Cost Explorer works out of the box. For invoice-level data and exact instance hours, the customer creates an
+**AWS Data Export** (Billing and Cost Management → Data Exports → *Standard data export*, table
+**FOCUS 1.0 with AWS columns**, format **Text or CSV, gzip**, daily refresh, overwrite) into an S3 bucket.
+
+1. Deploy the role template with `ExportBucketName` and `ExportPrefix` (read access to that prefix only,
+   `s3:GetObject`, nothing else).
+2. `PUT /api/v1/cloud-accounts/{id}/export` with `{"bucket","prefix","name","region"}` (locations only).
+3. Verify again. The connection then reads the export instead of Cost Explorer (switch back with `DELETE`).
+
+The platform reads the month's manifest, accepts only files inside the export's own folder, streams them with
+size limits and stores daily aggregates. Delivery lags by up to a day, and the first delivery can take 24 h.
 
 ## 6. Electricity Maps (grid carbon intensity)
 
@@ -84,6 +99,8 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
 3. Regions are mapped to zones by a built-in table (about 26 AWS regions). Override or add
    with `ELECTRICITYMAPS_ZONE_OVERRIDES=eu-central-1=DE,eu-north-1=SE`. An invalid spec
    stops startup.
+
+The client caches the latest reading for 15 minutes and forecasts for 1 hour; `refresh-grid` also stores the forecast (optional, a missing forecast is only logged).
 
 Without a key the carbon job has no grid data and `refresh-grid` reports it; cost data
 still flows. Check: `doctor` makes a live call and verifies zone availability.

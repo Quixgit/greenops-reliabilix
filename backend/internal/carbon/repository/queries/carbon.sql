@@ -9,6 +9,14 @@ DO UPDATE SET energy_kwh = EXCLUDED.energy_kwh, intensity_g_per_kwh = EXCLUDED.i
               carbon_kg_co2e = EXCLUDED.carbon_kg_co2e, functional_units = EXCLUDED.functional_units, sci_score = EXCLUDED.sci_score,
               period_end = EXCLUDED.period_end, calculated_at = now();
 
+-- name: DeleteCalculationsInWindow :exec
+-- Rows of one methodology version in [from, to): the window is recomputed as a whole, so rows that the
+-- engine no longer produces (e.g. a cost-based row superseded by measured usage) must not linger.
+DELETE FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+  AND methodology_version = sqlc.arg(methodology_version);
+
 -- name: CarbonTotals :one
 -- SCI over a window = total carbon / total functional units, counting R once per (project, day) and
 -- only on days where R was reported (never extrapolated). Per-row sci_score is that row's share of its day's SCI.

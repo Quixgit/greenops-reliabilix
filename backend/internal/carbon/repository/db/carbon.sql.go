@@ -116,6 +116,34 @@ func (q *Queries) CarbonTrend(ctx context.Context, arg CarbonTrendParams) ([]Car
 	return items, nil
 }
 
+const deleteCalculationsInWindow = `-- name: DeleteCalculationsInWindow :exec
+DELETE FROM carbon.calculations
+WHERE tenant_id = $1 AND project_id = $2
+  AND period_start >= $3 AND period_start < $4
+  AND methodology_version = $5
+`
+
+type DeleteCalculationsInWindowParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          string    `json:"project_id"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+	MethodologyVersion string    `json:"methodology_version"`
+}
+
+// Rows of one methodology version in [from, to): the window is recomputed as a whole, so rows that the
+// engine no longer produces (e.g. a cost-based row superseded by measured usage) must not linger.
+func (q *Queries) DeleteCalculationsInWindow(ctx context.Context, arg DeleteCalculationsInWindowParams) error {
+	_, err := q.db.Exec(ctx, deleteCalculationsInWindow,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+		arg.MethodologyVersion,
+	)
+	return err
+}
+
 const intensityAt = `-- name: IntensityAt :one
 SELECT g_co2e_per_kwh FROM carbon.grid_intensity
 WHERE region_id = $1 AND NOT is_forecast AND ts <= $2

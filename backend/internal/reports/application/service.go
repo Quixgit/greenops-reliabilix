@@ -61,6 +61,8 @@ func (s Service) table(ctx context.Context, tenantID string, r domain.Report) (d
 		return s.Repo.CarbonTable(ctx, tenantID, r.ProjectID, from, to)
 	case domain.KindSCI:
 		return s.Repo.SCITable(ctx, tenantID, r.ProjectID, from, to)
+	case domain.KindSustainability:
+		return s.Repo.SustainabilityTable(ctx, tenantID, r.ProjectID, from, to)
 	default:
 		return s.Repo.FinopsTable(ctx, tenantID, r.ProjectID, from, to)
 	}

@@ -35,6 +35,11 @@ const (
 	PermAuditRead      Permission = "audit:read"
 	PermTenantAdmin    Permission = "tenant:admin" // members, invitations, API keys
 	PermCIEvaluate     Permission = "ci:evaluate"
+
+	// Automation: plans for approved recommendations. Machines (CI keys) hold none of these.
+	PermAutomationRead    Permission = "automation:read"
+	PermAutomationWrite   Permission = "automation:write"   // create a plan, report the result, cancel
+	PermAutomationApprove Permission = "automation:approve" // approve a plan for execution
 )
 
 func perms(groups ...[]Permission) map[Permission]struct{} {
@@ -53,9 +58,10 @@ var (
 )
 
 var matrix = map[Role]map[Permission]struct{}{
-	RoleOwner:    perms(read, manage, []Permission{PermRecommendApply}),
-	RoleAdmin:    perms(read, manage), // manages people, connections, settings; does not approve infrastructure changes
-	RoleEngineer: perms(read, []Permission{PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate}),
+	RoleOwner: perms(read, manage, []Permission{PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
+	// Admin manages people, connections and settings; it can see plans but does not approve infrastructure changes.
+	RoleAdmin:    perms(read, manage, []Permission{PermAutomationRead}),
+	RoleEngineer: perms(read, []Permission{PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	RoleViewer:   perms(read),
 	RoleBilling:  perms([]Permission{PermUsageRead, PermCarbonRead, PermReportRead, PermReportWrite, PermBillingRead, PermBudgetWrite}),
 	RoleCI:       perms([]Permission{PermCIEvaluate}),

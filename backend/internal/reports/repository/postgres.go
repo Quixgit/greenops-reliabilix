@@ -141,3 +141,63 @@ func (r Postgres) SCITable(ctx context.Context, tenantID string, project *string
 	})
 	return
 }
+
+// SustainabilityTable is the executive summary of the window. It states how much of the footprint rests on
+// measured usage and how much on spend-based estimates, so a reader can judge the figures.
+func (r Postgres) SustainabilityTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (t domain.Table, err error) {
+	t = domain.Table{Title: "Sustainability summary", Period: period(from, to),
+		Notes:   append(methodologyNotes(), "Emissions are operational only (embodied emissions are 0 in this methodology version). Recommendation figures are modelled monthly effects, not measured savings."),
+		Headers: []string{"section", "item", "value", "unit"}}
+	add := func(section, item, value, unit string) { t.Rows = append(t.Rows, []string{section, item, value, unit}) }
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		methods, err := q.ReportSustainabilityByMethod(ctx, db.ReportSustainabilityByMethodParams{TenantID: tenantID, ProjectID: project,
+			MethodologyVersion: methodology.Version, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		var energy, carbon, usageBased float64
+		for _, m := range methods {
+			energy += m.EnergyKwh
+			carbon += m.CarbonKg
+			if m.Method == "usage_based" {
+				usageBased = m.CarbonKg
+			}
+		}
+		add("Totals", "Energy", f(energy), "kWh")
+		add("Totals", "Carbon", f(carbon), "kgCO2e")
+		if energy > 0 {
+			add("Totals", "Average grid intensity", f(carbon*1000/energy), "gCO2e/kWh")
+		}
+		if carbon > 0 {
+			add("Data quality", "Carbon from measured usage", f(usageBased/carbon*100), "%")
+			add("Data quality", "Carbon estimated from spend", f((carbon-usageBased)/carbon*100), "%")
+		}
+		services, err := q.ReportSustainabilityTopServices(ctx, db.ReportSustainabilityTopServicesParams{TenantID: tenantID, ProjectID: project,
+			MethodologyVersion: methodology.Version, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		for _, s := range services {
+			add("Top services by carbon", s.Provider+" / "+s.ServiceName, f(s.CarbonKg), "kgCO2e")
+		}
+		regions, err := q.ReportSustainabilityTopRegions(ctx, db.ReportSustainabilityTopRegionsParams{TenantID: tenantID, ProjectID: project,
+			MethodologyVersion: methodology.Version, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		for _, g := range regions {
+			add("Top regions by carbon", g.RegionID, f(g.CarbonKg), "kgCO2e")
+		}
+		recs, err := q.ReportSustainabilityRecommendations(ctx, db.ReportSustainabilityRecommendationsParams{TenantID: tenantID, ProjectID: project, ToTs: to})
+		if err != nil {
+			return err
+		}
+		for _, x := range recs {
+			add("Recommendations ("+x.Status+")", "Count", strconv.Itoa(int(x.N)), "recommendations")
+			add("Recommendations ("+x.Status+")", "Modelled effect", f(x.KgMonth), "kgCO2e/month")
+		}
+		return nil
+	})
+	return
+}

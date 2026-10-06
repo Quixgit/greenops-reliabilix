@@ -86,18 +86,18 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	projectsM := projects.New(pool)
 	usageM := usage.New(pool)
 	ingestionM := ingestion.New(usageM.Svc, store, log)
-	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
-		Ingestor: cloudapp.Ingestor(ingestionM.Svc), PlatformAWSAccountID: cfg.PlatformAWSAccountID, BackfillDays: cfg.SyncBackfillDays})
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
 		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}})
+	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
+		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, PlatformAWSAccountID: cfg.PlatformAWSAccountID, BackfillDays: cfg.SyncBackfillDays})
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q})
 
 	c := &Container{}
 	c.modules = []httpx.Module{
 		tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finops.New(pool),
-		dashboard.New(pool), recsM, kubernetes.New(), reportsM, automation.New(),
+		dashboard.New(pool), recsM, kubernetes.New(), reportsM, automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}),
 	}
 	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM}
 

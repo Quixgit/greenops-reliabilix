@@ -24,6 +24,7 @@ type Deps struct {
 	Queue                queue.Enqueuer
 	Providers            *domain.Registry
 	Ingestor             application.Ingestor
+	Rightsizing          domain.RightsizingSink // optional
 	PlatformAWSAccountID string
 	BackfillDays         int
 }
@@ -34,7 +35,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Queue: d.Queue,
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Queue: d.Queue,
 		Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, BackfillDays: d.BackfillDays}
 	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc}
 }
@@ -48,14 +49,25 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		_, err := m.svc.FanOut(ctx)
 		return err
 	})
+	mux.HandleFunc(queue.TaskRightsizingAll, func(ctx context.Context, _ *asynq.Task) error {
+		_, err := m.svc.FanOutRightsizing(ctx)
+		return err
+	})
+	mux.HandleFunc(queue.TaskSyncRightsizing, func(ctx context.Context, t *asynq.Task) error {
+		p, err := queue.Decode(t)
+		if err != nil {
+			return err
+		}
+		return m.svc.RunRightsizing(ctx, p.TenantID, p.RefID)
+	})
 	mux.HandleFunc(queue.TaskSyncAWSAccount, func(ctx context.Context, t *asynq.Task) error {
 		p, err := queue.Decode(t)
 		if err != nil {
 			return err
 		}
 		err = m.svc.RunSync(ctx, p.TenantID, p.RefID)
-		if errors.Is(err, domain.ErrAccessDenied) {
-			return errors.Join(asynq.SkipRetry, err) // the customer must fix the role; retrying cannot help
+		if errors.Is(err, domain.ErrAccessDenied) || errors.Is(err, domain.ErrExportNotFound) {
+			return errors.Join(asynq.SkipRetry, err) // the customer must fix the role or the export location; retrying cannot help
 		}
 		return err
 	})

@@ -1,9 +1,9 @@
 -- name: InsertRecommendation :one
 INSERT INTO recommendations.recommendations (tenant_id, project_id, type, title, provider, service_name, current_region, recommended_region,
-    estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, fingerprint)
+    estimated_carbon_reduction_pct, carbon_reduction_kg_month, estimated_cost_impact, cost_basis, confidence, compliance_check, fingerprint, details)
 VALUES (sqlc.arg(tenant_id), sqlc.arg(project_id), sqlc.arg(type), sqlc.arg(title), sqlc.arg(provider), sqlc.arg(service_name), sqlc.arg(current_region),
     sqlc.arg(recommended_region), sqlc.arg(estimated_carbon_reduction_pct), sqlc.arg(carbon_reduction_kg_month), sqlc.narg(estimated_cost_impact),
-    sqlc.arg(cost_basis), sqlc.arg(confidence), sqlc.arg(compliance_check), sqlc.arg(fingerprint))
+    sqlc.arg(cost_basis), sqlc.arg(confidence), sqlc.arg(compliance_check), sqlc.arg(fingerprint), sqlc.arg(details))
 ON CONFLICT (tenant_id, fingerprint) DO NOTHING
 RETURNING id;
 

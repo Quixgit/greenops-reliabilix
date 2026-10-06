@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/ec2spec"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/domain"
@@ -87,6 +89,49 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 	return created, nil
 }
 
+// energyModel is the active carbon methodology expressed for single instances, so a rightsizing estimate
+// uses exactly the coefficients of the carbon engine.
+func energyModel() domain.EnergyModel {
+	f := methodology.Current
+	return domain.EnergyModel{
+		KWhPerVCPUHour: f.EnergyPerUnit["vcpu_hours"], KWhPerGBHour: f.EnergyPerUnit["memory_gb_hours"], PUE: f.PUE,
+		ShapeOf: func(t string) (domain.Shape, bool) {
+			sp, ok := ec2spec.Parse(t)
+			return domain.Shape{VCPU: sp.VCPU, MemoryGB: sp.MemoryGB}, ok
+		},
+	}
+}
+
+// IngestRightsizing turns the provider's findings for a project into recommendations (deduplicated by
+// fingerprint; decided findings are never recreated). Returns the number of new recommendations.
+func (s Service) IngestRightsizing(ctx context.Context, tenantID, projectID string, findings []domain.RightsizingFinding) (int, error) {
+	if len(findings) == 0 {
+		return 0, nil
+	}
+	intensity, err := s.Repo.Intensities(ctx)
+	if err != nil {
+		return 0, err
+	}
+	res := domain.GenerateRightsizing(domain.RightsizingInput{
+		ProjectID: projectID, Findings: findings, Intensity: intensity, Model: energyModel(), Provider: "aws", Now: s.now()})
+	if len(res.Skipped) > 0 {
+		s.Log.Info("rightsizing findings skipped", "project", projectID, "skipped", res.Skipped)
+	}
+	created := 0
+	for _, r := range res.Recommendations {
+		r.ProjectID = projectID
+		ok, err := s.Repo.Insert(ctx, tenantID, r)
+		if err != nil {
+			return created, err
+		}
+		if ok {
+			created++
+		}
+	}
+	observability.RecommendationsGenerated.Add(float64(created))
+	return created, nil
+}
+
 // RefreshAll queues a generation job per project across tenants (scheduler).
 func (s Service) RefreshAll(ctx context.Context) (int, error) {
 	refs, err := s.Projects.ProjectsForJobs(ctx)
@@ -129,6 +174,16 @@ func (s Service) recheck(ctx context.Context, tenantID string) func(*domain.Reco
 		}
 		return nil
 	}
+}
+
+// CheckCompliance re-validates a recommendation against the project's current policy without changing it
+// (used before planning and approving automation).
+func (s Service) CheckCompliance(ctx context.Context, tenantID, id string) error {
+	r, err := s.Repo.Get(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	return s.recheck(ctx, tenantID)(&r)
 }
 
 // Approve, Apply and Dismiss are explicit human decisions by an authenticated user. Phase 1-2 "apply"

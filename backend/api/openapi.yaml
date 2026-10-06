@@ -12,6 +12,8 @@ security:
 tags:
 - name: system
   description: Health endpoints
+- name: automation
+  description: Reviewed change plans for approved recommendations (never executed by the platform)
 - name: tenants
   description: Onboarding, members, invitations, API keys, audit log
 - name: users
@@ -556,6 +558,205 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /api/v1/automation/jobs:
+    get:
+      operationId: listAutomationJobs
+      summary: List automation jobs
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:read`.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AutomationJob'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: planAutomationJob
+      summary: Plan the change of an approved recommendation (nothing is executed)
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:write`.
+        The platform builds a reviewable plan (steps, commands, rollback, risk) from validated identifiers.
+        It never changes the customer's cloud: a human approves the plan, applies it with their own tooling
+        and reports the result.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - recommendation_id
+              properties:
+                recommendation_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/automation/jobs/{id}:
+    get:
+      operationId: getAutomationJob
+      summary: Get a job
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/automation/jobs/{id}/approve:
+    post:
+      operationId: approveAutomationJob
+      summary: Approve the plan for execution by a person
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:approve`.
+        Machines never hold this permission. The data-residency check is repeated at approval time.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/automation/jobs/{id}/result:
+    post:
+      operationId: reportAutomationResult
+      summary: Report what happened when the plan was applied
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:write`.
+        `completed` also marks the recommendation as applied. `failed` and `rolled_back` need a note.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - outcome
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                  - completed
+                  - failed
+                  - rolled_back
+                note:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/automation/jobs/{id}/cancel:
+    post:
+      operationId: cancelAutomationJob
+      summary: Withdraw a plan that was not applied
+      tags:
+      - automation
+      description: |
+        Requires permission `automation:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationJob'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
   /api/v1/cloud-accounts:
     get:
       operationId: listCloudAccounts
@@ -651,6 +852,63 @@ paths:
     post:
       operationId: verifyCloudAccount
       summary: Verify the granted access; on success the connection becomes healthy and a first sync is queued
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}/export:
+    put:
+      operationId: setCloudAccountExport
+      summary: Read billing from the customer's FOCUS data export in S3 instead of Cost Explorer
+      tags:
+      - cloud
+      description: |
+        Requires permission `cloud:write`. Locations only, never credentials: access is by the connection's
+        read-only role. The connection becomes `pending`; verify it again to prove the role can read the export.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportConfig'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: clearCloudAccountExport
+      summary: Switch the connection back to Cost Explorer
       tags:
       - cloud
       description: Requires permission `cloud:write`.
@@ -1867,6 +2125,104 @@ components:
           type: number
           nullable: true
       additionalProperties: true
+    AutomationJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        recommendation_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - ec2_resize
+          - ec2_terminate
+          - region_shift
+        status:
+          type: string
+          enum:
+          - planned
+          - approved
+          - completed
+          - failed
+          - rolled_back
+          - cancelled
+        plan:
+          type: object
+          properties:
+            summary:
+              type: string
+            steps:
+              type: array
+              items:
+                type: string
+            terraform:
+              type: string
+            cli:
+              type: array
+              items:
+                type: string
+        risk:
+          type: object
+          properties:
+            level:
+              type: string
+              enum:
+              - low
+              - medium
+              - high
+            factors:
+              type: array
+              items:
+                type: string
+        rollback_plan:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        approved_by:
+          type: string
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_by:
+          type: string
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        result_note:
+          type: string
+          nullable: true
+    ExportConfig:
+      type: object
+      required:
+      - bucket
+      - name
+      - region
+      properties:
+        bucket:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$
+        prefix:
+          type: string
+          description: Key prefix without leading or trailing slash; may be empty.
+        name:
+          type: string
+          pattern: ^[A-Za-z0-9_.-]{1,128}$
+        region:
+          type: string
+          description: Region of the bucket.
     Connection:
       type: object
       properties:
@@ -1908,6 +2264,12 @@ components:
           type: string
           format: date-time
           nullable: true
+        export:
+          type: object
+          nullable: true
+          description: FOCUS data export the connection reads instead of Cost Explorer (null = Cost Explorer).
+          allOf:
+          - $ref: '#/components/schemas/ExportConfig'
       additionalProperties: true
     ConnectionInput:
       type: object
@@ -2435,6 +2797,7 @@ components:
           enum:
           - not_estimated
           - region_price_index
+          - provider_estimate
         confidence:
           type: number
           minimum: 0
@@ -2456,6 +2819,11 @@ components:
               type: string
               format: date-time
           additionalProperties: true
+        details:
+          type: object
+          additionalProperties:
+            type: string
+          description: Structured facts for automation (resource id, instance types ...).
         status:
           type: string
           enum:
@@ -2494,6 +2862,7 @@ components:
           - carbon
           - sci
           - finops
+          - sustainability
         format:
           type: string
           enum:
@@ -2538,6 +2907,7 @@ components:
           - carbon
           - sci
           - finops
+          - sustainability
         format:
           type: string
           enum:

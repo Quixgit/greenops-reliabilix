@@ -19,7 +19,15 @@ type Postgres struct{ Pool *pgxpool.Pool }
 func toConn(r db.CloudaccountsConnection) domain.Connection {
 	return domain.Connection{ID: r.ID, TenantID: r.TenantID, ProjectID: r.ProjectID, Provider: domain.ProviderType(r.Provider),
 		AccountRef: r.AccountRef, CredentialRef: r.CredentialRef, ExternalID: r.ExternalID, SyncStatus: domain.SyncStatus(r.SyncStatus),
-		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough}
+		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, Export: exportOf(r)}
+}
+
+// exportOf rebuilds the export location; the table constraint guarantees all four columns are set or none.
+func exportOf(r db.CloudaccountsConnection) *domain.ExportConfig {
+	if r.ExportBucket == nil || r.ExportPrefix == nil || r.ExportName == nil || r.ExportRegion == nil {
+		return nil
+	}
+	return &domain.ExportConfig{Bucket: *r.ExportBucket, Prefix: *r.ExportPrefix, Name: *r.ExportName, Region: *r.ExportRegion}
 }
 
 func (r Postgres) List(ctx context.Context, tenantID string) ([]domain.Connection, error) {
@@ -72,6 +80,28 @@ func (r Postgres) Delete(ctx context.Context, tenantID, id string) error {
 			return domain.ErrNotFound
 		}
 		return audit.Record(ctx, tx, "cloud_connection.deleted", "connection:"+id, nil)
+	})
+}
+
+// SetExport sets (or clears, with nil) the FOCUS export location and resets the sync cursor, so the next sync
+// backfills from the new source. The change is audited in the same transaction.
+func (r Postgres) SetExport(ctx context.Context, tenantID, id string, e *domain.ExportConfig) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		p := db.SetConnectionExportParams{TenantID: tenantID, ID: id}
+		action := "cloud_connection.export_removed"
+		meta := map[string]any{}
+		if e != nil {
+			p.ExportBucket, p.ExportPrefix, p.ExportName, p.ExportRegion = &e.Bucket, &e.Prefix, &e.Name, &e.Region
+			action, meta = "cloud_connection.export_configured", map[string]any{"bucket": e.Bucket, "prefix": e.Prefix, "name": e.Name}
+		}
+		n, err := db.New(tx).SetConnectionExport(ctx, p)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return domain.ErrNotFound
+		}
+		return audit.Record(ctx, tx, action, "connection:"+id, meta)
 	})
 }
 

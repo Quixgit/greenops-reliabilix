@@ -27,7 +27,7 @@ func (f *fakeStore) Summary(context.Context, string, *string, time.Time, time.Ti
 func (f *fakeStore) Trend(context.Context, string, *string, time.Time, time.Time) ([]domain.TrendPoint, error) {
 	return nil, nil
 }
-func (f *fakeStore) UpsertCalculations(_ context.Context, _, _ string, c []domain.Calculation) error {
+func (f *fakeStore) ReplaceCalculations(_ context.Context, _, _ string, _, _ time.Time, c []domain.Calculation) error {
 	f.saved = append(f.saved, c...)
 	return nil
 }

@@ -31,6 +31,7 @@ func main() {
 		"5 * * * *":   queue.TaskRefreshGrid,      // hourly grid intensity (Electricity Maps)
 		"30 3 * * *":  queue.TaskRecalculateAll,   // last 35 days: picks up newly reported functional units (SCI)
 		"30 4 * * *":  queue.TaskRecommendAll,     // re-evaluate after policy or grid changes
+		"45 3 * * *":  queue.TaskRightsizingAll,   // provider rightsizing findings change slowly: once a day
 	} {
 		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}"))); err != nil {
 			log.Error("register", "task", task, "err", err)

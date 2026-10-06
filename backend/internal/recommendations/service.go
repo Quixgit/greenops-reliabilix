@@ -25,11 +25,13 @@ type Deps struct {
 type Module struct {
 	h   rhttp.Handlers
 	svc application.Service
+	// Svc is exported for the composition root, which adapts it to the ports of other modules.
+	Svc application.Service
 }
 
 func New(d Deps) *Module {
 	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Projects: d.Projects, Queue: d.Queue, Log: d.Log}
-	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc}
+	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc, Svc: svc}
 }
 
 func (*Module) Name() string          { return "recommendations" }

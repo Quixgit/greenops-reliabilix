@@ -23,7 +23,13 @@ func toDomain(x db.RecommendationsRecommendation) (domain.Recommendation, error)
 	if err := json.Unmarshal(x.ComplianceCheck, &cc); err != nil {
 		return domain.Recommendation{}, err
 	}
-	return domain.Recommendation{ID: x.ID, ProjectID: x.ProjectID, Type: domain.Type(x.Type), Title: x.Title, Provider: x.Provider,
+	details := map[string]string{}
+	if len(x.Details) > 0 {
+		if err := json.Unmarshal(x.Details, &details); err != nil {
+			return domain.Recommendation{}, err
+		}
+	}
+	return domain.Recommendation{Details: details, ID: x.ID, ProjectID: x.ProjectID, Type: domain.Type(x.Type), Title: x.Title, Provider: x.Provider,
 		ServiceName: x.ServiceName, CurrentRegion: x.CurrentRegion, RecommendedRegion: x.RecommendedRegion,
 		CarbonReductionPct: x.EstimatedCarbonReductionPct, CarbonReductionKg: x.CarbonReductionKgMonth, CostImpact: x.EstimatedCostImpact,
 		CostBasis: x.CostBasis, Confidence: x.Confidence, Compliance: cc, Status: domain.Status(x.Status), DecidedBy: x.DecidedBy,
@@ -35,12 +41,19 @@ func (r Postgres) Insert(ctx context.Context, tenantID string, rec domain.Recomm
 	if err != nil {
 		return false, err
 	}
+	details, err := json.Marshal(rec.Details)
+	if err != nil {
+		return false, err
+	}
+	if rec.Details == nil {
+		details = []byte("{}")
+	}
 	created := false
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		id, err := db.New(tx).InsertRecommendation(ctx, db.InsertRecommendationParams{TenantID: tenantID, ProjectID: rec.ProjectID, Type: string(rec.Type),
 			Title: rec.Title, Provider: rec.Provider, ServiceName: rec.ServiceName, CurrentRegion: rec.CurrentRegion, RecommendedRegion: rec.RecommendedRegion,
 			EstimatedCarbonReductionPct: rec.CarbonReductionPct, CarbonReductionKgMonth: rec.CarbonReductionKg, EstimatedCostImpact: rec.CostImpact,
-			CostBasis: rec.CostBasis, Confidence: rec.Confidence, ComplianceCheck: cc, Fingerprint: rec.Fingerprint})
+			CostBasis: rec.CostBasis, Confidence: rec.Confidence, ComplianceCheck: cc, Fingerprint: rec.Fingerprint, Details: details})
 		if database.IsNotFound(err) {
 			return nil // same finding already exists
 		}

@@ -34,8 +34,10 @@ type Service struct {
 	Repo      domain.Repository
 	Providers *domain.Registry
 	Ingestor  Ingestor
-	Queue     queue.Enqueuer
-	Log       *slog.Logger
+	// Rightsizing is optional: without it rightsizing jobs are no-ops.
+	Rightsizing domain.RightsizingSink
+	Queue       queue.Enqueuer
+	Log         *slog.Logger
 
 	PlatformAWSAccountID string
 	BackfillDays         int // first sync window, capped at 365
@@ -94,11 +96,12 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 
 func (s Service) setup(c domain.Connection) Setup {
 	st := Setup{
-		ExternalID:          c.ExternalID,
-		PlatformAccountID:   s.PlatformAWSAccountID,
-		RequiredPermissions: []string{"ce:GetCostAndUsage"},
+		ExternalID:        c.ExternalID,
+		PlatformAccountID: s.PlatformAWSAccountID,
+		// GetRightsizingRecommendation is optional: without it only the rightsizing advice is missing.
+		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"},
 		PermissionsPolicy: map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
-			{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage"}, "Resource": "*"}}},
+			{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"}, "Resource": "*"}}},
 	}
 	if s.PlatformAWSAccountID != "" {
 		st.TrustPolicy = map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{{
@@ -117,6 +120,27 @@ func (s Service) SetupFor(ctx context.Context, tenantID, id string) (Setup, erro
 		return Setup{}, err
 	}
 	return s.setup(c), nil
+}
+
+// SetExport points an AWS connection at the customer's FOCUS data export (nil switches back to Cost Explorer).
+// The connection becomes pending: the customer verifies again, which also proves the role can read the export.
+func (s Service) SetExport(ctx context.Context, tenantID, id string, e *domain.ExportConfig) (domain.Connection, error) {
+	c, err := s.Repo.Get(ctx, tenantID, id)
+	if err != nil {
+		return domain.Connection{}, err
+	}
+	if c.Provider != domain.AWS {
+		return domain.Connection{}, fmt.Errorf("%w: data exports are supported for AWS only", domain.ErrInvalidConnection)
+	}
+	if e != nil {
+		if err := e.Validate(); err != nil {
+			return domain.Connection{}, err
+		}
+	}
+	if err := s.Repo.SetExport(ctx, tenantID, id, e); err != nil {
+		return domain.Connection{}, err
+	}
+	return s.Repo.Get(ctx, tenantID, id)
 }
 
 // Verify checks the granted access. On success the connection becomes healthy and a first sync is queued.
@@ -169,6 +193,63 @@ func (s Service) FanOut(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// RightsizingNow queues a rightsizing refresh (deduplicated while one is pending).
+func (s Service) RightsizingNow(ctx context.Context, tenantID, projectID, connectionID string) error {
+	return s.Queue.Enqueue(ctx, queue.TaskSyncRightsizing,
+		queue.TenantPayload{TenantID: tenantID, ProjectID: projectID, RefID: connectionID},
+		asynq.Unique(time.Hour))
+}
+
+// FanOutRightsizing queues one rightsizing refresh per syncable connection across all tenants (scheduler job).
+func (s Service) FanOutRightsizing(ctx context.Context) (int, error) {
+	refs, err := s.Repo.ListForSync(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, j := range refs {
+		if err := s.RightsizingNow(ctx, j.TenantID, j.ProjectID, j.ConnectionID); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
+			s.Log.Error("enqueue rightsizing", "connection", j.ConnectionID, "err", err)
+			continue
+		}
+		n++
+	}
+	return n, nil
+}
+
+// RunRightsizing fetches the provider's rightsizing findings for one connection and hands them to the
+// recommendations module. It is best effort: a connection whose role lacks the optional permission simply has
+// no findings, and that must never mark the connection unhealthy (cost syncs are unaffected).
+func (s Service) RunRightsizing(ctx context.Context, tenantID, connectionID string) error {
+	if s.Rightsizing == nil {
+		return nil
+	}
+	c, err := s.Repo.Get(ctx, tenantID, connectionID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	p, err := s.Providers.Get(c.Provider)
+	if err != nil {
+		return err
+	}
+	rp, ok := p.(domain.RightsizingProvider)
+	if !ok {
+		return nil
+	}
+	findings, err := rp.GetRightsizing(ctx, c)
+	if err != nil {
+		if errors.Is(err, domain.ErrAccessDenied) {
+			s.Log.Info("rightsizing not permitted for this connection; add ce:GetRightsizingRecommendation to the role", "connection", connectionID)
+			return nil
+		}
+		return err
+	}
+	return s.Rightsizing.SubmitRightsizing(ctx, tenantID, c.ProjectID, findings)
+}
+
 // window computes the [from, to) days to fetch: incremental with overlap, or the initial backfill.
 func (s Service) window(c domain.Connection) (from, to time.Time) {
 	to = s.now().Truncate(24 * time.Hour) // today is excluded: its cost is still estimated
@@ -209,7 +290,7 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 	fail := func(cause error) error {
 		msg := safeMessage(cause)
 		_ = s.Repo.FinishRun(ctx, tenantID, runID, false, 0, &msg)
-		if errors.Is(cause, domain.ErrAccessDenied) {
+		if errors.Is(cause, domain.ErrAccessDenied) || errors.Is(cause, domain.ErrExportNotFound) {
 			_ = s.Repo.SetStatus(ctx, tenantID, connectionID, domain.StatusError, &msg)
 			observability.CloudSyncTotal.WithLabelValues(label, "denied").Inc()
 		} else {
@@ -252,7 +333,9 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 func safeMessage(err error) string {
 	switch {
 	case errors.Is(err, domain.ErrAccessDenied):
-		return "Access denied: check the IAM role trust policy (ExternalId) and the ce:GetCostAndUsage permission."
+		return "Access denied: check the IAM role trust policy (ExternalId) and its read permissions (Cost Explorer, or the S3 export)."
+	case errors.Is(err, domain.ErrExportNotFound):
+		return "FOCUS export not found: check the bucket, prefix and export name, and that the first delivery has happened."
 	default:
 		return "Sync failed; it will be retried automatically."
 	}

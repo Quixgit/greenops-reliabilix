@@ -21,6 +21,16 @@ func TestRoleCan(t *testing.T) {
 		{RoleCI, PermCIEvaluate, true},
 		{RoleCI, PermUsageRead, false},
 		{RoleCI, PermProjectRead, false},
+		{RoleEngineer, PermAutomationApprove, true},
+		{RoleOwner, PermAutomationWrite, true},
+		{RoleAdmin, PermAutomationRead, true},
+		{RoleAdmin, PermAutomationApprove, false}, // admins see plans, they do not approve infra changes
+		{RoleAdmin, PermAutomationWrite, false},
+		{RoleViewer, PermAutomationRead, false}, // plans reveal infrastructure details
+		{RoleBilling, PermAutomationRead, false},
+		{RoleCI, PermAutomationRead, false}, // machines never plan, approve or read automation
+		{RoleCI, PermAutomationWrite, false},
+		{RoleCI, PermAutomationApprove, false},
 		{Role("unknown"), PermProjectRead, false},
 	}
 	for _, c := range cases {

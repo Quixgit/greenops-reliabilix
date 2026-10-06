@@ -17,8 +17,14 @@ import (
 
 type fakeCE struct {
 	calls []*costexplorer.GetCostAndUsageInput
-	pages []*costexplorer.GetCostAndUsageOutput
+	pages []*costexplorer.GetCostAndUsageOutput // served in order; once exhausted, empty results
 	err   error
+	// failFrom > 0 makes every call from that (1-based) call number on fail with failErr.
+	failFrom int
+	failErr  error
+
+	rs      []*costexplorer.GetRightsizingRecommendationOutput
+	rsCalls []*costexplorer.GetRightsizingRecommendationInput
 }
 
 func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndUsageInput, _ ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error) {
@@ -27,8 +33,29 @@ func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndU
 	if f.err != nil {
 		return nil, f.err
 	}
+	if f.failFrom > 0 && len(f.calls) >= f.failFrom {
+		return nil, f.failErr
+	}
+	if len(f.pages) == 0 {
+		return &costexplorer.GetCostAndUsageOutput{}, nil
+	}
 	p := f.pages[0]
 	f.pages = f.pages[1:]
+	return p, nil
+}
+
+// rightsizing responses are served from rs (pages in order); rsCalls records the requests.
+func (f *fakeCE) GetRightsizingRecommendation(_ context.Context, in *costexplorer.GetRightsizingRecommendationInput, _ ...func(*costexplorer.Options)) (*costexplorer.GetRightsizingRecommendationOutput, error) {
+	cp := *in
+	f.rsCalls = append(f.rsCalls, &cp)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if len(f.rs) == 0 {
+		return &costexplorer.GetRightsizingRecommendationOutput{}, nil
+	}
+	p := f.rs[0]
+	f.rs = f.rs[1:]
 	return p, nil
 }
 
@@ -60,7 +87,7 @@ func TestGetUsagePaginatesAndShapesRequest(t *testing.T) {
 	if gotRole != conn().CredentialRef || gotExt != "rlx-abc" {
 		t.Errorf("assume args wrong: %q %q", gotRole, gotExt)
 	}
-	if len(ce.calls) != 2 || ce.calls[1].NextPageToken == nil || *ce.calls[1].NextPageToken != "tok" {
+	if len(ce.calls) != 4 || ce.calls[1].NextPageToken == nil || *ce.calls[1].NextPageToken != "tok" {
 		t.Fatalf("pagination not followed: %d calls", len(ce.calls))
 	}
 	in := ce.calls[0]
@@ -84,6 +111,47 @@ func TestGetUsagePaginatesAndShapesRequest(t *testing.T) {
 	}
 	if batches[0].Provider != "aws" || batches[0].Source != SourceCostExplorer {
 		t.Errorf("batch metadata: %+v", batches[0])
+	}
+	if len(batches) != 2 || batches[1].Source != SourceCostExplorerUsage {
+		t.Fatalf("want the cost batch plus a usage batch, got %d", len(batches))
+	}
+}
+
+func TestUsageQueriesAskForRunningHoursAndStorage(t *testing.T) {
+	ce := &fakeCE{}
+	p := &Provider{Assume: func(context.Context, string, string) (CEAPI, error) { return ce, nil }}
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := p.GetUsage(context.Background(), domain.UsageRequest{Connection: conn(), From: from, To: from.AddDate(0, 0, 1)}); err != nil {
+		t.Fatal(err)
+	}
+	if len(ce.calls) != 3 {
+		t.Fatalf("calls = %d, want cost + EC2 hours + S3 storage", len(ce.calls))
+	}
+	ec2, s3 := ce.calls[1], ce.calls[2]
+	if got := ec2.Filter.Dimensions.Values; len(got) != 1 || got[0] != "EC2: Running Hours" || len(ec2.GroupBy) != 2 || *ec2.GroupBy[1].Key != "INSTANCE_TYPE" {
+		t.Errorf("EC2 query wrong: %+v / %+v", ec2.Filter.Dimensions, ec2.GroupBy)
+	}
+	if len(s3.GroupBy) != 1 || *s3.GroupBy[0].Key != "REGION" || ec2.Metrics[0] != "UsageQuantity" {
+		t.Errorf("S3 query wrong: %+v", s3)
+	}
+}
+
+func TestUsageFailureDoesNotBlockCostSync(t *testing.T) {
+	ce := &fakeCE{pages: []*costexplorer.GetCostAndUsageOutput{page("2026-09-01", "")}, failFrom: 2, failErr: errors.New("throttled")}
+	p := &Provider{Assume: func(context.Context, string, string) (CEAPI, error) { return ce, nil }}
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	batches, err := p.GetUsage(context.Background(), domain.UsageRequest{Connection: conn(), From: from, To: from.AddDate(0, 0, 1)})
+	if err != nil || len(batches) != 1 || batches[0].Source != SourceCostExplorer {
+		t.Fatalf("cost data must survive a usage failure: %v %d", err, len(batches))
+	}
+}
+
+func TestUsageAccessDeniedFailsTheSync(t *testing.T) {
+	ce := &fakeCE{pages: []*costexplorer.GetCostAndUsageOutput{page("2026-09-01", "")}, failFrom: 2, failErr: apiErr{"AccessDeniedException"}}
+	p := &Provider{Assume: func(context.Context, string, string) (CEAPI, error) { return ce, nil }}
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := p.GetUsage(context.Background(), domain.UsageRequest{Connection: conn(), From: from, To: from.AddDate(0, 0, 1)}); !errors.Is(err, domain.ErrAccessDenied) {
+		t.Fatalf("a permission problem must surface, got %v", err)
 	}
 }
 

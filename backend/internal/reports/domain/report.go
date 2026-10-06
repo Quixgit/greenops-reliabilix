@@ -13,6 +13,8 @@ const (
 	KindCarbon Kind = "carbon"
 	KindSCI    Kind = "sci"
 	KindFinops Kind = "finops"
+	// KindSustainability is the executive summary: totals, data quality, top services and regions, recommendations.
+	KindSustainability Kind = "sustainability"
 )
 
 type Format string
@@ -56,7 +58,7 @@ type Report struct {
 // Validate rejects unknown kinds/formats and periods that are empty, inverted or longer than 400 days.
 func (r Report) Validate() error {
 	switch r.Kind {
-	case KindCarbon, KindSCI, KindFinops:
+	case KindCarbon, KindSCI, KindFinops, KindSustainability:
 	default:
 		return ErrInvalidReport
 	}
@@ -104,4 +106,5 @@ type Repository interface {
 	CarbonTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	FinopsTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SCITable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
+	SustainabilityTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 }

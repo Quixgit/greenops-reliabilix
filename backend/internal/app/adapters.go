@@ -2,12 +2,18 @@ package app
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
+	automationdomain "github.com/quixgit/greenops-reliabilix/backend/internal/automation/domain"
 	carbonapp "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/application"
 	carbon "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
+	clouddomain "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/projects/application"
 	recsapp "github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/application"
+	recsdomain "github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/domain"
 	usageapp "github.com/quixgit/greenops-reliabilix/backend/internal/usage/application"
 )
 
@@ -62,4 +68,64 @@ func (a recsProjects) ProjectsForJobs(ctx context.Context) ([]recsapp.ProjectRef
 		out = append(out, recsapp.ProjectRef{TenantID: r.TenantID, ProjectID: r.ProjectID})
 	}
 	return out, err
+}
+
+// rightsizingSink hands the findings of a cloud connection to the recommendations module.
+type rightsizingSink struct{ recs recsapp.Service }
+
+func (a rightsizingSink) SubmitRightsizing(ctx context.Context, tenantID, projectID string, findings []clouddomain.RightsizingFinding) error {
+	out := make([]recsdomain.RightsizingFinding, 0, len(findings))
+	for _, f := range findings {
+		out = append(out, recsdomain.RightsizingFinding{
+			ResourceID: f.ResourceID, Region: f.Region, CurrentType: f.CurrentType, TargetType: f.TargetType,
+			Current:                 recsdomain.Shape{VCPU: f.Current.VCPU, MemoryGB: f.Current.MemoryGB},
+			Target:                  recsdomain.Shape{VCPU: f.Target.VCPU, MemoryGB: f.Target.MemoryGB},
+			EstimatedMonthlySavings: f.EstimatedMonthlySavings, Currency: f.Currency,
+		})
+	}
+	_, err := a.recs.IngestRightsizing(ctx, tenantID, projectID, out)
+	return err
+}
+
+// automationRecs lets the automation module read and update recommendations without importing them.
+type automationRecs struct{ recs recsapp.Service }
+
+// translate maps recommendation-domain errors onto the automation domain's, so handlers answer precisely.
+func translate(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, recsdomain.ErrNotFound):
+		return automationdomain.ErrNotFound
+	case errors.Is(err, recsdomain.ErrComplianceChanged):
+		return fmt.Errorf("%w: the project's data-residency policy no longer allows this recommendation", automationdomain.ErrInvalidInput)
+	}
+	return err
+}
+
+func (a automationRecs) Get(ctx context.Context, tenantID, id string) (automationdomain.RecommendationInfo, error) {
+	r, err := a.recs.Get(ctx, tenantID, id)
+	if err != nil {
+		return automationdomain.RecommendationInfo{}, translate(err)
+	}
+	return automationdomain.RecommendationInfo{ID: r.ID, ProjectID: r.ProjectID, Type: string(r.Type), Status: string(r.Status), Title: r.Title,
+		CurrentRegion: r.CurrentRegion, RecommendedRegion: r.RecommendedRegion, Details: r.Details}, nil
+}
+
+func (a automationRecs) Recheck(ctx context.Context, tenantID, id string) error {
+	return translate(a.recs.CheckCompliance(ctx, tenantID, id))
+}
+
+// MarkApplied is idempotent: an already applied recommendation is not an error, so a retry after a partial
+// failure completes the job.
+func (a automationRecs) MarkApplied(ctx context.Context, tenantID, id, actor string) error {
+	r, err := a.recs.Get(ctx, tenantID, id)
+	if err != nil {
+		return translate(err)
+	}
+	if r.Status == recsdomain.Applied {
+		return nil
+	}
+	_, err = a.recs.Apply(ctx, tenantID, id, auth.Claims{Subject: actor, TenantID: tenantID})
+	return translate(err)
 }

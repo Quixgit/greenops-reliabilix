@@ -124,6 +124,17 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	}
 	c.must("POST", "/api/v1/cloud-accounts", alice,
 		fmt.Sprintf(`{"project_id":"%s","provider":"aws","account_ref":"123456789012","credential_ref":"arn:aws:iam::123456789012:role/ReliabilixOther"}`, proj), 409)
+	// ---- FOCUS export location: validated, audited, reversible ----
+	c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","prefix":"../x","name":"rlx","region":"eu-central-1"}`, 422)
+	c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","name":"rlx","region":"https://evil"}`, 422)
+	withExport := c.must("PUT", "/api/v1/cloud-accounts/"+connID+"/export", alice, `{"bucket":"acme-billing","prefix":"exports","name":"rlx","region":"eu-central-1"}`, 200)
+	if e := sub(withExport, "export"); str(e, "bucket") != "acme-billing" || str(withExport, "sync_status") != "pending" {
+		t.Fatalf("export not stored: %v", withExport)
+	}
+	if cleared := c.must("DELETE", "/api/v1/cloud-accounts/"+connID+"/export", alice, "", 200); cleared["export"] != nil {
+		t.Fatalf("export not cleared: %v", cleared)
+	}
+
 	if v := c.must("POST", "/api/v1/cloud-accounts/"+connID+"/verify", alice, "", 200); str(v, "sync_status") != "healthy" {
 		t.Fatalf("verify: %v", v)
 	}
@@ -242,9 +253,34 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	if r := c.must("POST", "/api/v1/recommendations/"+recID+"/approve", alice, "", 200); str(r, "status") != "approved" {
 		t.Fatalf("approve: %v", r)
 	}
-	if r := c.must("POST", "/api/v1/recommendations/"+recID+"/apply", alice, "", 200); str(r, "status") != "applied" {
-		t.Fatalf("apply: %v", r)
+	// ---- automation: an approved recommendation becomes a reviewed plan; nothing is executed by the platform ----
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, str(recs[1].(map[string]any), "id")), 422) // still open
+	c.must("POST", "/api/v1/automation/jobs", alice, `{"recommendation_id":"not-a-uuid"}`, 422)
+	job := c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 201)
+	jobID := str(job, "id")
+	if str(job, "status") != "planned" || str(job, "kind") != "region_shift" || str(sub(job, "risk"), "level") != "high" || str(job, "rollback_plan") == "" {
+		t.Fatalf("plan: %v", job)
 	}
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 409) // one live job per recommendation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed"}`, 409)       // planned jobs cannot be completed
+	if a := c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", alice, "", 200); str(a, "status") != "approved" || a["approved_by"] == nil {
+		t.Fatalf("approve job: %v", a)
+	}
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", alice, "", 409)
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"failed"}`, 422) // a failure needs an explanation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"approved"}`, 422)
+	if d := c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed","note":"moved and verified"}`, 200); str(d, "status") != "completed" {
+		t.Fatalf("complete job: %v", d)
+	}
+	if r := c.must("GET", "/api/v1/recommendations/"+recID, alice, "", 200); str(r, "status") != "applied" {
+		t.Fatalf("completing a job must mark its recommendation applied: %v", r)
+	}
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed"}`, 409)
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 422) // applied: nothing left to plan
+	if list := items(c.must("GET", "/api/v1/automation/jobs", alice, "", 200)); len(list) != 1 {
+		t.Fatalf("job list: %v", list)
+	}
+	c.must("GET", "/api/v1/automation/jobs/"+jobID, alice, "", 200)
 	c.must("POST", "/api/v1/recommendations/"+recID+"/approve", alice, "", 409) // applied is terminal
 	c.must("POST", "/api/v1/recommendations/"+str(recs[2].(map[string]any), "id")+"/dismiss", alice, "", 200)
 	// residency policy tightened after generation: the remaining finding can no longer be approved
@@ -315,6 +351,8 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	}
 	c.must("GET", "/api/v1/projects", key, "", 403)                           // a CI key may only evaluate
 	c.must("POST", "/api/v1/recommendations/"+recID+"/approve", key, "", 403) // machines never approve
+	c.must("GET", "/api/v1/automation/jobs", key, "", 403)                    // ... nor see or create automation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", key, "", 403)
 	c.must("POST", "/api/v1/api-keys", key, `{"name":"x","role":"ci"}`, 403)
 	keysRaw := c.must("GET", "/api/v1/api-keys", alice, "", 200)
 	if strings.Contains(fmt.Sprint(keysRaw), "key_hash") || strings.Contains(fmt.Sprint(keysRaw), key) {
@@ -329,6 +367,8 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
 	pdfRep := c.must("POST", "/api/v1/reports", alice, fmt.Sprintf(`{"kind":"sci","format":"pdf","project_id":"%s","period_start":"%s","period_end":"%s"}`,
 		proj, today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
+	sustRep := c.must("POST", "/api/v1/reports", alice, fmt.Sprintf(`{"kind":"sustainability","format":"csv","period_start":"%s","period_end":"%s"}`,
+		today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
 	c.must("GET", "/api/v1/reports/"+str(rep, "id")+"/download", alice, "", 409) // not rendered yet
 	c.must("POST", "/api/v1/reports", alice, `{"kind":"nope","format":"csv","period_start":"2026-01-01","period_end":"2026-01-31"}`, 422)
 	pump(t, mux, recA, recW)
@@ -339,6 +379,10 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") {
 		t.Fatalf("csv download %d: %.200s", code, raw)
 	}
+	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(sustRep, "id")+"/download", alice, ""); code != 200 ||
+		!strings.Contains(string(raw), "Carbon from measured usage") || !strings.Contains(string(raw), "Top services by carbon") || !strings.Contains(string(raw), "Recommendations (applied)") {
+		t.Fatalf("sustainability download %d: %.400s", code, raw)
+	}
 	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(pdfRep, "id")+"/download", alice, ""); code != 200 || !strings.HasPrefix(string(raw), "%PDF-") {
 		t.Fatalf("pdf download %d", code)
 	}
@@ -346,7 +390,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	// ---- audit trail ----
 	log := fmt.Sprint(c.must("GET", "/api/v1/audit-log?limit=200", alice, "", 200))
 	for _, action := range []string{"tenant.onboarded", "project.created", "project.policy_updated", "cloud_connection.created", "cloud_sync.completed",
-		"recommendation.approved", "recommendation.applied", "recommendation.dismissed", "invitation.created", "member.joined",
+		"recommendation.approved", "recommendation.applied", "recommendation.dismissed", "automation.job_planned", "automation.job_approved", "automation.job_completed", "invitation.created", "member.joined",
 		"member.role_changed", "member.removed", "api_key.created", "api_key.revoked", "report.generated", "budget.created"} {
 		if !strings.Contains(log, action) {
 			t.Errorf("audit log lacks %q", action)
@@ -362,6 +406,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		"/api/v1/projects/" + proj:                        404,
 		"/api/v1/cloud-accounts/" + connID:                404,
 		"/api/v1/recommendations/" + recID:                404,
+		"/api/v1/automation/jobs/" + jobID:                404,
 		"/api/v1/reports/" + str(rep, "id") + "/download": 404,
 		"/api/v1/reports/" + str(rep, "id"):               404,
 	} {
