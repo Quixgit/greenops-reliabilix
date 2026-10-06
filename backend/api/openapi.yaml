@@ -2862,6 +2862,7 @@ components:
           - carbon
           - sci
           - finops
+          - sustainability
         format:
           type: string
           enum:
@@ -2906,6 +2907,7 @@ components:
           - carbon
           - sci
           - finops
+          - sustainability
         format:
           type: string
           enum:

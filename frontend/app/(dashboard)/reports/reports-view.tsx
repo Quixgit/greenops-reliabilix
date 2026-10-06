@@ -15,7 +15,7 @@ import { useReports } from "@/hooks/use-overview";
 import { periodRange } from "@/lib/store";
 
 const schema = z.object({
-  kind: z.enum(["carbon", "sci", "finops"]),
+  kind: z.enum(["carbon", "sci", "finops", "sustainability"]),
   format: z.enum(["csv", "json", "pdf"]),
   period_start: z.string().min(1, "Required"),
   period_end: z.string().min(1, "Required"),
@@ -34,7 +34,7 @@ function ReportForm() {
   });
   return (
     <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3 sm:grid-cols-5 sm:items-start" noValidate>
-      <Field label="Report"><select {...register("kind")} className={input}><option value="carbon">Carbon</option><option value="sci">SCI</option><option value="finops">FinOps</option></select></Field>
+      <Field label="Report"><select {...register("kind")} className={input}><option value="carbon">Carbon</option><option value="sci">SCI</option><option value="finops">FinOps</option><option value="sustainability">Sustainability summary</option></select></Field>
       <Field label="Format"><select {...register("format")} className={input}><option value="pdf">PDF</option><option value="csv">CSV</option><option value="json">JSON</option></select></Field>
       <Field label="From" error={errors.period_start?.message}><input type="date" {...register("period_start")} className={input} /></Field>
       <Field label="To" error={errors.period_end?.message}><input type="date" {...register("period_end")} className={input} /></Field>

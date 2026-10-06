@@ -305,6 +305,193 @@ func (q *Queries) ReportSCIDaily(ctx context.Context, arg ReportSCIDailyParams) 
 	return items, nil
 }
 
+const reportSustainabilityByMethod = `-- name: ReportSustainabilityByMethod :many
+SELECT method, sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3
+  AND period_start >= $4 AND period_start < $5
+GROUP BY method ORDER BY method
+`
+
+type ReportSustainabilityByMethodParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type ReportSustainabilityByMethodRow struct {
+	Method    string  `json:"method"`
+	EnergyKwh float64 `json:"energy_kwh"`
+	CarbonKg  float64 `json:"carbon_kg"`
+}
+
+func (q *Queries) ReportSustainabilityByMethod(ctx context.Context, arg ReportSustainabilityByMethodParams) ([]ReportSustainabilityByMethodRow, error) {
+	rows, err := q.db.Query(ctx, reportSustainabilityByMethod,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportSustainabilityByMethodRow{}
+	for rows.Next() {
+		var i ReportSustainabilityByMethodRow
+		if err := rows.Scan(&i.Method, &i.EnergyKwh, &i.CarbonKg); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportSustainabilityRecommendations = `-- name: ReportSustainabilityRecommendations :many
+SELECT status, count(*)::int AS n, COALESCE(sum(carbon_reduction_kg_month), 0)::float8 AS kg_month
+FROM recommendations.recommendations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND created_at < $3
+GROUP BY status ORDER BY status
+`
+
+type ReportSustainabilityRecommendationsParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type ReportSustainabilityRecommendationsRow struct {
+	Status  string  `json:"status"`
+	N       int32   `json:"n"`
+	KgMonth float64 `json:"kg_month"`
+}
+
+// Recommendations created up to the end of the window, by status: what is still open and what was done.
+func (q *Queries) ReportSustainabilityRecommendations(ctx context.Context, arg ReportSustainabilityRecommendationsParams) ([]ReportSustainabilityRecommendationsRow, error) {
+	rows, err := q.db.Query(ctx, reportSustainabilityRecommendations, arg.TenantID, arg.ProjectID, arg.ToTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportSustainabilityRecommendationsRow{}
+	for rows.Next() {
+		var i ReportSustainabilityRecommendationsRow
+		if err := rows.Scan(&i.Status, &i.N, &i.KgMonth); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportSustainabilityTopRegions = `-- name: ReportSustainabilityTopRegions :many
+SELECT region_id, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3
+  AND period_start >= $4 AND period_start < $5
+GROUP BY region_id ORDER BY carbon_kg DESC, region_id LIMIT 10
+`
+
+type ReportSustainabilityTopRegionsParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type ReportSustainabilityTopRegionsRow struct {
+	RegionID string  `json:"region_id"`
+	CarbonKg float64 `json:"carbon_kg"`
+}
+
+func (q *Queries) ReportSustainabilityTopRegions(ctx context.Context, arg ReportSustainabilityTopRegionsParams) ([]ReportSustainabilityTopRegionsRow, error) {
+	rows, err := q.db.Query(ctx, reportSustainabilityTopRegions,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportSustainabilityTopRegionsRow{}
+	for rows.Next() {
+		var i ReportSustainabilityTopRegionsRow
+		if err := rows.Scan(&i.RegionID, &i.CarbonKg); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const reportSustainabilityTopServices = `-- name: ReportSustainabilityTopServices :many
+SELECT provider, service_name, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3
+  AND period_start >= $4 AND period_start < $5
+GROUP BY provider, service_name ORDER BY carbon_kg DESC, service_name LIMIT 10
+`
+
+type ReportSustainabilityTopServicesParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type ReportSustainabilityTopServicesRow struct {
+	Provider    string  `json:"provider"`
+	ServiceName string  `json:"service_name"`
+	CarbonKg    float64 `json:"carbon_kg"`
+}
+
+func (q *Queries) ReportSustainabilityTopServices(ctx context.Context, arg ReportSustainabilityTopServicesParams) ([]ReportSustainabilityTopServicesRow, error) {
+	rows, err := q.db.Query(ctx, reportSustainabilityTopServices,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportSustainabilityTopServicesRow{}
+	for rows.Next() {
+		var i ReportSustainabilityTopServicesRow
+		if err := rows.Scan(&i.Provider, &i.ServiceName, &i.CarbonKg); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setReportFailed = `-- name: SetReportFailed :exec
 UPDATE reports.reports SET status = 'failed', error = $1, completed_at = now()
 WHERE tenant_id = $2 AND id = $3

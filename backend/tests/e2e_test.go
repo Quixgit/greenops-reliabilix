@@ -367,6 +367,8 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
 	pdfRep := c.must("POST", "/api/v1/reports", alice, fmt.Sprintf(`{"kind":"sci","format":"pdf","project_id":"%s","period_start":"%s","period_end":"%s"}`,
 		proj, today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
+	sustRep := c.must("POST", "/api/v1/reports", alice, fmt.Sprintf(`{"kind":"sustainability","format":"csv","period_start":"%s","period_end":"%s"}`,
+		today.AddDate(0, 0, -5).Format(time.DateOnly), today.Format(time.DateOnly)), 202)
 	c.must("GET", "/api/v1/reports/"+str(rep, "id")+"/download", alice, "", 409) // not rendered yet
 	c.must("POST", "/api/v1/reports", alice, `{"kind":"nope","format":"csv","period_start":"2026-01-01","period_end":"2026-01-31"}`, 422)
 	pump(t, mux, recA, recW)
@@ -376,6 +378,10 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	code, _, raw := c.do("GET", "/api/v1/reports/"+str(rep, "id")+"/download", alice, "")
 	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") {
 		t.Fatalf("csv download %d: %.200s", code, raw)
+	}
+	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(sustRep, "id")+"/download", alice, ""); code != 200 ||
+		!strings.Contains(string(raw), "Carbon from measured usage") || !strings.Contains(string(raw), "Top services by carbon") || !strings.Contains(string(raw), "Recommendations (applied)") {
+		t.Fatalf("sustainability download %d: %.400s", code, raw)
 	}
 	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(pdfRep, "id")+"/download", alice, ""); code != 200 || !strings.HasPrefix(string(raw), "%PDF-") {
 		t.Fatalf("pdf download %d", code)

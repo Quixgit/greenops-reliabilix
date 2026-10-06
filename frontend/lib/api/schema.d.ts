@@ -1680,7 +1680,7 @@ export interface components {
             /** Format: uuid */
             project_id?: string | null;
             /** @enum {string} */
-            kind?: "carbon" | "sci" | "finops";
+            kind?: "carbon" | "sci" | "finops" | "sustainability";
             /** @enum {string} */
             format?: "csv" | "json" | "pdf";
             /** Format: date */
@@ -1702,7 +1702,7 @@ export interface components {
             /** Format: uuid */
             project_id?: string | null;
             /** @enum {string} */
-            kind: "carbon" | "sci" | "finops";
+            kind: "carbon" | "sci" | "finops" | "sustainability";
             /** @enum {string} */
             format: "csv" | "json" | "pdf";
             /** Format: date */

@@ -43,3 +43,35 @@ FROM carbon.calculations c JOIN projects.projects p ON p.id = c.project_id AND p
 WHERE c.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR c.project_id = sqlc.narg(project_id))
   AND c.period_start >= sqlc.arg(from_ts) AND c.period_start < sqlc.arg(to_ts)
 GROUP BY p.name, p.functional_unit, day, c.methodology_version ORDER BY p.name, day;
+
+-- name: ReportSustainabilityByMethod :many
+SELECT method, sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY method ORDER BY method;
+
+-- name: ReportSustainabilityTopServices :many
+SELECT provider, service_name, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY provider, service_name ORDER BY carbon_kg DESC, service_name LIMIT 10;
+
+-- name: ReportSustainabilityTopRegions :many
+SELECT region_id, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY region_id ORDER BY carbon_kg DESC, region_id LIMIT 10;
+
+-- name: ReportSustainabilityRecommendations :many
+-- Recommendations created up to the end of the window, by status: what is still open and what was done.
+SELECT status, count(*)::int AS n, COALESCE(sum(carbon_reduction_kg_month), 0)::float8 AS kg_month
+FROM recommendations.recommendations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND created_at < sqlc.arg(to_ts)
+GROUP BY status ORDER BY status;
