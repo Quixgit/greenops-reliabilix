@@ -16,6 +16,7 @@ import (
 	cloudapp "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/application"
 	clouddomain "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/aws"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/gcp"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion"
@@ -79,7 +80,15 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		if err != nil {
 			return nil, err
 		}
-		registry = clouddomain.NewRegistry(awsProvider)
+		providers := []clouddomain.CloudProvider{awsProvider}
+		if cfg.PlatformGCPProject != "" { // the GCP connector is opt-in: it needs the platform's own Google identity
+			gcpProvider, err := gcp.New(ctx, cfg.PlatformGCPProject)
+			if err != nil {
+				return nil, err
+			}
+			providers = append(providers, gcpProvider)
+		}
+		registry = clouddomain.NewRegistry(providers...)
 	}
 
 	tenantsM := tenants.New(pool)
@@ -91,7 +100,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
-		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, PlatformAWSAccountID: cfg.PlatformAWSAccountID, BackfillDays: cfg.SyncBackfillDays})
+		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q})
 
 	c := &Container{}

@@ -1357,22 +1357,31 @@ export interface components {
             /** Format: uuid */
             project_id: string;
             /**
-             * @description Azure and GCP arrive in phase 2.
+             * @description Azure arrives later. GCP is available when the platform has a Google identity configured.
              * @enum {string}
              */
-            provider: "aws";
+            provider: "aws" | "gcp";
+            /** @description AWS account id (12 digits) or GCP project id (6-30 lowercase letters, digits, hyphens). */
             account_ref: string;
-            /** @description IAM role ARN. Raw access keys are rejected. */
+            /**
+             * @description A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
+             *     GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
+             *     `gcp_billing_export_resource_v1_*`). Raw keys are rejected.
+             */
             credential_ref: string;
         } & {
             [key: string]: unknown;
         };
         Setup: {
+            /** @description Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset. */
             external_id?: string;
+            /** @description AWS account or GCP service account the customer grants access to. */
             platform_account_id?: string;
             trust_policy?: Record<string, never>;
             permissions_policy?: Record<string, never>;
             required_permissions?: string[];
+            /** @description Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access). */
+            steps?: string[];
         } & {
             [key: string]: unknown;
         };

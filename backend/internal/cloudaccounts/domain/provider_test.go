@@ -48,3 +48,33 @@ func TestRegistry(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 }
+
+func TestGCPConnectionValidation(t *testing.T) {
+	ok := Connection{Provider: GCP, ProjectID: "p", AccountRef: "acme-prod-123",
+		CredentialRef: "bq://acme-billing-1/billing_export/gcp_billing_export_v1_AAAAAA_BBBBBB_CCCCCC"}
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("valid GCP connection rejected: %v", err)
+	}
+	resource := ok
+	resource.CredentialRef = "bq://acme-billing-1/billing_export/gcp_billing_export_resource_v1_AAAAAA_BBBBBB_CCCCCC"
+	if err := resource.Validate(); err != nil {
+		t.Fatalf("detailed export table rejected: %v", err)
+	}
+	bad := map[string]func(*Connection){
+		"uppercase project":     func(c *Connection) { c.AccountRef = "Acme-Prod" },
+		"short project":         func(c *Connection) { c.AccountRef = "abc" },
+		"aws style account":     func(c *Connection) { c.AccountRef = "123456789012" },
+		"not a bq ref":          func(c *Connection) { c.CredentialRef = "projects/acme/datasets/x" },
+		"any other table":       func(c *Connection) { c.CredentialRef = "bq://acme-billing-1/ds/customers" },
+		"quote in dataset":      func(c *Connection) { c.CredentialRef = "bq://acme-billing-1/ds`x/gcp_billing_export_v1_A" },
+		"extra path segment":    func(c *Connection) { c.CredentialRef = "bq://acme-billing-1/ds/gcp_billing_export_v1_A/extra" },
+		"key material in a ref": func(c *Connection) { c.CredentialRef = "-----BEGIN PRIVATE KEY-----" },
+	}
+	for name, mutate := range bad {
+		c := ok
+		mutate(&c)
+		if err := c.Validate(); !errors.Is(err, ErrInvalidConnection) {
+			t.Errorf("%s: want ErrInvalidConnection, got %v", name, err)
+		}
+	}
+}

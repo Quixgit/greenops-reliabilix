@@ -32,7 +32,7 @@ Broader coverage and smarter advice.
 | | Capability |
 |---|---|
 | 🗓️ | Azure connector (Cost Management API) |
-| 🗓️ | GCP connector (Cloud Billing export in BigQuery) |
+| ✅ | GCP connector (Cloud Billing export in BigQuery, ownership proof, measured compute and storage) |
 | 🗓️ | Kubernetes: Kepler → Prometheus → agent → ingestion API |
 | 🗓️ | WattTime as secondary grid-data provider |
 | 🗓️ | More recommendation types: rightsizing, time shifting, spot migration |
