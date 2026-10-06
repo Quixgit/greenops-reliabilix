@@ -79,7 +79,30 @@ Step-by-step guide: [`docs/setup/README.md`](docs/setup/README.md) (database, Re
 
 ## Roadmap
 
-See [`ROADMAP.md`](ROADMAP.md) for what is done, what is next and what is deliberately deferred.
+> **Measure → Recommend → Automate.** Each phase builds on the previous one without reworking the foundation.
+
+```mermaid
+timeline
+    title Product roadmap
+    Now · Phase 1 Measure : Multi-tenant core and RBAC : AWS connector : FOCUS usage and SCI carbon engine : Dashboard, reports, CI gate
+    Next · Phase 2 Recommend : Azure and GCP connectors : AWS CUR, usage-based carbon : Kubernetes via Kepler : Rightsizing, time-shift, spot advice
+    Later · Phase 3 Automate : Approved changes via Terraform and Kubernetes : Verification and rollback info : CI action for GitHub / Azure DevOps : Billing, white-label, benchmarking
+```
+
+| Phase | Theme | Status | Highlights |
+|---|---|---|---|
+| **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS connector, FOCUS v1.4 usage, SCI engine, region-shift advice with approval, reports, CI gate |
+| **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, GCP, AWS CUR, Kubernetes (Kepler), WattTime, rightsizing / time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
+| **3 · Automate** | Controlled change execution | 🗓️ planned | Automation jobs with risk analysis, Terraform / Kubernetes executors, reusable CI action, Stripe billing, white-label, benchmarking |
+
+**Guiding rules**
+
+1. **No guessing:** missing data is shown as missing; estimates carry their method and confidence.
+2. **Nothing changes production without a human decision** and an audit record.
+3. **Security by construction:** isolation in the database, customer secrets never stored, least privilege everywhere.
+4. **Extract a service only when a measured trigger fires** ([ADR-0005](docs/adr/0005-service-extraction-triggers.md)).
+
+Detailed checklist: [`ROADMAP.md`](ROADMAP.md).
 
 ## Honest status
 
