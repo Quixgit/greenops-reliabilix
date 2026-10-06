@@ -26,7 +26,7 @@ CREATE TABLE carbon.calculations (
     carbon_kg_co2e      numeric(18,6) NOT NULL,
     functional_units    numeric(24,3),                      -- SCI "R" for the period, when the customer reported it
     sci_score           numeric(18,6),                      -- NULL unless R is known: never guessed
-    methodology_version text NOT NULL,                      -- e.g. CCF-2026.1; history is never rewritten
+    methodology_version text NOT NULL,                      -- e.g. RLX-PROVISIONAL-1; history is never rewritten
     calculated_at       timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (id, period_start)
 ) PARTITION BY RANGE (period_start);

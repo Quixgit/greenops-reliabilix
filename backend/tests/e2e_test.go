@@ -238,7 +238,12 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	if len(items(c.must("GET", "/api/v1/carbon/trend?project_id="+proj, alice, "", 200))) != 3 {
 		t.Error("trend must have 3 days")
 	}
-	if m := c.must("GET", "/api/v1/carbon/methodology", alice, "", 200); str(m, "version") != "CCF-2026.1" || str(m, "status") != "provisional" {
+	// the caveats travel with the figures: SCI must never look more complete than it is
+	if m := sub(sum, "methodology"); m["embodied_carbon_included"] != false || str(m, "provenance") != "author_estimate_unverified" ||
+		str(m, "status") != "provisional" || !strings.Contains(fmt.Sprint(m["caveats"]), "Embodied emissions") {
+		t.Fatalf("carbon summary must carry the methodology caveats: %v", sum["methodology"])
+	}
+	if m := c.must("GET", "/api/v1/carbon/methodology", alice, "", 200); str(m, "version") != "RLX-PROVISIONAL-1" || str(m, "status") != "provisional" {
 		t.Errorf("methodology: %v", m)
 	}
 	fin := c.must("GET", "/api/v1/finops/summary", alice, "", 200)
@@ -381,6 +386,9 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	c.must("POST", "/api/v1/api-keys", alice, `{"name":"x","role":"admin"}`, 422)
 	gate := c.must("POST", "/api/v1/ci/evaluate", key,
 		fmt.Sprintf(`{"project_id":"%s","changes":[{"kind":"vcpu_hours","amount":100000,"region":"%s","monthly_cost_delta":40}],"thresholds":{"carbon_block_kg":10}}`, proj, use1), 200)
+	if gate["embodied_carbon_included"] != false || gate["caveats"] == nil {
+		t.Fatalf("the CI verdict must say that embodied carbon is not included: %v", gate)
+	}
 	if str(gate, "verdict") != "BLOCK" || gate["carbon_kg_month"].(float64) < 90 {
 		t.Fatalf("gate: %v", gate)
 	}
@@ -416,7 +424,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		t.Fatalf("report: %v", r)
 	}
 	code, _, raw := c.do("GET", "/api/v1/reports/"+str(rep, "id")+"/download", alice, "")
-	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") {
+	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") || !strings.Contains(string(raw), "Embodied emissions") || !strings.Contains(string(raw), "author_estimate_unverified") {
 		t.Fatalf("csv download %d: %.200s", code, raw)
 	}
 	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(sustRep, "id")+"/download", alice, ""); code != 200 ||

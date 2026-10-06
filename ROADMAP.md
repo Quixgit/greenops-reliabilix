@@ -31,6 +31,7 @@ Broader coverage and smarter advice.
 
 | | Capability |
 |---|---|
+| 🗓️ | Citable carbon coefficients: verified import of a published dataset (new methodology version) and embodied emissions (SCI's M) |
 | 🗓️ | Azure connector (Cost Management API) |
 | ✅ | GCP connector (Cloud Billing export in BigQuery, ownership proof, measured compute and storage) |
 | 🗓️ | Kubernetes: Kepler → Prometheus → agent → ingestion API |
