@@ -85,6 +85,8 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
    with `ELECTRICITYMAPS_ZONE_OVERRIDES=eu-central-1=DE,eu-north-1=SE`. An invalid spec
    stops startup.
 
+The client caches the latest reading for 15 minutes and forecasts for 1 hour; `refresh-grid` also stores the forecast (optional, a missing forecast is only logged).
+
 Without a key the carbon job has no grid data and `refresh-grid` reports it; cost data
 still flows. Check: `doctor` makes a live call and verifies zone availability.
 

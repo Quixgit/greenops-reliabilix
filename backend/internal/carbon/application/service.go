@@ -229,6 +229,9 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 		if err == nil {
 			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false)
 		}
+		if err == nil {
+			s.saveForecast(ctx, region)
+		}
 		if err != nil {
 			observability.CarbonAPIErrors.Inc()
 			s.Log.Error("grid refresh", "region", region, "err", err)
@@ -238,6 +241,22 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 		}
 	}
 	return firstErr
+}
+
+// saveForecast persists the provider forecast for a region. A forecast is optional (not every plan includes
+// it), so a failure is logged and never fails the refresh of the current readings.
+func (s *Service) saveForecast(ctx context.Context, region string) {
+	f, err := s.Provider.GetForecast(ctx, region)
+	if err != nil {
+		s.Log.Warn("grid forecast unavailable", "region", region, "err", err)
+		return
+	}
+	for _, p := range f.Points {
+		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true); err != nil {
+			s.Log.Error("save grid forecast", "region", region, "err", err)
+			return
+		}
+	}
 }
 
 // ---- CI gate ----

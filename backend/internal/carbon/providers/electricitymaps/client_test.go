@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestGetIntensity(t *testing.T) {
@@ -75,5 +76,50 @@ func TestRedirectsAreNotFollowed(t *testing.T) { // the auth-token header must n
 	c.BaseURL = s.URL
 	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err == nil || hit {
 		t.Errorf("redirect followed (hit=%v, err=%v)", hit, err)
+	}
+}
+
+func TestResponsesAreCachedAndExpire(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		_, _ = w.Write([]byte(`{"carbonIntensity":100,"datetime":"2026-01-01T00:00:00Z"}`))
+	}))
+	defer srv.Close()
+	c := New("k", nil)
+	c.BaseURL = srv.URL
+	now := time.Now()
+	c.now = func() time.Time { return now }
+
+	for i := 0; i < 3; i++ {
+		if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1 (cached)", calls)
+	}
+	now = now.Add(intensityTTL + time.Second)
+	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil || calls != 2 {
+		t.Fatalf("calls = %d err = %v, want a refetch after expiry", calls, err)
+	}
+}
+
+func TestFailuresAreNotCached(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+	c := New("k", nil)
+	c.BaseURL = srv.URL
+	for i := 0; i < 2; i++ {
+		if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err == nil {
+			t.Fatal("want an error")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls = %d, want 2 (errors must be retried)", calls)
 	}
 }
