@@ -1439,6 +1439,17 @@ export interface components {
             [key: string]: unknown;
         };
         CarbonSummary: {
+            /** @description How the figures were produced. Clients must show the caveats next to the numbers. */
+            methodology?: {
+                version?: string;
+                /** @enum {string} */
+                status?: "provisional" | "final";
+                /** @description Where the coefficients come from, for example `author_estimate_unverified`. */
+                provenance?: string;
+                /** @description false means the SCI term M (embodied emissions) is not included, so SCI is operational only. */
+                embodied_carbon_included?: boolean;
+                caveats?: string[];
+            };
             energy_kwh?: number;
             carbon_kg_co2e?: number;
             sci_score?: number | null;
@@ -1532,6 +1543,9 @@ export interface components {
             reasons?: string[];
             thresholds_applied?: boolean;
             methodology_version?: string;
+            /** @description false means the verdict rests on operational emissions only (embodied emissions are not modelled). */
+            embodied_carbon_included?: boolean;
+            caveats?: string[];
         } & {
             [key: string]: unknown;
         };

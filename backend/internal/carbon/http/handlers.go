@@ -64,8 +64,24 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		Previous           totalsJSON `json:"previous"`
 		Comparable         bool       `json:"comparable"` // false: windows not both >= 80% covered, so no delta may be shown
 		MethodologyVersion string     `json:"methodology_version"`
+		// Methodology travels with the figures: a number must never look more complete than it is.
+		Methodology methodologyJSON `json:"methodology"`
 	}{toTotals(s.Current), s.HasData(), toTotals(s.Previous),
-		domain.Comparable(s.Current.Days, s.Previous.Days, int(to.Sub(from).Hours()/24+0.5)), domain.MethodologyVersion})
+		domain.Comparable(s.Current.Days, s.Previous.Days, int(to.Sub(from).Hours()/24+0.5)), domain.MethodologyVersion, describeMethodology()})
+}
+
+// methodologyJSON is what a client needs to qualify the figures it shows.
+type methodologyJSON struct {
+	Version                string   `json:"version"`
+	Status                 string   `json:"status"`
+	Provenance             string   `json:"provenance"`
+	EmbodiedCarbonIncluded bool     `json:"embodied_carbon_included"`
+	Caveats                []string `json:"caveats"`
+}
+
+func describeMethodology() methodologyJSON {
+	c := domain.Current
+	return methodologyJSON{Version: c.Version, Status: c.Status, Provenance: c.Provenance, EmbodiedCarbonIncluded: c.EmbodiedIncluded(), Caveats: c.Caveats}
 }
 
 func (h Handlers) trend(w http.ResponseWriter, r *http.Request) {

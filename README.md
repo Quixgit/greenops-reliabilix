@@ -106,5 +106,6 @@ Detailed checklist: [`ROADMAP.md`](ROADMAP.md).
 
 ## Honest status
 
-- Carbon is **usage-based** for EC2 running hours and S3 storage (from Cost Explorer quantities) and **cost-based** for everything else, with **provisional** coefficients (methodology `CCF-2026.1`); FOCUS data exports (S3) provide invoice-level quantities.
+- **Carbon coefficients are the authors' provisional estimates** (methodology `RLX-PROVISIONAL-1`, provenance `author_estimate_unverified`): they follow the shape of the Cloud Carbon Footprint method but are **not imported from or verified against its published datasets**, and the spend-based values have no published counterpart. **Embodied emissions (SCI's M) are not included.** The API returns these caveats with every carbon summary and CI verdict, reports print them, and the dashboard shows them next to the numbers. Do not use the figures for external reporting until a citable dataset replaces this set.
+- Carbon is **usage-based** for EC2 running hours, S3 storage and (GCP) Compute Engine and storage capacity, and **cost-based** for everything else; FOCUS data exports (S3) provide invoice-level quantities.
 - The AWS connector, Auth0, object storage and the Docker stack are covered by fakes and integration tests but have not yet been exercised against live services.

@@ -9,14 +9,18 @@ import (
 	"fmt"
 )
 
-//go:embed ccf-2026.1.json
+//go:embed rlx-provisional-1.json
 var factorsJSON []byte
 
 // Factors is a versioned coefficient set.
 type Factors struct {
-	Version            string             `json:"version"`
-	Status             string             `json:"status"`
-	Notes              string             `json:"notes"`
+	Version string `json:"version"`
+	Status  string `json:"status"`
+	// Provenance says where the numbers come from, so a version label never implies more than is true.
+	Provenance string `json:"provenance"`
+	Notes      string `json:"notes"`
+	// Caveats are shown to end users next to every figure derived from this set.
+	Caveats            []string           `json:"caveats"`
 	PUE                float64            `json:"pue"`
 	EnergyPerUnit      map[string]float64 `json:"energy_kwh_per_unit"`
 	CostBasedKWhPerUSD map[string]float64 `json:"cost_based_kwh_per_usd"`
@@ -34,8 +38,14 @@ func mustLoad(b []byte) Factors {
 	if err := json.Unmarshal(b, &f); err != nil {
 		panic(fmt.Sprintf("methodology: bad factors file: %v", err))
 	}
+	if f.Provenance == "" || f.Status == "provisional" && len(f.Caveats) == 0 {
+		panic("methodology: provenance and (for provisional sets) caveats are required")
+	}
 	if f.Version == "" || f.PUE < 1 || len(f.EnergyPerUnit) == 0 || len(f.CostBasedKWhPerUSD) == 0 {
 		panic("methodology: incomplete factors file")
 	}
 	return f
 }
+
+// EmbodiedIncluded reports whether the set accounts for embodied emissions (the M term of SCI).
+func (f Factors) EmbodiedIncluded() bool { return f.EmbodiedGPerKWh > 0 }
