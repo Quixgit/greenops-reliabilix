@@ -9,7 +9,17 @@ const totals = z.object({
   carbon_intensity_g_per_kwh: z.number(),
 });
 
-export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals, comparable: z.boolean() });
+// The methodology travels with the figures so the UI can say what they are and are not (never a bare number).
+export const methodologyInfo = z.object({
+  version: z.string(),
+  status: z.string(),
+  provenance: z.string(),
+  embodied_carbon_included: z.boolean(),
+  caveats: z.array(z.string()),
+});
+export type MethodologyInfo = z.infer<typeof methodologyInfo>;
+
+export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals, comparable: z.boolean(), methodology: methodologyInfo });
 export type CarbonSummary = z.infer<typeof carbonSummary>;
 
 export const finopsSummary = z.object({

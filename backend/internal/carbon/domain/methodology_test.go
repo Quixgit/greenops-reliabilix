@@ -3,12 +3,49 @@ package domain
 import (
 	"errors"
 	"math"
+	"strings"
 	"testing"
 )
 
 func TestFactorsLoaded(t *testing.T) {
-	if MethodologyVersion != "CCF-2026.1" || Current.Status != "provisional" || Current.PUE < 1 {
+	if MethodologyVersion != "RLX-PROVISIONAL-1" || Current.Status != "provisional" || Current.PUE < 1 {
 		t.Fatalf("factors: %+v", Current)
+	}
+}
+
+// Guards the units of every coefficient: a figure that is off by a factor of 1000 (per TB instead of per GB) is
+// not caught by the arithmetic tests above, but is obvious against what the hardware can plausibly draw.
+func TestCoefficientsArePlausible(t *testing.T) {
+	cases := []struct {
+		kind     UsageKind
+		amount   float64
+		min, max float64 // plausible kWh range for this amount, including PUE
+	}{
+		{KindVCPUHours, 1, 0.0005, 0.01},    // one vCPU-hour: roughly 1-5 W
+		{KindMemoryGBHrs, 1, 0.0001, 0.002}, // one GB-hour of RAM: a fraction of a watt
+		{KindStorageGBMo, 1000, 0.1, 2},     // one TB-month of stored data: about 0.3-0.6 kWh
+	}
+	for _, c := range cases {
+		kwh, err := EnergyKWh(c.kind, c.amount)
+		if err != nil || kwh < c.min || kwh > c.max {
+			t.Errorf("%s x %v = %v kWh, outside the plausible range [%v, %v] (err %v)", c.kind, c.amount, kwh, c.min, c.max, err)
+		}
+	}
+}
+
+func TestMethodologyIsHonestAboutItsOrigin(t *testing.T) {
+	if Current.Provenance == "" || len(Current.Caveats) == 0 {
+		t.Fatalf("a provisional set must say where it comes from and what it leaves out: %+v", Current)
+	}
+	if Current.EmbodiedIncluded() {
+		t.Error("this set does not model embodied emissions and must not claim to")
+	}
+	joined := strings.Join(Current.Caveats, " ")
+	if !strings.Contains(joined, "Embodied") || !strings.Contains(joined, "not imported from or verified") {
+		t.Errorf("caveats must name the missing embodied term and the missing provenance: %v", Current.Caveats)
+	}
+	if strings.Contains(strings.ToUpper(MethodologyVersion), "CCF") {
+		t.Errorf("the version %q must not claim CCF provenance", MethodologyVersion)
 	}
 }
 

@@ -2418,6 +2418,27 @@ components:
     CarbonSummary:
       type: object
       properties:
+        methodology:
+          type: object
+          description: How the figures were produced. Clients must show the caveats next to the numbers.
+          properties:
+            version:
+              type: string
+            status:
+              type: string
+              enum:
+              - provisional
+              - final
+            provenance:
+              type: string
+              description: Where the coefficients come from, for example `author_estimate_unverified`.
+            embodied_carbon_included:
+              type: boolean
+              description: false means the SCI term M (embodied emissions) is not included, so SCI is operational only.
+            caveats:
+              type: array
+              items:
+                type: string
         energy_kwh:
           type: number
         carbon_kg_co2e:
@@ -2593,6 +2614,13 @@ components:
           type: boolean
         methodology_version:
           type: string
+        embodied_carbon_included:
+          type: boolean
+          description: false means the verdict rests on operational emissions only (embodied emissions are not modelled).
+        caveats:
+          type: array
+          items:
+            type: string
       additionalProperties: true
     FinopsSummary:
       type: object

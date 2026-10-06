@@ -11,7 +11,7 @@ import (
 )
 
 var tbl = domain.Table{
-	Title: "Carbon report", Period: "2026-09-01 to 2026-09-30", Notes: []string{"Methodology CCF-2026.1 (provisional)"},
+	Title: "Carbon report", Period: "2026-09-01 to 2026-09-30", Notes: []string{"Methodology RLX-PROVISIONAL-1 (provisional)"},
 	Headers: []string{"day", "service", "carbon_kg_co2e"},
 	Rows:    [][]string{{"2026-09-01", "Amazon EC2", "12.5"}, {"2026-09-02", "=HYPERLINK(\"http://evil\")", "-3.2"}, {"2026-09-03", "-cmd|' /C calc'!A0", "1"}},
 }
@@ -24,7 +24,7 @@ func TestCSVNeutralizesFormulaInjectionButKeepsNegativeNumbers(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "# Methodology CCF-2026.1 (provisional)") || !strings.Contains(s, "day,service,carbon_kg_co2e") {
+	if !strings.Contains(s, "# Methodology RLX-PROVISIONAL-1 (provisional)") || !strings.Contains(s, "day,service,carbon_kg_co2e") {
 		t.Errorf("header/notes missing:\n%s", s)
 	}
 	if !strings.Contains(s, `"'=HYPERLINK(""http://evil"")"`) {
