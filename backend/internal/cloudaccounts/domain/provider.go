@@ -36,12 +36,25 @@ var (
 	ErrUnsupportedProvider = errors.New("provider not supported yet")
 	ErrNotFound            = errors.New("not found")
 	ErrDuplicate           = errors.New("cloud account already connected")
-	// ErrExportNotFound: the FOCUS export has no manifest for the requested months (wrong location, or the
+	// ErrExportNotFound: the billing export does not exist where the connection says (wrong location, or the
 	// first delivery has not happened yet). Retrying immediately cannot help.
-	ErrExportNotFound = errors.New("FOCUS export not found")
+	ErrExportNotFound = errors.New("billing export not found")
+	// ErrBigQueryDisabled: the BigQuery API is not enabled in the customer's project, so there can be no billing
+	// export there yet. The customer must enable it (and Cloud Billing export) before connecting.
+	ErrBigQueryDisabled = errors.New("the BigQuery API is not enabled in the customer's project")
+	// ErrOwnershipNotProven: the proof of control over the customer's resource (GCP dataset label) is missing.
+	ErrOwnershipNotProven = errors.New("ownership of the billing export is not proven")
 	// ErrAccessDenied: the granted access is missing or too narrow. Retrying cannot help.
 	ErrAccessDenied = errors.New("access denied by the cloud provider")
 )
+
+// NeedsCustomerAction reports whether an error can only be fixed by the customer (permissions, export setup,
+// ownership proof). Retrying cannot help, so such errors are not retried and mark the connection as errored
+// until the customer verifies again.
+func NeedsCustomerAction(err error) bool {
+	return errors.Is(err, ErrAccessDenied) || errors.Is(err, ErrExportNotFound) ||
+		errors.Is(err, ErrBigQueryDisabled) || errors.Is(err, ErrOwnershipNotProven)
+}
 
 // Connection links a project to a cloud account. CredentialRef is a *reference* (IAM role ARN),
 // never a secret. ExternalID is the per-connection STS ExternalId (confused-deputy protection).
@@ -84,6 +97,11 @@ func (c Connection) Validate() error {
 	}
 	if secretLike.MatchString(c.CredentialRef) {
 		return fmt.Errorf("%w: credential_ref must be a reference, not a secret", ErrInvalidConnection)
+	}
+	if c.Provider == GCP {
+		if err := c.validateGCP(); err != nil {
+			return err
+		}
 	}
 	if c.Provider == AWS {
 		if !awsAccountRe.MatchString(c.AccountRef) {

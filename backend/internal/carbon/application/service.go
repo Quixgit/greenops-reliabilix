@@ -290,6 +290,10 @@ type GateResponse struct {
 	Reasons            []string       `json:"reasons"`
 	ThresholdsApplied  bool           `json:"thresholds_applied"`
 	MethodologyVersion string         `json:"methodology_version"`
+	// EmbodiedCarbonIncluded is false while the methodology leaves out embodied emissions: the verdict is based
+	// on operational emissions only.
+	EmbodiedCarbonIncluded bool     `json:"embodied_carbon_included"`
+	Caveats                []string `json:"caveats"`
 }
 
 var ErrInvalidGateRequest = errors.New("invalid gate request")
@@ -335,5 +339,5 @@ func (s *Service) Evaluate(ctx context.Context, tenantID string, req GateRequest
 	}
 	v, reasons := domain.Gate(carbonKg, cost, th)
 	return GateResponse{Verdict: v, CarbonKgMonth: carbonKg, CostDeltaMonth: cost, Reasons: reasons, ThresholdsApplied: th.Any(),
-		MethodologyVersion: domain.MethodologyVersion}, nil
+		MethodologyVersion: domain.MethodologyVersion, EmbodiedCarbonIncluded: domain.Current.EmbodiedIncluded(), Caveats: domain.Current.Caveats}, nil
 }

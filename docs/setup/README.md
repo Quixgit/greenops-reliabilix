@@ -92,6 +92,33 @@ Cost Explorer works out of the box. For invoice-level data and exact instance ho
 The platform reads the month's manifest, accepts only files inside the export's own folder, streams them with
 size limits and stores daily aggregates. Delivery lags by up to a day, and the first delivery can take 24 h.
 
+## 5c. GCP: platform identity and customer onboarding
+
+The GCP connector is opt-in. It reads the customer's **Cloud Billing export in BigQuery** with the platform's own
+Google identity; no customer credential is stored.
+
+Platform side (once):
+1. Create a project for the platform's BigQuery jobs and enable the BigQuery API in it
+   (`gcloud services enable bigquery.googleapis.com --project <platform-project>`).
+2. Create a service account in it, grant it `roles/bigquery.jobUser` on that project, and give the api/worker its
+   credentials (a key file via `GOOGLE_APPLICATION_CREDENTIALS`, or workload identity on your runtime).
+3. Set `PLATFORM_GCP_PROJECT=<platform-project>` and `PLATFORM_GCP_SERVICE_ACCOUNT=<service account email>`.
+   `make doctor` runs a dry-run query to prove the identity, the API and the role.
+
+Per customer (shown step by step by `POST /cloud-accounts` with `provider: gcp`, `account_ref` = their GCP project id
+and `credential_ref` = `bq://<project>/<dataset>/<table>`):
+1. The BigQuery API must be enabled in their project.
+2. Cloud Billing export to BigQuery (Standard usage cost) must write into the dataset. It needs the Billing Account
+   Administrator role, only covers data from the day it is enabled (no history) and the first delivery can take up
+   to 48 hours. Until then verification answers "billing export not found": verify again later.
+3. They add the connection's label to the dataset (`bq update --set_label <external_id>:1 <project>:<dataset>`):
+   proof that they control it.
+4. They share the dataset with the platform service account as BigQuery Data Viewer (read-only);
+   `deploy/gcp/customer-access.tf` covers steps 3 and 4.
+5. They verify. Failures are specific: BigQuery not enabled, export not found, no access, ownership not proven.
+
+Queries are capped at 20 GiB scanned each and 500k result lines; they only read the billing export table.
+
 ## 6. Electricity Maps (grid carbon intensity)
 
 1. Get an API key at <https://www.electricitymaps.com/> (Free tier is enough for testing).
@@ -146,6 +173,7 @@ secret, then call the gate endpoint (see `docs/api/README.md`).
 | `REDIS_ADDR` | yes | job queue, rate limit |
 | `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `AUTH_CLAIM_NS` | prod | JWT verification |
 | `PLATFORM_AWS_ACCOUNT_ID` | for AWS sync | trust principal given to customers |
+| `PLATFORM_GCP_PROJECT`, `PLATFORM_GCP_SERVICE_ACCOUNT` | for GCP sync | project where BigQuery jobs run; principal customers share their dataset with (credentials via `GOOGLE_APPLICATION_CREDENTIALS` or workload identity) |
 | `ELECTRICITYMAPS_API_KEY`, `ELECTRICITYMAPS_ZONE_OVERRIDES` | for carbon | grid intensity |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_PATH_STYLE`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | prod | reports |
 | `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` | no | error tracking, traces |

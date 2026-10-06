@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +29,11 @@ type Config struct {
 	SentryDSN            string
 	Release              string
 	PlatformAWSAccountID string // account that customers trust in their role policy
-	SyncBackfillDays     int
+	// GCP: the platform's own service account (what customers grant read access to their billing dataset) and the
+	// project in which BigQuery jobs run. Empty PlatformGCPProject = no GCP connector.
+	PlatformGCPServiceAccount string
+	PlatformGCPProject        string
+	SyncBackfillDays          int
 
 	Auth0Domain   string // e.g. reliabilix.eu.auth0.com
 	Auth0Audience string
@@ -62,12 +67,15 @@ func Load() (Config, error) {
 		SentryDSN:            String("SENTRY_DSN", ""),
 		Release:              String("RELEASE", "dev"),
 		PlatformAWSAccountID: String("PLATFORM_AWS_ACCOUNT_ID", ""),
-		SyncBackfillDays:     Int("SYNC_BACKFILL_DAYS", 60),
-		Auth0Domain:          String("AUTH0_DOMAIN", ""),
-		Auth0Audience:        String("AUTH0_AUDIENCE", ""),
-		ClaimNS:              String("AUTH_CLAIM_NS", "https://reliabilix.com/"),
-		RatePerSec:           float64(Int("RATE_PER_SEC", 20)),
-		RateBurst:            Int("RATE_BURST", 40),
+
+		PlatformGCPServiceAccount: String("PLATFORM_GCP_SERVICE_ACCOUNT", ""),
+		PlatformGCPProject:        String("PLATFORM_GCP_PROJECT", ""),
+		SyncBackfillDays:          Int("SYNC_BACKFILL_DAYS", 60),
+		Auth0Domain:               String("AUTH0_DOMAIN", ""),
+		Auth0Audience:             String("AUTH0_AUDIENCE", ""),
+		ClaimNS:                   String("AUTH_CLAIM_NS", "https://reliabilix.com/"),
+		RatePerSec:                float64(Int("RATE_PER_SEC", 20)),
+		RateBurst:                 Int("RATE_BURST", 40),
 
 		ElectricityMapsKey:           String("ELECTRICITYMAPS_API_KEY", ""),
 		ElectricityMapsZoneOverrides: String("ELECTRICITYMAPS_ZONE_OVERRIDES", ""),
@@ -75,6 +83,12 @@ func Load() (Config, error) {
 	}
 	if v := String("CORS_ORIGINS", ""); v != "" {
 		c.CORSOrigins = strings.Split(v, ",")
+	}
+	if c.PlatformGCPProject != "" && !gcpProjectRe.MatchString(c.PlatformGCPProject) {
+		return c, fmt.Errorf("config: PLATFORM_GCP_PROJECT is not a valid GCP project id")
+	}
+	if c.PlatformGCPServiceAccount != "" && !gcpServiceAccountRe.MatchString(c.PlatformGCPServiceAccount) {
+		return c, fmt.Errorf("config: PLATFORM_GCP_SERVICE_ACCOUNT must be a service account email (…@<project>.iam.gserviceaccount.com)")
 	}
 	if c.Env == "dev" && c.DatabaseURL == "" {
 		c.DatabaseURL = "postgres://greenops_api:dev-only@localhost:5432/greenops?sslmode=disable"
@@ -88,6 +102,11 @@ func Load() (Config, error) {
 	}
 	return c, nil
 }
+
+var (
+	gcpProjectRe        = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	gcpServiceAccountRe = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$`)
+)
 
 func (c Config) IsDev() bool { return c.Env == "dev" }
 

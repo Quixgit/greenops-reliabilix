@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -300,5 +301,47 @@ func TestSetExport(t *testing.T) {
 	s2 := newSvc(newRepo(azure), &fakeProvider{}, fakeIngestor{}, &recorder{})
 	if _, err := s2.SetExport(context.Background(), "t", "c2", good); !errors.Is(err, domain.ErrInvalidConnection) {
 		t.Fatalf("exports are AWS only: %v", err)
+	}
+}
+
+func TestGCPSetupGivesNonSecretInstructions(t *testing.T) {
+	gcp := domain.Connection{ID: "g1", TenantID: "t", ProjectID: "p", Provider: domain.GCP, AccountRef: "acme-prod-123", ExternalID: "rlx-abc",
+		CredentialRef: "bq://acme-billing-1/billing_export/gcp_billing_export_v1_AAAAAA_BBBBBB_CCCCCC"}
+	s := newSvc(newRepo(gcp), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	s.PlatformGCPServiceAccount = "platform@reliabilix-prod.iam.gserviceaccount.com"
+	st, err := s.SetupFor(context.Background(), "t", "g1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := strings.Join(st.Steps, "\n")
+	for _, want := range []string{"gcloud services enable bigquery.googleapis.com --project acme-billing-1", "Billing export",
+		"bq update --set_label rlx-abc:1 acme-billing-1:billing_export", "platform@reliabilix-prod.iam.gserviceaccount.com", "no history"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("steps lack %q:\n%s", want, all)
+		}
+	}
+	if st.ExternalID != "rlx-abc" || st.PlatformAccountID != s.PlatformGCPServiceAccount || st.TrustPolicy != nil {
+		t.Errorf("setup wrong: %+v", st)
+	}
+	s.PlatformGCPServiceAccount = ""
+	if st, _ := s.SetupFor(context.Background(), "t", "g1"); !strings.Contains(strings.Join(st.Steps, "\n"), "Contact support") {
+		t.Error("without a configured service account the customer must be told to ask for it")
+	}
+}
+
+func TestSyncFailuresThatNeedTheCustomerAreNotRetried(t *testing.T) {
+	for _, cause := range []error{domain.ErrBigQueryDisabled, domain.ErrOwnershipNotProven, domain.ErrExportNotFound, domain.ErrAccessDenied} {
+		repo := newRepo(awsConn())
+		p := &fakeProvider{usageErr: cause}
+		s := newSvc(repo, p, fakeIngestor{}, &recorder{})
+		if err := s.RunSync(context.Background(), "t", "c1"); !errors.Is(err, cause) {
+			t.Fatalf("%v: %v", cause, err)
+		}
+		if repo.status["c1"] != domain.StatusError {
+			t.Errorf("%v must mark the connection as errored until the customer fixes it", cause)
+		}
+		if msg := safeMessage(cause); msg == "" || strings.Contains(msg, "retried automatically") {
+			t.Errorf("%v needs an actionable message, got %q", cause, msg)
+		}
 	}
 }

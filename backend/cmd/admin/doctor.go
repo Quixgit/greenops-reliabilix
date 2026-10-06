@@ -19,6 +19,7 @@ import (
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/app"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/gcp"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
@@ -57,6 +58,7 @@ func runDoctor(ctx context.Context, cfg config.Config, cfgErr error, log *slog.L
 	all = append(all, checkAuth0(ctx, cfg)...)
 	all = append(all, checkElectricityMaps(ctx, cfg)...)
 	all = append(all, checkAWS(ctx, cfg)...)
+	all = append(all, checkGCP(ctx, cfg)...)
 	all = append(all, checkObservability(cfg)...)
 
 	labels := map[level]string{lvlOK: "OK  ", lvlInfo: "INFO", lvlWarn: "WARN", lvlFail: "FAIL"}
@@ -290,6 +292,32 @@ func checkAWS(ctx context.Context, cfg config.Config) []finding {
 		return []finding{fail("aws-identity", "the platform runs as account "+acct+" but PLATFORM_AWS_ACCOUNT_ID says "+cfg.PlatformAWSAccountID, "customers would trust the wrong account and AssumeRole would fail: fix PLATFORM_AWS_ACCOUNT_ID or the credentials")}
 	}
 	return []finding{ok("aws-identity", "platform identity is account "+acct+" (matches PLATFORM_AWS_ACCOUNT_ID)")}
+}
+
+// checkGCP verifies the platform's own Google identity (the GCP connector is opt-in via PLATFORM_GCP_PROJECT).
+func checkGCP(ctx context.Context, cfg config.Config) []finding {
+	if cfg.PlatformGCPProject == "" {
+		return []finding{info("gcp", "PLATFORM_GCP_PROJECT not set: the GCP connector is disabled")}
+	}
+	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	p, err := gcp.New(cctx, cfg.PlatformGCPProject)
+	if err != nil {
+		return []finding{fail("gcp-identity", "no usable Google identity for the platform: "+sanitize(err),
+			"give the api/worker Application Default Credentials (a service account key file via GOOGLE_APPLICATION_CREDENTIALS, or workload identity); see docs/setup/README.md, GCP")}
+	}
+	if err := p.Preflight(cctx); err != nil {
+		return []finding{fail("gcp-bigquery", "BigQuery is not usable in project "+cfg.PlatformGCPProject+": "+sanitize(err),
+			"enable the BigQuery API in that project and grant the platform service account roles/bigquery.jobUser on it")}
+	}
+	out := []finding{ok("gcp-bigquery", "BigQuery jobs can be created in project "+cfg.PlatformGCPProject)}
+	if cfg.PlatformGCPServiceAccount == "" {
+		out = append(out, warn("gcp-principal", "PLATFORM_GCP_SERVICE_ACCOUNT is not set",
+			"set it to the service account's email: customers are told to grant it read access to their billing dataset"))
+	} else {
+		out = append(out, ok("gcp-principal", "customers are asked to share their billing dataset with "+cfg.PlatformGCPServiceAccount))
+	}
+	return out
 }
 
 func checkObservability(cfg config.Config) []finding {
