@@ -1,8 +1,10 @@
-import { Lightbulb } from "lucide-react";
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { RecommendationsView } from "./recommendations-view";
+import { getUser } from "@/lib/auth/session";
+import { canWrite } from "@/lib/permissions";
 
 export const metadata = { title: "Recommendations · Reliabilix GreenOps" };
 
-export default function Page() {
-  return <ComingSoon title="Recommendations" icon={Lightbulb} text="Available in the next version. Recommendations will appear here once we've analyzed your infrastructure." />;
+export default async function Page() {
+  const user = (await getUser())!;
+  return <RecommendationsView canDecide={canWrite(user.role)} />;
 }

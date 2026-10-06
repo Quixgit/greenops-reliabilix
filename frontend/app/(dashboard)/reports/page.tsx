@@ -1,8 +1,10 @@
-import { FileText } from "lucide-react";
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { ReportsView } from "./reports-view";
+import { getUser } from "@/lib/auth/session";
+import { canWrite } from "@/lib/permissions";
 
 export const metadata = { title: "Reports · Reliabilix GreenOps" };
 
-export default function Page() {
-  return <ComingSoon title="Reports" icon={FileText} text="Available in the next version. PDF and CSV carbon reports will be listed here." />;
+export default async function Page() {
+  const user = (await getUser())!;
+  return <ReportsView canCreate={canWrite(user.role)} />;
 }

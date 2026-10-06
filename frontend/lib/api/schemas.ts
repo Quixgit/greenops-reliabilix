@@ -66,3 +66,37 @@ export const connectResponse = z.object({ connection: connection, setup });
 export type ConnectResponse = z.infer<typeof connectResponse>;
 export const tenantRef = z.object({ tenant_id: z.string() });
 export type Connection = z.infer<typeof connection>;
+
+export const recommendation = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  type: z.string(),
+  title: z.string(),
+  provider: z.string(),
+  service_name: z.string(),
+  current_region: z.string(),
+  recommended_region: z.string(),
+  estimated_carbon_reduction_pct: z.number(),
+  carbon_reduction_kg_month: z.number(),
+  estimated_cost_impact: z.number().nullable(), // null = not estimated: never shown as a saving
+  cost_basis: z.string(),
+  confidence: z.number(),
+  compliance_check: z.object({ residency: z.string(), allowed_regions: z.array(z.string()).optional() }).passthrough(),
+  status: z.enum(["open", "approved", "applied", "dismissed"]),
+});
+export type Recommendation = z.infer<typeof recommendation>;
+export const recommendations = items(recommendation);
+
+export const report = z.object({
+  id: z.string(),
+  project_id: z.string().nullable(),
+  kind: z.enum(["carbon", "sci", "finops"]),
+  format: z.enum(["csv", "json", "pdf"]),
+  period_start: z.string(),
+  period_end: z.string(),
+  status: z.enum(["pending", "ready", "failed"]),
+  error: z.string().nullable().optional(),
+  created_at: z.string(),
+});
+export type Report = z.infer<typeof report>;
+export const reports = items(report);
