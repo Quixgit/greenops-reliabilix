@@ -1,0 +1,15 @@
+# The business metrics are also the evidence for service-extraction decisions (ADR-0005).
+groups:
+  - name: greenops
+    rules:
+      - alert: CloudSyncFailing
+        expr: sum(increase(cloud_sync_total{result=~"failed|denied"}[1h])) > 0
+        for: 5m
+        annotations: {summary: "Cloud syncs are failing (denied = the customer's role stopped working)"}
+      - alert: GridProviderErrors
+        expr: increase(carbon_api_errors_total[1h]) > 5
+        annotations: {summary: "Electricity Maps errors: calculations fall back to stored intensity"}
+      - alert: SyncSlow
+        expr: histogram_quantile(0.95, sum(rate(cloud_sync_duration_seconds_bucket[1h])) by (le)) > 300
+        for: 15m
+        annotations: {summary: "p95 cloud sync duration above 5 minutes"}

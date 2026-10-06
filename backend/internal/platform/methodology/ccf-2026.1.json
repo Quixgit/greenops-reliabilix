@@ -1,0 +1,19 @@
+{
+  "version": "CCF-2026.1",
+  "status": "provisional",
+  "notes": "Order-of-magnitude coefficients modelled on the Cloud Carbon Footprint methodology (energy per unit of use x PUE x grid intensity). Replace with an import of the published CCF coefficient datasets before figures are used for external reporting; doing so MUST introduce a new version, never edit this file. cost_based values are rough kWh-per-USD fallbacks for sources that expose cost only (AWS Cost Explorer) and carry low confidence.",
+  "pue": 1.135,
+  "energy_kwh_per_unit": {
+    "vcpu_hours": 0.0021,
+    "memory_gb_hours": 0.000392,
+    "storage_gb_months": 0.4745
+  },
+  "cost_based_kwh_per_usd": {
+    "compute": 0.9,
+    "storage": 0.35,
+    "database": 0.7,
+    "networking": 0.12,
+    "other": 0.25
+  },
+  "embodied_g_per_kwh": 0
+}

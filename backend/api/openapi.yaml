@@ -1,0 +1,2558 @@
+# Kept in sync with the registered routes by internal/app TestOpenAPIMatchesRoutes.
+openapi: 3.0.3
+info:
+  title: Reliabilix GreenOps API
+  version: 1.0.0
+  description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
+    from request input. Every tenant table is protected by Row Level Security.
+servers:
+- url: https://api.reliabilix.green
+security:
+- bearerAuth: []
+tags:
+- name: system
+  description: Health endpoints
+- name: tenants
+  description: Onboarding, members, invitations, API keys, audit log
+- name: users
+  description: Current identity
+- name: projects
+  description: Projects, SCI functional units and policies
+- name: cloud
+  description: Cloud connections and sync
+- name: usage
+  description: FOCUS usage records
+- name: carbon
+  description: Carbon calculation, summary, SCI and methodology
+- name: ci
+  description: CI gate for pipelines
+- name: finops
+  description: Cost summary, budgets, anomalies
+- name: dashboard
+  description: Read models of the Overview screen
+- name: recommendations
+  description: Recommendations and the human-approval workflow
+- name: reports
+  description: Report generation and download
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      summary: Liveness
+      tags:
+      - system
+      responses:
+        '200':
+          description: alive
+      security: []
+  /readyz:
+    get:
+      operationId: readyz
+      summary: Readiness (database reachable)
+      tags:
+      - system
+      responses:
+        '200':
+          description: ready
+        '503':
+          $ref: '#/components/responses/Problem'
+      security: []
+  /api/v1/onboarding:
+    post:
+      operationId: onboard
+      summary: Create the caller's organization (idempotent)
+      tags:
+      - tenants
+      description: Requires permission `valid identity (no tenant needed)`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantRef'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/invitations/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Accept an invitation (verified email must match)
+      tags:
+      - tenants
+      description: Requires permission `valid identity (no tenant needed)`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationInput'
+      responses:
+        '200':
+          description: Joined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantRef'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/me:
+    get:
+      operationId: getMe
+      summary: Current identity
+      tags:
+      - users
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/tenant:
+    get:
+      operationId: getTenant
+      summary: Current organization
+      tags:
+      - tenants
+      description: Requires permission `project:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/members:
+    get:
+      operationId: listMembers
+      summary: List members
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Member'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/members/{id}:
+    patch:
+      operationId: changeMemberRole
+      summary: Change a member's role (last owner is protected)
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: removeMember
+      summary: Remove a member
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/invitations:
+    get:
+      operationId: listInvitations
+      summary: List invitations
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invitation'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createInvitation
+      summary: Invite a person (the one-time token is returned once)
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationCreated'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/api-keys:
+    get:
+      operationId: listApiKeys
+      summary: List API keys (never returns key material)
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createApiKey
+      summary: Create an API key (shown once)
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyCreated'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/api-keys/{id}:
+    delete:
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Revoked
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/audit-log:
+    get:
+      operationId: listAuditLog
+      summary: Audit trail (append-only)
+      tags:
+      - tenants
+      description: Requires permission `audit:read`.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: action
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEntry'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/projects:
+    get:
+      operationId: listProjects
+      summary: List projects
+      tags:
+      - projects
+      description: Requires permission `project:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createProject
+      summary: Create a project
+      tags:
+      - projects
+      description: Requires permission `project:write`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/projects/{id}:
+    get:
+      operationId: getProject
+      summary: Get a project
+      tags:
+      - projects
+      description: Requires permission `project:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/projects/{id}/functional-units:
+    get:
+      operationId: listFunctionalUnits
+      summary: Reported functional units (SCI denominator R)
+      tags:
+      - projects
+      description: Requires permission `project:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FunctionalUnits'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: reportFunctionalUnits
+      summary: Report functional units served in a period
+      tags:
+      - projects
+      description: Requires permission `project:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionalUnitsInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionalUnits'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/projects/{id}/policy:
+    get:
+      operationId: getPolicy
+      summary: Data-residency allow-list and CI thresholds
+      tags:
+      - projects
+      description: Requires permission `project:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    put:
+      operationId: putPolicy
+      summary: Replace the policy
+      tags:
+      - projects
+      description: Requires permission `project:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Policy'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts:
+    get:
+      operationId: listCloudAccounts
+      summary: List connections
+      tags:
+      - cloud
+      description: Requires permission `cloud:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: connectCloudAccount
+      summary: Register a pending connection; returns the ExternalId and role setup (no cloud call yet)
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}:
+    get:
+      operationId: getCloudAccount
+      summary: Get a connection with its setup instructions
+      tags:
+      - cloud
+      description: Requires permission `cloud:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectResponse'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: deleteCloudAccount
+      summary: Delete a connection
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}/verify:
+    post:
+      operationId: verifyCloudAccount
+      summary: Verify the granted access; on success the connection becomes healthy and a first sync is queued
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}/sync:
+    post:
+      operationId: syncCloudAccount
+      summary: Queue a sync now (deduplicated)
+      tags:
+      - cloud
+      description: Requires permission `cloud:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Queued'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/cloud-accounts/{id}/sync-runs:
+    get:
+      operationId: listSyncRuns
+      summary: Recent sync runs
+      tags:
+      - cloud
+      description: Requires permission `cloud:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SyncRun'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/usage:
+    get:
+      operationId: listUsage
+      summary: FOCUS usage records
+      tags:
+      - usage
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UsageRecord'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/summary:
+    get:
+      operationId: getCarbonSummary
+      summary: Totals, SCI and the preceding period
+      tags:
+      - carbon
+      description: Requires permission `carbon:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CarbonSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/trend:
+    get:
+      operationId: getCarbonTrend
+      summary: Daily CO2e
+      tags:
+      - carbon
+      description: Requires permission `carbon:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CarbonTrendPoint'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/methodology:
+    get:
+      operationId: getMethodology
+      summary: The active coefficient set (transparency)
+      tags:
+      - carbon
+      description: Requires permission `carbon:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Methodology'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/calculate:
+    post:
+      operationId: calculateCarbon
+      summary: Energy and CO2e of one measurement in a region
+      tags:
+      - carbon
+      description: Requires permission `carbon:compute`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculateInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculateResult'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '502':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/recalculate:
+    post:
+      operationId: recalculateCarbon
+      summary: Queue a recalculation (e.g. after reporting functional units)
+      tags:
+      - carbon
+      description: Requires permission `carbon:compute`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecalculateInput'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Queued'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/ci/evaluate:
+    post:
+      operationId: evaluateCiGate
+      summary: 'CI gate: PASS/WARN/BLOCK for a planned change (API key role `ci` or any member who may evaluate)'
+      tags:
+      - ci
+      description: Requires permission `ci:evaluate`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GateRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GateResponse'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '502':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finops/summary:
+    get:
+      operationId: getFinopsSummary
+      summary: Spend by service and the preceding period
+      tags:
+      - finops
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinopsSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finops/budgets:
+    get:
+      operationId: listBudgets
+      summary: Budgets with current-period consumption
+      tags:
+      - finops
+      description: Requires permission `billing:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BudgetStatus'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createBudget
+      summary: Create a budget
+      tags:
+      - finops
+      description: Requires permission `budget:write`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Budget'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finops/budgets/{id}:
+    delete:
+      operationId: deleteBudget
+      summary: Delete a budget
+      tags:
+      - finops
+      description: Requires permission `budget:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/finops/anomalies:
+    get:
+      operationId: listAnomalies
+      summary: Days whose cost is > 3 standard deviations above the trailing mean
+      tags:
+      - finops
+      description: Requires permission `billing:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Anomaly'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/trend:
+    get:
+      operationId: dashboardTrend
+      summary: Cost and CO2e per day
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DashboardTrendPoint'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/providers:
+    get:
+      operationId: dashboardProviders
+      summary: CO2e by cloud provider (only providers with data)
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderShare'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/services:
+    get:
+      operationId: dashboardServices
+      summary: Cost and CO2e by service
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - name: category
+        in: query
+        schema:
+          type: string
+          enum:
+          - compute
+          - storage
+          - database
+          - networking
+          - other
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceRow'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/regions:
+    get:
+      operationId: dashboardRegions
+      summary: Grid carbon intensity by region (reference data)
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RegionIntensity'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/activity:
+    get:
+      operationId: dashboardActivity
+      summary: Recent user-facing activity
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Activity'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations:
+    get:
+      operationId: listRecommendations
+      summary: List recommendations (most carbon saved first)
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:read`.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - open
+          - approved
+          - applied
+          - dismissed
+      - $ref: '#/components/parameters/project_id'
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Recommendation'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations/refresh:
+    post:
+      operationId: refreshRecommendations
+      summary: Queue a recommendation analysis for a project
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:apply`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectRefInput'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Queued'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations/{id}:
+    get:
+      operationId: getRecommendation
+      summary: Get a recommendation
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations/{id}/approve:
+    post:
+      operationId: approveRecommendation
+      summary: Approve (human decision; compliance is re-checked against the current policy)
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:apply (people only, never API keys)`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations/{id}/apply:
+    post:
+      operationId: applyRecommendation
+      summary: Mark as applied (only from approved)
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:apply (people only, never API keys)`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/recommendations/{id}/dismiss:
+    post:
+      operationId: dismissRecommendation
+      summary: Dismiss
+      tags:
+      - recommendations
+      description: Requires permission `recommendation:apply (people only, never API keys)`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/reports:
+    get:
+      operationId: listReports
+      summary: List reports
+      tags:
+      - reports
+      description: Requires permission `report:read`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createReport
+      summary: Request a report (rendered asynchronously)
+      tags:
+      - reports
+      description: Requires permission `report:write`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/reports/{id}:
+    get:
+      operationId: getReport
+      summary: Get report metadata
+      tags:
+      - reports
+      description: Requires permission `report:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/reports/{id}/download:
+    get:
+      operationId: downloadReport
+      summary: Download the rendered file
+      tags:
+      - reports
+      description: Requires permission `report:read`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: The file
+          content:
+            text/csv:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Auth0 access token (RS256) or an API key (`grk_...`). Optional header `X-Tenant-ID` selects among several memberships.
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    from:
+      name: from
+      in: query
+      schema:
+        type: string
+        format: date
+      description: 'Inclusive start (default: 30 days ago)'
+    to:
+      name: to
+      in: query
+      schema:
+        type: string
+        format: date
+      description: 'Inclusive end (default: today)'
+    project_id:
+      name: project_id
+      in: query
+      schema:
+        type: string
+        format: uuid
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Problem:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        request_id:
+          type: string
+      required:
+      - title
+      - status
+      additionalProperties: true
+    Queued:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - queued
+      additionalProperties: true
+    TenantRef:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+          format: uuid
+      required:
+      - tenant_id
+      additionalProperties: true
+    OnboardingInput:
+      type: object
+      properties:
+        organization_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+      - organization_name
+      additionalProperties: true
+    AcceptInvitationInput:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+      additionalProperties: true
+    Me:
+      type: object
+      properties:
+        user_id:
+          type: string
+        tenant_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - engineer
+          - viewer
+          - billing
+          - ci
+      additionalProperties: true
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        plan:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    Member:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - engineer
+          - viewer
+          - billing
+          - ci
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    RoleInput:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - engineer
+          - viewer
+          - billing
+      required:
+      - role
+      additionalProperties: true
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - engineer
+          - viewer
+          - billing
+          - ci
+        created_by:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    InvitationInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+          - admin
+          - engineer
+          - viewer
+          - billing
+      required:
+      - email
+      - role
+      additionalProperties: true
+    InvitationCreated:
+      type: object
+      properties:
+        invitation:
+          $ref: '#/components/schemas/Invitation'
+        token:
+          type: string
+          description: One-time token; shown once.
+      additionalProperties: true
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        prefix:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - engineer
+          - viewer
+          - billing
+          - ci
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: true
+    ApiKeyInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        role:
+          type: string
+          enum:
+          - ci
+          - viewer
+      required:
+      - name
+      - role
+      additionalProperties: true
+    ApiKeyCreated:
+      type: object
+      properties:
+        api_key:
+          $ref: '#/components/schemas/ApiKey'
+        key:
+          type: string
+          description: The key; shown once, only its hash is stored.
+      additionalProperties: true
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        actor_user_id:
+          type: string
+        action:
+          type: string
+        target:
+          type: string
+        request_id:
+          type: string
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        functional_unit:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        functional_unit:
+          type: string
+          minLength: 1
+          maxLength: 60
+      required:
+      - name
+      - functional_unit
+      additionalProperties: true
+    FunctionalUnits:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        units:
+          type: number
+      additionalProperties: true
+    FunctionalUnitsInput:
+      type: object
+      properties:
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        units:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+      required:
+      - period_start
+      - period_end
+      - units
+      additionalProperties: true
+    Policy:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        allowed_regions:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+          description: 'Data-residency allow-list. Empty = residency unknown: no region_shift is proposed.'
+        ci_carbon_warn_kg:
+          type: number
+          nullable: true
+        ci_carbon_block_kg:
+          type: number
+          nullable: true
+        ci_cost_warn:
+          type: number
+          nullable: true
+        ci_cost_block:
+          type: number
+          nullable: true
+      additionalProperties: true
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum:
+          - aws
+          - azure
+          - gcp
+        account_ref:
+          type: string
+        credential_ref:
+          type: string
+        external_id:
+          type: string
+        sync_status:
+          type: string
+          enum:
+          - pending
+          - healthy
+          - error
+        last_error:
+          type: string
+          nullable: true
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        synced_through:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: true
+    ConnectionInput:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum:
+          - aws
+          description: Azure and GCP arrive in phase 2.
+        account_ref:
+          type: string
+          pattern: ^\d{12}$
+        credential_ref:
+          type: string
+          description: IAM role ARN. Raw access keys are rejected.
+      required:
+      - project_id
+      - provider
+      - account_ref
+      - credential_ref
+      additionalProperties: true
+    Setup:
+      type: object
+      properties:
+        external_id:
+          type: string
+        platform_account_id:
+          type: string
+        trust_policy:
+          type: object
+        permissions_policy:
+          type: object
+        required_permissions:
+          type: array
+          items:
+            type: string
+      additionalProperties: true
+    ConnectResponse:
+      type: object
+      properties:
+        connection:
+          $ref: '#/components/schemas/Connection'
+        setup:
+          $ref: '#/components/schemas/Setup'
+      additionalProperties: true
+    SyncRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum:
+          - running
+          - succeeded
+          - failed
+        records:
+          type: integer
+        error:
+          type: string
+          nullable: true
+      additionalProperties: true
+    UsageRecord:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        source:
+          type: string
+        resource_id:
+          type: string
+        resource_type:
+          type: string
+        service_name:
+          type: string
+        service_category:
+          type: string
+          enum:
+          - compute
+          - storage
+          - database
+          - networking
+          - other
+        region_id:
+          type: string
+        consumed_quantity:
+          type: number
+          nullable: true
+        consumed_unit:
+          type: string
+          nullable: true
+        billed_cost:
+          type: number
+        effective_cost:
+          type: number
+        currency:
+          type: string
+        charge_period_start:
+          type: string
+          format: date-time
+        charge_period_end:
+          type: string
+          format: date-time
+      additionalProperties: true
+    CarbonTotals:
+      type: object
+      properties:
+        energy_kwh:
+          type: number
+        carbon_kg_co2e:
+          type: number
+        sci_score:
+          type: number
+          nullable: true
+        carbon_intensity_g_per_kwh:
+          type: number
+      additionalProperties: true
+    CarbonSummary:
+      type: object
+      properties:
+        energy_kwh:
+          type: number
+        carbon_kg_co2e:
+          type: number
+        sci_score:
+          type: number
+          nullable: true
+        carbon_intensity_g_per_kwh:
+          type: number
+        has_data:
+          type: boolean
+        previous:
+          $ref: '#/components/schemas/CarbonTotals'
+        methodology_version:
+          type: string
+        comparable:
+          type: boolean
+          description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
+      additionalProperties: true
+    CarbonTrendPoint:
+      type: object
+      properties:
+        day:
+          type: string
+          format: date-time
+        carbon_kg_co2e:
+          type: number
+      additionalProperties: true
+    Methodology:
+      type: object
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+        pue:
+          type: number
+        energy_kwh_per_unit:
+          type: object
+        cost_based_kwh_per_usd:
+          type: object
+        embodied_g_per_kwh:
+          type: number
+      additionalProperties: true
+    CalculateInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - vcpu_hours
+          - memory_gb_hours
+          - storage_gb_months
+        amount:
+          type: number
+          minimum: 0
+        region:
+          type: string
+      required:
+      - kind
+      - amount
+      - region
+      additionalProperties: true
+    CalculateResult:
+      type: object
+      properties:
+        energy_kwh:
+          type: number
+        co2e_kg:
+          type: number
+        methodology_version:
+          type: string
+      additionalProperties: true
+    RecalculateInput:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+      required:
+      - project_id
+      - from
+      - to
+      additionalProperties: true
+    ProjectRefInput:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+      required:
+      - project_id
+      additionalProperties: true
+    GateChange:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - vcpu_hours
+          - memory_gb_hours
+          - storage_gb_months
+        amount:
+          type: number
+          minimum: 0
+        region:
+          type: string
+        monthly_cost_delta:
+          type: number
+      required:
+      - kind
+      - amount
+      - region
+      additionalProperties: true
+    GateRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/GateChange'
+          minItems: 1
+          maxItems: 200
+        thresholds:
+          type: object
+          properties:
+            carbon_warn_kg:
+              type: number
+              nullable: true
+            carbon_block_kg:
+              type: number
+              nullable: true
+            cost_warn:
+              type: number
+              nullable: true
+            cost_block:
+              type: number
+              nullable: true
+          additionalProperties: true
+      required:
+      - project_id
+      - changes
+      additionalProperties: true
+    GateResponse:
+      type: object
+      properties:
+        verdict:
+          type: string
+          enum:
+          - PASS
+          - WARN
+          - BLOCK
+        carbon_kg_month:
+          type: number
+        cost_delta_month:
+          type: number
+        reasons:
+          type: array
+          items:
+            type: string
+        thresholds_applied:
+          type: boolean
+        methodology_version:
+          type: string
+      additionalProperties: true
+    FinopsSummary:
+      type: object
+      properties:
+        has_data:
+          type: boolean
+        total_cost:
+          type: number
+        previous_total_cost:
+          type: number
+        currency:
+          type: string
+        by_service:
+          type: array
+          items:
+            type: object
+            properties:
+              service:
+                type: string
+              cost:
+                type: number
+            additionalProperties: true
+        previous_comparable:
+          type: boolean
+          description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
+      additionalProperties: true
+    Budget:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: number
+        currency:
+          type: string
+        period:
+          type: string
+          enum:
+          - monthly
+          - quarterly
+          - yearly
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    BudgetInput:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+        period:
+          type: string
+          enum:
+          - monthly
+          - quarterly
+          - yearly
+      required:
+      - amount
+      - currency
+      - period
+      additionalProperties: true
+    BudgetStatus:
+      allOf:
+      - $ref: '#/components/schemas/Budget'
+      - type: object
+        properties:
+          period_start:
+            type: string
+            format: date-time
+          period_end:
+            type: string
+            format: date-time
+          spent:
+            type: number
+          used_pct:
+            type: number
+          projected:
+            type: number
+          state:
+            type: string
+            enum:
+            - ok
+            - at_risk
+            - exceeded
+        additionalProperties: true
+    Anomaly:
+      type: object
+      properties:
+        day:
+          type: string
+          format: date-time
+        cost:
+          type: number
+        expected:
+          type: number
+        stddev:
+          type: number
+      additionalProperties: true
+    DashboardTrendPoint:
+      type: object
+      properties:
+        day:
+          type: string
+          format: date-time
+        cost:
+          type: number
+        carbon_kg_co2e:
+          type: number
+      additionalProperties: true
+    ProviderShare:
+      type: object
+      properties:
+        provider:
+          type: string
+        carbon_kg_co2e:
+          type: number
+        share_pct:
+          type: number
+      additionalProperties: true
+    ServiceRow:
+      type: object
+      properties:
+        service:
+          type: string
+        category:
+          type: string
+        cost:
+          type: number
+        carbon_kg_co2e:
+          type: number
+        trend:
+          type: array
+          items:
+            type: number
+      additionalProperties: true
+    RegionIntensity:
+      type: object
+      properties:
+        region:
+          type: string
+        g_per_kwh:
+          type: number
+        change_pct:
+          type: number
+          nullable: true
+        at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    Activity:
+      type: object
+      properties:
+        id:
+          type: integer
+        action:
+          type: string
+        target:
+          type: string
+        at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - rightsizing
+          - region_shift
+          - time_shift
+          - spot_migration
+        title:
+          type: string
+        provider:
+          type: string
+        service_name:
+          type: string
+        current_region:
+          type: string
+        recommended_region:
+          type: string
+        estimated_carbon_reduction_pct:
+          type: number
+        carbon_reduction_kg_month:
+          type: number
+        estimated_cost_impact:
+          type: number
+          nullable: true
+          description: null = not estimated; negative = saving
+        cost_basis:
+          type: string
+          enum:
+          - not_estimated
+          - region_price_index
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        compliance_check:
+          type: object
+          properties:
+            residency:
+              type: string
+              enum:
+              - passed
+              - failed
+              - unknown
+            allowed_regions:
+              type: array
+              items:
+                type: string
+            checked_at:
+              type: string
+              format: date-time
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+          - open
+          - approved
+          - applied
+          - dismissed
+        decided_by:
+          type: string
+          nullable: true
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+        applied_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      additionalProperties: true
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          type: string
+          enum:
+          - carbon
+          - sci
+          - finops
+        format:
+          type: string
+          enum:
+          - csv
+          - json
+          - pdf
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+          - pending
+          - ready
+          - failed
+        error:
+          type: string
+          nullable: true
+        requested_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: true
+    ReportInput:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        kind:
+          type: string
+          enum:
+          - carbon
+          - sci
+          - finops
+        format:
+          type: string
+          enum:
+          - csv
+          - json
+          - pdf
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+      required:
+      - kind
+      - format
+      - period_start
+      - period_end
+      additionalProperties: true

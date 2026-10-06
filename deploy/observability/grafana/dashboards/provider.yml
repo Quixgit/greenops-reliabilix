@@ -1,0 +1,3 @@
+apiVersion: 1
+providers:
+  - {name: greenops, folder: GreenOps, type: file, options: {path: /var/lib/grafana/dashboards}}

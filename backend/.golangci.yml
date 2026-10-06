@@ -1,0 +1,229 @@
+version: "2"
+linters:
+  enable: [gosec, errcheck, govet, staticcheck, depguard, bodyclose, noctx, rowserrcheck]
+  exclusions:
+    paths: ["internal/.*/repository/db"]   # sqlc-generated
+    rules:
+      - path: _test\.go
+        text: "G101"   # IAM role ARNs in test fixtures are references, not credentials
+  settings:
+    depguard:
+      rules:
+        # domain/ is pure: no transport, persistence, queue or SDK imports.
+        domain-purity:
+          files: ["**/internal/*/domain/**", "!**/*_test.go"]
+          deny:
+            - {pkg: net/http, desc: "domain must not depend on transport"}
+            - {pkg: github.com/go-chi, desc: "domain must not depend on transport"}
+            - {pkg: github.com/jackc/pgx, desc: "domain must not depend on persistence"}
+            - {pkg: database/sql, desc: "domain must not depend on persistence"}
+            - {pkg: github.com/hibiken/asynq, desc: "domain must not depend on the queue"}
+            - {pkg: github.com/aws, desc: "domain must not depend on cloud SDKs"}
+        # tenants reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-tenants:
+          files: ["**/internal/tenants/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # users reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-users:
+          files: ["**/internal/users/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # projects reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-projects:
+          files: ["**/internal/projects/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # cloudaccounts reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-cloudaccounts:
+          files: ["**/internal/cloudaccounts/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # ingestion reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-ingestion:
+          files: ["**/internal/ingestion/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # usage reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-usage:
+          files: ["**/internal/usage/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # carbon reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-carbon:
+          files: ["**/internal/carbon/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # finops reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-finops:
+          files: ["**/internal/finops/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # recommendations reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-recommendations:
+          files: ["**/internal/recommendations/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # kubernetes reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-kubernetes:
+          files: ["**/internal/kubernetes/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # reports reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-reports:
+          files: ["**/internal/reports/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # automation reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-automation:
+          files: ["**/internal/automation/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/dashboard, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+        # dashboard reaches other domains only through ports wired in internal/app, never their internals.
+        isolate-dashboard:
+          files: ["**/internal/dashboard/**", "!**/*_test.go"]
+          deny:
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/tenants, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/users, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/projects, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/ingestion, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/usage, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/carbon, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/finops, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/recommendations, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/reports, desc: "domains must not import each other: declare a port and wire it in internal/app"}
+            - {pkg: github.com/quixgit/greenops-reliabilix/backend/internal/automation, desc: "domains must not import each other: declare a port and wire it in internal/app"}
