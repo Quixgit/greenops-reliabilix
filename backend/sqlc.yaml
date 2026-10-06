@@ -135,6 +135,28 @@ sql:
           - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
   - engine: postgresql
     schema: migrations
+    queries: internal/automation/repository/queries
+    gen:
+      go:
+        package: db
+        out: internal/automation/repository/db
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_empty_slices: true
+        overrides:
+          - {db_type: "pg_catalog.numeric", go_type: "float64"}
+          - {db_type: "pg_catalog.numeric", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "float8", go_type: {type: "float64", pointer: true}, nullable: true}
+          - {db_type: "text", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "uuid", go_type: "string"}
+          - {db_type: "uuid", go_type: {type: "string", pointer: true}, nullable: true}
+          - {db_type: "timestamptz", go_type: "time.Time"}
+          - {db_type: "timestamptz", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "date", go_type: "time.Time"}
+          - {db_type: "date", go_type: {type: "time.Time", pointer: true}, nullable: true}
+          - {db_type: "jsonb", go_type: {import: "encoding/json", type: "RawMessage"}}
+  - engine: postgresql
+    schema: migrations
     queries: internal/recommendations/repository/queries
     gen:
       go:

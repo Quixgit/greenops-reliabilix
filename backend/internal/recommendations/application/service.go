@@ -176,6 +176,16 @@ func (s Service) recheck(ctx context.Context, tenantID string) func(*domain.Reco
 	}
 }
 
+// CheckCompliance re-validates a recommendation against the project's current policy without changing it
+// (used before planning and approving automation).
+func (s Service) CheckCompliance(ctx context.Context, tenantID, id string) error {
+	r, err := s.Repo.Get(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	return s.recheck(ctx, tenantID)(&r)
+}
+
 // Approve, Apply and Dismiss are explicit human decisions by an authenticated user. Phase 1-2 "apply"
 // records that the change was made; execution automation (phase 3) will hang off the approved state.
 func (s Service) Approve(ctx context.Context, tenantID, id string, who auth.Claims) (domain.Recommendation, error) {

@@ -253,9 +253,34 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	if r := c.must("POST", "/api/v1/recommendations/"+recID+"/approve", alice, "", 200); str(r, "status") != "approved" {
 		t.Fatalf("approve: %v", r)
 	}
-	if r := c.must("POST", "/api/v1/recommendations/"+recID+"/apply", alice, "", 200); str(r, "status") != "applied" {
-		t.Fatalf("apply: %v", r)
+	// ---- automation: an approved recommendation becomes a reviewed plan; nothing is executed by the platform ----
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, str(recs[1].(map[string]any), "id")), 422) // still open
+	c.must("POST", "/api/v1/automation/jobs", alice, `{"recommendation_id":"not-a-uuid"}`, 422)
+	job := c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 201)
+	jobID := str(job, "id")
+	if str(job, "status") != "planned" || str(job, "kind") != "region_shift" || str(sub(job, "risk"), "level") != "high" || str(job, "rollback_plan") == "" {
+		t.Fatalf("plan: %v", job)
 	}
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 409) // one live job per recommendation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed"}`, 409)       // planned jobs cannot be completed
+	if a := c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", alice, "", 200); str(a, "status") != "approved" || a["approved_by"] == nil {
+		t.Fatalf("approve job: %v", a)
+	}
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", alice, "", 409)
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"failed"}`, 422) // a failure needs an explanation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"approved"}`, 422)
+	if d := c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed","note":"moved and verified"}`, 200); str(d, "status") != "completed" {
+		t.Fatalf("complete job: %v", d)
+	}
+	if r := c.must("GET", "/api/v1/recommendations/"+recID, alice, "", 200); str(r, "status") != "applied" {
+		t.Fatalf("completing a job must mark its recommendation applied: %v", r)
+	}
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/result", alice, `{"outcome":"completed"}`, 409)
+	c.must("POST", "/api/v1/automation/jobs", alice, fmt.Sprintf(`{"recommendation_id":"%s"}`, recID), 422) // applied: nothing left to plan
+	if list := items(c.must("GET", "/api/v1/automation/jobs", alice, "", 200)); len(list) != 1 {
+		t.Fatalf("job list: %v", list)
+	}
+	c.must("GET", "/api/v1/automation/jobs/"+jobID, alice, "", 200)
 	c.must("POST", "/api/v1/recommendations/"+recID+"/approve", alice, "", 409) // applied is terminal
 	c.must("POST", "/api/v1/recommendations/"+str(recs[2].(map[string]any), "id")+"/dismiss", alice, "", 200)
 	// residency policy tightened after generation: the remaining finding can no longer be approved
@@ -326,6 +351,8 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	}
 	c.must("GET", "/api/v1/projects", key, "", 403)                           // a CI key may only evaluate
 	c.must("POST", "/api/v1/recommendations/"+recID+"/approve", key, "", 403) // machines never approve
+	c.must("GET", "/api/v1/automation/jobs", key, "", 403)                    // ... nor see or create automation
+	c.must("POST", "/api/v1/automation/jobs/"+jobID+"/approve", key, "", 403)
 	c.must("POST", "/api/v1/api-keys", key, `{"name":"x","role":"ci"}`, 403)
 	keysRaw := c.must("GET", "/api/v1/api-keys", alice, "", 200)
 	if strings.Contains(fmt.Sprint(keysRaw), "key_hash") || strings.Contains(fmt.Sprint(keysRaw), key) {
@@ -357,7 +384,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	// ---- audit trail ----
 	log := fmt.Sprint(c.must("GET", "/api/v1/audit-log?limit=200", alice, "", 200))
 	for _, action := range []string{"tenant.onboarded", "project.created", "project.policy_updated", "cloud_connection.created", "cloud_sync.completed",
-		"recommendation.approved", "recommendation.applied", "recommendation.dismissed", "invitation.created", "member.joined",
+		"recommendation.approved", "recommendation.applied", "recommendation.dismissed", "automation.job_planned", "automation.job_approved", "automation.job_completed", "invitation.created", "member.joined",
 		"member.role_changed", "member.removed", "api_key.created", "api_key.revoked", "report.generated", "budget.created"} {
 		if !strings.Contains(log, action) {
 			t.Errorf("audit log lacks %q", action)
@@ -373,6 +400,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		"/api/v1/projects/" + proj:                        404,
 		"/api/v1/cloud-accounts/" + connID:                404,
 		"/api/v1/recommendations/" + recID:                404,
+		"/api/v1/automation/jobs/" + jobID:                404,
 		"/api/v1/reports/" + str(rep, "id") + "/download": 404,
 		"/api/v1/reports/" + str(rep, "id"):               404,
 	} {

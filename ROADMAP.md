@@ -44,8 +44,8 @@ Controlled change execution, always behind explicit approval.
 
 | | Capability |
 |---|---|
-| 🗓️ | Automation jobs: approved recommendation → risk analysis → plan → execution → verification |
-| 🗓️ | Terraform and Kubernetes executors with dry-run and rollback information |
+| ✅ | Automation jobs: approved recommendation → risk analysis → reviewed plan → human approval → reported result (the platform never executes changes) |
+| 🗓️ | Terraform and Kubernetes executors with dry-run, behind separately granted credentials |
 | 🗓️ | Reusable CI action (`greenops-ci-gate`) for GitHub Actions / Azure DevOps |
 | 🗓️ | Billing (Stripe), white-label, benchmarking |
 

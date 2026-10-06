@@ -339,6 +339,115 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List automation jobs
+         * @description Requires permission `automation:read`.
+         */
+        get: operations["listAutomationJobs"];
+        put?: never;
+        /**
+         * Plan the change of an approved recommendation (nothing is executed)
+         * @description Requires permission `automation:write`.
+         *     The platform builds a reviewable plan (steps, commands, rollback, risk) from validated identifiers.
+         *     It never changes the customer's cloud: a human approves the plan, applies it with their own tooling
+         *     and reports the result.
+         */
+        post: operations["planAutomationJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a job
+         * @description Requires permission `automation:read`.
+         */
+        get: operations["getAutomationJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/jobs/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve the plan for execution by a person
+         * @description Requires permission `automation:approve`.
+         *     Machines never hold this permission. The data-residency check is repeated at approval time.
+         */
+        post: operations["approveAutomationJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/jobs/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report what happened when the plan was applied
+         * @description Requires permission `automation:write`.
+         *     `completed` also marks the recommendation as applied. `failed` and `rolled_back` need a note.
+         */
+        post: operations["reportAutomationResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/jobs/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a plan that was not applied
+         * @description Requires permission `automation:write`.
+         */
+        post: operations["cancelAutomationJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cloud-accounts": {
         parameters: {
             query?: never;
@@ -1178,6 +1287,40 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        AutomationJob: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            /** Format: uuid */
+            recommendation_id?: string;
+            /** @enum {string} */
+            kind?: "ec2_resize" | "ec2_terminate" | "region_shift";
+            /** @enum {string} */
+            status?: "planned" | "approved" | "completed" | "failed" | "rolled_back" | "cancelled";
+            plan?: {
+                summary?: string;
+                steps?: string[];
+                terraform?: string;
+                cli?: string[];
+            };
+            risk?: {
+                /** @enum {string} */
+                level?: "low" | "medium" | "high";
+                factors?: string[];
+            };
+            rollback_plan?: string;
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+            approved_by?: string | null;
+            /** Format: date-time */
+            approved_at?: string | null;
+            finished_by?: string | null;
+            /** Format: date-time */
+            finished_at?: string | null;
+            result_note?: string | null;
+        };
         ExportConfig: {
             bucket: string;
             /** @description Key prefix without leading or trailing slash; may be empty. */
@@ -1514,6 +1657,10 @@ export interface components {
                 checked_at?: string;
             } & {
                 [key: string]: unknown;
+            };
+            /** @description Structured facts for automation (resource id, instance types ...). */
+            details?: {
+                [key: string]: string;
             };
             /** @enum {string} */
             status?: "open" | "approved" | "applied" | "dismissed";
@@ -2143,6 +2290,179 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    listAutomationJobs: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AutomationJob"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    planAutomationJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    recommendation_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationJob"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getAutomationJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationJob"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    approveAutomationJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationJob"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    reportAutomationResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    outcome: "completed" | "failed" | "rolled_back";
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationJob"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    cancelAutomationJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationJob"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
     listCloudAccounts: {

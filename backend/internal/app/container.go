@@ -97,7 +97,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	c := &Container{}
 	c.modules = []httpx.Module{
 		tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finops.New(pool),
-		dashboard.New(pool), recsM, kubernetes.New(), reportsM, automation.New(),
+		dashboard.New(pool), recsM, kubernetes.New(), reportsM, automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}),
 	}
 	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM}
 

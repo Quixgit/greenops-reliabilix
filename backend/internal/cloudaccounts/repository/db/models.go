@@ -20,6 +20,26 @@ type AuditAuditLog struct {
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
+type AutomationJob struct {
+	ID               string          `json:"id"`
+	TenantID         string          `json:"tenant_id"`
+	ProjectID        string          `json:"project_id"`
+	RecommendationID string          `json:"recommendation_id"`
+	Kind             string          `json:"kind"`
+	Status           string          `json:"status"`
+	Plan             json.RawMessage `json:"plan"`
+	RiskLevel        string          `json:"risk_level"`
+	RiskFactors      json.RawMessage `json:"risk_factors"`
+	RollbackPlan     string          `json:"rollback_plan"`
+	CreatedBy        string          `json:"created_by"`
+	CreatedAt        time.Time       `json:"created_at"`
+	ApprovedBy       *string         `json:"approved_by"`
+	ApprovedAt       *time.Time      `json:"approved_at"`
+	FinishedBy       *string         `json:"finished_by"`
+	FinishedAt       *time.Time      `json:"finished_at"`
+	ResultNote       *string         `json:"result_note"`
+}
+
 type CarbonCalculation struct {
 	ID                 string    `json:"id"`
 	TenantID           string    `json:"tenant_id"`
@@ -168,6 +188,7 @@ type RecommendationsRecommendation struct {
 	DecidedAt                   *time.Time      `json:"decided_at"`
 	AppliedAt                   *time.Time      `json:"applied_at"`
 	CreatedAt                   time.Time       `json:"created_at"`
+	Details                     json.RawMessage `json:"details"`
 }
 
 type ReportsReport struct {

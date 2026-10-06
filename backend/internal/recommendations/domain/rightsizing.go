@@ -145,6 +145,12 @@ func buildRightsizing(in RightsizingInput, f RightsizingFinding, pct, kg float64
 		CarbonReductionPct: pct, CarbonReductionKg: kg, CostBasis: "not_estimated", Status: Open, Confidence: confidence,
 		Compliance:  ComplianceCheck{Residency: "passed", CheckedAt: in.Now},
 		Fingerprint: rightsizingFingerprint(in.ProjectID, f),
+		Details:     map[string]string{"resource_id": f.ResourceID, "current_type": f.CurrentType},
+	}
+	if f.TargetType != "" {
+		r.Details["action"], r.Details["target_type"] = "modify", f.TargetType
+	} else {
+		r.Details["action"] = "terminate"
 	}
 	if f.Currency == "USD" && f.EstimatedMonthlySavings > 0 {
 		impact := -math.Round(f.EstimatedMonthlySavings*100) / 100 // negative = saving

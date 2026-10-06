@@ -55,7 +55,9 @@ type Recommendation struct {
 	DecidedAt          *time.Time      `json:"decided_at"`
 	AppliedAt          *time.Time      `json:"applied_at"`
 	CreatedAt          time.Time       `json:"created_at"`
-	Fingerprint        string          `json:"-"`
+	// Details are structured facts for automation (resource id, instance types ...). Strings only.
+	Details     map[string]string `json:"details"`
+	Fingerprint string            `json:"-"`
 }
 
 var (

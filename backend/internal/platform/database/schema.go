@@ -10,7 +10,7 @@ import (
 
 // ExpectedMigration is the newest goose migration this build needs. A unit test ties it to the files in
 // backend/migrations, so adding a migration without bumping it fails the build.
-const ExpectedMigration = 10
+const ExpectedMigration = 11
 
 // SchemaStatus is what `admin doctor` learns about the database the process is connected to.
 type SchemaStatus struct {
@@ -43,7 +43,7 @@ func CheckSchema(ctx context.Context, pool *pgxpool.Pool, now time.Time) (Schema
 		SELECT n.nspname || '.' || c.relname, c.relrowsecurity AND c.relforcerowsecurity
 		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind IN ('r','p') AND NOT c.relispartition
-		  AND n.nspname IN ('tenants','projects','cloudaccounts','usage','carbon','finops','recommendations','reports','audit')
+		  AND n.nspname IN ('tenants','projects','cloudaccounts','usage','carbon','finops','recommendations','reports','audit','automation')
 		  AND n.nspname || '.' || c.relname NOT IN ('carbon.grid_intensity', 'finops.region_price_index')`)
 	if err != nil {
 		return s, err
