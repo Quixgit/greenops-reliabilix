@@ -9,3 +9,6 @@ gen/
 next-env.d.ts
 tsconfig.tsbuildinfo
 .data/
+
+# local Redis snapshots
+dump.rdb
