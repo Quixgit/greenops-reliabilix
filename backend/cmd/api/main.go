@@ -57,7 +57,13 @@ func main() {
 		log.Error("wiring", "err", err)
 		os.Exit(1)
 	}
-	router := app.NewRouter(cfg, log, c.Verifier, c.Resolver, pool.Ping, c.Modules()...)
+	ready := func(ctx context.Context) error { // both dependencies must answer for the API to receive traffic
+		if err := pool.Ping(ctx); err != nil {
+			return err
+		}
+		return q.Ping(ctx)
+	}
+	router := app.NewRouter(cfg, log, c.Verifier, c.Resolver, ready, c.Modules()...)
 
 	go func() { // metrics on an internal-only address
 		if err := httpx.NewServer(cfg.MetricsAddr, observability.MetricsHandler()).ListenAndServe(); err != nil {

@@ -60,3 +60,8 @@ func (s *S3Store) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	}
 	return out.Body, nil
 }
+
+func (s *S3Store) Delete(ctx context.Context, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: &s.bucket, Key: &key})
+	return err
+}

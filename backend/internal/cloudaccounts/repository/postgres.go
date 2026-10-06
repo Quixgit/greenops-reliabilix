@@ -138,3 +138,9 @@ func (r Postgres) ListForSync(ctx context.Context) ([]domain.JobRef, error) {
 	}
 	return out, rows.Err()
 }
+
+func (r Postgres) Audit(ctx context.Context, tenantID, action, connectionID string, meta map[string]any) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		return audit.Record(ctx, tx, action, "connection:"+connectionID, meta)
+	})
+}

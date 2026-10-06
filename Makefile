@@ -2,7 +2,7 @@ DB_OWNER_DSN ?= postgres://greenops_owner:dev-only@localhost:5432/greenops?sslmo
 DB_API_DSN   ?= postgres://greenops_api:dev-only@localhost:5432/greenops?sslmode=disable
 DEV_TENANT   ?= 00000000-0000-4000-8000-000000000001
 
-.PHONY: recalc sqlc api-types openapi-lint help up down build test test-integration lint vuln migrate seed seed-demo run-api run-worker run-scheduler web web-test
+.PHONY: smoke doctor recalc sqlc api-types openapi-lint help up down build test test-integration lint vuln migrate seed seed-demo run-api run-worker run-scheduler web web-test
 help: ; @grep -E '^[a-z-]+:' Makefile | cut -d: -f1 | tr '\n' ' '; echo
 
 up:               ; docker compose up --build -d          # whole stack -> http://localhost:3000
@@ -21,6 +21,11 @@ migrate:          ; cd backend && go run github.com/pressly/goose/v3/cmd/goose@l
 seed:             ; psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -f deploy/dev/seed.sql
 # DEV ONLY synthetic FOCUS usage (one AWS account, 60 days); then `make recalc` runs the real carbon engine on it
 seed-demo:        ; psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -f deploy/dev/seed-demo.sql
+
+# one-command verification of a running stack (dev tokens; refuses nothing else)
+smoke:            ; ./scripts/smoke.sh
+# checks every external dependency (DB roles/RLS/migrations, Redis, S3, Auth0, Electricity Maps, AWS) and prints what to fix
+doctor:           ; cd backend && go run ./cmd/admin doctor
 
 # compute carbon + recommendations for all projects right now (no Redis needed); uses the worker role
 recalc:           ; cd backend && ENV=dev DATABASE_URL='postgres://greenops_worker:dev-only@localhost:5432/greenops?sslmode=disable' go run ./cmd/admin recalc

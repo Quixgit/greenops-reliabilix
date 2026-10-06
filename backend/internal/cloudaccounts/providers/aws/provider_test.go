@@ -45,7 +45,7 @@ func page(day string, next string) *costexplorer.GetCostAndUsageOutput {
 }
 
 func conn() domain.Connection {
-	return domain.Connection{CredentialRef: "arn:aws:iam::123456789012:role/R", ExternalID: "rlx-abc", AccountRef: "123456789012"}
+	return domain.Connection{CredentialRef: "arn:aws:iam::123456789012:role/ReliabilixR", ExternalID: "rlx-abc", AccountRef: "123456789012"}
 }
 
 func TestGetUsagePaginatesAndShapesRequest(t *testing.T) {

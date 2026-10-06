@@ -14,7 +14,7 @@ const schema = z.object({
   project_id: z.string().min(1, "Choose a project"),
   provider: z.literal("aws"),
   account_ref: z.string().trim().regex(/^\d{12}$/, "AWS account id: 12 digits"),
-  credential_ref: z.string().trim().regex(/^arn:aws:iam::\d{12}:role\/.+/, "Enter the IAM role ARN (not an access key)"),
+  credential_ref: z.string().trim().regex(/^arn:aws:iam::\d{12}:role\/Reliabilix[\w+=,.@-]{0,100}$/, "Enter the IAM role ARN; the role name must start with \"Reliabilix\" (not an access key)"),
 });
 type Values = z.infer<typeof schema>;
 

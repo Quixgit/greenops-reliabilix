@@ -56,3 +56,7 @@ A reusable GitHub Action wrapping this call (`reliabilix/greenops-ci-gate`) is a
 `POST /reports {"kind": "carbon|sci|finops", "format": "csv|json|pdf", "period_start": "...", "period_end": "..."}` -> `202`;
 poll `GET /reports/{id}` until `ready`, then `GET /reports/{id}/download`. Files live in S3-compatible storage under
 `tenants/{tenant_id}/reports/`. CSV cells are protected against formula injection.
+
+## Cloud connection role names
+
+The IAM role ARN must match `arn:aws:iam::<12 digits>:role/Reliabilix*`; other names are rejected (limits the blast radius of the platform's `sts:AssumeRole`). Verification results are audited.

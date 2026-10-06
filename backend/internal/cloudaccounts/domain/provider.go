@@ -58,7 +58,9 @@ type Connection struct {
 
 var (
 	awsAccountRe = regexp.MustCompile(`^\d{12}$`)
-	awsRoleRe    = regexp.MustCompile(`^arn:aws:iam::(\d{12}):role/[A-Za-z0-9+=,.@_/-]{1,512}$`)
+	// The platform identity is only allowed to assume roles named Reliabilix* (see deploy/aws/platform-policy.json);
+	// enforcing the same rule here keeps a pasted ARN from ever steering the platform into an arbitrary role.
+	awsRoleRe = regexp.MustCompile(`^arn:aws:iam::(\d{12}):role/(Reliabilix[A-Za-z0-9+=,.@_-]{0,100})$`)
 	// secretLike catches raw credentials pasted into credential_ref.
 	secretLike = regexp.MustCompile(`AKIA|ASIA|-----BEGIN|aws_secret_access_key`)
 )
@@ -80,7 +82,7 @@ func (c Connection) Validate() error {
 		}
 		m := awsRoleRe.FindStringSubmatch(c.CredentialRef)
 		if m == nil {
-			return fmt.Errorf("%w: credential_ref must be an IAM role ARN", ErrInvalidConnection)
+			return fmt.Errorf("%w: credential_ref must be an IAM role ARN whose name starts with \"Reliabilix\" (no path)", ErrInvalidConnection)
 		}
 		if m[1] != c.AccountRef {
 			return fmt.Errorf("%w: role ARN belongs to a different AWS account", ErrInvalidConnection)
@@ -159,4 +161,6 @@ type Repository interface {
 	MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int) error
 	ListRuns(ctx context.Context, tenantID, connectionID string) ([]SyncRun, error)
 	ListForSync(ctx context.Context) ([]JobRef, error)
+	// Audit appends a user-visible audit entry for the connection (verification outcome).
+	Audit(ctx context.Context, tenantID, action, connectionID string, meta map[string]any) error
 }

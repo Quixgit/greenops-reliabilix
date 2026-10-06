@@ -26,3 +26,8 @@ func (m *Memory) Get(_ context.Context, key string) (io.ReadCloser, error) {
 	}
 	return io.NopCloser(bytes.NewReader(b)), nil
 }
+
+func (m *Memory) Delete(_ context.Context, key string) error {
+	delete(m.M, key)
+	return nil
+}

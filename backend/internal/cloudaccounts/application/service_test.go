@@ -61,6 +61,7 @@ func (r *memRepo) MarkSynced(_ context.Context, _, id string, through time.Time,
 	r.through[id] = through
 	return nil
 }
+func (r *memRepo) Audit(context.Context, string, string, string, map[string]any) error { return nil }
 func (r *memRepo) ListRuns(context.Context, string, string) ([]domain.SyncRun, error) {
 	return nil, nil
 }
@@ -107,13 +108,13 @@ func newSvc(r *memRepo, p *fakeProvider, ing fakeIngestor, q *recorder) Service 
 
 func awsConn() domain.Connection {
 	return domain.Connection{ID: "c1", TenantID: "t", ProjectID: "p", Provider: domain.AWS, AccountRef: "123456789012",
-		CredentialRef: "arn:aws:iam::123456789012:role/R", ExternalID: "rlx-1"}
+		CredentialRef: "arn:aws:iam::123456789012:role/ReliabilixR", ExternalID: "rlx-1"}
 }
 
 func TestConnectIssuesExternalIDAndTrustPolicy(t *testing.T) {
 	s := newSvc(newRepo(), &fakeProvider{}, fakeIngestor{}, &recorder{})
 	c, setup, err := s.Connect(context.Background(), domain.Connection{TenantID: "t", ProjectID: "p", Provider: domain.AWS,
-		AccountRef: "123456789012", CredentialRef: "arn:aws:iam::123456789012:role/R"})
+		AccountRef: "123456789012", CredentialRef: "arn:aws:iam::123456789012:role/ReliabilixR"})
 	if err != nil {
 		t.Fatal(err)
 	}

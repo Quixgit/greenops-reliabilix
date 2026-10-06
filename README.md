@@ -7,7 +7,7 @@ Modular monolith (Go 1.27) + Next.js 16 frontend. Architecture decisions: `docs/
 backend/   Go: cmd/{api,worker,scheduler}, internal/{platform,<12 domains>,dashboard,app}, migrations/, api/openapi.yaml, tests/
 frontend/  Next.js 16 · React 19 · TS · Tailwind 4 · TanStack Query · Zustand · RHF+Zod · ECharts · Auth0
 deploy/    docker/ (Dockerfile, Dockerfile.web, initdb), dev/ (seeds)
-docs/      architecture/, security/, adr/
+docs/      setup/ (connecting external services), architecture/, security/, adr/
 ```
 
 ## Run everything
@@ -53,3 +53,7 @@ With `ENV!=dev` the API only accepts RS256 tokens verified against your Auth0 JW
 | OpenAPI (46 paths) + generated TS types, route parity test | done |
 | Azure, GCP, Kubernetes (Kepler), WattTime, rightsizing/time-shift/spot, Terraform automation, Stripe, email delivery | later phases |
 | Frontend | Overview + routes exist; screens for recommendations, reports, members, API keys are not built yet |
+
+## Connecting external services
+
+See `docs/setup/README.md`. Verify with `make doctor` (config, DB roles/RLS, Redis, storage, Auth0, Electricity Maps, AWS) and `make smoke`.

@@ -1,0 +1,38 @@
+# Give this template to a customer. It creates the read-only role Reliabilix assumes to read cost data.
+# ExternalId and PlatformAccountId are shown by the product (POST /api/v1/cloud-accounts).
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Reliabilix GreenOps - read-only cost access (ce:GetCostAndUsage only)
+Parameters:
+  PlatformAccountId:
+    Type: String
+    AllowedPattern: '^\d{12}$'
+    Description: AWS account id of the Reliabilix platform
+  ExternalId:
+    Type: String
+    AllowedPattern: '^rlx-[0-9a-f]{40}$'
+    Description: The External ID shown in Reliabilix for this connection
+Resources:
+  ReliabilixReadOnly:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ReliabilixReadOnly            # must start with "Reliabilix"
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal: {AWS: !Sub "arn:aws:iam::${PlatformAccountId}:root"}
+            Condition: {StringEquals: {"sts:ExternalId": !Ref ExternalId}}
+      Policies:
+        - PolicyName: CostExplorerRead
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ce:GetCostAndUsage
+                Resource: "*"
+Outputs:
+  RoleArn:
+    Description: Paste this into Reliabilix as the IAM role ARN
+    Value: !GetAtt ReliabilixReadOnly.Arn

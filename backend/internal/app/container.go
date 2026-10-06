@@ -56,14 +56,18 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	for _, f := range opts {
 		f(&o)
 	}
-	store, err := newStore(ctx, cfg, log)
+	store, err := NewStore(ctx, cfg, log)
 	if err != nil {
 		return nil, err
 	}
 	var grid carbondomain.CarbonDataProvider
 	switch {
 	case cfg.ElectricityMapsKey != "":
-		grid = electricitymaps.New(cfg.ElectricityMapsKey)
+		overrides, err := electricitymaps.ParseOverrides(cfg.ElectricityMapsZoneOverrides)
+		if err != nil {
+			return nil, err
+		}
+		grid = electricitymaps.New(cfg.ElectricityMapsKey, overrides)
 	case cfg.IsDev():
 		grid = electricitymaps.Static{GPerKWh: 400}
 	default:
@@ -110,8 +114,8 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 func (c *Container) Modules() []httpx.Module             { return c.modules }
 func (c *Container) JobRegistrars() []queue.JobRegistrar { return c.jobs }
 
-// newStore picks object storage: S3-compatible when configured, a local directory in development.
-func newStore(ctx context.Context, cfg config.Config, log *slog.Logger) (storage.Store, error) {
+// NewStore picks object storage: S3-compatible when configured, a local directory in development.
+func NewStore(ctx context.Context, cfg config.Config, log *slog.Logger) (storage.Store, error) {
 	if cfg.S3Bucket != "" {
 		return storage.NewS3(ctx, storage.S3Config{Endpoint: cfg.S3Endpoint, Bucket: cfg.S3Bucket, Region: cfg.S3Region,
 			PathStyle: cfg.S3PathStyle, AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey})

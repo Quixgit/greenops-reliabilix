@@ -20,8 +20,11 @@ func TestConnectionValidate(t *testing.T) {
 		"unknown provider": func(c *Connection) { c.Provider = "oracle" },
 		"short account":    func(c *Connection) { c.AccountRef = "123" },
 		"not an arn":       func(c *Connection) { c.CredentialRef = "ReliabilixReadOnly" },
-		"foreign account":  func(c *Connection) { c.CredentialRef = "arn:aws:iam::999999999999:role/X" },
+		"foreign account":  func(c *Connection) { c.CredentialRef = "arn:aws:iam::999999999999:role/ReliabilixX" },
 		"user not role":    func(c *Connection) { c.CredentialRef = "arn:aws:iam::123456789012:user/bob" },
+		"other role name":  func(c *Connection) { c.CredentialRef = "arn:aws:iam::123456789012:role/AdministratorAccess" },
+		"role with path":   func(c *Connection) { c.CredentialRef = "arn:aws:iam::123456789012:role/team/ReliabilixReadOnly" },
+		"traversal":        func(c *Connection) { c.CredentialRef = "arn:aws:iam::123456789012:role/Reliabilix/../Admin" },
 	}
 	for name, mut := range cases {
 		c := valid()

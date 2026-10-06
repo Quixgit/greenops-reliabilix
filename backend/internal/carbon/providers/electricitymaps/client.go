@@ -9,32 +9,97 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
 )
 
-// zones maps cloud regions to Electricity Maps zones (extend as regions are onboarded).
-var zones = map[string]string{
-	"us-east-1": "US-MIDA-PJM", "us-west-2": "US-NW-PACW",
-	"eu-west-1": "IE", "eu-central-1": "DE", "eu-north-1": "SE",
+// defaultZones maps AWS regions to Electricity Maps zone keys. Zone keys are provider data that can change
+// or differ per subscription, so the map is verified against the account's available zones by
+// `admin doctor` and can be corrected without a release via ELECTRICITYMAPS_ZONE_OVERRIDES.
+var defaultZones = map[string]string{
+	"us-east-1": "US-MIDA-PJM", "us-east-2": "US-MIDW-MISO", "us-west-1": "US-CAL-CISO", "us-west-2": "US-NW-PACW",
+	"ca-central-1": "CA-QC", "ca-west-1": "CA-AB",
+	"eu-west-1": "IE", "eu-west-2": "GB", "eu-west-3": "FR", "eu-central-1": "DE", "eu-central-2": "CH",
+	"eu-north-1": "SE", "eu-south-1": "IT-NO", "eu-south-2": "ES",
+	"ap-northeast-1": "JP-TK", "ap-northeast-2": "KR", "ap-northeast-3": "JP-KN", "ap-southeast-1": "SG",
+	"ap-southeast-2": "AU-NSW", "ap-southeast-4": "AU-VIC", "ap-south-1": "IN-WE", "ap-east-1": "HK",
+	"sa-east-1": "BR-S", "il-central-1": "IL", "af-south-1": "ZA", "me-south-1": "BH",
+}
+
+var (
+	regionKeyRe = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-\d$`)
+	zoneKeyRe   = regexp.MustCompile(`^[A-Z]{2}(-[A-Z0-9]+)*$`)
+)
+
+// ParseOverrides parses "region=ZONE,region=ZONE". Both sides are validated: the values end up in an outbound
+// request URL, so nothing outside the expected alphabets is ever accepted.
+func ParseOverrides(spec string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		region, zone, ok := strings.Cut(part, "=")
+		region, zone = strings.TrimSpace(region), strings.TrimSpace(zone)
+		if !ok || !regionKeyRe.MatchString(region) || !zoneKeyRe.MatchString(zone) || len(zone) > 20 {
+			return nil, fmt.Errorf("electricitymaps: bad zone override %q (want region=ZONE, e.g. eu-central-1=DE)", part)
+		}
+		out[region] = zone
+	}
+	return out, nil
 }
 
 type Client struct {
 	BaseURL string
 	APIKey  string
 	HTTP    *http.Client
+	zones   map[string]string
 }
 
-func New(apiKey string) *Client {
-	return &Client{BaseURL: "https://api.electricitymaps.com/v3", APIKey: apiKey, HTTP: &http.Client{Timeout: 10 * time.Second}}
+// New builds a client. overrides (may be nil) replace or extend the default region -> zone map.
+func New(apiKey string, overrides map[string]string) *Client {
+	z := make(map[string]string, len(defaultZones)+len(overrides))
+	for k, v := range defaultZones {
+		z[k] = v
+	}
+	for k, v := range overrides {
+		z[k] = v
+	}
+	return &Client{BaseURL: "https://api.electricitymaps.com/v3", APIKey: apiKey, zones: z,
+		HTTP: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
+}
+
+// ZoneMap returns a copy of the effective region -> zone map.
+func (c *Client) ZoneMap() map[string]string {
+	out := make(map[string]string, len(c.zones))
+	for k, v := range c.zones {
+		out[k] = v
+	}
+	return out
+}
+
+// Zones lists the zone keys available to this API key (used by `admin doctor` to validate the map).
+func (c *Client) Zones(ctx context.Context) (map[string]struct{}, error) {
+	var body map[string]json.RawMessage
+	if err := c.get(ctx, "/zones", &body); err != nil {
+		return nil, err
+	}
+	out := make(map[string]struct{}, len(body))
+	for k := range body {
+		out[k] = struct{}{}
+	}
+	return out, nil
 }
 
 // Regions lists the cloud regions this client can resolve to a zone.
-func (*Client) Regions() []string { return sortedRegions() }
+func (c *Client) Regions() []string { return sortedRegions(c.zones) }
 
-func sortedRegions() []string {
+func sortedRegions(zones map[string]string) []string {
 	out := make([]string, 0, len(zones))
 	for r := range zones {
 		out = append(out, r)
@@ -44,7 +109,7 @@ func sortedRegions() []string {
 }
 
 func (c *Client) GetIntensity(ctx context.Context, region string) (domain.Intensity, error) {
-	zone, ok := zones[region]
+	zone, ok := c.zones[region]
 	if !ok {
 		return domain.Intensity{}, fmt.Errorf("electricitymaps: no zone for region %q", region)
 	}
@@ -59,7 +124,7 @@ func (c *Client) GetIntensity(ctx context.Context, region string) (domain.Intens
 }
 
 func (c *Client) GetForecast(ctx context.Context, region string) (domain.Forecast, error) {
-	zone, ok := zones[region]
+	zone, ok := c.zones[region]
 	if !ok {
 		return domain.Forecast{}, fmt.Errorf("electricitymaps: no zone for region %q", region)
 	}
@@ -97,7 +162,7 @@ func (c *Client) get(ctx context.Context, path string, dst any) error {
 }
 
 // Regions lists the same regions as the real client (development only).
-func (Static) Regions() []string { return sortedRegions() }
+func (Static) Regions() []string { return sortedRegions(defaultZones) }
 
 // Static is a fixed-intensity provider for local development only.
 type Static struct{ GPerKWh float64 }

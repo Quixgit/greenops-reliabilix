@@ -58,6 +58,9 @@ func NewClient(redisAddr string) *Client {
 
 func (c *Client) Close() error { return c.c.Close() }
 
+// Ping checks Redis connectivity (used by /readyz).
+func (c *Client) Ping(context.Context) error { return c.c.Ping() }
+
 // Enqueue schedules a task. Retries and timeouts are bounded by default.
 func (c *Client) Enqueue(ctx context.Context, taskType string, p any, opts ...asynq.Option) error {
 	b, err := json.Marshal(p)

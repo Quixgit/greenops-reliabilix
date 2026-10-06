@@ -123,7 +123,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		t.Fatalf("connect response: %v", created)
 	}
 	c.must("POST", "/api/v1/cloud-accounts", alice,
-		fmt.Sprintf(`{"project_id":"%s","provider":"aws","account_ref":"123456789012","credential_ref":"arn:aws:iam::123456789012:role/Other"}`, proj), 409)
+		fmt.Sprintf(`{"project_id":"%s","provider":"aws","account_ref":"123456789012","credential_ref":"arn:aws:iam::123456789012:role/ReliabilixOther"}`, proj), 409)
 	if v := c.must("POST", "/api/v1/cloud-accounts/"+connID+"/verify", alice, "", 200); str(v, "sync_status") != "healthy" {
 		t.Fatalf("verify: %v", v)
 	}

@@ -30,6 +30,9 @@ func fakeS3(t *testing.T) (*httptest.Server, *sync.Map) {
 				return
 			}
 			_, _ = w.Write(v.([]byte)) //nolint:gosec // test fake: echoes bytes the test itself stored
+		case http.MethodDelete:
+			objects.Delete(r.URL.Path)
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -62,6 +65,12 @@ func TestS3StoreRoundTrip(t *testing.T) {
 	got, _ := io.ReadAll(body)
 	if string(got) != "day,kg\n2026-09-01,1\n" {
 		t.Errorf("round trip = %q", got)
+	}
+	if err := s.Delete(context.Background(), key); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if _, ok := objects.Load("/greenops/" + key); ok {
+		t.Fatal("object still stored after delete")
 	}
 	if _, err := s.Get(context.Background(), "tenants/tenant-1/reports/missing"); err == nil {
 		t.Error("missing object returned no error")

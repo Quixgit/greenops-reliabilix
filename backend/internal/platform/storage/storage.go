@@ -17,6 +17,7 @@ import (
 type Store interface {
 	Put(ctx context.Context, key string, r io.Reader) error
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
+	Delete(ctx context.Context, key string) error
 }
 
 // Key builds a tenant-prefixed object key and rejects path traversal.
@@ -64,4 +65,12 @@ func (s FSStore) Get(_ context.Context, key string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return os.Open(p) //nolint:gosec // p is validated by abs() to stay inside Root
+}
+
+func (s FSStore) Delete(_ context.Context, key string) error {
+	p, err := s.abs(key)
+	if err != nil {
+		return err
+	}
+	return os.Remove(p)
 }

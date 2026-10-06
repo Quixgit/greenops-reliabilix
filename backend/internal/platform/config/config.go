@@ -38,8 +38,9 @@ type Config struct {
 	RatePerSec  float64
 	RateBurst   int
 
-	ElectricityMapsKey string
-	OTLPEndpoint       string
+	ElectricityMapsKey           string
+	ElectricityMapsZoneOverrides string // region=ZONE,... (validated at startup)
+	OTLPEndpoint                 string
 }
 
 // Load reads configuration and validates what must exist outside dev.
@@ -68,8 +69,9 @@ func Load() (Config, error) {
 		RatePerSec:           float64(Int("RATE_PER_SEC", 20)),
 		RateBurst:            Int("RATE_BURST", 40),
 
-		ElectricityMapsKey: String("ELECTRICITYMAPS_API_KEY", ""),
-		OTLPEndpoint:       String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		ElectricityMapsKey:           String("ELECTRICITYMAPS_API_KEY", ""),
+		ElectricityMapsZoneOverrides: String("ELECTRICITYMAPS_ZONE_OVERRIDES", ""),
+		OTLPEndpoint:                 String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}
 	if v := String("CORS_ORIGINS", ""); v != "" {
 		c.CORSOrigins = strings.Split(v, ",")

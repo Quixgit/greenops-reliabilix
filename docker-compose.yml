@@ -120,12 +120,28 @@ services:
     profiles: [observability]
     volumes: ["./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro", "./deploy/observability/alerts.yml:/etc/prometheus/alerts.yml:ro"]
     ports: ["127.0.0.1:9091:9090"]
+  tempo:
+    image: grafana/tempo
+    profiles: [observability]
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes: ["./deploy/observability/tempo/tempo.yaml:/etc/tempo.yaml:ro"]
+  loki:
+    image: grafana/loki
+    profiles: [observability]
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes: ["./deploy/observability/loki/loki.yaml:/etc/loki/loki.yaml:ro"]
+  promtail:
+    image: grafana/promtail
+    profiles: [observability]
+    command: ["-config.file=/etc/promtail/promtail.yaml"]
+    volumes: ["./deploy/observability/promtail/promtail.yaml:/etc/promtail/promtail.yaml:ro", "/var/run/docker.sock:/var/run/docker.sock:ro"]
+    depends_on: [loki]
   grafana:
     image: grafana/grafana
     profiles: [observability]
     environment: {GF_AUTH_ANONYMOUS_ENABLED: "false", GF_SECURITY_ADMIN_PASSWORD: dev-only}
     volumes: ["./deploy/observability/grafana:/etc/grafana/provisioning:ro", "./deploy/observability/dashboards:/var/lib/grafana/dashboards:ro"]
     ports: ["127.0.0.1:3001:3000"]
-    depends_on: [prometheus]
+    depends_on: [prometheus, tempo, loki]
 
 volumes: {pgdata: {}, miniodata: {}}

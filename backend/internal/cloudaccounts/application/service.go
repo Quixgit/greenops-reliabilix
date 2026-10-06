@@ -132,11 +132,13 @@ func (s Service) Verify(ctx context.Context, tenantID, id string) (domain.Connec
 	if err := p.Validate(ctx, c); err != nil {
 		msg := safeMessage(err)
 		_ = s.Repo.SetStatus(ctx, tenantID, id, domain.StatusError, &msg)
+		_ = s.Repo.Audit(ctx, tenantID, "cloud_connection.verification_failed", id, map[string]any{"reason": msg})
 		return domain.Connection{}, err
 	}
 	if err := s.Repo.SetStatus(ctx, tenantID, id, domain.StatusHealthy, nil); err != nil {
 		return domain.Connection{}, err
 	}
+	_ = s.Repo.Audit(ctx, tenantID, "cloud_connection.verified", id, nil)
 	if err := s.SyncNow(ctx, tenantID, c.ProjectID, id); err != nil {
 		return domain.Connection{}, err
 	}

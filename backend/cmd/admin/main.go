@@ -2,7 +2,7 @@
 //
 //	DATABASE_URL=postgres://greenops_worker:...@host/greenops admin recalc
 //
-// Commands: recalc (carbon for the last 35 days of every project, then recommendations),
+// Commands: doctor (checks every external dependency and says what to fix), recalc (carbon for the last 35 days of every project, then recommendations),
 // recommend (recommendation analysis for every project), refresh-grid (grid intensity), partitions.
 package main
 
@@ -25,7 +25,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: admin recalc|recommend|refresh-grid|partitions")
+		fmt.Fprintln(os.Stderr, "usage: admin doctor|recalc|recommend|refresh-grid|partitions")
 		os.Exit(2)
 	}
 	log := observability.Logger("admin")
@@ -33,6 +33,9 @@ func main() {
 	defer stop()
 
 	cfg, err := config.Load()
+	if os.Args[1] == "doctor" { // reports configuration problems itself instead of aborting on them
+		os.Exit(runDoctor(ctx, cfg, err, log))
+	}
 	if err != nil {
 		log.Error("config", "err", err)
 		os.Exit(1)
