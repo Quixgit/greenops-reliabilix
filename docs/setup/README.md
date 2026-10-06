@@ -71,7 +71,7 @@ Check: `doctor` calls `sts:GetCallerIdentity` and compares the account with
    response contains the `external_id` and the platform account id.
 2. They deploy `deploy/aws/customer-role.yaml` (CloudFormation) or `customer-role.tf`
    (Terraform) with those two values. It creates **`ReliabilixReadOnly`** with
-   `ce:GetCostAndUsage` only. The role name must start with `Reliabilix`; the API rejects
+   `ce:GetCostAndUsage` and the optional `ce:GetRightsizingRecommendation` (rightsizing advice; without it everything else keeps working, and the customer must also opt in to rightsizing recommendations in Cost Explorer preferences). The role name must start with `Reliabilix`; the API rejects
    other names.
 3. They paste the role ARN, then call verify. The result is audited
    (`cloud_connection.verified` / `verification_failed`).

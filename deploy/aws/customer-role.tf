@@ -27,7 +27,7 @@ resource "aws_iam_role_policy" "cost_explorer" {
   role = aws_iam_role.reliabilix.id
   policy = jsonencode({
     Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Action = "ce:GetCostAndUsage", Resource = "*" }]
+    Statement = [{ Effect = "Allow", Action = ["ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"], Resource = "*" }]
   })
 }
 

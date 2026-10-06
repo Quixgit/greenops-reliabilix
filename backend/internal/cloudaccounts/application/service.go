@@ -34,8 +34,10 @@ type Service struct {
 	Repo      domain.Repository
 	Providers *domain.Registry
 	Ingestor  Ingestor
-	Queue     queue.Enqueuer
-	Log       *slog.Logger
+	// Rightsizing is optional: without it rightsizing jobs are no-ops.
+	Rightsizing domain.RightsizingSink
+	Queue       queue.Enqueuer
+	Log         *slog.Logger
 
 	PlatformAWSAccountID string
 	BackfillDays         int // first sync window, capped at 365
@@ -94,11 +96,12 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 
 func (s Service) setup(c domain.Connection) Setup {
 	st := Setup{
-		ExternalID:          c.ExternalID,
-		PlatformAccountID:   s.PlatformAWSAccountID,
-		RequiredPermissions: []string{"ce:GetCostAndUsage"},
+		ExternalID:        c.ExternalID,
+		PlatformAccountID: s.PlatformAWSAccountID,
+		// GetRightsizingRecommendation is optional: without it only the rightsizing advice is missing.
+		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"},
 		PermissionsPolicy: map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
-			{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage"}, "Resource": "*"}}},
+			{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"}, "Resource": "*"}}},
 	}
 	if s.PlatformAWSAccountID != "" {
 		st.TrustPolicy = map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{{
@@ -167,6 +170,63 @@ func (s Service) FanOut(ctx context.Context) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// RightsizingNow queues a rightsizing refresh (deduplicated while one is pending).
+func (s Service) RightsizingNow(ctx context.Context, tenantID, projectID, connectionID string) error {
+	return s.Queue.Enqueue(ctx, queue.TaskSyncRightsizing,
+		queue.TenantPayload{TenantID: tenantID, ProjectID: projectID, RefID: connectionID},
+		asynq.Unique(time.Hour))
+}
+
+// FanOutRightsizing queues one rightsizing refresh per syncable connection across all tenants (scheduler job).
+func (s Service) FanOutRightsizing(ctx context.Context) (int, error) {
+	refs, err := s.Repo.ListForSync(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, j := range refs {
+		if err := s.RightsizingNow(ctx, j.TenantID, j.ProjectID, j.ConnectionID); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
+			s.Log.Error("enqueue rightsizing", "connection", j.ConnectionID, "err", err)
+			continue
+		}
+		n++
+	}
+	return n, nil
+}
+
+// RunRightsizing fetches the provider's rightsizing findings for one connection and hands them to the
+// recommendations module. It is best effort: a connection whose role lacks the optional permission simply has
+// no findings, and that must never mark the connection unhealthy (cost syncs are unaffected).
+func (s Service) RunRightsizing(ctx context.Context, tenantID, connectionID string) error {
+	if s.Rightsizing == nil {
+		return nil
+	}
+	c, err := s.Repo.Get(ctx, tenantID, connectionID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	p, err := s.Providers.Get(c.Provider)
+	if err != nil {
+		return err
+	}
+	rp, ok := p.(domain.RightsizingProvider)
+	if !ok {
+		return nil
+	}
+	findings, err := rp.GetRightsizing(ctx, c)
+	if err != nil {
+		if errors.Is(err, domain.ErrAccessDenied) {
+			s.Log.Info("rightsizing not permitted for this connection; add ce:GetRightsizingRecommendation to the role", "connection", connectionID)
+			return nil
+		}
+		return err
+	}
+	return s.Rightsizing.SubmitRightsizing(ctx, tenantID, c.ProjectID, findings)
 }
 
 // window computes the [from, to) days to fetch: incremental with overlap, or the initial backfill.

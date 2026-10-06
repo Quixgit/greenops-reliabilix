@@ -1469,7 +1469,7 @@ export interface components {
             /** @description null = not estimated; negative = saving */
             estimated_cost_impact?: number | null;
             /** @enum {string} */
-            cost_basis?: "not_estimated" | "region_price_index";
+            cost_basis?: "not_estimated" | "region_price_index" | "provider_estimate";
             confidence?: number;
             compliance_check?: {
                 /** @enum {string} */

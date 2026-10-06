@@ -22,6 +22,9 @@ type fakeCE struct {
 	// failFrom > 0 makes every call from that (1-based) call number on fail with failErr.
 	failFrom int
 	failErr  error
+
+	rs      []*costexplorer.GetRightsizingRecommendationOutput
+	rsCalls []*costexplorer.GetRightsizingRecommendationInput
 }
 
 func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndUsageInput, _ ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error) {
@@ -38,6 +41,21 @@ func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndU
 	}
 	p := f.pages[0]
 	f.pages = f.pages[1:]
+	return p, nil
+}
+
+// rightsizing responses are served from rs (pages in order); rsCalls records the requests.
+func (f *fakeCE) GetRightsizingRecommendation(_ context.Context, in *costexplorer.GetRightsizingRecommendationInput, _ ...func(*costexplorer.Options)) (*costexplorer.GetRightsizingRecommendationOutput, error) {
+	cp := *in
+	f.rsCalls = append(f.rsCalls, &cp)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if len(f.rs) == 0 {
+		return &costexplorer.GetRightsizingRecommendationOutput{}, nil
+	}
+	p := f.rs[0]
+	f.rs = f.rs[1:]
 	return p, nil
 }
 

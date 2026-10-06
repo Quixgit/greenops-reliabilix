@@ -91,7 +91,7 @@ timeline
 
 | Phase | Theme | Status | Highlights |
 |---|---|---|---|
-| **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS connector, FOCUS v1.4 usage, SCI engine, region-shift advice with approval, reports, CI gate |
+| **1 · Measure** | See cost and carbon together | ✅ backend done · 🚧 frontend | Multi-tenant core, RLS isolation, AWS connector, FOCUS v1.4 usage, SCI engine, region-shift and AWS rightsizing advice with approval, reports, CI gate |
 | **2 · Recommend** | Wider coverage, smarter advice | 🗓️ planned | Azure, GCP, AWS CUR, Kubernetes (Kepler), WattTime, rightsizing / time-shift / spot, scheduled reports, e-mail delivery, SCI self-certification assistant |
 | **3 · Automate** | Controlled change execution | 🗓️ planned | Automation jobs with risk analysis, Terraform / Kubernetes executors, reusable CI action, Stripe billing, white-label, benchmarking |
 

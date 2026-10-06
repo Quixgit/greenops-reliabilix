@@ -23,7 +23,7 @@ func TestReplaceCalculationsRewritesOnlyTheWindowOfThisProject(t *testing.T) {
 	projA, projB := uuid.NewString(), uuid.NewString()
 	repo := carbonrepo.Postgres{Pool: worker}
 
-	day := time.Now().UTC().Truncate(24 * time.Hour).AddDate(0, 0, -5)
+	day := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -5)
 	calc := func(method domain.Method, d time.Time, kg float64) domain.Calculation {
 		return domain.Calculation{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "eu-central-1", Method: method,
 			PeriodStart: d, PeriodEnd: d.Add(24 * time.Hour), EnergyKWh: 1, IntensityGPerKWh: 300, CO2eKg: kg, MethodologyVersion: domain.MethodologyVersion}

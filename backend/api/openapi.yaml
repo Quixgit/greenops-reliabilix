@@ -2435,6 +2435,7 @@ components:
           enum:
           - not_estimated
           - region_price_index
+          - provider_estimate
         confidence:
           type: number
           minimum: 0

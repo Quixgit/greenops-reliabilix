@@ -44,6 +44,7 @@ var (
 // CEAPI is the slice of the Cost Explorer client the provider needs (faked in tests).
 type CEAPI interface {
 	GetCostAndUsage(ctx context.Context, in *costexplorer.GetCostAndUsageInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error)
+	GetRightsizingRecommendation(ctx context.Context, in *costexplorer.GetRightsizingRecommendationInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetRightsizingRecommendationOutput, error)
 }
 
 // Assumer returns a Cost Explorer client acting as roleARN with the given ExternalId.

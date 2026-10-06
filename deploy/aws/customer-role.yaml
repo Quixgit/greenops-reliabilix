@@ -1,7 +1,7 @@
 # Give this template to a customer. It creates the read-only role Reliabilix assumes to read cost data.
 # ExternalId and PlatformAccountId are shown by the product (POST /api/v1/cloud-accounts).
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Reliabilix GreenOps - read-only cost access (ce:GetCostAndUsage only)
+Description: Reliabilix GreenOps - read-only cost access (Cost Explorer read APIs only)
 Parameters:
   PlatformAccountId:
     Type: String
@@ -30,7 +30,9 @@ Resources:
             Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: ce:GetCostAndUsage
+                Action:
+                  - ce:GetCostAndUsage
+                  - ce:GetRightsizingRecommendation   # optional: enables rightsizing advice
                 Resource: "*"
 Outputs:
   RoleArn:
