@@ -48,6 +48,30 @@ func (a alertConnections) ConnectionSignals(ctx context.Context, tenantID string
 	return out, nil
 }
 
+// alertProjectCarbon reads each project's emissions this month and its limit without importing projects or carbon.
+type alertProjectCarbon struct {
+	projects projectsapp.Service
+	carbon   *carbonapp.Service
+}
+
+func (a alertProjectCarbon) ProjectsMonthToDate(ctx context.Context, tenantID string, now time.Time) ([]alertsdomain.ProjectCarbonSignal, error) {
+	limits, err := a.projects.CarbonLimits(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	out := make([]alertsdomain.ProjectCarbonSignal, 0, len(limits))
+	for _, l := range limits {
+		id := l.ProjectID
+		s, err := a.carbon.Summary(ctx, tenantID, &id, from, now.Add(time.Hour))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, alertsdomain.ProjectCarbonSignal{ProjectID: l.ProjectID, Name: l.Name, MonthToDateKg: s.Current.CO2eKg, LimitKg: l.LimitKg})
+	}
+	return out, nil
+}
+
 // alertTenants lists every organization that has at least one project (the scheduler's fan-out).
 type alertTenants struct{ projects projectsapp.Service }
 

@@ -21,20 +21,24 @@ type ConnectionSource interface {
 type CarbonSource interface {
 	MonthToDate(ctx context.Context, tenantID string, now time.Time) (domain.CarbonSignal, error)
 }
+type ProjectCarbonSource interface {
+	ProjectsMonthToDate(ctx context.Context, tenantID string, now time.Time) ([]domain.ProjectCarbonSignal, error)
+}
 type TenantLister interface {
 	TenantIDs(ctx context.Context) ([]string, error)
 }
 
 type Service struct {
-	Repo        domain.Repository
-	Budgets     BudgetSource
-	Connections ConnectionSource
-	Carbon      CarbonSource
-	Tenants     TenantLister
-	Settings    settings.Reader // optional: catalog defaults without it
-	Notify      notify.Notifier // optional
-	Log         *slog.Logger
-	Now         func() time.Time
+	Repo           domain.Repository
+	Budgets        BudgetSource
+	Connections    ConnectionSource
+	Carbon         CarbonSource
+	ProjectsCarbon ProjectCarbonSource // optional
+	Tenants        TenantLister
+	Settings       settings.Reader // optional: catalog defaults without it
+	Notify         notify.Notifier // optional
+	Log            *slog.Logger
+	Now            func() time.Time
 }
 
 func (s Service) cfg() settings.Reader {
@@ -62,6 +66,16 @@ func (s Service) Evaluate(ctx context.Context, tenantID string) error {
 	var conns []domain.ConnectionSignal
 	budgetsOK, connsOK, carbonOK := true, true, true
 	var carbon *domain.CarbonSignal
+	var projectCarbon []domain.ProjectCarbonSignal
+	if s.ProjectsCarbon != nil {
+		pc, err := s.ProjectsCarbon.ProjectsMonthToDate(ctx, tenantID, s.now())
+		if err != nil {
+			carbonOK = false
+			s.Log.Warn("alerts: project carbon unavailable", "tenant", tenantID, "err", err)
+		} else {
+			projectCarbon = pc
+		}
+	}
 	if s.Carbon != nil {
 		sig, err := s.Carbon.MonthToDate(ctx, tenantID, s.now())
 		if err != nil {
@@ -100,7 +114,7 @@ func (s Service) Evaluate(ctx context.Context, tenantID string) error {
 	cfg := s.cfg()
 	th := domain.Thresholds{WarnPct: float64(cfg.Int(ctx, tenantID, settings.KeyAlertsWarnPct)),
 		CarbonMonthlyKg: float64(cfg.Int(ctx, tenantID, settings.KeyAlertsCarbonMonthlyKg))}
-	plan := domain.Reconcile(scoped, domain.Conditions(budgets, conns, carbon, th))
+	plan := domain.Reconcile(scoped, domain.Conditions(budgets, conns, carbon, projectCarbon, th))
 	at := s.now()
 	for _, c := range plan.Open {
 		a, created, err := s.Repo.Open(ctx, tenantID, c, at)

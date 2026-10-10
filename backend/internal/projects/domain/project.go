@@ -68,6 +68,14 @@ type Policy struct {
 	CICarbonBlockKg *float64 `json:"ci_carbon_block_kg"`
 	CICostWarn      *float64 `json:"ci_cost_warn"`
 	CICostBlock     *float64 `json:"ci_cost_block"`
+	// AlertCarbonMonthlyKg opens a carbon alert when the project's emissions in a calendar month approach it (kg CO2e).
+	AlertCarbonMonthlyKg *float64 `json:"alert_carbon_monthly_kg"`
+}
+
+// CarbonLimit is a project with a monthly carbon limit (read by the alerts evaluation through a port).
+type CarbonLimit struct {
+	ProjectID, Name string
+	LimitKg         float64
 }
 
 var regionRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$`)
@@ -90,7 +98,7 @@ func (p *Policy) Validate() error {
 		}
 	}
 	p.AllowedRegions = out
-	for _, v := range []*float64{p.CICarbonWarnKg, p.CICarbonBlockKg, p.CICostWarn, p.CICostBlock} {
+	for _, v := range []*float64{p.CICarbonWarnKg, p.CICarbonBlockKg, p.CICostWarn, p.CICostBlock, p.AlertCarbonMonthlyKg} {
 		if v != nil && *v < 0 {
 			return fmt.Errorf("%w: thresholds must be >= 0", ErrInvalidPolicy)
 		}
@@ -115,6 +123,7 @@ type Repository interface {
 	GetPolicy(ctx context.Context, tenantID, projectID string) (Policy, error)
 	UpsertPolicy(ctx context.Context, tenantID string, p Policy) error
 	ListForJobs(ctx context.Context) ([]JobRef, error)
+	CarbonLimits(ctx context.Context, tenantID string) ([]CarbonLimit, error)
 }
 
 // JobRef identifies a project for cross-tenant job fan-out.

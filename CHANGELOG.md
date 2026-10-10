@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.15] - 2026-10-10
+
+### Added
+- Console **Integrations** now also hold the settings that are read when a service starts: the platform AWS account,
+  the platform Google Cloud project and service account, object storage (S3) and error tracking / tracing. They are
+  marked "Applied at restart" and win over the environment ([ADR-0029](docs/adr/0029-integration-credentials-in-the-console.md)).
+- Monthly carbon limit per project (project policy, `alert_carbon_monthly_kg`) with its own carbon alert; project policy
+  screen (allowed regions, CI gate thresholds, carbon limit) on the Projects page. API contract 0.8.0. Migration 0024.
+- Packaged Kubernetes agent image `reliabilix/agent` (built by the release workflow, runs as an unprivileged user).
+
+### Changed
+- Sentry and tracing start after the database is reachable so they can use console values.
+
 ## [0.1.0-alpha.14] - 2026-10-10
 
 ### Added

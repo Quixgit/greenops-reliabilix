@@ -33,6 +33,9 @@ type Integration struct {
 	Fields      []Field `json:"fields"`
 	// Testable integrations have a connection test in the console.
 	Testable bool `json:"testable"`
+	// Startup integrations are read when a service starts (a client is built once from them): a change applies at the
+	// next restart, which the console says.
+	Startup bool `json:"startup"`
 }
 
 var (
@@ -89,6 +92,37 @@ func validUser(v string) error {
 	return nil
 }
 
+var (
+	awsAccount = regexp.MustCompile(`^[0-9]{12}$`)
+	gcpProject = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	gcpSA      = regexp.MustCompile(`^[a-z0-9-]{6,30}@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$`)
+	region     = regexp.MustCompile(`^[a-z0-9-]{2,40}$`)
+	bucket     = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
+)
+
+func match(re *regexp.Regexp, what string) func(string) error {
+	return func(v string) error {
+		if !re.MatchString(v) {
+			return fmt.Errorf("%w: %s", ErrField, what)
+		}
+		return nil
+	}
+}
+
+func validURL(v string) error {
+	if len(v) > 300 || !(strings.HasPrefix(v, "https://") || strings.HasPrefix(v, "http://")) || strings.ContainsAny(v, " \t\r\n") {
+		return fmt.Errorf("%w: a full URL starting with https://", ErrField)
+	}
+	return nil
+}
+
+func validBool(v string) error {
+	if v != "true" && v != "false" {
+		return fmt.Errorf("%w: true or false", ErrField)
+	}
+	return nil
+}
+
 // Catalog lists the integrations an operator can manage in the console. Services that are fixed by the deployment
 // (identity provider, object storage, error tracking) are reported by the system view, not edited here.
 func Catalog() []Integration {
@@ -110,6 +144,41 @@ func Catalog() []Integration {
 				{Key: "username", Label: "User name", Env: "SMTP_USERNAME", validate: validUser},
 				{Key: "password", Label: "Password", Secret: true, Env: "SMTP_PASSWORD", Help: "Stored sealed, shown only as configured.", validate: validSecret(1)},
 				{Key: "from", Label: "Sender address", Required: true, Env: "SMTP_FROM", Placeholder: "Reliabilix <notifications@example.com>", validate: validFrom},
+			},
+		},
+		{
+			ID: "platform_aws", Name: "Platform AWS account", Startup: true,
+			Description: "The AWS account customers trust in the role they create for read-only cost access. Shown in their setup steps.",
+			Fields: []Field{
+				{Key: "account_id", Label: "Account id", Required: true, Env: "PLATFORM_AWS_ACCOUNT_ID", Placeholder: "123456789012", validate: match(awsAccount, "12 digits")},
+			},
+		},
+		{
+			ID: "platform_gcp", Name: "Platform Google Cloud project", Startup: true,
+			Description: "The platform's own Google identity that reads customers' billing export datasets. Without a project the GCP connector is off.",
+			Fields: []Field{
+				{Key: "project", Label: "Job project", Env: "PLATFORM_GCP_PROJECT", Placeholder: "reliabilix-platform", Help: "The project in which BigQuery jobs run.", validate: match(gcpProject, "a Google Cloud project id")},
+				{Key: "service_account", Label: "Service account", Env: "PLATFORM_GCP_SERVICE_ACCOUNT", Placeholder: "reader@reliabilix-platform.iam.gserviceaccount.com", Help: "Shown to customers so they can grant it read access to their dataset.", validate: match(gcpSA, "a service account e-mail")},
+			},
+		},
+		{
+			ID: "object_storage", Name: "Object storage (S3)", Startup: true,
+			Description: "Where generated reports and the raw billing archive are kept. Any S3-compatible service.",
+			Fields: []Field{
+				{Key: "bucket", Label: "Bucket", Required: true, Env: "S3_BUCKET", validate: match(bucket, "a bucket name")},
+				{Key: "endpoint", Label: "Endpoint", Env: "S3_ENDPOINT", Placeholder: "https://s3.example.com", Help: "Empty for AWS S3.", validate: validURL},
+				{Key: "region", Label: "Region", Env: "S3_REGION", Default: "us-east-1", validate: match(region, "a region id")},
+				{Key: "path_style", Label: "Path-style addressing", Env: "S3_PATH_STYLE", Default: "false", Help: "true for MinIO and Cloudflare R2.", validate: validBool},
+				{Key: "access_key", Label: "Access key id", Env: "S3_ACCESS_KEY", Help: "Leave empty to use the server's own cloud identity (recommended in production).", validate: validSecret(3)},
+				{Key: "secret_key", Label: "Secret access key", Secret: true, Env: "S3_SECRET_KEY", validate: validSecret(8)},
+			},
+		},
+		{
+			ID: "observability", Name: "Error tracking and tracing", Startup: true,
+			Description: "Where unhandled errors and traces are sent.",
+			Fields: []Field{
+				{Key: "sentry_dsn", Label: "Sentry DSN", Secret: true, Env: "SENTRY_DSN", Placeholder: "https://key@o0.ingest.sentry.io/0", validate: validURL},
+				{Key: "otlp_endpoint", Label: "OTLP endpoint", Env: "OTEL_EXPORTER_OTLP_ENDPOINT", Placeholder: "http://collector:4318", validate: validURL},
 			},
 		},
 	}

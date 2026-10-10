@@ -129,6 +129,10 @@ func TestEveryServiceModulePackageAndConnectorHasARow(t *testing.T) {
 			if _, err := os.Stat("../" + strings.TrimPrefix(key, "platform/")); err != nil {
 				t.Errorf("%s is listed but the directory does not exist", key)
 			}
+		case key == "service/agent": // a shell script and its image, outside the Go services
+			if _, err := os.Stat("../../../../scripts/kepler-push.sh"); err != nil {
+				t.Errorf("service/agent is listed but scripts/kepler-push.sh does not exist")
+			}
 		case strings.HasPrefix(key, "service/") && key != "service/web" && key != "service/migrate":
 			if _, err := os.Stat("../../../cmd/" + strings.TrimPrefix(key, "service/")); err != nil {
 				t.Errorf("%s is listed but backend/cmd/%s does not exist", key, strings.TrimPrefix(key, "service/"))

@@ -31,20 +31,7 @@ func main() {
 		log.Error("config", "err", err)
 		os.Exit(1)
 	}
-	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
-	if err != nil {
-		log.Error("sentry", "err", err)
-		os.Exit(1)
-	}
-	defer flushSentry()
 	httpx.PanicHook = func(v any) { observability.CaptureError(panicError{v}) }
-
-	flushTraces, err := observability.InitTracing(ctx, "api", cfg.OTLPEndpoint)
-	if err != nil {
-		log.Error("tracing", "err", err)
-		os.Exit(1)
-	}
-	defer func() { _ = flushTraces(context.Background()) }()
 
 	pool, err := database.Connect(ctx, cfg.DatabaseURL) // DSN uses the greenops_api role
 	if err != nil {
@@ -52,6 +39,22 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+
+	// Values set in the operator console win over the environment (ADR-0029); Sentry and tracing start afterwards so
+	// they use them.
+	cfg = app.ApplyIntegrations(ctx, cfg, pool, log)
+	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
+	if err != nil {
+		log.Error("sentry", "err", err)
+		os.Exit(1)
+	}
+	defer flushSentry()
+	flushTraces, err := observability.InitTracing(ctx, "api", cfg.OTLPEndpoint)
+	if err != nil {
+		log.Error("tracing", "err", err)
+		os.Exit(1)
+	}
+	defer func() { _ = flushTraces(context.Background()) }()
 
 	q := queue.NewClient(cfg.RedisAddr)
 	defer func() { _ = q.Close() }()

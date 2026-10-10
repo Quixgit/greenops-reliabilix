@@ -57,7 +57,7 @@ func (q *Queries) FunctionalUnitsForDay(ctx context.Context, arg FunctionalUnits
 }
 
 const getPolicy = `-- name: GetPolicy :one
-SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at
+SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg
 FROM projects.policies WHERE tenant_id = $1 AND project_id = $2
 `
 
@@ -78,6 +78,7 @@ func (q *Queries) GetPolicy(ctx context.Context, arg GetPolicyParams) (ProjectsP
 		&i.CiCostWarn,
 		&i.CiCostBlock,
 		&i.UpdatedAt,
+		&i.AlertCarbonMonthlyKg,
 	)
 	return i, err
 }
@@ -211,21 +212,23 @@ func (q *Queries) UpsertFunctionalUnits(ctx context.Context, arg UpsertFunctiona
 }
 
 const upsertPolicy = `-- name: UpsertPolicy :one
-INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, alert_carbon_monthly_kg)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (project_id) DO UPDATE SET allowed_regions = EXCLUDED.allowed_regions, ci_carbon_warn_kg = EXCLUDED.ci_carbon_warn_kg,
-  ci_carbon_block_kg = EXCLUDED.ci_carbon_block_kg, ci_cost_warn = EXCLUDED.ci_cost_warn, ci_cost_block = EXCLUDED.ci_cost_block, updated_at = now()
-RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at
+  ci_carbon_block_kg = EXCLUDED.ci_carbon_block_kg, ci_cost_warn = EXCLUDED.ci_cost_warn, ci_cost_block = EXCLUDED.ci_cost_block,
+  alert_carbon_monthly_kg = EXCLUDED.alert_carbon_monthly_kg, updated_at = now()
+RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg
 `
 
 type UpsertPolicyParams struct {
-	ProjectID       string   `json:"project_id"`
-	TenantID        string   `json:"tenant_id"`
-	AllowedRegions  []string `json:"allowed_regions"`
-	CiCarbonWarnKg  *float64 `json:"ci_carbon_warn_kg"`
-	CiCarbonBlockKg *float64 `json:"ci_carbon_block_kg"`
-	CiCostWarn      *float64 `json:"ci_cost_warn"`
-	CiCostBlock     *float64 `json:"ci_cost_block"`
+	ProjectID            string   `json:"project_id"`
+	TenantID             string   `json:"tenant_id"`
+	AllowedRegions       []string `json:"allowed_regions"`
+	CiCarbonWarnKg       *float64 `json:"ci_carbon_warn_kg"`
+	CiCarbonBlockKg      *float64 `json:"ci_carbon_block_kg"`
+	CiCostWarn           *float64 `json:"ci_cost_warn"`
+	CiCostBlock          *float64 `json:"ci_cost_block"`
+	AlertCarbonMonthlyKg *float64 `json:"alert_carbon_monthly_kg"`
 }
 
 func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (ProjectsPolicy, error) {
@@ -237,6 +240,7 @@ func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (Pro
 		arg.CiCarbonBlockKg,
 		arg.CiCostWarn,
 		arg.CiCostBlock,
+		arg.AlertCarbonMonthlyKg,
 	)
 	var i ProjectsPolicy
 	err := row.Scan(
@@ -248,6 +252,7 @@ func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (Pro
 		&i.CiCostWarn,
 		&i.CiCostBlock,
 		&i.UpdatedAt,
+		&i.AlertCarbonMonthlyKg,
 	)
 	return i, err
 }

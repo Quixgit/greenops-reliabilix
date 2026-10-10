@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.7.0
+  version: 0.8.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -3582,6 +3582,10 @@ components:
         ci_cost_block:
           type: number
           nullable: true
+        alert_carbon_monthly_kg:
+          type: number
+          nullable: true
+          description: Monthly carbon limit of the project in kg CO2e; a carbon alert opens when it is approached. Null = none.
       additionalProperties: true
     AutomationJob:
       type: object

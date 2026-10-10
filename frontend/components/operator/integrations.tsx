@@ -61,7 +61,7 @@ function IntegrationCard({ st, canEdit }: { st: ManagedIntegration; canEdit: boo
       qc.setQueryData(["op-integrations"], data);
       setDraft({});
       setResets(new Set());
-      setMsg({ ok: true, text: "Saved. It applies within a few seconds, without a restart." });
+      setMsg({ ok: true, text: st.startup ? "Saved. It is applied when the services restart." : "Saved. It applies within a few seconds, without a restart." });
     },
     onError: (e) => setMsg({ ok: false, text: e.message }),
   });
@@ -73,7 +73,7 @@ function IntegrationCard({ st, canEdit }: { st: ManagedIntegration; canEdit: boo
   const dirty = Object.values(draft).some((v) => v.trim() !== "") || resets.size > 0;
   return (
     <Card>
-      <CardHeader title={<span className="flex items-center gap-2">{st.name}<Badge tone={st.ready ? "good" : "warn"}>{st.ready ? "Ready" : "Needs setup"}</Badge></span>} />
+      <CardHeader title={<span className="flex items-center gap-2">{st.name}<Badge tone={st.ready ? "good" : "warn"}>{st.ready ? "Ready" : "Needs setup"}</Badge>{st.startup && <Badge tone="neutral">Applied at restart</Badge>}</span>} />
       <p className="-mt-2 mb-4 text-sm text-muted">{st.description}</p>
       <div className="space-y-4">
         {st.fields.map((f) => (
@@ -102,7 +102,7 @@ export function IntegrationsView() {
   const sys = useOperatorSystem();
   const me = useOperatorMe();
   const canEdit = me.data?.role === "admin";
-  const fixed = (sys.data?.integrations ?? []).filter((i) => !["Electricity Maps (grid carbon)", "E-mail (SMTP)"].includes(i.name));
+  const fixed = (sys.data?.integrations ?? []).filter((i) => !["Electricity Maps (grid carbon)", "E-mail (SMTP)", "Object storage (reports)", "AWS connector", "GCP connector", "Sentry (errors)", "Tracing (OTLP)"].includes(i.name));
   return (
     <div className="max-w-4xl space-y-5">
       <div>
@@ -112,8 +112,8 @@ export function IntegrationsView() {
       {q.isLoading ? <Skeleton className="h-64" /> : q.isError ? <ErrorState /> : q.data!.map((st) => <IntegrationCard key={st.id} st={st} canEdit={canEdit} />)}
       {fixed.length > 0 && (
         <Card>
-          <CardHeader title="Set by the deployment" />
-          <p className="-mt-2 mb-3 text-sm text-muted">These are configured in the environment of the services and read at start-up.</p>
+          <CardHeader title="Fixed by the deployment" />
+          <p className="-mt-2 mb-3 text-sm text-muted">These are fixed by the deployment or are not available yet.</p>
           <ul className="divide-y divide-line/70 text-sm">
             {fixed.map((i) => (
               <li key={i.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">

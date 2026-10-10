@@ -2194,6 +2194,8 @@ export interface components {
             ci_carbon_block_kg?: number | null;
             ci_cost_warn?: number | null;
             ci_cost_block?: number | null;
+            /** @description Monthly carbon limit of the project in kg CO2e; a carbon alert opens when it is approached. Null = none. */
+            alert_carbon_monthly_kg?: number | null;
         } & {
             [key: string]: unknown;
         };

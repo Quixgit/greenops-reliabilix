@@ -66,6 +66,11 @@ func (s Service) FunctionalUnitsForDay(ctx context.Context, tenantID, projectID 
 	return s.Repo.FunctionalUnitsForDay(ctx, tenantID, projectID, day)
 }
 
+// CarbonLimits lists the projects that have a monthly carbon limit (for the alerts evaluation).
+func (s Service) CarbonLimits(ctx context.Context, tenantID string) ([]domain.CarbonLimit, error) {
+	return s.Repo.CarbonLimits(ctx, tenantID)
+}
+
 // ListForJobs implements the scheduler fan-out over all projects.
 func (s Service) ListForJobs(ctx context.Context) ([]domain.JobRef, error) {
 	return s.Repo.ListForJobs(ctx)

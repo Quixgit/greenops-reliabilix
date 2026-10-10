@@ -19,14 +19,15 @@ import (
 )
 
 type Deps struct {
-	Pool        *pgxpool.Pool
-	Budgets     application.BudgetSource
-	Connections application.ConnectionSource
-	Carbon      application.CarbonSource
-	Tenants     application.TenantLister
-	Settings    settings.Reader
-	Notify      notify.Notifier
-	Log         *slog.Logger
+	Pool           *pgxpool.Pool
+	Budgets        application.BudgetSource
+	Connections    application.ConnectionSource
+	Carbon         application.CarbonSource
+	ProjectsCarbon application.ProjectCarbonSource
+	Tenants        application.TenantLister
+	Settings       settings.Reader
+	Notify         notify.Notifier
+	Log            *slog.Logger
 }
 
 type Module struct {
@@ -35,7 +36,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Budgets: d.Budgets, Connections: d.Connections, Carbon: d.Carbon, Settings: d.Settings,
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Budgets: d.Budgets, Connections: d.Connections, Carbon: d.Carbon, ProjectsCarbon: d.ProjectsCarbon, Settings: d.Settings,
 		Tenants: d.Tenants, Notify: d.Notify, Log: d.Log}
 	return &Module{h: ahttp.Handlers{Svc: svc}, svc: svc}
 }

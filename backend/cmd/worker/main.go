@@ -33,12 +33,6 @@ func main() {
 		log.Error("config", "err", err)
 		os.Exit(1)
 	}
-	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
-	if err != nil {
-		log.Error("sentry", "err", err)
-		os.Exit(1)
-	}
-	defer flushSentry()
 
 	pool, err := database.Connect(ctx, cfg.DatabaseURL) // DSN uses the greenops_worker role
 	if err != nil {
@@ -46,6 +40,16 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+
+	// Values set in the operator console win over the environment (ADR-0029); Sentry and tracing start afterwards so
+	// they use them.
+	cfg = app.ApplyIntegrations(ctx, cfg, pool, log)
+	flushSentry, err := observability.InitSentry(cfg.SentryDSN, cfg.Env, cfg.Release)
+	if err != nil {
+		log.Error("sentry", "err", err)
+		os.Exit(1)
+	}
+	defer flushSentry()
 
 	q := queue.NewClient(cfg.RedisAddr)
 	defer func() { _ = q.Close() }()

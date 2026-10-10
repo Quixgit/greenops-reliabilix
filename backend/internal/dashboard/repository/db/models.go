@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AlertsAlert struct {
+	ID             string     `json:"id"`
+	TenantID       string     `json:"tenant_id"`
+	Kind           string     `json:"kind"`
+	Severity       string     `json:"severity"`
+	Status         string     `json:"status"`
+	DedupeKey      string     `json:"dedupe_key"`
+	Title          string     `json:"title"`
+	Detail         string     `json:"detail"`
+	ProjectID      *string    `json:"project_id"`
+	ObjectRef      string     `json:"object_ref"`
+	Value          *float64   `json:"value"`
+	Threshold      *float64   `json:"threshold"`
+	FirstSeenAt    time.Time  `json:"first_seen_at"`
+	LastSeenAt     time.Time  `json:"last_seen_at"`
+	AcknowledgedBy *string    `json:"acknowledged_by"`
+	AcknowledgedAt *time.Time `json:"acknowledged_at"`
+	ResolvedAt     *time.Time `json:"resolved_at"`
+}
+
 type AuditAuditLog struct {
 	ID          int64           `json:"id"`
 	TenantID    string          `json:"tenant_id"`
@@ -142,6 +162,24 @@ type FinopsRegionPriceIndex struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type KubernetesWorkloadEnergy struct {
+	ID                 string    `json:"id"`
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          string    `json:"project_id"`
+	Cluster            string    `json:"cluster"`
+	Namespace          string    `json:"namespace"`
+	Workload           string    `json:"workload"`
+	Kind               string    `json:"kind"`
+	PeriodStart        time.Time `json:"period_start"`
+	EnergyKwh          float64   `json:"energy_kwh"`
+	RegionID           string    `json:"region_id"`
+	IntensityGPerKwh   *float64  `json:"intensity_g_per_kwh"`
+	CarbonKgCo2e       *float64  `json:"carbon_kg_co2e"`
+	Source             string    `json:"source"`
+	MethodologyVersion string    `json:"methodology_version"`
+	IngestedAt         time.Time `json:"ingested_at"`
+}
+
 type NotificationsDelivery struct {
 	ID              string          `json:"id"`
 	TenantID        string          `json:"tenant_id"`
@@ -175,6 +213,13 @@ type NotificationsDestination struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type PlatformErasureLog struct {
+	ID        int64           `json:"id"`
+	TenantID  string          `json:"tenant_id"`
+	ErasedAt  time.Time       `json:"erased_at"`
+	RowCounts json.RawMessage `json:"row_counts"`
+}
+
 type PlatformErrorGroup struct {
 	ID            string     `json:"id"`
 	Fingerprint   string     `json:"fingerprint"`
@@ -190,6 +235,15 @@ type PlatformErrorGroup struct {
 	LastRequestID *string    `json:"last_request_id"`
 	HandledBy     *string    `json:"handled_by"`
 	HandledAt     *time.Time `json:"handled_at"`
+}
+
+type PlatformIntegrationValue struct {
+	Integration string    `json:"integration"`
+	Key         string    `json:"key"`
+	Value       string    `json:"value"`
+	Secret      bool      `json:"secret"`
+	UpdatedBy   string    `json:"updated_by"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type PlatformOperator struct {
@@ -216,14 +270,15 @@ type ProjectsFunctionalUnitCount struct {
 }
 
 type ProjectsPolicy struct {
-	ProjectID       string    `json:"project_id"`
-	TenantID        string    `json:"tenant_id"`
-	AllowedRegions  []string  `json:"allowed_regions"`
-	CiCarbonWarnKg  *float64  `json:"ci_carbon_warn_kg"`
-	CiCarbonBlockKg *float64  `json:"ci_carbon_block_kg"`
-	CiCostWarn      *float64  `json:"ci_cost_warn"`
-	CiCostBlock     *float64  `json:"ci_cost_block"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ProjectID            string    `json:"project_id"`
+	TenantID             string    `json:"tenant_id"`
+	AllowedRegions       []string  `json:"allowed_regions"`
+	CiCarbonWarnKg       *float64  `json:"ci_carbon_warn_kg"`
+	CiCarbonBlockKg      *float64  `json:"ci_carbon_block_kg"`
+	CiCostWarn           *float64  `json:"ci_cost_warn"`
+	CiCostBlock          *float64  `json:"ci_cost_block"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	AlertCarbonMonthlyKg *float64  `json:"alert_carbon_monthly_kg"`
 }
 
 type ProjectsProject struct {
@@ -336,6 +391,13 @@ type TenantsApiKey struct {
 	CreatedAt      time.Time  `json:"created_at"`
 	LastUsedAt     *time.Time `json:"last_used_at"`
 	RevokedAt      *time.Time `json:"revoked_at"`
+}
+
+type TenantsDeletionRequest struct {
+	TenantID     string    `json:"tenant_id"`
+	RequestedBy  string    `json:"requested_by"`
+	RequestedAt  time.Time `json:"requested_at"`
+	ExecuteAfter time.Time `json:"execute_after"`
 }
 
 type TenantsInvitation struct {

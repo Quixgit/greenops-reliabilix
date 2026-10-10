@@ -31,13 +31,14 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
   AND period_start <= sqlc.arg(day)::date AND period_end >= sqlc.arg(day)::date;
 
 -- name: GetPolicy :one
-SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at
+SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg
 FROM projects.policies WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id);
 
 -- name: UpsertPolicy :one
-INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block)
-VALUES (sqlc.arg(project_id), sqlc.arg(tenant_id), sqlc.arg(allowed_regions), sqlc.narg(ci_carbon_warn_kg), sqlc.narg(ci_carbon_block_kg), sqlc.narg(ci_cost_warn), sqlc.narg(ci_cost_block))
+INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, alert_carbon_monthly_kg)
+VALUES (sqlc.arg(project_id), sqlc.arg(tenant_id), sqlc.arg(allowed_regions), sqlc.narg(ci_carbon_warn_kg), sqlc.narg(ci_carbon_block_kg), sqlc.narg(ci_cost_warn), sqlc.narg(ci_cost_block), sqlc.narg(alert_carbon_monthly_kg))
 ON CONFLICT (project_id) DO UPDATE SET allowed_regions = EXCLUDED.allowed_regions, ci_carbon_warn_kg = EXCLUDED.ci_carbon_warn_kg,
-  ci_carbon_block_kg = EXCLUDED.ci_carbon_block_kg, ci_cost_warn = EXCLUDED.ci_cost_warn, ci_cost_block = EXCLUDED.ci_cost_block, updated_at = now()
-RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at;
+  ci_carbon_block_kg = EXCLUDED.ci_carbon_block_kg, ci_cost_warn = EXCLUDED.ci_cost_warn, ci_cost_block = EXCLUDED.ci_cost_block,
+  alert_carbon_monthly_kg = EXCLUDED.alert_carbon_monthly_kg, updated_at = now()
+RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg;
 

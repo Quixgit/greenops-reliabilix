@@ -37,11 +37,8 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: push
-              image: alpine:3.20     # any image with bash, curl and jq
-              command: ["/bin/sh", "-c", "apk add --no-cache bash curl jq coreutils >/dev/null && bash /agent/kepler-push.sh"]
+              image: ghcr.io/quixgit/reliabilix/agent:0.1.0-alpha.15   # pin the exact version
               envFrom: [{secretRef: {name: reliabilix-agent}}]   # API_KEY, API_URL, PROJECT_ID, CLUSTER, REGION, PROM_URL
-              volumeMounts: [{name: agent, mountPath: /agent}]
-          volumes: [{name: agent, configMap: {name: reliabilix-agent-script}}]
 ```
 
 To back-fill a past hour: `HOUR=2026-10-10T09:00:00Z bash kepler-push.sh`. `DRY_RUN=1` prints what would be sent.

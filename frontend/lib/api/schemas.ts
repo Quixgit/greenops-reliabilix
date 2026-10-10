@@ -232,7 +232,7 @@ export const integrationField = z.object({
   value: z.string().optional(), hint: z.string().optional(), updated_at: z.string().optional(), updated_by: z.string().optional(),
 });
 export const managedIntegration = z.object({
-  id: z.string(), name: z.string(), description: z.string(), testable: z.boolean(), ready: z.boolean(), fields: z.array(integrationField),
+  id: z.string(), name: z.string(), description: z.string(), testable: z.boolean(), startup: z.boolean().default(false), ready: z.boolean(), fields: z.array(integrationField),
 });
 export type ManagedIntegration = z.infer<typeof managedIntegration>;
 export type IntegrationField = z.infer<typeof integrationField>;

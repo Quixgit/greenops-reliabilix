@@ -62,7 +62,7 @@ var ExportTables = []ExportTable{
 	tbl("invitations", "id, email, role, created_at, expires_at, accepted_at", "tenants.invitations"),
 	tbl("api_keys", "id, name, prefix, role, created_at, last_used_at, revoked_at", "tenants.api_keys"),
 	tbl("projects", "id, name, functional_unit, created_at", "projects.projects"),
-	tbl("project_policies", "project_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at", "projects.policies"),
+	tbl("project_policies", "project_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, alert_carbon_monthly_kg, updated_at", "projects.policies"),
 	tbl("functional_units", "id, project_id, period_start, period_end, units", "projects.functional_unit_counts"),
 	tbl("cloud_connections", "id, project_id, provider, account_ref, credential_ref, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality", "cloudaccounts.connections"),
 	tbl("sync_runs", "id, connection_id, started_at, finished_at, status, records, error, quality", "cloudaccounts.sync_runs"),

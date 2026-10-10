@@ -93,6 +93,13 @@ func (t Thresholds) warn() float64 {
 	return t.WarnPct
 }
 
+// ProjectCarbonSignal is one project's emissions this month against its own limit.
+type ProjectCarbonSignal struct {
+	ProjectID, Name string
+	MonthToDateKg   float64
+	LimitKg         float64
+}
+
 // CarbonSignal is the organization's emissions in the current calendar month so far (from the carbon module).
 type CarbonSignal struct{ MonthToDateKg float64 }
 
@@ -119,7 +126,7 @@ type ConnectionSignal struct {
 }
 
 // Conditions turns the current signals into the set of conditions that hold. Pure: the same input, the same result.
-func Conditions(budgets []BudgetSignal, conns []ConnectionSignal, carbon *CarbonSignal, th Thresholds) []Condition {
+func Conditions(budgets []BudgetSignal, conns []ConnectionSignal, carbon *CarbonSignal, projects []ProjectCarbonSignal, th Thresholds) []Condition {
 	var out []Condition
 	warnAt := th.warn()
 	for _, b := range budgets {
@@ -155,6 +162,25 @@ func Conditions(budgets []BudgetSignal, conns []ConnectionSignal, carbon *Carbon
 				Detail: "Operational emissions of the whole organization in the current calendar month.",
 			})
 		}
+	}
+	for _, p := range projects {
+		if p.LimitKg <= 0 {
+			continue
+		}
+		pct := p.MonthToDateKg / p.LimitKg * 100
+		if pct < warnAt {
+			continue
+		}
+		sev, thr, what := Warning, warnAt, "is at"
+		if pct >= BudgetCriticalPct {
+			sev, thr, what = Critical, BudgetCriticalPct, "is over"
+		}
+		v, id := round1(pct), p.ProjectID
+		out = append(out, Condition{
+			DedupeKey: "carbon:project:" + p.ProjectID, Kind: KindCarbon, Severity: sev, ProjectID: &id, ObjectRef: p.ProjectID, Value: &v, Threshold: &thr,
+			Title:  fmt.Sprintf("Project %s: carbon this month %s %.0f%% of its %.0f kg CO2e limit (%.1f kg so far)", p.Name, what, pct, p.LimitKg, p.MonthToDateKg),
+			Detail: "Operational emissions of the project in the current calendar month.",
+		})
 	}
 	for _, c := range conns {
 		pid := c.ProjectID

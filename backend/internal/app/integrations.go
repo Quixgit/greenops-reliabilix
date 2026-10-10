@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/channels/email"
@@ -33,6 +36,30 @@ func integrationEnv(cfg config.Config) func(integration, key string) string {
 			return cfg.SMTPPassword
 		case "smtp/from":
 			return cfg.SMTPFrom
+		case "platform_aws/account_id":
+			return cfg.PlatformAWSAccountID
+		case "platform_gcp/project":
+			return cfg.PlatformGCPProject
+		case "platform_gcp/service_account":
+			return cfg.PlatformGCPServiceAccount
+		case "object_storage/bucket":
+			return cfg.S3Bucket
+		case "object_storage/endpoint":
+			return cfg.S3Endpoint
+		case "object_storage/region":
+			return cfg.S3Region
+		case "object_storage/path_style":
+			if cfg.S3PathStyle {
+				return "true"
+			}
+		case "object_storage/access_key":
+			return cfg.S3AccessKey
+		case "object_storage/secret_key":
+			return cfg.S3SecretKey
+		case "observability/sentry_dsn":
+			return cfg.SentryDSN
+		case "observability/otlp_endpoint":
+			return cfg.OTLPEndpoint
 		}
 		return ""
 	}
@@ -96,4 +123,48 @@ func (p integrationsPort) Test(ctx context.Context, integration string) (string,
 		return "Connected to the mail server and signed in. No message was sent.", nil
 	}
 	return "", integrations.ErrUnknown
+}
+
+type valueReader interface {
+	Value(ctx context.Context, integration, key string) string
+}
+
+// overlayIntegrations puts the values set in the operator console over the environment's. It is the "applied at
+// start" half of ADR-0029: clients that are built once (storage, Sentry, tracing, the platform cloud accounts) read
+// their settings here, before they are built.
+func overlayIntegrations(ctx context.Context, cfg config.Config, r valueReader) config.Config {
+	set := func(dst *string, integration, key string) {
+		if v := r.Value(ctx, integration, key); v != "" {
+			*dst = v
+		}
+	}
+	set(&cfg.PlatformAWSAccountID, "platform_aws", "account_id")
+	set(&cfg.PlatformGCPProject, "platform_gcp", "project")
+	set(&cfg.PlatformGCPServiceAccount, "platform_gcp", "service_account")
+	set(&cfg.S3Bucket, "object_storage", "bucket")
+	set(&cfg.S3Endpoint, "object_storage", "endpoint")
+	set(&cfg.S3Region, "object_storage", "region")
+	set(&cfg.S3AccessKey, "object_storage", "access_key")
+	set(&cfg.S3SecretKey, "object_storage", "secret_key")
+	if v := r.Value(ctx, "object_storage", "path_style"); v != "" {
+		cfg.S3PathStyle = v == "true"
+	}
+	set(&cfg.SentryDSN, "observability", "sentry_dsn")
+	set(&cfg.OTLPEndpoint, "observability", "otlp_endpoint")
+	return cfg
+}
+
+// ApplyIntegrations reads the console's values from the database and returns the configuration with them applied.
+// A database that cannot be read (or has no table yet) leaves the environment's configuration as it is.
+func ApplyIntegrations(ctx context.Context, cfg config.Config, pool *pgxpool.Pool, log *slog.Logger) config.Config {
+	box, err := notificationsBox(cfg, log)
+	if err != nil {
+		log.Warn("integrations: sealing key unusable, console secrets are not applied", "err", err)
+	}
+	st := &integrations.Store{Pool: pool, Box: box, Env: integrationEnv(cfg)}
+	if _, err := st.Statuses(ctx); err != nil {
+		log.Warn("integrations: console values could not be read, using the environment", "err", err)
+		return cfg
+	}
+	return overlayIntegrations(ctx, cfg, st)
 }

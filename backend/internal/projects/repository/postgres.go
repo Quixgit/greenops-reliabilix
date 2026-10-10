@@ -106,7 +106,7 @@ func (r Postgres) GetPolicy(ctx context.Context, tenantID, projectID string) (p 
 			return err
 		}
 		p = domain.Policy{ProjectID: projectID, AllowedRegions: row.AllowedRegions, CICarbonWarnKg: row.CiCarbonWarnKg,
-			CICarbonBlockKg: row.CiCarbonBlockKg, CICostWarn: row.CiCostWarn, CICostBlock: row.CiCostBlock}
+			CICarbonBlockKg: row.CiCarbonBlockKg, CICostWarn: row.CiCostWarn, CICostBlock: row.CiCostBlock, AlertCarbonMonthlyKg: row.AlertCarbonMonthlyKg}
 		return nil
 	})
 	return
@@ -122,7 +122,8 @@ func (r Postgres) UpsertPolicy(ctx context.Context, tenantID string, p domain.Po
 			return err
 		}
 		if _, err := q.UpsertPolicy(ctx, db.UpsertPolicyParams{ProjectID: p.ProjectID, TenantID: tenantID, AllowedRegions: p.AllowedRegions,
-			CiCarbonWarnKg: p.CICarbonWarnKg, CiCarbonBlockKg: p.CICarbonBlockKg, CiCostWarn: p.CICostWarn, CiCostBlock: p.CICostBlock}); err != nil {
+			CiCarbonWarnKg: p.CICarbonWarnKg, CiCarbonBlockKg: p.CICarbonBlockKg, CiCostWarn: p.CICostWarn, CiCostBlock: p.CICostBlock,
+			AlertCarbonMonthlyKg: p.AlertCarbonMonthlyKg}); err != nil {
 			return err
 		}
 		return audit.Record(ctx, tx, "project.policy_updated", "project:"+p.ProjectID, map[string]any{"allowed_regions": p.AllowedRegions})
@@ -145,4 +146,27 @@ func (r Postgres) ListForJobs(ctx context.Context) ([]domain.JobRef, error) {
 		out = append(out, j)
 	}
 	return out, rows.Err()
+}
+
+// CarbonLimits lists the projects of an organization that have a monthly carbon limit.
+func (r Postgres) CarbonLimits(ctx context.Context, tenantID string) (out []domain.CarbonLimit, err error) {
+	out = []domain.CarbonLimit{}
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT p.id::text, p.name, pol.alert_carbon_monthly_kg::float8
+			FROM projects.policies pol JOIN projects.projects p ON p.id = pol.project_id AND p.tenant_id = pol.tenant_id
+			WHERE pol.tenant_id = $1 AND pol.alert_carbon_monthly_kg IS NOT NULL AND pol.alert_carbon_monthly_kg > 0`, tenantID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var l domain.CarbonLimit
+			if err := rows.Scan(&l.ProjectID, &l.Name, &l.LimitKg); err != nil {
+				return err
+			}
+			out = append(out, l)
+		}
+		return rows.Err()
+	})
+	return
 }

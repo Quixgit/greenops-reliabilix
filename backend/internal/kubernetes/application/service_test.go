@@ -35,7 +35,9 @@ func sample(region string, hour int) domain.Sample {
 		PeriodStart: time.Date(2026, 10, 10, hour, 0, 0, 0, time.UTC), EnergyKWh: 2, Region: region}
 }
 
-func svc(r *memRepo, g grid) Service { return Service{Repo: r, Intensity: g, Now: func() time.Time { return at }} }
+func svc(r *memRepo, g grid) Service {
+	return Service{Repo: r, Intensity: g, Now: func() time.Time { return at }}
+}
 
 func TestIngestAttachesCarbonOnlyWhereTheGridIsKnown(t *testing.T) {
 	r := &memRepo{project: true}

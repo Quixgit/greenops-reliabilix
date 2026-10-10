@@ -21,8 +21,12 @@ external dependency have its settings in the admin from the start.
   needs no restart. E-mail is hidden from the notification catalog and refused for new destinations until it is
   configured (development logs instead).
 - **A connection test** per integration returns a short, fixed-text result and never echoes a provider's error.
-- **Fixed by the deployment** (identity provider, object storage, error tracking, tracing, platform cloud accounts) stays
-  in the environment, is read at start-up and is listed read-only on the same page with its state.
+- **Applied at restart.** Settings of clients that are built once (object storage, error tracking, tracing, the
+  platform AWS account and Google project) live in the same catalog, marked `startup`: services read them from the
+  database right after connecting to it (`ApplyIntegrations`) and use them instead of the environment's values. A change
+  needs a restart, which the console says.
+- **Fixed by the deployment** (the identity provider and the other variables of the services) stays in the
+  environment and is listed read-only on the same page with its state.
 
 ## Rule for new integrations
 Any new external service that needs a key or an address gets a catalog entry in the same change as the code that uses it,
