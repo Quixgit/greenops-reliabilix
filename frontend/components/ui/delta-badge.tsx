@@ -9,13 +9,12 @@ import { formatPct } from "@/lib/formatters";
  */
 export function DeltaBadge({ pct, better = "lower" }: { pct: number | null; better?: "lower" | "higher" }) {
   if (pct === null) return null;
-  if (Math.abs(pct) < 0.05) return <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-muted">0%</span>;
+  if (Math.abs(pct) < 0.05) return <span className="inline-flex text-xs font-semibold text-muted">0%</span>;
   const good = better === "lower" ? pct <= 0 : pct >= 0;
   const Arrow = pct <= 0 ? ArrowDown : ArrowUp;
   return (
-    <span className={cn("inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold",
-      good ? "bg-carbon-soft text-carbon" : "bg-red-50 text-bad")}>
-      <Arrow className="size-3" />{formatPct(pct)}
+    <span className={cn("pop inline-flex items-center gap-0.5 text-xs font-semibold", good ? "text-emerald-600" : "text-bad")}>
+      <Arrow className="size-3" strokeWidth={2.5} />{formatPct(pct)}
     </span>
   );
 }

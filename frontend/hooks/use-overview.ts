@@ -43,3 +43,11 @@ export const useRecommendations = (status: string) =>
   useQuery({ queryKey: ["recommendations", status], queryFn: () => api("recommendations", s.recommendations, { status: status === "all" ? undefined : status, limit: "50" }) });
 export const useReports = () =>
   useQuery({ queryKey: ["reports"], queryFn: () => api("reports", s.reports), refetchInterval: (q) => (q.state.data?.some((r) => r.status === "pending") ? 3000 : false) });
+export const useAnomalies = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["anomalies", f], queryFn: () => api("finops/anomalies", s.anomalies, f) });
+};
+export const useCarbonTrend = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["carbon-trend", f], queryFn: () => api("carbon/trend", s.carbonTrend, f) });
+};

@@ -1,15 +1,15 @@
 {
   "pageTitle": "Cloud costs and carbon footprint",
-  "pageSubtitle": "Monitor, understand and reduce the cost and carbon impact of your cloud infrastructure.",
+  "pageSubtitle": "Track, analyze and reduce your cloud impact, in one place.",
   "sidebarPromo": {
-    "title": "Green cloud, better business",
-    "text": "Cut costs and emissions together with data-driven recommendations."
+    "title": "Greener today. More efficient tomorrow.",
+    "text": "Measure. Optimize. Automate. Your cloud, your impact."
   },
   "promoBanner": {
-    "title": "Build a greener cloud",
-    "text": "Find out where your workloads can run cleaner and cheaper.",
+    "title": "Lower cost. Lower carbon.",
+    "text": "Discover opportunities to optimize your infrastructure for both financial and environmental impact.",
     "cta": "View recommendations",
-    "imageUrl": "/mountains.svg"
+    "imageUrl": "/hero-mountains.jpg"
   },
   "recommendationsEmpty": "Recommendations will appear here once we've analyzed your infrastructure.",
   "tagline": "Better infrastructure. A cleaner planet.",

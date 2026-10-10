@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import { echarts } from "@/lib/echarts";
 import type { EChartsCoreOption } from "echarts/core";
 
+const prefersReduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
 /** Thin ECharts wrapper: init once, update on option change, resize with the container, dispose on unmount. */
 export function Chart({ option, height, ariaLabel, onReady }: { option: EChartsCoreOption; height: number; ariaLabel: string; onReady?: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -20,7 +22,10 @@ export function Chart({ option, height, ariaLabel, onReady }: { option: EChartsC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { inst.current?.setOption(option, true); }, [option]);
+  // Smooth by default: lines draw in, slices expand, updates morph. Reduced-motion users get a static chart.
+  useEffect(() => {
+    inst.current?.setOption({ animation: !prefersReduced(), animationDuration: 1100, animationEasing: "cubicOut", animationDurationUpdate: 600, animationEasingUpdate: "cubicInOut", ...option }, true);
+  }, [option]);
 
   return <div ref={ref} role="img" aria-label={ariaLabel} style={{ height, width: "100%" }} />;
 }

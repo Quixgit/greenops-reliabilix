@@ -9,9 +9,9 @@ export const DropdownRoot = DM.Root;
 
 export function DropdownTrigger({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <DM.Trigger className={cn("flex items-center gap-2 rounded-xl bg-white/80 px-3.5 py-2 text-sm font-medium shadow-sm ring-1 ring-line outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-primary", className)}>
+    <DM.Trigger className={cn("group flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-line outline-none transition hover:ring-slate-300 focus-visible:ring-2 focus-visible:ring-primary data-[state=open]:ring-primary/50", className)}>
       {children}
-      <ChevronDown className="size-4 text-muted" />
+      <ChevronDown className="size-4 text-muted transition-transform duration-300 group-data-[state=open]:rotate-180" />
     </DM.Trigger>
   );
 }
@@ -19,14 +19,15 @@ export function DropdownTrigger({ children, className }: { children: ReactNode; 
 export function DropdownPanel({ children, align = "start" }: { children: ReactNode; align?: "start" | "end" }) {
   return (
     <DM.Portal>
-      <DM.Content align={align} sideOffset={8} className="glass z-50 min-w-48 p-1.5 text-sm">
+      <DM.Content align={align} sideOffset={8}
+        className="z-50 min-w-52 origin-[var(--radix-dropdown-menu-content-transform-origin)] rounded-2xl border border-line bg-white p-1.5 text-sm shadow-[0_12px_40px_rgba(31,52,110,0.16)] data-[state=open]:animate-[rise_0.22s_var(--ease-out-soft)]">
         {children}
       </DM.Content>
     </DM.Portal>
   );
 }
 
-export const itemClass = "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 outline-none data-[highlighted]:bg-slate-100";
+export const itemClass = "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 outline-none transition-colors data-[highlighted]:bg-slate-100";
 export const DropdownItem = ({ children, onSelect, asChild }: { children: ReactNode; onSelect?: () => void; asChild?: boolean }) => (
   <DM.Item onSelect={onSelect} asChild={asChild} className={itemClass}>{children}</DM.Item>
 );

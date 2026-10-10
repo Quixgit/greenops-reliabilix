@@ -26,3 +26,16 @@ export function timeAgo(iso: string, now = Date.now()): string {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+
+/** The number and unit of formatCarbon separately, so the number can be animated while the unit stays put. */
+export function carbonParts(kg: number): { n: number; unit: "t" | "kg" } {
+  return Math.abs(kg) >= 1000 ? { n: kg / 1000, unit: "t" } : { n: kg, unit: "kg" };
+}
+
+/** Change between the first and the second half of a series (null when it cannot be computed honestly). */
+export function halfTrend(values: number[]): number | null {
+  if (values.length < 4) return null;
+  const mid = Math.floor(values.length / 2);
+  const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+  return pctChange(avg(values.slice(mid)), avg(values.slice(0, mid)));
+}

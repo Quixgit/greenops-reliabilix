@@ -12,30 +12,33 @@ export const metadata = { title: "Overview · Reliabilix GreenOps" };
 
 export default function OverviewPage() {
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{content.pageTitle}</h1>
-        <p className="mt-1 text-sm text-muted">{content.pageSubtitle}</p>
-      </div>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="space-y-5">
+    <div className="mx-auto max-w-[1680px] space-y-5">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="min-w-0 space-y-5">
+          <div className="rise">
+            <h1 className="text-[28px] font-bold tracking-tight text-ink">{content.pageTitle}</h1>
+            <p className="mt-1 text-[15px] text-slate-600">{content.pageSubtitle}</p>
+          </div>
           <StatCards />
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
             <CostVsCarbon />
             <CarbonByProvider />
           </div>
-          <ServicesTable />
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+            <ServicesTable />
             <RegionIntensity />
-            <div className="space-y-5"><RecentActivity /><ConnectedAccounts /></div>
+          </div>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+            <RecentActivity />
+            <ConnectedAccounts />
           </div>
         </div>
-        <div className="space-y-5">
+        <div className="space-y-5 xl:pt-1">
           <PromoBanner />
           <TopRecommendations />
-          <Tagline />
         </div>
       </div>
+      <Tagline />
     </div>
   );
 }

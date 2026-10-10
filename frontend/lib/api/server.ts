@@ -19,3 +19,17 @@ export async function checkMembership(): Promise<Membership> {
   } catch { /* API unreachable: fall through */ }
   return "unavailable";
 }
+
+/** Server-side: the platform operator behind this session, or null for everyone else (the API decides, from the database). */
+export async function getOperator(): Promise<{ subject: string; email: string; role: "viewer" | "admin" } | null> {
+  const token = await getApiToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${process.env.API_URL ?? "http://localhost:8080"}/api/v1/operator/me`, {
+      headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+    });
+    return res.ok ? ((await res.json()) as { subject: string; email: string; role: "viewer" | "admin" }) : null;
+  } catch {
+    return null; // API unreachable: do not show the console
+  }
+}

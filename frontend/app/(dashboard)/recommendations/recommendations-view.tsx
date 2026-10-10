@@ -3,14 +3,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Lightbulb } from "lucide-react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api/client";
-import { recommendation, type Recommendation } from "@/lib/api/schemas";
+import { recommendation, type ImpactVerification, type Recommendation } from "@/lib/api/schemas";
 import { useRecommendations } from "@/hooks/use-overview";
 
-const FILTERS = ["open", "approved", "applied", "dismissed", "all"] as const;
+const FILTERS = ["open", "approved", "applied", "verified", "dismissed", "all"] as const;
 
 function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
   const qc = useQueryClient();
@@ -37,6 +38,8 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
         {" "}· confidence {(r.confidence * 100).toFixed(0)}%
       </p>
       <p className={passed ? "text-muted" : "text-bad"}>Data residency: {r.compliance_check.residency}{r.compliance_check.allowed_regions?.length ? ` (allowed: ${r.compliance_check.allowed_regions.join(", ")})` : ""}</p>
+      {r.status === "applied" && <p className="text-muted">Applied — measured result appears once 18 days of data after the change are in.</p>}
+      {r.verification && <VerifiedImpact v={r.verification} />}
       {canDecide && (r.status === "open" || r.status === "approved") && (
         <div className="flex gap-2">
           {r.status === "open" && <button className={btn} disabled={act.isPending || !passed} onClick={() => act.mutate("approve")}>Approve</button>}
@@ -46,6 +49,30 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
       )}
       {act.isError && <p role="alert" className="text-xs text-bad">{act.error.message}</p>}
     </li>
+  );
+}
+
+const OUTCOME: Record<string, { label: string; tone: "good" | "warn" | "bad" | "neutral" }> = {
+  realized: { label: "Realized", tone: "good" }, partial: { label: "Partly realized", tone: "warn" },
+  not_realized: { label: "Not realized", tone: "bad" }, inconclusive: { label: "Could not be measured", tone: "neutral" },
+};
+
+/** The measured result, always next to the forecast and never mixed with it. */
+function VerifiedImpact({ v }: { v: ImpactVerification }) {
+  const o = OUTCOME[v.outcome];
+  return (
+    <div className="rounded-lg bg-slate-50 p-3 text-xs ring-1 ring-line">
+      <p className="flex items-center gap-2 font-semibold"><Badge tone={o.tone}>{o.label}</Badge>
+        {v.realization_pct !== null && <span>{v.realization_pct.toFixed(0)}% of the expected carbon reduction</span>}</p>
+      {v.measured_carbon_kg_month !== null && (
+        <p className="mt-1">
+          Measured {v.measured_carbon_kg_month.toFixed(1)} kg CO₂e/month (expected {v.expected_carbon_kg_month.toFixed(1)})
+          {v.measured_cost_month !== null && <> · cost {v.measured_cost_month >= 0 ? "saving" : "increase"} {Math.abs(v.measured_cost_month).toFixed(2)}/month
+            {v.expected_cost_month !== null && <> (expected {v.expected_cost_month.toFixed(2)})</>}</>}
+        </p>
+      )}
+      <p className="mt-1 text-muted">{v.note} Based on {v.baseline_days} days before and {v.after_days} days after.</p>
+    </div>
   );
 }
 

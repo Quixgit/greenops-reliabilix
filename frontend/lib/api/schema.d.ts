@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Build identity of this service
+         * @description Platform release, stage (dev, alpha, beta, rc, stable), service name and short commit of the running process.
+         *     Versioning policy: docs/release/versioning.md.
+         */
+        get: operations["getVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -1089,6 +1110,593 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Channels this deployment offers and the event types that can be subscribed to
+         * @description Requires permission `notification:read`. `configured` is false when the platform has no encryption key for
+         *     destination addresses; destinations cannot be created then.
+         */
+        get: operations["getNotificationCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List destinations
+         * @description Requires permission `notification:read`. The address itself is never returned, only a masked `target_hint`.
+         */
+        get: operations["listNotificationDestinations"];
+        put?: never;
+        /**
+         * Add a destination
+         * @description Requires permission `notification:write`. The address is sealed with AES-256-GCM before it is stored.
+         *     `email` addresses must belong to a member of the organization. `webhook` and `slack` URLs must be public
+         *     https endpoints (Slack: an incoming-webhook URL on hooks.slack.com). For `webhook` the response carries a
+         *     `signing_secret` once; deliveries are signed with it (`X-Reliabilix-Signature: t=<unix>,v1=<hex HMAC-SHA256
+         *     of "<t>.<body>">`). At most 20 destinations per organization.
+         */
+        post: operations["createNotificationDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/destinations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a destination (its delivery history is kept)
+         * @description Requires permission `notification:write`.
+         */
+        delete: operations["deleteNotificationDestination"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/destinations/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume deliveries to a destination
+         * @description Requires permission `notification:write`.
+         */
+        post: operations["enableNotificationDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/destinations/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause deliveries to a destination
+         * @description Requires permission `notification:write`. Events published while a destination is disabled are not delivered later.
+         */
+        post: operations["disableNotificationDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/destinations/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test message to a destination
+         * @description Requires permission `notification:write`. Queues one message whatever the destination's filters say;
+         *     follow the result in the delivery history.
+         */
+        post: operations["testNotificationDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent deliveries (newest first)
+         * @description Requires permission `notification:read`. Delivery is at-least-once: a message may arrive twice after a
+         *     crash, so receivers deduplicate on the delivery id.
+         */
+        get: operations["listNotificationDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The calling platform operator (403 for everyone else)
+         * @description Operators are people who run the platform. They are recorded in the database by the migration owner; a tenant
+         *     role never grants this. API keys are rejected.
+         */
+        get: operations["getOperatorMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organizations with health counters
+         * @description Platform operators only. Metadata only (counts); no tenant data.
+         */
+        get: operations["listOperatorTenants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/notifications/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Delivery counts by channel and status
+         * @description Platform operators only. Window in hours (1-720).
+         */
+        get: operations["getOperatorNotificationStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/notifications/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deliveries across organizations
+         * @description Platform operators only. Never contains payloads or destination addresses.
+         */
+        get: operations["listOperatorDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/connections/unhealthy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cloud connections that need attention
+         * @description Platform operators only.
+         */
+        get: operations["listOperatorUnhealthyConnections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Build facts and the state of every external integration
+         * @description Platform operators only. Each integration is `ready`, `stub` (a development stand-in is running) or `missing`.
+         */
+        get: operations["getOperatorSystem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/deliveries/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-queue a failed delivery
+         * @description Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+         *     Only failed deliveries whose destination still exists can be retried.
+         */
+        post: operations["retryOperatorDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/destinations/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable a tenant destination
+         * @description Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+         */
+        post: operations["enableOperatorDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/destinations/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable a tenant destination (abuse or broken endpoint)
+         * @description Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+         */
+        post: operations["disableOperatorDestination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Errors of the platform's services, grouped
+         * @description Platform operators only. Errors of the api and worker processes and of the integrations they call, grouped by
+         *     fingerprint with an occurrence counter (ADR-0021). Messages are sanitized: no tokens, credentials or e-mail
+         *     addresses. A resolved error that happens again is reopened.
+         */
+        get: operations["listOperatorErrors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/errors/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an error as resolved
+         * @description Platform operators with the `admin` role only. It is reopened automatically if it happens again.
+         */
+        post: operations["resolveOperatorError"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/errors/{id}/ignore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an error as noise
+         * @description Platform operators with the `admin` role only. An ignored error stays ignored when it recurs.
+         */
+        post: operations["ignoreOperatorError"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/errors/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen an error
+         * @description Platform operators with the `admin` role only.
+         */
+        post: operations["reopenOperatorError"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Settings of the organization with effective values
+         * @description Requires permission `settings:read`. Each item says where its value comes from (`default`, `platform`, `tenant`, `operator`), whether an operator locked it and whether you may change it.
+         */
+        get: operations["getSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change settings of the organization
+         * @description Requires permission `settings:write`. All values are validated first; one rejected value rejects the whole request (422 with one message per key). Settings fixed by an operator cannot be changed.
+         */
+        patch: operations["updateSettings"];
+        trace?: never;
+    };
+    "/api/v1/settings/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return settings to the inherited value
+         * @description Requires permission `settings:write`. Removes the organization's own values; they inherit the platform value or default again.
+         */
+        post: operations["resetSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who changed which setting, and when
+         * @description Requires permission `settings:read`. Includes changes made by platform operators for this organization.
+         */
+        get: operations["getSettingsHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform-level values of every setting
+         * @description Platform operators only. For organization-scope settings the platform value is the default every organization inherits.
+         */
+        get: operations["getOperatorSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change platform-level values
+         * @description Platform operators with the `admin` role only.
+         */
+        patch: operations["updateOperatorSettings"];
+        trace?: never;
+    };
+    "/api/v1/operator/settings/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return platform-level values to the catalog defaults
+         * @description Platform operators with the `admin` role only.
+         */
+        post: operations["resetOperatorSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/settings/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Setting changes at platform level or for one organization
+         * @description Platform operators only. Without `tenant_id` the platform-level changes are returned.
+         */
+        get: operations["getOperatorSettingsHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Effective settings of one organization
+         * @description Platform operators only.
+         */
+        get: operations["getOperatorTenantSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Fix settings for one organization
+         * @description Platform operators with the `admin` role only. Values set here override the organization's own and lock the setting for it; changes are recorded in the organization's audit log.
+         */
+        patch: operations["updateOperatorTenantSettings"];
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/settings/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove operator overrides of one organization
+         * @description Platform operators with the `admin` role only. The setting is unlocked and inherits again.
+         */
+        post: operations["resetOperatorTenantSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1098,6 +1706,10 @@ export interface components {
             status: number;
             detail?: string;
             request_id?: string;
+            /** @description For validation failures, one message per rejected field (for example per setting key) */
+            errors?: {
+                [key: string]: string;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -1686,7 +2298,7 @@ export interface components {
                 [key: string]: string;
             };
             /** @enum {string} */
-            status?: "open" | "approved" | "applied" | "dismissed";
+            status?: "open" | "approved" | "applied" | "verified" | "dismissed";
             decided_by?: string | null;
             /** Format: date-time */
             decided_at?: string | null;
@@ -1694,6 +2306,37 @@ export interface components {
             applied_at?: string | null;
             /** Format: date-time */
             created_at?: string;
+            verification?: components["schemas"]["ImpactVerification"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * @description Measured result of an applied recommendation (status `verified`): the change of the daily mean of cost and
+         *     carbon for the project and service between the 14 days before the change and the 14 days that start 4 days
+         *     after it, scaled to 30 days. Positive values are savings. Workload changes are not controlled for.
+         */
+        ImpactVerification: {
+            /** @enum {string} */
+            outcome?: "realized" | "partial" | "not_realized" | "inconclusive";
+            method?: string;
+            /** Format: date-time */
+            baseline_from?: string;
+            /** Format: date-time */
+            baseline_to?: string;
+            /** Format: date-time */
+            after_from?: string;
+            /** Format: date-time */
+            after_to?: string;
+            baseline_days?: number;
+            after_days?: number;
+            measured_carbon_kg_month?: number | null;
+            measured_cost_month?: number | null;
+            expected_carbon_kg_month?: number;
+            expected_cost_month?: number | null;
+            realization_pct?: number | null;
+            note?: string;
+            /** Format: date-time */
+            verified_at?: string;
         } & {
             [key: string]: unknown;
         };
@@ -1735,6 +2378,237 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        NotificationCatalog: {
+            /** @description Channels available on this deployment */
+            channels: string[];
+            configured: boolean;
+            /** @description Channels running on a development stand-in (for example e-mail that is only logged) */
+            stubbed: string[];
+            event_types: {
+                /** @example report.ready */
+                type: string;
+                description: string;
+                /** @enum {string} */
+                default_severity: "info" | "warning" | "critical";
+            }[];
+        };
+        NotificationDestination: {
+            /** Format: uuid */
+            id: string;
+            /** @example slack */
+            kind: string;
+            name: string;
+            /** @description Masked mailbox or just the host of a URL; the address itself is never returned */
+            target_hint: string;
+            /** @description Event types (or "*") the destination receives */
+            event_types: string[];
+            /** @enum {string} */
+            min_severity: "info" | "warning" | "critical";
+            enabled: boolean;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CreateNotificationDestination: {
+            /** @example webhook */
+            kind: string;
+            name: string;
+            /** @description Mailbox (email) or URL (webhook, slack) */
+            target: string;
+            /** @description Defaults to ["*"] */
+            event_types?: string[];
+            /**
+             * @default info
+             * @enum {string}
+             */
+            min_severity: "info" | "warning" | "critical";
+        };
+        CreatedNotificationDestination: {
+            destination: components["schemas"]["NotificationDestination"];
+            /** @description Webhook signing secret. Returned on creation only. */
+            signing_secret?: string;
+        };
+        NotificationDelivery: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description null once the destination was removed
+             */
+            destination_id: string | null;
+            kind: string;
+            destination_name: string;
+            event_type: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            /** @enum {string} */
+            status: "pending" | "sent" | "failed" | "skipped";
+            attempts: number;
+            /** Format: date-time */
+            next_attempt_at: string;
+            last_error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            sent_at: string | null;
+        };
+        Operator: {
+            subject: string;
+            email: string;
+            /** @enum {string} */
+            role: "viewer" | "admin";
+        };
+        OperatorTenant: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            plan: string;
+            /** Format: date-time */
+            created_at: string;
+            members: number;
+            projects: number;
+            connections: number;
+            connections_in_error: number;
+            destinations: number;
+            failed_deliveries_7d: number;
+        };
+        OperatorDelivery: {
+            /** Format: uuid */
+            tenant_id: string;
+            tenant_name: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            destination_id: string | null;
+            kind: string;
+            destination_name: string;
+            event_type: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            /** @enum {string} */
+            status: "pending" | "sent" | "failed" | "skipped";
+            attempts: number;
+            /** Format: date-time */
+            next_attempt_at: string;
+            last_error: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            sent_at: string | null;
+        };
+        OperatorDeliveryStat: {
+            kind: string;
+            status: string;
+            count: number;
+        };
+        OperatorConnection: {
+            /** Format: uuid */
+            tenant_id: string;
+            tenant_name: string;
+            provider: string;
+            account_ref: string;
+            sync_status: string;
+            last_error: string | null;
+            /** Format: date-time */
+            last_sync_at: string | null;
+        };
+        OperatorSystem: {
+            version: string;
+            env: string;
+            expected_migration: number;
+            integrations: {
+                name: string;
+                /** @enum {string} */
+                status: "ready" | "stub" | "missing";
+                note: string;
+            }[];
+        };
+        OperatorError: {
+            /** Format: uuid */
+            id: string;
+            /** @example worker */
+            service: string;
+            /** @example cloudaccounts:sync_aws_account */
+            component: string;
+            /** @enum {string} */
+            severity: "warning" | "error" | "critical";
+            message: string;
+            /** @enum {string} */
+            status: "open" | "resolved" | "ignored";
+            occurrences: number;
+            /** Format: date-time */
+            first_seen: string;
+            /** Format: date-time */
+            last_seen: string;
+            /** Format: uuid */
+            tenant_id: string | null;
+            tenant_name: string | null;
+            last_request_id: string | null;
+            handled_by: string | null;
+            /** Format: date-time */
+            handled_at: string | null;
+        };
+        SettingItem: {
+            /** @example security.invitation_expiry_days */
+            key: string;
+            group: string;
+            title: string;
+            description: string;
+            note?: string;
+            /** @enum {string} */
+            scope: "platform" | "tenant" | "operator";
+            /** @enum {string} */
+            type: "bool" | "int" | "float" | "string" | "enum" | "list";
+            default: unknown;
+            value: unknown;
+            /** @enum {string} */
+            source: "default" | "platform" | "tenant" | "operator";
+            locked: boolean;
+            editable: boolean;
+            unit?: string;
+            min?: number;
+            max?: number;
+            enum?: string[];
+            list_enum?: string[];
+            max_items?: number;
+            min_items?: number;
+            max_len?: number;
+            pattern?: string;
+            updated_by?: string | null;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
+        SettingsView: {
+            groups: {
+                id: string;
+                title: string;
+                description: string;
+            }[];
+            items: components["schemas"]["SettingItem"][];
+        };
+        SettingsPatch: {
+            /** @description Map of setting key to its new JSON value */
+            values: {
+                [key: string]: unknown;
+            };
+        };
+        SettingsReset: {
+            keys: string[];
+        };
+        SettingChange: {
+            /** Format: date-time */
+            at: string;
+            /** Format: uuid */
+            tenant_id: string | null;
+            key: string;
+            /** @description Previous JSON value; null when there was none */
+            old_value: unknown;
+            /** @description New JSON value; null when the value was removed */
+            new_value: unknown;
+            actor: string;
+            /** @enum {string} */
+            via: "tenant" | "operator";
+        };
     };
     responses: {
         /** @description RFC 9457 problem details */
@@ -1761,6 +2635,34 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example 0.1.0-alpha.1 */
+                        platform: string;
+                        /** @enum {string} */
+                        stage: "dev" | "alpha" | "beta" | "rc" | "stable";
+                        /** @example api */
+                        service: string;
+                        commit: string;
+                    };
+                };
+            };
+        };
+    };
     healthz: {
         parameters: {
             query?: never;
@@ -3206,7 +4108,7 @@ export interface operations {
     listRecommendations: {
         parameters: {
             query?: {
-                status?: "open" | "approved" | "applied" | "dismissed";
+                status?: "open" | "approved" | "applied" | "verified" | "dismissed";
                 project_id?: components["parameters"]["project_id"];
                 limit?: number;
             };
@@ -3465,6 +4367,836 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getNotificationCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationCatalog"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listNotificationDestinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["NotificationDestination"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createNotificationDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNotificationDestination"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedNotificationDestination"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    deleteNotificationDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    enableNotificationDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDestination"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    disableNotificationDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDestination"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    testNotificationDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        delivery_id: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listNotificationDeliveries: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["NotificationDelivery"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Operator"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorTenants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorTenant"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorNotificationStats: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorDeliveryStat"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorDeliveries: {
+        parameters: {
+            query?: {
+                status?: "pending" | "sent" | "failed" | "skipped";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorDelivery"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorUnhealthyConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorConnection"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorSystem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorSystem"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    retryOperatorDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    enableOperatorDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    disableOperatorDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listOperatorErrors: {
+        parameters: {
+            query?: {
+                status?: "open" | "resolved" | "ignored" | "all";
+                service?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorError"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    resolveOperatorError: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    ignoreOperatorError: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    reopenOperatorError: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        status?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    updateSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    resetSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsReset"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getSettingsHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SettingChange"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    updateOperatorSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    resetOperatorSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsReset"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getOperatorSettingsHistory: {
+        parameters: {
+            query?: {
+                tenant_id?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SettingChange"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorTenantSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateOperatorTenantSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsPatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    resetOperatorTenantSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsReset"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
         };
     };
 }

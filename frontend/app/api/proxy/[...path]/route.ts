@@ -4,7 +4,8 @@ import { getApiToken } from "@/lib/auth/session";
 // Browser -> this route -> Go API. The access token is attached server-side and never reaches
 // client JavaScript. Only the API's /api/v1 namespace is reachable.
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
-const ALLOWED = new Set(["GET", "POST"]);
+const ALLOWED = new Set(["GET", "POST", "PATCH", "DELETE"]); // what the admin screens need; PUT stays closed
+const WITH_BODY = new Set(["POST", "PATCH"]);
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   if (!ALLOWED.has(req.method)) return NextResponse.json({ title: "method not allowed", status: 405 }, { status: 405 });
@@ -19,13 +20,14 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   const upstream = await fetch(url, {
     method: req.method,
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: req.method === "POST" ? await req.text() : undefined,
+    body: WITH_BODY.has(req.method) ? await req.text() : undefined,
     cache: "no-store",
   });
+  if (upstream.status === 204) return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   return new NextResponse(upstream.body, {
     status: upstream.status,
     headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json", "Cache-Control": "no-store" },
   });
 }
 
-export { handle as GET, handle as POST };
+export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
