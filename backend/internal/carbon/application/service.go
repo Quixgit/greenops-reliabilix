@@ -27,6 +27,10 @@ type Store interface {
 	// VersionTotals aggregates the stored rows of one methodology version.
 	VersionTotals(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (domain.Totals, error)
 	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure, resolution string) error
+	// Forecast returns one source's stored forecast points of a region in [from, to).
+	Forecast(ctx context.Context, region, provider string, from, to time.Time) ([]domain.ForecastPoint, error)
+	// RegionCoverage says, per region in use, how many of the last N days have grid data (hourly or a monthly figure).
+	RegionCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error)
 	// RegionsInUse lists the regions that have calculations, for any organization.
 	RegionsInUse(ctx context.Context) ([]string, error)
 	// MonthlyHistory returns the published monthly figures of a region that cover [from, to).
@@ -53,6 +57,8 @@ type HourlyExtra interface {
 	Covers(ctx context.Context, region string) bool
 	// Range returns measured readings in [from, to).
 	Range(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error)
+	// Forecast returns forecast points in [from, to), for planning only.
+	Forecast(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error)
 }
 
 // Ports implemented by other modules and wired in the composition root (no cross-domain imports).
@@ -422,7 +428,26 @@ func (s *Service) refreshExtras(ctx context.Context, window time.Duration) error
 		return err
 	}
 	to := time.Now().UTC()
-	return s.loadExtras(ctx, regions, to.Add(-window), to)
+	first := s.loadExtras(ctx, regions, to.Add(-window), to)
+	// Forecasts of the next two days for planning (a failing forecast never fails the refresh of readings).
+	for _, x := range s.Extras {
+		for _, region := range regions {
+			if !x.Covers(ctx, region) {
+				continue
+			}
+			pts, err := x.Forecast(ctx, region, to, to.Add(48*time.Hour))
+			if err != nil {
+				s.Log.Warn("grid forecast", "source", x.ID(), "region", region, "err", err)
+				continue
+			}
+			for _, p := range pts {
+				if e := s.Store.SaveGridIntensity(ctx, x.ID(), region, p.At, p.GPerKWh, true, domain.MeasureAverage, "hourly"); e != nil {
+					return e
+				}
+			}
+		}
+	}
+	return first
 }
 
 // loadExtras fetches [from, to) from every additional source for the regions it covers and stores the readings.
@@ -667,4 +692,101 @@ func (s *Service) RefreshMonthly(ctx context.Context) (stored int, err error) {
 		}
 	}
 	return stored, first
+}
+
+// minCoverage is the share of days that must have grid data before a region is left alone.
+const minCoverage = 0.9
+
+// AutoLoadResult says what the daily automatic loading did.
+type AutoLoadResult struct {
+	Regions    []string // regions whose past was loaded
+	Recalc     int      // projects queued for recalculation
+	WindowFrom time.Time
+	WindowTo   time.Time
+}
+
+// AutoLoadHistory is the daily automation that makes a new or gappy region right without anyone asking: for regions in use
+// whose last N days are not (90%) covered by grid data it loads the past from every source that can supply it (the
+// additional free sources, the main provider's past data when its plan has it, the monthly national figures) and then
+// queues a recalculation of every project over the window, so the stored carbon uses the data that now exists.
+// Requests stay under the daily cap and the backfill limits; a failing source is logged and the others still run.
+func (s *Service) AutoLoadHistory(ctx context.Context) (AutoLoadResult, error) {
+	var res AutoLoadResult
+	var r settings.Reader = settings.Defaults{}
+	if s.Settings != nil {
+		r = s.Settings
+	}
+	if !r.Bool(ctx, "", settings.KeyCarbonAutoLoad) {
+		return res, nil
+	}
+	days := int(r.Int(ctx, "", settings.KeyCarbonAutoDays))
+	if days < 7 {
+		days = 90
+	}
+	cov, err := s.Store.RegionCoverage(ctx, days)
+	if err != nil {
+		return res, err
+	}
+	for _, c := range cov {
+		if c.Total > 0 && float64(c.Covered)/float64(c.Total) < minCoverage {
+			res.Regions = append(res.Regions, c.Region)
+		}
+	}
+	if len(res.Regions) == 0 {
+		return res, nil
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	res.WindowFrom, res.WindowTo = today.AddDate(0, 0, -days), today
+	_, first := s.BackfillIntensity(ctx, res.Regions, res.WindowFrom, res.WindowTo)
+	if _, err := s.RefreshMonthly(ctx); err != nil && first == nil {
+		first = err
+	}
+	n, err := s.recalculateAll(ctx, res.WindowFrom, res.WindowTo.AddDate(0, 0, 1))
+	res.Recalc = n
+	if err != nil && first == nil {
+		first = err
+	}
+	return res, first
+}
+
+// recalculateAll queues a recalculation of [from, to) for every project that has jobs.
+func (s *Service) recalculateAll(ctx context.Context, from, to time.Time) (int, error) {
+	refs, err := s.Projects.ProjectsForJobs(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, r := range refs {
+		if err := s.Recalculate(ctx, r.TenantID, r.ProjectID, from, to); err != nil {
+			s.Log.Error("enqueue recalculation", "project", r.ProjectID, "err", err)
+			continue
+		}
+		n++
+	}
+	return n, nil
+}
+
+// ScheduleAdvice says when to start a flexible job of `duration` within `within` from now so that the grid's average
+// intensity is lowest, from stored forecasts. The first source in the policy order that has a forecast for the region is
+// used (sources are never blended). It is advice from a forecast of average intensity, not a guarantee.
+func (s *Service) ScheduleAdvice(ctx context.Context, region string, duration, within time.Duration) (domain.BestWindow, string, error) {
+	now := time.Now().UTC()
+	to := now.Add(within)
+	for _, src := range s.Policy(ctx).Order(region) {
+		pts, err := s.Store.Forecast(ctx, region, src, now.Add(-time.Hour), to.Add(time.Hour))
+		if err != nil {
+			return domain.BestWindow{}, "", err
+		}
+		if len(pts) == 0 {
+			continue
+		}
+		w, err := domain.ChooseWindow(pts, now, to, duration)
+		if err == nil {
+			return w, src, nil
+		}
+		if !errors.Is(err, domain.ErrNoForecast) {
+			return domain.BestWindow{}, "", err
+		}
+	}
+	return domain.BestWindow{}, "", domain.ErrNoForecast
 }

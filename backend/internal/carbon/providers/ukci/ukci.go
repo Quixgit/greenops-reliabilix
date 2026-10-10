@@ -77,6 +77,38 @@ func (c *Client) Range(ctx context.Context, from, to time.Time) ([]Reading, erro
 	return out, nil
 }
 
+// Forecast returns the forecast half-hours in [from, to) (values of the `forecast` field), for planning only.
+func (c *Client) Forecast(ctx context.Context, from, to time.Time) ([]Reading, error) {
+	var body struct {
+		Data []struct {
+			From      string `json:"from"`
+			Intensity struct {
+				Forecast *float64 `json:"forecast"`
+			} `json:"intensity"`
+		} `json:"data"`
+	}
+	if to.Sub(from) > maxRange {
+		to = from.Add(maxRange)
+	}
+	path := fmt.Sprintf("/intensity/%s/%s", from.UTC().Format("2006-01-02T15:04Z"), to.UTC().Format("2006-01-02T15:04Z"))
+	if err := c.get(ctx, path, &body); err != nil {
+		return nil, err
+	}
+	var out []Reading
+	for _, d := range body.Data {
+		t, err := time.Parse("2006-01-02T15:04Z", d.From)
+		if err != nil || d.Intensity.Forecast == nil {
+			continue
+		}
+		g := *d.Intensity.Forecast
+		if math.IsNaN(g) || g < minIntensity || g > maxIntensity || t.Before(from) || !t.Before(to) {
+			continue
+		}
+		out = append(out, Reading{At: t.UTC(), G: g})
+	}
+	return out, nil
+}
+
 func (c *Client) get(ctx context.Context, path string, dst any) (err error) {
 	if c.Allow != nil {
 		if err := c.Allow(ctx); err != nil {

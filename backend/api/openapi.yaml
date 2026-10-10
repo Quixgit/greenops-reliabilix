@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.21.0
+  version: 0.22.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -1643,6 +1643,62 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/schedule:
+    get:
+      operationId: getCarbonSchedule
+      summary: When to start a flexible job to use the cleanest grid hours
+      tags:
+      - carbon
+      description: |
+        Requires permission `carbon:read`. From the stored forecasts of the region (the first trusted source that has one):
+        the start time within `within_hours` whose `duration_hours` have the lowest mean forecast intensity, and the saving
+        against starting now. It is a forecast of *average* grid intensity: advice, not a guarantee. 404 when no forecast is
+        stored for the region and window.
+      parameters:
+      - {name: region, in: query, required: true, schema: {type: string}}
+      - {name: duration_hours, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 1}}
+      - {name: within_hours, in: query, schema: {type: integer, minimum: 1, maximum: 48, default: 24}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleAdvice'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/ci/schedule:
+    get:
+      operationId: getCiSchedule
+      summary: The same advice for a CI pipeline (API key role ci)
+      tags:
+      - carbon
+      description: Requires permission `ci:evaluate`; same parameters and answer as `/carbon/schedule`.
+      parameters:
+      - {name: region, in: query, required: true, schema: {type: string}}
+      - {name: duration_hours, in: query, schema: {type: integer, minimum: 1, maximum: 24, default: 1}}
+      - {name: within_hours, in: query, schema: {type: integer, minimum: 1, maximum: 48, default: 24}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleAdvice'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
           $ref: '#/components/responses/Problem'
   /api/v1/carbon/trend:
     get:
@@ -4704,6 +4760,24 @@ components:
               id: {type: string}
               name: {type: string}
               plans: {type: array, items: {type: string}}
+    ScheduleAdvice:
+      type: object
+      required: [region, source, window, basis]
+      properties:
+        region: {type: string}
+        source: {type: string}
+        basis: {type: string}
+        window:
+          type: object
+          required: [start, end, average_g_per_kwh, now_start, now_average_g_per_kwh, saving_pct, points]
+          properties:
+            start: {type: string, format: date-time}
+            end: {type: string, format: date-time}
+            average_g_per_kwh: {type: number}
+            now_start: {type: string, format: date-time}
+            now_average_g_per_kwh: {type: number}
+            saving_pct: {type: number}
+            points: {type: integer}
     IntensityHistory:
       type: object
       required: [region, regions, points, policy, window_days, days_with_data]

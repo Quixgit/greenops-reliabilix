@@ -993,6 +993,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/carbon/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * When to start a flexible job to use the cleanest grid hours
+         * @description Requires permission `carbon:read`. From the stored forecasts of the region (the first trusted source that has one):
+         *     the start time within `within_hours` whose `duration_hours` have the lowest mean forecast intensity, and the saving
+         *     against starting now. It is a forecast of *average* grid intensity: advice, not a guarantee. 404 when no forecast is
+         *     stored for the region and window.
+         */
+        get: operations["getCarbonSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ci/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The same advice for a CI pipeline (API key role ci)
+         * @description Requires permission `ci:evaluate`; same parameters and answer as `/carbon/schedule`.
+         */
+        get: operations["getCiSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/carbon/trend": {
         parameters: {
             query?: never;
@@ -2857,6 +2900,23 @@ export interface components {
                 name: string;
                 plans: string[];
             }[];
+        };
+        ScheduleAdvice: {
+            region: string;
+            source: string;
+            basis: string;
+            window: {
+                /** Format: date-time */
+                start: string;
+                /** Format: date-time */
+                end: string;
+                average_g_per_kwh: number;
+                /** Format: date-time */
+                now_start: string;
+                now_average_g_per_kwh: number;
+                saving_pct: number;
+                points: number;
+            };
         };
         IntensityHistory: {
             region: string;
@@ -5306,6 +5366,62 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    getCarbonSchedule: {
+        parameters: {
+            query: {
+                region: string;
+                duration_hours?: number;
+                within_hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleAdvice"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getCiSchedule: {
+        parameters: {
+            query: {
+                region: string;
+                duration_hours?: number;
+                within_hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleAdvice"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     getCarbonTrend: {

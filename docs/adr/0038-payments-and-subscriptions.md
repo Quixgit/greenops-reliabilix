@@ -1,6 +1,6 @@
 # ADR-0038: Payment providers and subscriptions
 
-Status: accepted · 0.1.0-alpha.33 · implements the billing part of [ADR-0022](0022-licensing-and-subscriptions.md)
+Status: accepted · 0.1.0-alpha.34 · implements the billing part of [ADR-0022](0022-licensing-and-subscriptions.md)
 
 ## Decision
 1. **Providers hold the money; the platform holds a state.** No card or bank data is stored. The platform keeps a

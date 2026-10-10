@@ -55,6 +55,11 @@ export const useIntensityHistory = (region: string | undefined) => {
   const f = useFilters();
   return useQuery({ queryKey: ["intensity-history", f, region], queryFn: () => api("carbon/intensity", s.intensityHistory, { ...f, region }) });
 };
+export const useScheduleAdvice = (region: string | undefined, duration: number, within: number) =>
+  useQuery({
+    queryKey: ["schedule", region, duration, within], enabled: !!region, retry: false,
+    queryFn: () => api("carbon/schedule", s.scheduleAdvice, { region, duration_hours: String(duration), within_hours: String(within) }),
+  });
 export const useMethodologyVersions = () =>
   useQuery({ queryKey: ["methodology-versions"], queryFn: () => api("carbon/methodology/versions", s.methodologyVersions), staleTime: 10 * 60_000 });
 export const useConnection = (id: string) => useQuery({ queryKey: ["connection", id], queryFn: () => api(`cloud-accounts/${id}`, s.connectionDetail) });

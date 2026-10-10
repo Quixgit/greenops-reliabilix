@@ -100,3 +100,10 @@ SELECT ts AS month, provider, g_co2e_per_kwh::float8 AS g FROM carbon.grid_inten
 WHERE region_id = sqlc.arg(region_id) AND measure = 'average' AND NOT is_forecast AND resolution = 'monthly'
   AND ts >= date_trunc('month', sqlc.arg(from_ts)::timestamptz) AND ts < sqlc.arg(to_ts)
 ORDER BY ts, provider;
+
+-- name: IntensityForecast :many
+-- One source's stored forecast points of a region in [from, to) (forecasts are never used for calculations).
+SELECT ts, g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND is_forecast
+  AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
+ORDER BY ts;

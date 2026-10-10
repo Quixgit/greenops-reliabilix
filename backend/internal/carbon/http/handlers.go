@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -24,6 +25,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/summary", h.summary)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/trend", h.trend)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/intensity", h.intensity)
+	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/schedule", h.schedule)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology", h.methodology)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology/versions", h.versions)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/compare", h.compare)
@@ -31,6 +33,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermCarbonCompute)).Post("/carbon/recalculate", h.recalculate)
 	// CI gate: reachable with an API key (role ci) as well as by people who may compute carbon.
 	r.With(auth.Require(auth.PermCIEvaluate)).Post("/ci/evaluate", h.evaluate)
+	r.With(auth.Require(auth.PermCIEvaluate)).Get("/ci/schedule", h.schedule)
 }
 
 type totalsJSON struct {
@@ -325,4 +328,38 @@ func (h Handlers) evaluate(w http.ResponseWriter, r *http.Request) {
 	default:
 		httpx.WriteJSON(w, http.StatusOK, res)
 	}
+}
+
+// schedule answers when to start a flexible job (CI pipeline, backup, batch) to use the cleanest grid hours, from stored
+// forecasts. Parameters: region, duration_hours (1-24, default 1), within_hours (duration-48, default 24).
+func (h Handlers) schedule(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	region := q.Get("region")
+	atoi := func(key string, def int) (int, bool) {
+		v := q.Get(key)
+		if v == "" {
+			return def, true
+		}
+		n, err := strconv.Atoi(v)
+		return n, err == nil
+	}
+	dur, ok1 := atoi("duration_hours", 1)
+	within, ok2 := atoi("within_hours", 24)
+	if !regionID.MatchString(region) || !ok1 || !ok2 || dur < 1 || dur > 24 || within < dur || within > 48 {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "region (a cloud region id), duration_hours 1-24 and within_hours from duration up to 48 are required")
+		return
+	}
+	win, src, err := h.Svc.ScheduleAdvice(r.Context(), region, time.Duration(dur)*time.Hour, time.Duration(within)*time.Hour)
+	if errors.Is(err, domain.ErrNoForecast) {
+		httpx.WriteProblem(w, r, http.StatusNotFound, "no forecast", "There is no forecast stored for this region and window yet.")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"region": region, "source": src, "window": win,
+		"basis": "forecast of average grid intensity; advice, not a guarantee",
+	})
 }

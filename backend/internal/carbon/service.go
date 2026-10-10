@@ -69,6 +69,13 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		return err
 	})
 	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
+	mux.HandleFunc(queue.TaskAutoLoadHistory, func(ctx context.Context, _ *asynq.Task) error {
+		res, err := m.Svc.AutoLoadHistory(ctx)
+		if len(res.Regions) > 0 {
+			m.Svc.Log.Info("grid history loaded by itself", "regions", len(res.Regions), "projects_recalculated", res.Recalc, "err", err)
+		}
+		return err
+	})
 	mux.HandleFunc(queue.TaskRefreshMonthly, func(ctx context.Context, _ *asynq.Task) error {
 		n, err := m.Svc.RefreshMonthly(ctx)
 		m.Svc.Log.Info("monthly grid data refreshed", "figures", n, "err", err)

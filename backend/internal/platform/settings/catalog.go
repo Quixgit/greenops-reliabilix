@@ -30,6 +30,8 @@ const (
 	KeyEnabledLocales = "i18n.enabled_locales"
 
 	KeyCarbonMaxRequests = "carbon.max_requests_per_day"
+	KeyCarbonAutoLoad    = "carbon.auto_load_history"
+	KeyCarbonAutoDays    = "carbon.auto_load_days"
 
 	// Unit costs of serving an organization (USD): inputs of the console's estimated cost per organization.
 	KeyCostBase       = "costs.base_per_organization_month"
@@ -151,6 +153,8 @@ func definitions() []Def {
 		{Key: KeyCarbonOverrides, Group: "carbon", Title: "Source per region", Description: "Use a specific source for a region, before the priority list. One entry per line as region=source, for example eu-west-2=uk_carbon_intensity.",
 			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity)$`},
 		intDef(KeyCarbonMaxRequests, "carbon", "Requests per day to the grid data provider", "Cost control: once this many requests were made today to the provider (all processes together), no more are made until the next UTC day, and stored readings are used. 0 is unlimited.", ScopePlatform, 2000, 0, 1000000, "requests", "The hourly refresh needs about one request per region in use; loading past data needs one per region per 9 days."),
+		boolDef(KeyCarbonAutoLoad, "carbon", "Load the past of a region by itself", "Every day, a region in use whose last days are not covered by grid data gets its past loaded from every source that can supply it, and the affected calculations are redone. Requests count against the daily cap.", ScopePlatform, true, "Turn off to load history only by hand from this page."),
+		intDef(KeyCarbonAutoDays, "carbon", "How far back to load by itself", "The window the automatic loading covers and recalculates.", ScopePlatform, 90, 7, 365, "days", ""),
 		intDef(KeyCarbonMinReadings, "carbon", "Readings a source needs per day", "A source's mean counts as the day's intensity only with at least this many readings that day; fewer is used only when no source has enough and is marked partial.", ScopePlatform, 6, 1, 24, "readings", "Readings are hourly."),
 		intDef(KeyCarbonMaxAgeHours, "carbon", "Oldest reading used for a day without data", "For a day with no readings, the last reading before it is used if it is not older than this; an older one is used only as a marked estimate.", ScopePlatform, 72, 1, 720, "hours", ""),
 

@@ -134,6 +134,17 @@
   "roles.name": "Name",
   "roles.new": "New role",
   "roles.none": "No custom roles yet. A custom role is a named set of permissions you give to members.",
+  "schedule.avg": "Average {best} gCO₂e/kWh against {now} if started now",
+  "schedule.basis": "Forecast of average grid intensity from {source}: advice, not a guarantee.",
+  "schedule.best": "Start at {start}",
+  "schedule.duration": "Job length",
+  "schedule.hint": "For pipelines, backups and batch jobs that can wait: the start time with the cleanest grid in the forecast. CI pipelines can ask the same through the API (GET /ci/schedule).",
+  "schedule.no_regions": "No region with carbon yet.",
+  "schedule.none": "There is no forecast stored for this region yet. Forecasts come from the configured grid sources.",
+  "schedule.region": "Region",
+  "schedule.saving": "about {pct}% cleaner",
+  "schedule.title": "Best time to run a flexible job",
+  "schedule.within": "Start within",
   "settings.tab.plan": "Plan",
   "settings.tab.roles": "Roles"
 }

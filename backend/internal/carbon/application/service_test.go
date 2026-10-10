@@ -22,6 +22,8 @@ type fakeStore struct {
 	totals    map[string]domain.Totals // by methodology version
 	replaced  []string                 // versions passed to ReplaceCalculations
 	dayAvg    map[string]float64       // mean reading of the usage day, per region
+	coverage  []domain.RegionCoverage
+	forecast  []domain.ForecastPoint
 }
 
 func (f *fakeStore) Summary(context.Context, string, *string, time.Time, time.Time) (domain.Summary, error) {
@@ -58,6 +60,12 @@ func (f *fakeStore) DayStats(_ context.Context, region, provider string, _, _ ti
 func (f *fakeStore) Latest(_ context.Context, region, provider string, _ *time.Time) (float64, time.Time, bool, error) {
 	g, ok := f.stored[region]
 	return g, time.Now(), ok && provider == domain.ProviderElectricityMaps, nil
+}
+func (f *fakeStore) Forecast(context.Context, string, string, time.Time, time.Time) ([]domain.ForecastPoint, error) {
+	return f.forecast, nil
+}
+func (f *fakeStore) RegionCoverage(context.Context, int) ([]domain.RegionCoverage, error) {
+	return f.coverage, nil
 }
 func (f *fakeStore) RegionsInUse(context.Context) ([]string, error) { return nil, nil }
 func (f *fakeStore) Monthly(context.Context, string, string, time.Time) (float64, bool, error) {
@@ -235,6 +243,9 @@ type fakeExtra struct{ calls int }
 
 func (f *fakeExtra) ID() string                                   { return "uk_carbon_intensity" }
 func (f *fakeExtra) Covers(_ context.Context, region string) bool { return region == "eu-west-2" }
+func (f *fakeExtra) Forecast(context.Context, string, time.Time, time.Time) ([]domain.Intensity, error) {
+	return nil, nil
+}
 func (f *fakeExtra) Range(_ context.Context, region string, from, _ time.Time) ([]domain.Intensity, error) {
 	f.calls++
 	return []domain.Intensity{{Region: region, GPerKWh: 150, At: from.Add(30 * time.Minute)}}, nil
@@ -262,5 +273,51 @@ func TestAdditionalSourceIsAskedOnlyForTheRegionsItCovers(t *testing.T) {
 	}
 	if st.savedGrid["eu-west-2"] != 150 {
 		t.Errorf("readings not stored: %v", st.savedGrid)
+	}
+}
+
+type projectsSrc struct{ refs []ProjectRef }
+
+func (p projectsSrc) ProjectsForJobs(context.Context) ([]ProjectRef, error) { return p.refs, nil }
+
+// A region with gaps gets its past loaded and every project recalculated; a covered region is left alone.
+func TestAutoLoadHistoryTouchesOnlyRegionsWithGaps(t *testing.T) {
+	st := &fakeStore{coverage: []domain.RegionCoverage{{Region: "eu-west-2", Covered: 10, Total: 90}, {Region: "us-east-1", Covered: 90, Total: 90}}}
+	x := &fakeExtra{}
+	svc, q := newSvc(st, nil, unitsSrc{}, &grid{g: 400}, domain.Thresholds{})
+	svc.Store = regionsStore{fakeStore: st, regions: []string{"eu-west-2", "us-east-1"}}
+	svc.Extras = []HourlyExtra{x}
+	svc.Projects = projectsSrc{refs: []ProjectRef{{TenantID: "t", ProjectID: "p"}}}
+	res, err := svc.AutoLoadHistory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Regions) != 1 || res.Regions[0] != "eu-west-2" {
+		t.Errorf("regions = %v, want only the one with gaps", res.Regions)
+	}
+	if x.calls != 1 || res.Recalc != 1 || len(q.tasks) == 0 {
+		t.Errorf("extra calls=%d recalculated=%d queued=%v", x.calls, res.Recalc, q.tasks)
+	}
+	// nothing to do: nothing is asked
+	st.coverage = []domain.RegionCoverage{{Region: "eu-west-2", Covered: 90, Total: 90}}
+	x.calls = 0
+	if res, _ := svc.AutoLoadHistory(context.Background()); len(res.Regions) != 0 || x.calls != 0 {
+		t.Errorf("a covered region must be left alone: %+v calls=%d", res, x.calls)
+	}
+}
+
+func TestScheduleAdviceUsesTheStoredForecast(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Hour)
+	st := &fakeStore{forecast: []domain.ForecastPoint{
+		{At: now, G: 400}, {At: now.Add(time.Hour), G: 380}, {At: now.Add(2 * time.Hour), G: 120}, {At: now.Add(3 * time.Hour), G: 110}, {At: now.Add(4 * time.Hour), G: 300},
+	}}
+	svc, _ := newSvc(st, nil, unitsSrc{}, &grid{g: 400}, domain.Thresholds{})
+	w, src, err := svc.ScheduleAdvice(context.Background(), "eu-central-1", 2*time.Hour, 5*time.Hour)
+	if err != nil || src != domain.ProviderElectricityMaps || !w.Start.Equal(now.Add(2*time.Hour)) {
+		t.Fatalf("%+v %q %v", w, src, err)
+	}
+	st.forecast = nil
+	if _, _, err := svc.ScheduleAdvice(context.Background(), "eu-central-1", time.Hour, 5*time.Hour); !errors.Is(err, domain.ErrNoForecast) {
+		t.Errorf("no forecast = %v", err)
 	}
 }

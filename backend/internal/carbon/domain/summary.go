@@ -87,3 +87,10 @@ type IntensityOrigin struct {
 	Basis    string
 	CarbonKg float64
 }
+
+// RegionCoverage is how many of the last Total days a region has grid data for.
+type RegionCoverage struct {
+	Region  string
+	Covered int
+	Total   int
+}

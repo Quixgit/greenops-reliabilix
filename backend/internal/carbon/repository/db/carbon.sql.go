@@ -228,6 +228,51 @@ func (q *Queries) IntensityDayStats(ctx context.Context, arg IntensityDayStatsPa
 	return i, err
 }
 
+const intensityForecast = `-- name: IntensityForecast :many
+SELECT ts, g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND is_forecast
+  AND ts >= $3 AND ts < $4
+ORDER BY ts
+`
+
+type IntensityForecastParams struct {
+	RegionID string    `json:"region_id"`
+	Provider string    `json:"provider"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+type IntensityForecastRow struct {
+	Ts time.Time `json:"ts"`
+	G  float64   `json:"g"`
+}
+
+// One source's stored forecast points of a region in [from, to) (forecasts are never used for calculations).
+func (q *Queries) IntensityForecast(ctx context.Context, arg IntensityForecastParams) ([]IntensityForecastRow, error) {
+	rows, err := q.db.Query(ctx, intensityForecast,
+		arg.RegionID,
+		arg.Provider,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IntensityForecastRow{}
+	for rows.Next() {
+		var i IntensityForecastRow
+		if err := rows.Scan(&i.Ts, &i.G); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const intensityHistory = `-- name: IntensityHistory :many
 SELECT date_trunc('day', ts)::timestamptz AS day, provider, avg(g_co2e_per_kwh)::float8 AS mean,
        min(g_co2e_per_kwh)::float8 AS lo, max(g_co2e_per_kwh)::float8 AS hi, count(*)::int AS n

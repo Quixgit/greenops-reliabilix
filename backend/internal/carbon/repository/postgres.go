@@ -231,3 +231,34 @@ func (r Postgres) RegionsInUse(ctx context.Context) ([]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// RegionCoverage reports, per region in use, how many of the last `days` days have grid data.
+func (r Postgres) RegionCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT region_id, covered_days, total_days FROM carbon.region_coverage($1)`, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.RegionCoverage
+	for rows.Next() {
+		var c domain.RegionCoverage
+		if err := rows.Scan(&c.Region, &c.Covered, &c.Total); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// Forecast returns one source's stored forecast points of a region in [from, to).
+func (r Postgres) Forecast(ctx context.Context, region, provider string, from, to time.Time) ([]domain.ForecastPoint, error) {
+	rows, err := db.New(r.Pool).IntensityForecast(ctx, db.IntensityForecastParams{RegionID: region, Provider: provider, FromTs: from, ToTs: to})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.ForecastPoint, 0, len(rows))
+	for _, x := range rows {
+		out = append(out, domain.ForecastPoint{At: x.Ts, G: x.G})
+	}
+	return out, nil
+}

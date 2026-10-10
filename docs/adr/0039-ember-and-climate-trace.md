@@ -1,6 +1,6 @@
 # ADR-0039: A free second grid source (Ember), Climate TRACE evaluated, and monthly resolution
 
-Status: accepted · 0.1.0-alpha.33
+Status: accepted · 0.1.0-alpha.34
 
 ## Context
 The platform asked for a free source of grid carbon intensity as an alternative to, or an aggregate with, Electricity Maps.
@@ -32,7 +32,7 @@ Climate TRACE was the candidate named.
 - A region whose country Ember does not cover simply has no monthly figure. Country matching uses the zone map.
 - Monthly national averages are not zone-specific: they are a fallback, and are labelled so in every view and report row.
 
-## Update (0.1.0-alpha.33): UK Carbon Intensity
+## Update (0.1.0-alpha.34): UK Carbon Intensity
 The UK Carbon Intensity API (National Grid ESO) is connected: free, no key, half-hourly measured values for Great Britain
 (only the `actual` value is stored; a forecast never is). It covers the cloud regions whose zone is GB, is refreshed with the
 hourly grid refresh and loads its past through the same backfill, and sits second in the default order (Electricity Maps,

@@ -52,3 +52,22 @@ func (u ukciSource) Range(ctx context.Context, region string, from, to time.Time
 	}
 	return out, nil
 }
+
+// Forecast returns the forecast half-hours for planning; they are stored as forecasts, never as readings.
+func (u ukciSource) Forecast(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error) {
+	c := ukci.New()
+	if base := u.ints.ValueOrDefault(ctx, "uk_carbon_intensity", "base_url"); base != "" {
+		c.BaseURL = base
+	}
+	c.Allow = func(ctx context.Context) error { return u.meter.Allow(ctx, domain.ProviderUKCI) }
+	c.Done = func(ctx context.Context, failed bool) { u.meter.Record(ctx, domain.ProviderUKCI, failed) }
+	rs, err := c.Forecast(ctx, from, to)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Intensity, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, domain.Intensity{Region: region, GPerKWh: r.G, At: r.At, IsForecast: true, Measure: domain.MeasureAverage})
+	}
+	return out, nil
+}

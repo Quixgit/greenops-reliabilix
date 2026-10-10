@@ -39,6 +39,15 @@ export const intensityHistory = z.object({
 });
 export type IntensityHistory = z.infer<typeof intensityHistory>;
 
+export const scheduleAdvice = z.object({
+  region: z.string(), source: z.string(), basis: z.string(),
+  window: z.object({
+    start: z.string(), end: z.string(), average_g_per_kwh: z.number(), now_start: z.string(), now_average_g_per_kwh: z.number(),
+    saving_pct: z.number(), points: z.number(),
+  }),
+});
+export type ScheduleAdvice = z.infer<typeof scheduleAdvice>;
+
 export const finopsSummary = z.object({
   has_data: z.boolean(),
   total_cost: z.number(),

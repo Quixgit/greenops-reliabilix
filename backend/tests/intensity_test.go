@@ -158,3 +158,44 @@ func TestMonthlyNationalFigureFillsDaysWithoutHourlyReadings(t *testing.T) {
 		t.Errorf("days=0 = %d, want 400", code)
 	}
 }
+
+// Stored forecasts give a start time for a flexible job, for people and for CI pipelines; and the coverage function
+// that drives the automatic loading of a region's past runs.
+func TestScheduleAdviceFromStoredForecastsAndRegionCoverage(t *testing.T) {
+	ctx := context.Background()
+	owner, apiPool := pool(t, "TEST_OWNER_DSN"), pool(t, "TEST_API_DSN")
+	cfg := devConfig(t.TempDir())
+	apiC, err := app.Build(ctx, cfg, quietLog(), apiPool, &taskRec{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app.NewRouter(cfg, quietLog(), apiC.Verifier, apiC.Resolver, apiPool.Ping, apiC.Modules()...))
+	defer srv.Close()
+	c := api{t: t, srv: srv}
+
+	rid := fmt.Sprint(time.Now().UnixNano())
+	region := "zz-sched-" + rid[len(rid)-6:]
+	alice := fmt.Sprintf("dev:sch-%s:-:-:sch-%s@example.com", rid, rid)
+	c.must("POST", "/api/v1/onboarding", alice, `{"organization_name":"Schedule Test Org"}`, 201)
+	t.Cleanup(func() { _, _ = owner.Exec(ctx, `DELETE FROM carbon.grid_intensity WHERE region_id = $1`, region) })
+
+	now := time.Now().UTC().Truncate(time.Hour)
+	for i, g := range []float64{400, 390, 380, 150, 120, 110, 300, 350, 360, 370} {
+		if _, err := owner.Exec(ctx, `INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution) VALUES ('electricitymaps',$1,$2,$3,true,'average','hourly')`,
+			region, now.Add(time.Duration(i)*time.Hour), g); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a := c.must("GET", "/api/v1/carbon/schedule?region="+region+"&duration_hours=2&within_hours=8", alice, "", 200)
+	w := sub(a, "window")
+	if a["source"] != "electricitymaps" || w == nil || w["average_g_per_kwh"].(float64) != 115 || w["saving_pct"].(float64) < 50 {
+		t.Errorf("advice = %v", a)
+	}
+	c.must("GET", "/api/v1/carbon/schedule?region="+region+"&duration_hours=2&within_hours=1", alice, "", 400)
+	c.must("GET", "/api/v1/carbon/schedule?region=zz-nothing-1&duration_hours=1", alice, "", 404)
+
+	var n int
+	if err := owner.QueryRow(ctx, `SELECT count(*) FROM carbon.region_coverage(30)`).Scan(&n); err != nil {
+		t.Errorf("region coverage: %v", err)
+	}
+}

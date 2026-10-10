@@ -51,7 +51,7 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 		{ID: "ember", Name: "Ember", Category: "grid_intensity", Access: domain.AccessFree, State: state(ints != nil && ints.Value(ctx, "ember", "api_key") != ""),
 			Metrics:  []string{"Monthly national carbon intensity (gCO2e/kWh)"},
 			Coverage: "Countries (not sub-national zones); monthly, published with a delay of about two months",
-			Terms:    "Free with an API key; CC-BY 4.0: credit Ember where figures are shown.",
+			Terms:    "Free with an API key. Ember states CC-BY 4.0 for its data; some libraries cite CC BY-SA 4.0. Credit Ember where figures are shown and check its terms before redistributing derived data.",
 			Note:     "A coarse second source behind Electricity Maps. It fills days where no hourly reading exists and is labelled “monthly average”; it never replaces hourly readings.", IntegrationID: "ember"},
 		{ID: "aws-cost", Name: "AWS (Cost Explorer, FOCUS export)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
 			Metrics:  []string{"Cost", "Usage quantities", "Instance hours", "Storage"},

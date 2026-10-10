@@ -8,7 +8,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/charts/sparkline";
-import { useCarbonSummary, useCarbonTrend, useIntensityHistory, useMethodologyVersions } from "@/hooks/use-overview";
+import { useCarbonSummary, useCarbonTrend, useIntensityHistory, useMethodologyVersions, useScheduleAdvice } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { periodRange } from "@/lib/store";
 import { useUi } from "@/lib/store";
@@ -58,11 +58,52 @@ function IntensityHistoryCard() {
   );
 }
 
+/** When to run a flexible job (a pipeline, a backup, a batch) so that it uses the cleanest grid hours, from the forecast. */
+function ScheduleCard() {
+  const t = useT();
+  const regions = useIntensityHistory(undefined).data?.regions ?? [];
+  const [region, setRegion] = useState<string | undefined>();
+  const [duration, setDuration] = useState(2);
+  const [within, setWithin] = useState(24);
+  const chosen = region ?? regions[0]?.region;
+  const q = useScheduleAdvice(chosen, duration, within);
+  const hhmm = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+  const sel = "rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line";
+  return (
+    <Card index={3}>
+      <CardHeader title={t("schedule.title")} />
+      <p className="mb-3 text-sm text-muted">{t("schedule.hint")}</p>
+      {regions.length === 0 ? <p className="text-sm text-muted">{t("schedule.no_regions")}</p> : (<>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <label className="flex items-center gap-2">{t("schedule.region")}
+            <select value={chosen} onChange={(e) => setRegion(e.target.value)} className={sel}>{regions.map((r) => <option key={r.region} value={r.region}>{r.region}</option>)}</select></label>
+          <label className="flex items-center gap-2">{t("schedule.duration")}
+            <select value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={sel}>{[1, 2, 4, 8, 12].map((h) => <option key={h} value={h}>{h} h</option>)}</select></label>
+          <label className="flex items-center gap-2">{t("schedule.within")}
+            <select value={within} onChange={(e) => setWithin(Number(e.target.value))} className={sel}>{[12, 24, 48].filter((h) => h >= duration).map((h) => <option key={h} value={h}>{h} h</option>)}</select></label>
+        </div>
+        <div className="mt-4">
+          {q.isLoading ? <Skeleton className="h-12" /> : q.isError || !q.data ? <p className="text-sm text-muted">{t("schedule.none")}</p> : (
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200">
+              <p className="font-semibold text-emerald-900">{t("schedule.best", { start: hhmm(q.data.window.start) })}</p>
+              <p className="mt-1 text-emerald-900/80">
+                {t("schedule.avg", { best: Math.round(q.data.window.average_g_per_kwh), now: Math.round(q.data.window.now_average_g_per_kwh) })}
+                {q.data.window.saving_pct >= 1 && <> · <b>{t("schedule.saving", { pct: Math.round(q.data.window.saving_pct) })}</b></>}
+              </p>
+              <p className="mt-1 text-xs text-emerald-900/70">{t("schedule.basis", { source: SOURCE_LABEL[q.data.source] ?? q.data.source })}</p>
+            </div>
+          )}
+        </div>
+      </>)}
+    </Card>
+  );
+}
+
 function IntensityOriginCard({ origins, measured }: { origins: { source: string; basis: string; share_pct: number }[]; measured: number | null }) {
   const t = useT();
   if (origins.length === 0) return null;
   return (
-    <Card index={3}>
+    <Card index={4}>
       <CardHeader title={t("carbon.intensity_origin")} />
       <p className="mb-3 text-sm text-muted">
         {measured === null ? "" : <><b className="text-ink">{measured.toFixed(0)}%</b> of the carbon in this period uses the mean of the day’s own readings. </>}
@@ -112,6 +153,7 @@ export function CarbonView() {
           <Sparkline values={trend.data!.map((p) => p.carbon_kg_co2e)} width={420} height={56} />}
       </Card>
       <IntensityHistoryCard />
+      <ScheduleCard />
       {sum.data && <IntensityOriginCard origins={sum.data.intensity_origins} measured={sum.data.intensity_measured_share_pct} />}
       <Card index={4}>
         <CardHeader title={t("carbon.methodology")} action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
