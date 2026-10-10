@@ -1,42 +1,77 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnomalies, useConnections } from "@/hooks/use-overview";
+import { useAlerts, useAnomalies } from "@/hooks/use-overview";
 import { useDeliveries } from "@/hooks/use-admin";
+import { api } from "@/lib/api/client";
+import type { Alert } from "@/lib/api/schemas";
+import { alert as alertSchema } from "@/lib/api/schemas";
 import { formatCost, timeAgo } from "@/lib/formatters";
 
+const FILTERS = ["new", "acknowledged", "muted", "resolved", "all"] as const;
+const SEV = { critical: "bad", warning: "warn", info: "neutral" } as const;
+
+function AlertRow({ a, canAct }: { a: Alert; canAct: boolean }) {
+  const qc = useQueryClient();
+  const act = useMutation({
+    mutationFn: (what: "acknowledge" | "mute" | "unmute") => api(`alerts/${a.id}/${what}`, alertSchema, undefined, { method: "POST", body: "{}" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+  const btn = "rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
+  return (
+    <li className="space-y-1.5 py-3 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="font-medium">{a.title}</p>
+        <span className="flex items-center gap-1.5"><Badge tone={SEV[a.severity]}>{a.severity}</Badge><Badge tone="neutral">{a.status}</Badge></span>
+      </div>
+      {a.detail && <p className="text-xs text-muted">{a.detail}</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-muted">since {timeAgo(a.first_seen_at)}{a.resolved_at ? ` · resolved ${timeAgo(a.resolved_at)}` : ""}</span>
+        {canAct && a.status !== "resolved" && (
+          <span className="flex gap-1.5">
+            {a.status === "new" && <button className={btn} disabled={act.isPending} onClick={() => act.mutate("acknowledge")}>Acknowledge</button>}
+            {a.status !== "muted" && <button className={btn} disabled={act.isPending} onClick={() => act.mutate("mute")}>Mute</button>}
+            {a.status === "muted" && <button className={btn} disabled={act.isPending} onClick={() => act.mutate("unmute")}>Unmute</button>}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
 /** Everything that needs attention, derived from data the platform already holds: no invented alerts. */
-export function AlertsView() {
+export function AlertsView({ canAct = false }: { canAct?: boolean }) {
+  const [status, setStatus] = useState<(typeof FILTERS)[number]>("new");
+  const stored = useAlerts(status);
   const anomalies = useAnomalies();
-  const connections = useConnections();
   const deliveries = useDeliveries();
-  const badConnections = (connections.data ?? []).filter((c) => c.sync_status === "error");
   const failed = (deliveries.data ?? []).filter((d) => d.status === "failed");
-  const loading = anomalies.isLoading || connections.isLoading;
-  const empty = !loading && !anomalies.data?.length && !badConnections.length && !failed.length;
+  const loading = anomalies.isLoading;
+  const empty = !loading && !anomalies.data?.length && !failed.length;
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
-      {loading ? <Skeleton className="h-24" /> : anomalies.isError || connections.isError ? <ErrorState /> : empty && (
-        <Card><EmptyState icon={Bell} text="Nothing needs attention: no cost anomalies, failing connections or undelivered notifications." /></Card>
-      )}
-      {badConnections.length > 0 && (
-        <Card index={0}>
-          <CardHeader title="Integration health" action={<Link href="/connectors" className="text-sm font-medium text-primary">Open connectors</Link>} />
-          <ul className="divide-y divide-line/70 text-sm">
-            {badConnections.map((c) => (
-              <li key={c.id} className="flex items-center justify-between py-2.5">
-                <span><b className="uppercase">{c.provider}</b> <span className="text-muted">{c.account_ref}</span></span>
-                <Badge tone="bad">needs attention</Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
+      <Card index={0}>
+        <CardHeader title="Alerts" />
+        <div role="tablist" className="mb-2 flex flex-wrap gap-2">
+          {FILTERS.map((f) => (
+            <button key={f} role="tab" aria-selected={f === status} onClick={() => setStatus(f)}
+              className={`rounded-full px-3 py-1 text-xs font-medium capitalize ring-1 ring-line ${f === status ? "bg-primary text-white" : "bg-white"}`}>{f}</button>
+          ))}
+        </div>
+        {stored.isLoading ? <Skeleton className="h-16" /> : stored.isError ? <ErrorState /> : stored.data!.length === 0 ?
+          <EmptyState icon={Bell} text="No alerts here. Budgets and connections are checked every hour." /> :
+          <ul className="divide-y divide-line/70">{stored.data!.map((a) => <AlertRow key={a.id} a={a} canAct={canAct} />)}</ul>}
+      </Card>
+      {loading ? <Skeleton className="h-24" /> : anomalies.isError ? <ErrorState /> : empty && (
+        <Card><EmptyState icon={Bell} text="No cost anomalies and no undelivered notifications." /></Card>
       )}
       {!!anomalies.data?.length && (
         <Card index={1}>

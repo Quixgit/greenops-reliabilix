@@ -40,12 +40,14 @@ type Deps struct {
 type Module struct {
 	h   chttp.Handlers
 	svc application.Service
+	// Svc is exported for the composition root, which adapts it to the ports of other modules.
+	Svc application.Service
 }
 
 func New(d Deps) *Module {
 	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Notify: d.Notify, Settings: d.Settings, Limits: d.Limits, Queue: d.Queue,
 		Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, PlatformGCPServiceAccount: d.PlatformGCPServiceAccount, BackfillDays: d.BackfillDays}
-	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc}
+	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc, Svc: svc}
 }
 
 func (*Module) Name() string          { return "cloudaccounts" }

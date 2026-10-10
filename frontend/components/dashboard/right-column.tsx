@@ -16,13 +16,13 @@ import { cn } from "@/lib/utils";
 export function PromoBanner() {
   const b = content.promoBanner;
   return (
-    <Card index={1} interactive={false} className="group relative overflow-hidden border-0 p-0 shadow-[0_8px_30px_rgba(31,52,110,0.10)]">
+    <Card index={1} interactive={false} className="group relative overflow-hidden p-0 shadow-[0_2px_10px_rgba(31,52,110,0.05)]">
       <div className="absolute inset-0 bg-[#cfdcf3] bg-cover bg-center transition-transform duration-[1800ms] ease-[var(--ease-out-soft)] group-hover:scale-105" style={{ backgroundImage: `url(${b.imageUrl})` }} aria-hidden />
       <div className="absolute inset-0 bg-gradient-to-r from-white/75 via-white/25 to-transparent" aria-hidden />
       <div className="relative flex min-h-[204px] flex-col justify-center gap-2.5 p-6">
         <h2 className="text-[22px] font-bold tracking-tight text-ink">{b.title}</h2>
         <p className="max-w-[230px] text-[13px] leading-snug text-slate-600">{b.text}</p>
-        <Link href="/recommendations" className="mt-1.5 inline-flex w-fit items-center gap-2 rounded-xl bg-navy-active px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition-all duration-300 hover:-translate-y-0.5 hover:bg-navy hover:shadow-xl">
+        <Link href="/recommendations" className="mt-1.5 inline-flex w-fit items-center gap-2 rounded-xl bg-navy-active px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition-all duration-300 hover:-translate-y-0.5 hover:bg-navy hover:shadow-md">
           {b.cta} <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
         </Link>
       </div>

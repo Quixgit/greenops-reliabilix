@@ -56,3 +56,5 @@ export const useMethodologyVersions = () =>
 export const useConnection = (id: string) => useQuery({ queryKey: ["connection", id], queryFn: () => api(`cloud-accounts/${id}`, s.connectionDetail) });
 export const useSyncRuns = (id: string) =>
   useQuery({ queryKey: ["sync-runs", id], queryFn: () => api(`cloud-accounts/${id}/sync-runs`, s.syncRuns) });
+export const useAlerts = (status: string) =>
+  useQuery({ queryKey: ["alerts", status], queryFn: () => api("alerts", s.alerts, { status: status === "all" ? undefined : status, limit: "100" }) });

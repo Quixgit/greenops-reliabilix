@@ -270,3 +270,17 @@ export const syncRun = z.object({
 });
 export type SyncRun = z.infer<typeof syncRun>;
 export const syncRuns = items(syncRun);
+
+export const alert = z.object({
+  id: z.string(),
+  kind: z.enum(["budget", "connection_error", "data_quality"]),
+  severity: z.enum(["info", "warning", "critical"]),
+  status: z.enum(["new", "acknowledged", "muted", "resolved"]),
+  title: z.string(),
+  detail: z.string(),
+  first_seen_at: z.string(),
+  last_seen_at: z.string(),
+  resolved_at: z.string().nullable(),
+});
+export type Alert = z.infer<typeof alert>;
+export const alerts = items(alert);

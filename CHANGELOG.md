@@ -5,6 +5,17 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.7] - 2026-10-10
+
+### Added
+- Alerts ([ADR-0028](docs/adr/0028-alerts.md)): stored alerts with a lifecycle (new, acknowledged, muted, resolved),
+  opened and resolved by an hourly evaluation of budgets (80 % warning, 100 % critical) and connection health
+  (errors, cost data that does not match the cloud); `alert.opened` notification; acknowledge/mute on the Alerts page.
+  API contract 0.5.0. Migration 0020.
+
+### Changed
+- UI: softer card shadows and a fainter fading divider for a calmer, more uniform look.
+
 ## [0.1.0-alpha.6] - 2026-10-10
 
 ### Added

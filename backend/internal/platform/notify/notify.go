@@ -41,6 +41,7 @@ const (
 	TypeConnectionError        = "connection.error"
 	TypeConnectionDataQuality  = "connection.data_quality"
 	TypeRecommendationVerified = "recommendation.verified"
+	TypeAlertOpened            = "alert.opened"
 	TypeNotificationTest       = "notification.test" // only ever sent by the "send a test" action
 )
 
@@ -61,6 +62,7 @@ func Catalog() []TypeInfo {
 		{TypeReportFailed, "A requested report could not be generated", Warning},
 		{TypeConnectionError, "A cloud connection needs attention (access was denied or validation failed)", Warning},
 		{TypeConnectionDataQuality, "Stored cost data differs from the totals the cloud reports for some days", Warning},
+		{TypeAlertOpened, "A budget or connection alert was opened", Warning},
 		{TypeRecommendationVerified, "The measured result of an applied recommendation is available", Info},
 	}
 }

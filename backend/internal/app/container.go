@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/alerts"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/automation"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon"
 	carbondomain "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
@@ -120,17 +121,20 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})
+	finopsM := finops.New(pool)
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 
+	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc},
+		Tenants: alertTenants{projects: projectsM.Svc}, Notify: notifyM.Svc, Log: log})
 	lifecycleM := lifecycle.New(lifecycle.Deps{Pool: pool, Store: store, Settings: cfgr, Log: log})
 
 	c := &Container{}
 	c.modules = []httpx.Module{
-		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finops.New(pool),
-		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM,
+		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
+		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, alertsM,
 	}
 	c.Settings = cfgr
-	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM}
+	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM, alertsM}
 
 	switch {
 	case cfg.IsDev():

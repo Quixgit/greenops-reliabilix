@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.4.0
+  version: 0.5.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -260,6 +260,138 @@ paths:
         '403':
           $ref: '#/components/responses/Problem'
         '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/alerts:
+    get:
+      operationId: listAlerts
+      summary: Alerts of the organization (budgets and connections)
+      tags:
+      - alerts
+      description: |
+        Requires permission `project:read`. Alerts are opened and resolved by an hourly evaluation; people can
+        acknowledge or mute them. Most urgent first, resolved ones last.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - new
+          - acknowledged
+          - muted
+          - resolved
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      summary: Acknowledge an alert
+      tags:
+      - alerts
+      description: Requires permission `alert:write` and a person (not an API key).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/alerts/{id}/mute:
+    post:
+      operationId: muteAlert
+      summary: Mute an alert (it still resolves by itself)
+      tags:
+      - alerts
+      description: Requires permission `alert:write` and a person (not an API key).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/alerts/{id}/unmute:
+    post:
+      operationId: unmuteAlert
+      summary: Return a muted alert to new
+      tags:
+      - alerts
+      description: Requires permission `alert:write` and a person (not an API key).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
   /api/v1/members:
     get:
@@ -3621,6 +3753,64 @@ components:
         execute_after:
           type: string
           format: date-time
+      additionalProperties: true
+    Alert:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+          - budget
+          - connection_error
+          - data_quality
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        status:
+          type: string
+          enum:
+          - new
+          - acknowledged
+          - muted
+          - resolved
+        title:
+          type: string
+        detail:
+          type: string
+        project_id:
+          type: string
+          nullable: true
+        object_ref:
+          type: string
+        value:
+          type: number
+          nullable: true
+        threshold:
+          type: number
+          nullable: true
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        acknowledged_by:
+          type: string
+          nullable: true
+        acknowledged_at:
+          type: string
+          format: date-time
+          nullable: true
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
       additionalProperties: true
     CarbonTrendPoint:
       type: object
