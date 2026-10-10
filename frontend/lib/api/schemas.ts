@@ -245,3 +245,28 @@ export const anomalies = items(anomaly);
 export const carbonTrend = items(z.object({ day: z.string(), carbon_kg_co2e: z.number() }));
 
 export const methodologyVersions = items(z.object({ version: z.string(), status: z.string(), provenance: z.string(), active: z.boolean() }));
+
+// Result of reconciling one sync with the cloud's own totals (ADR-0024). "unchecked" is never shown as "ok".
+export const dataQuality = z.object({
+  status: z.enum(["ok", "mismatch", "unchecked"]),
+  checked_days: z.number(),
+  mismatch_days: z.number(),
+  max_diff_pct: z.number(),
+  mismatched_days: z.array(z.string()).nullish(),
+  note: z.string().nullish(),
+  checked_at: z.string(),
+});
+export type DataQuality = z.infer<typeof dataQuality>;
+export const connectionDetail = z.object({
+  connection: z.object({
+    id: z.string(), project_id: z.string(), provider: z.string(), account_ref: z.string(), sync_status: z.string(),
+    last_error: z.string().nullable(), last_sync_at: z.string().nullable(), synced_through: z.string().nullable(),
+    data_quality: dataQuality.nullable(),
+  }),
+});
+export const syncRun = z.object({
+  id: z.string(), started_at: z.string(), finished_at: z.string().nullable(), status: z.string(), records: z.number(),
+  error: z.string().nullable(), quality: dataQuality.nullable(),
+});
+export type SyncRun = z.infer<typeof syncRun>;
+export const syncRuns = items(syncRun);

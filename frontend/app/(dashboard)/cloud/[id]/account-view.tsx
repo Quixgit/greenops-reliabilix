@@ -1,0 +1,104 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Badge, statusTone } from "@/components/ui/badge";
+import { Card, CardHeader } from "@/components/ui/card";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConnection, useSyncRuns } from "@/hooks/use-overview";
+import { api } from "@/lib/api/client";
+import { z } from "zod";
+import type { DataQuality } from "@/lib/api/schemas";
+import { shortTime } from "@/lib/format-time";
+
+const QUALITY = {
+  ok: { tone: "good", label: "Matches the cloud" },
+  mismatch: { tone: "bad", label: "Does not match the cloud" },
+  unchecked: { tone: "neutral", label: "Not checked" },
+} as const;
+
+function Quality({ q }: { q: DataQuality | null }) {
+  if (!q) return <p className="text-sm text-muted">No synchronization has been checked yet.</p>;
+  const m = QUALITY[q.status];
+  return (
+    <div className="space-y-2 text-sm">
+      <p className="flex items-center gap-2"><Badge tone={m.tone}>{m.label}</Badge><span className="text-xs text-muted">checked {shortTime(q.checked_at)}</span></p>
+      {q.status !== "unchecked" && (
+        <p className="text-muted">
+          {q.checked_days} days compared with the cloud's own totals; {q.mismatch_days} differ
+          {q.mismatch_days > 0 && <> (largest difference {q.max_diff_pct.toFixed(1)}%)</>}.
+        </p>
+      )}
+      {q.mismatched_days && q.mismatched_days.length > 0 && <p className="text-xs text-muted">Days: {q.mismatched_days.join(", ")}. They are read again on the next sync.</p>}
+      {q.note && <p className="text-xs text-muted">{q.note}</p>}
+    </div>
+  );
+}
+
+export function AccountView({ id, canWrite }: { id: string; canWrite: boolean }) {
+  const qc = useQueryClient();
+  const conn = useConnection(id);
+  const runs = useSyncRuns(id);
+  const act = useMutation({
+    mutationFn: (what: "sync" | "verify") => api(`cloud-accounts/${id}/${what}`, z.unknown(), undefined, { method: "POST", body: "{}" }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["connection", id] }); void qc.invalidateQueries({ queryKey: ["sync-runs", id] }); },
+  });
+  const c = conn.data?.connection;
+  return (
+    <div className="space-y-5">
+      <Link href="/cloud" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" />Cloud accounts</Link>
+      {conn.isLoading ? <Skeleton className="h-32" /> : conn.isError || !c ? <ErrorState text="This account could not be loaded." /> : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold tracking-tight"><span className="uppercase">{c.provider}</span> <span className="font-medium text-muted">{c.account_ref}</span></h1>
+            {canWrite && (
+              <div className="flex gap-2">
+                <button disabled={act.isPending} onClick={() => act.mutate("verify")} className="rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60">Test connection</button>
+                <button disabled={act.isPending} onClick={() => act.mutate("sync")} className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60">Sync now</button>
+              </div>
+            )}
+          </div>
+          {act.isError && <p role="alert" className="text-sm text-bad">{act.error.message}</p>}
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card index={0}>
+              <CardHeader title="Connection" />
+              <dl className="grid grid-cols-[130px_1fr] gap-y-2 text-sm">
+                <dt className="text-muted">Status</dt><dd><Badge tone={statusTone(c.sync_status)}>{c.sync_status}</Badge></dd>
+                <dt className="text-muted">Last sync</dt><dd>{c.last_sync_at ? shortTime(c.last_sync_at) : "never"}</dd>
+                <dt className="text-muted">Data read up to</dt><dd>{c.synced_through ? shortTime(c.synced_through) : "—"}</dd>
+                <dt className="text-muted">Last error</dt><dd className={c.last_error ? "text-bad" : ""}>{c.last_error ?? "none"}</dd>
+              </dl>
+            </Card>
+            <Card index={1}>
+              <CardHeader title="Data quality" />
+              <Quality q={c.data_quality} />
+            </Card>
+          </div>
+          <Card index={2}>
+            <CardHeader title="Sync history" />
+            {runs.isLoading ? <Skeleton className="h-24" /> : runs.isError ? <ErrorState /> : runs.data!.length === 0 ? <EmptyState icon={ArrowLeft} text="No synchronization has run yet." /> : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-xs text-muted"><tr><th className="py-2 pr-3 font-medium">Started</th><th className="pr-3 font-medium">Status</th><th className="pr-3 font-medium">Records</th><th className="pr-3 font-medium">Data quality</th><th className="font-medium">Error</th></tr></thead>
+                  <tbody className="divide-y divide-line/70">
+                    {runs.data!.map((r) => (
+                      <tr key={r.id}>
+                        <td className="py-2 pr-3 whitespace-nowrap">{shortTime(r.started_at)}</td>
+                        <td className="pr-3"><Badge tone={statusTone(r.status)}>{r.status}</Badge></td>
+                        <td className="pr-3">{r.records}</td>
+                        <td className="pr-3">{r.quality ? <Badge tone={QUALITY[r.quality.status].tone}>{r.quality.status}</Badge> : <span className="text-muted">—</span>}</td>
+                        <td className="max-w-xs truncate text-muted" title={r.error ?? ""}>{r.error ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

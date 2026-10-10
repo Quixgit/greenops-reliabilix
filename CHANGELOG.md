@@ -5,6 +5,17 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6] - 2026-10-10
+
+### Added
+- Cloud account page (`/cloud/<id>`): connection state, the result of the last cost reconciliation with the cloud
+  (matches / does not match / not checked, mismatched days), full sync history with per-run data quality, "Test
+  connection" and "Sync now".
+
+### Fixed
+- `docker-compose.yml`: MinIO images come from `quay.io` (Docker Hub no longer serves `minio/minio`; the server image
+  ships `mc`), so the local stack starts again.
+
 ## [0.1.0-alpha.5] - 2026-10-10
 
 ### Added

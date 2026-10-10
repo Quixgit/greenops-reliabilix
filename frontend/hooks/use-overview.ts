@@ -53,3 +53,6 @@ export const useCarbonTrend = () => {
 };
 export const useMethodologyVersions = () =>
   useQuery({ queryKey: ["methodology-versions"], queryFn: () => api("carbon/methodology/versions", s.methodologyVersions), staleTime: 10 * 60_000 });
+export const useConnection = (id: string) => useQuery({ queryKey: ["connection", id], queryFn: () => api(`cloud-accounts/${id}`, s.connectionDetail) });
+export const useSyncRuns = (id: string) =>
+  useQuery({ queryKey: ["sync-runs", id], queryFn: () => api(`cloud-accounts/${id}/sync-runs`, s.syncRuns) });

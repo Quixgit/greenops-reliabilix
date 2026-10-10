@@ -1,6 +1,7 @@
 "use client";
 
 import { Cloud } from "lucide-react";
+import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +22,7 @@ export function CloudView({ canConnect }: { canConnect: boolean }) {
             <ul className="divide-y divide-line/70 text-sm">
               {q.data!.map((c) => (
                 <li key={c.id} className="flex items-center justify-between py-2.5">
-                  <span><b className="uppercase">{c.provider}</b> <span className="text-muted">{c.account_ref}</span></span>
+                  <Link href={`/cloud/${c.id}`} className="hover:underline"><b className="uppercase">{c.provider}</b> <span className="text-muted">{c.account_ref}</span></Link>
                   <span className="text-xs text-muted">{c.sync_status}{c.last_sync_at ? ` · synced ${timeAgo(c.last_sync_at)}` : ""}</span>
                 </li>
               ))}
