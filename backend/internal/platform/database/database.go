@@ -34,10 +34,15 @@ func Connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 // forgotten "WHERE tenant_id" can never return another tenant's rows. Every
 // tenant-scoped query MUST run through this helper.
 func WithTenantTx(ctx context.Context, pool *pgxpool.Pool, tenantID string, fn func(pgx.Tx) error) error {
+	return WithTenantTxOpts(ctx, pool, tenantID, pgx.TxOptions{}, fn)
+}
+
+// WithTenantTxOpts is WithTenantTx with transaction options, for example a read-only repeatable-read snapshot.
+func WithTenantTxOpts(ctx context.Context, pool *pgxpool.Pool, tenantID string, opts pgx.TxOptions, fn func(pgx.Tx) error) error {
 	if tenantID == "" {
 		return errors.New("database: empty tenant id")
 	}
-	tx, err := pool.Begin(ctx)
+	tx, err := pool.BeginTx(ctx, opts)
 	if err != nil {
 		return err
 	}

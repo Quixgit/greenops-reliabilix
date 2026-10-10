@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DataPanel } from "@/components/settings/data-panel";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
@@ -17,6 +18,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     ...(canSeeNotifications(user.role) ? [{ value: "notifications", label: "Notifications" }] : []),
     ...(canManageTenant(user.role) ? [{ value: "members", label: "Members" }, { value: "keys", label: "API keys" }] : []),
     ...(canSeeSettings(user.role) ? [{ value: "history", label: "Change history" }] : []),
+    ...(user.role === "owner" ? [{ value: "data", label: "Data" }] : []),
   ];
   const [tab, setTab] = useState("profile");
   return (
@@ -38,6 +40,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
       {tab === "notifications" && <NotificationsPanel canEdit={canWrite(user.role)} />}
       {tab === "members" && <MembersPanel />}
       {tab === "keys" && <ApiKeysPanel />}
+      {tab === "data" && <DataPanel />}
     </div>
   );
 }

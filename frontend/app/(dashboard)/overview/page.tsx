@@ -33,7 +33,7 @@ export default function OverviewPage() {
             <ConnectedAccounts />
           </div>
         </div>
-        <div className="space-y-5 xl:pt-1">
+        <div className="col-divider space-y-5 xl:pt-1">
           <PromoBanner />
           <TopRecommendations />
         </div>

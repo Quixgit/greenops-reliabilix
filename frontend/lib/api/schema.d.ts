@@ -136,6 +136,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tenant/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download all of the organization's data (NDJSON stream)
+         * @description Requires permission `tenant:data` (owners, people only). One JSON object per line, `{"table": ..., "row": {...}}`,
+         *     from a single consistent snapshot; the first line describes the export. Secrets (API key hashes, invitation
+         *     tokens, notification targets, AWS ExternalIds) and generated report files are not included.
+         */
+        get: operations["exportOrganizationData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenant/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the erasure of the organization is scheduled
+         * @description Requires permission `tenant:data`.
+         */
+        get: operations["getOrganizationDeletion"];
+        put?: never;
+        /**
+         * Schedule the erasure of the organization after a grace period
+         * @description Requires permission `tenant:data` and a person (not an API key). The exact organization name must be typed.
+         *     Nothing is removed now: everything is erased when the grace period (setting `lifecycle.deletion_grace_days`)
+         *     is over, unless the request is cancelled.
+         */
+        post: operations["scheduleOrganizationDeletion"];
+        /**
+         * Cancel a scheduled erasure
+         * @description Requires permission `tenant:data` and a person.
+         */
+        delete: operations["cancelOrganizationDeletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/members": {
         parameters: {
             query?: never;
@@ -2145,6 +2197,16 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        Deletion: {
+            scheduled?: boolean;
+            requested_by?: string;
+            /** Format: date-time */
+            requested_at?: string;
+            /** Format: date-time */
+            execute_after?: string;
+        } & {
+            [key: string]: unknown;
+        };
         CarbonTrendPoint: {
             /** Format: date-time */
             day?: string;
@@ -2868,6 +2930,101 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    exportOrganizationData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": string;
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOrganizationDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deletion"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    scheduleOrganizationDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    confirm_name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Scheduled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deletion"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    cancelOrganizationDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     listMembers: {

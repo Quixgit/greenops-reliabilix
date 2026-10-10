@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.3.0
+  version: 0.4.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -171,6 +171,95 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/tenant/export:
+    get:
+      operationId: exportOrganizationData
+      summary: Download all of the organization's data (NDJSON stream)
+      tags:
+      - tenant
+      description: |
+        Requires permission `tenant:data` (owners, people only). One JSON object per line, `{"table": ..., "row": {...}}`,
+        from a single consistent snapshot; the first line describes the export. Secrets (API key hashes, invitation
+        tokens, notification targets, AWS ExternalIds) and generated report files are not included.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/tenant/deletion:
+    get:
+      operationId: getOrganizationDeletion
+      summary: Whether the erasure of the organization is scheduled
+      tags:
+      - tenant
+      description: Requires permission `tenant:data`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deletion'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: scheduleOrganizationDeletion
+      summary: Schedule the erasure of the organization after a grace period
+      tags:
+      - tenant
+      description: |
+        Requires permission `tenant:data` and a person (not an API key). The exact organization name must be typed.
+        Nothing is removed now: everything is erased when the grace period (setting `lifecycle.deletion_grace_days`)
+        is over, unless the request is cancelled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - confirm_name
+              properties:
+                confirm_name:
+                  type: string
+      responses:
+        '202':
+          description: Scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deletion'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: cancelOrganizationDeletion
+      summary: Cancel a scheduled erasure
+      tags:
+      - tenant
+      description: Requires permission `tenant:data` and a person.
+      responses:
+        '204':
+          description: Cancelled
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
           $ref: '#/components/responses/Problem'
   /api/v1/members:
     get:
@@ -3518,6 +3607,20 @@ components:
           nullable: true
         note:
           type: string
+      additionalProperties: true
+    Deletion:
+      type: object
+      properties:
+        scheduled:
+          type: boolean
+        requested_by:
+          type: string
+        requested_at:
+          type: string
+          format: date-time
+        execute_after:
+          type: string
+          format: date-time
       additionalProperties: true
     CarbonTrendPoint:
       type: object

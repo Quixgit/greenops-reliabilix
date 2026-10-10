@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // S3Store stores objects in any S3-compatible service (AWS S3, Cloudflare R2, MinIO).
@@ -64,4 +65,33 @@ func (s *S3Store) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 func (s *S3Store) Delete(ctx context.Context, key string) error {
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: &s.bucket, Key: &key})
 	return err
+}
+
+// DeletePrefix lists and deletes every object under prefix, page by page (up to 1000 keys per request).
+func (s *S3Store) DeletePrefix(ctx context.Context, prefix string) error {
+	if err := checkPrefix(prefix); err != nil {
+		return err
+	}
+	p := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{Bucket: &s.bucket, Prefix: &prefix})
+	for p.HasMorePages() {
+		page, err := p.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+		if len(page.Contents) == 0 {
+			continue
+		}
+		ids := make([]types.ObjectIdentifier, 0, len(page.Contents))
+		for _, o := range page.Contents {
+			ids = append(ids, types.ObjectIdentifier{Key: o.Key})
+		}
+		out, err := s.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{Bucket: &s.bucket, Delete: &types.Delete{Objects: ids, Quiet: aws.Bool(true)}})
+		if err != nil {
+			return err
+		}
+		if len(out.Errors) > 0 {
+			return fmt.Errorf("storage: %d objects under %s could not be deleted", len(out.Errors), prefix)
+		}
+	}
+	return nil
 }

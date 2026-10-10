@@ -39,6 +39,8 @@ func main() {
 		"15 5 * * *":  queue.TaskPurgeNotifications, // drop finished deliveries past retention
 		"25 5 * * *":  queue.TaskPurgeErrors,        // drop handled error groups past retention
 		"35 5 * * *":  queue.TaskPurgeOperatorLog,   // operator access records past retention
+		"10 * * * *":  queue.TaskEraseDue,           // organizations whose erasure grace period is over
+		"50 5 * * *":  queue.TaskEnforceRetention,   // usage and carbon partitions past the retention window
 	} {
 		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}"))); err != nil {
 			log.Error("register", "task", task, "err", err)

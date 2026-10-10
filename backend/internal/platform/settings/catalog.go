@@ -14,6 +14,8 @@ const (
 	KeyNotifSendTimeoutSeconds = "notifications.send_timeout_seconds"
 	KeyErrorsRetentionDays     = "errors.retention_days"
 	KeyOperatorLogRetention    = "operator.access_log_retention_days"
+	KeyDataRetentionMonths     = "retention.data_months"
+	KeyDeletionGraceDays       = "lifecycle.deletion_grace_days"
 
 	KeyNotifEnabled        = "notifications.enabled"
 	KeyInviteExpiryDays    = "security.invitation_expiry_days"
@@ -112,6 +114,8 @@ func definitions() []Def {
 		// ---- retention (platform) ----
 		intDef(KeyNotifRetentionDays, "retention", "Delivery history", "Finished notification deliveries are deleted after this many days.", ScopePlatform, 90, 7, 730, "days", ""),
 		intDef(KeyErrorsRetentionDays, "retention", "Handled errors", "Resolved and ignored error groups are deleted after this many days.", ScopePlatform, 90, 7, 730, "days", ""),
+		intDef(KeyDataRetentionMonths, "retention", "Usage and carbon history", "Monthly usage and carbon records older than this many months are dropped, for every organization. 0 keeps everything.", ScopePlatform, 0, 0, 120, "months", "Values from 1 to 12 are treated as 13: period comparisons need a full year of history. Whole months are dropped, never the current one."),
+		intDef(KeyDeletionGraceDays, "retention", "Organization erasure grace period", "Days between an owner requesting the erasure of an organization and the erasure itself. The owner can cancel in that time.", ScopePlatform, 14, 1, 90, "days", ""),
 		intDef(KeyOperatorLogRetention, "retention", "Operator access log", "Operator access records are deleted after this many days.", ScopePlatform, 365, 90, 3650, "days", "Kept long on purpose: it is the record of who looked at what."),
 	}
 }

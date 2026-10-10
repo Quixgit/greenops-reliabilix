@@ -34,6 +34,7 @@ const (
 	PermBudgetWrite    Permission = "budget:write"
 	PermAuditRead      Permission = "audit:read"
 	PermTenantAdmin    Permission = "tenant:admin" // members, invitations, API keys
+	PermTenantData     Permission = "tenant:data"  // export all organization data and schedule its erasure: owners only
 	PermCIEvaluate     Permission = "ci:evaluate"
 
 	// Notifications: where events are delivered. Destinations carry addresses and endpoints, so only people who manage
@@ -67,7 +68,7 @@ var (
 )
 
 var matrix = map[Role]map[Permission]struct{}{
-	RoleOwner: perms(read, manage, []Permission{PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
+	RoleOwner: perms(read, manage, []Permission{PermTenantData, PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	// Admin manages people, connections and settings; it can see plans but does not approve infrastructure changes.
 	RoleAdmin:    perms(read, manage, []Permission{PermAutomationRead}),
 	RoleEngineer: perms(read, []Permission{PermNotificationRead, PermSettingsRead, PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),

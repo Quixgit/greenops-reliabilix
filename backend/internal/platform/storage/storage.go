@@ -18,6 +18,28 @@ type Store interface {
 	Put(ctx context.Context, key string, r io.Reader) error
 	Get(ctx context.Context, key string) (io.ReadCloser, error)
 	Delete(ctx context.Context, key string) error
+	// DeletePrefix removes every object whose key starts with prefix (a tenant erasure). A prefix that matches
+	// nothing is not an error. The prefix must end in "/" so "tenants/ab" cannot match "tenants/abc/...".
+	DeletePrefix(ctx context.Context, prefix string) error
+}
+
+// ErrBadPrefix is returned by DeletePrefix for a prefix that could match more than one tenant.
+var ErrBadPrefix = errors.New("storage: prefix must be a directory-like key ending in /")
+
+func checkPrefix(prefix string) error {
+	if prefix == "" || !strings.HasSuffix(prefix, "/") || strings.Contains(prefix, "..") || strings.HasPrefix(prefix, "/") || strings.Count(strings.Trim(prefix, "/"), "/") < 1 {
+		return ErrBadPrefix
+	}
+	return nil
+}
+
+// TenantPrefix is the prefix of everything one tenant owns in the store.
+func TenantPrefix(tenantID string) (string, error) {
+	k, err := Key(tenantID, "x", "x")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(k, "x/x"), nil
 }
 
 // Key builds a tenant-prefixed object key and rejects path traversal.
@@ -73,4 +95,15 @@ func (s FSStore) Delete(_ context.Context, key string) error {
 		return err
 	}
 	return os.Remove(p)
+}
+
+func (s FSStore) DeletePrefix(_ context.Context, prefix string) error {
+	if err := checkPrefix(prefix); err != nil {
+		return err
+	}
+	p, err := s.abs(strings.TrimSuffix(prefix, "/") + "/x")
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Dir(p))
 }

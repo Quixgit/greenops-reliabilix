@@ -31,6 +31,8 @@ const (
 	TaskSweepNotifications  = "notifications:sweep"                   // re-queue due or stuck deliveries (every minute)
 	TaskPurgeNotifications  = "notifications:purge"                   // drop old finished deliveries (daily)
 	TaskPurgeErrors         = "platform:purge_errors"                 // drop old resolved/ignored error groups (daily)
+	TaskEraseDue            = "lifecycle:erase_due"                   // erase organizations whose grace period is over (hourly)
+	TaskEnforceRetention    = "platform:enforce_retention"            // drop usage and carbon partitions past retention (daily)
 	TaskPurgeOperatorLog    = "platform:purge_operator_log"           // drop operator access records past retention (daily)
 )
 

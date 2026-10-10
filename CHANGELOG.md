@@ -5,6 +5,21 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.5] - 2026-10-10
+
+### Added
+- Data lifecycle ([ADR-0027](docs/adr/0027-data-lifecycle.md)): owner-only export of all organization data (NDJSON,
+  no secrets), erasure of an organization after a cancellable grace period (database in one transaction, files first,
+  personal-data-free tombstone), and platform retention of usage and carbon history by whole months
+  (`retention.data_months`, `lifecycle.deletion_grace_days`). Settings "Data" tab for owners.
+- Object storage `DeletePrefix` (filesystem, memory, S3).
+
+### Changed
+- UI: white page background, slightly stronger card borders, a faint vertical rule that fades at both ends between the
+  Overview content and its right column. The sidebar footer shows the full pre-release version (for example `alpha.5`),
+  taken from the build.
+- API contract 0.4.0 (export and deletion endpoints, additive).
+
 ## [0.1.0-alpha.4] - 2026-10-10
 
 ### Added

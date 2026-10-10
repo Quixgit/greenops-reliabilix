@@ -21,6 +21,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/lifecycle"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/errlog"
@@ -121,13 +122,15 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 
+	lifecycleM := lifecycle.New(lifecycle.Deps{Pool: pool, Store: store, Settings: cfgr, Log: log})
+
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finops.New(pool),
-		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}),
+		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM,
 	}
 	c.Settings = cfgr
-	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM}
+	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM}
 
 	switch {
 	case cfg.IsDev():

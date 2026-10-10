@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 )
 
 func bytesReader(b []byte) io.Reader { return bytes.NewReader(b) }
@@ -29,5 +30,17 @@ func (m *Memory) Get(_ context.Context, key string) (io.ReadCloser, error) {
 
 func (m *Memory) Delete(_ context.Context, key string) error {
 	delete(m.M, key)
+	return nil
+}
+
+func (m *Memory) DeletePrefix(_ context.Context, prefix string) error {
+	if err := checkPrefix(prefix); err != nil {
+		return err
+	}
+	for k := range m.M {
+		if strings.HasPrefix(k, prefix) {
+			delete(m.M, k)
+		}
+	}
 	return nil
 }
