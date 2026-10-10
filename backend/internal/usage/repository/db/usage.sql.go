@@ -11,16 +11,23 @@ import (
 )
 
 const aggregateDaily = `-- name: AggregateDaily :many
-SELECT provider, service_name, service_category, region_id, consumed_unit, currency::text AS currency,
-       date_trunc('day', recorded_at)::timestamptz AS day,
-       COALESCE(sum(consumed_quantity), 0)::float8 AS quantity,
-       sum(billed_cost)::float8 AS billed_cost,
-       (count(consumed_quantity) > 0)::bool AS has_quantity
-FROM usage.usage_records
-WHERE tenant_id = $1 AND project_id = $2
-  AND recorded_at >= $3 AND recorded_at < $4
-GROUP BY provider, service_name, service_category, region_id, consumed_unit, currency, day
-ORDER BY day, service_name
+WITH g AS (
+  SELECT provider, service_name, service_category, region_id, consumed_unit, currency::text AS currency,
+         date_trunc('day', recorded_at)::timestamptz AS day,
+         COALESCE(sum(consumed_quantity), 0)::float8 AS quantity,
+         sum(billed_cost) AS cost,
+         (count(consumed_quantity) > 0)::bool AS has_quantity
+  FROM usage.usage_records
+  WHERE tenant_id = $1 AND project_id = $2
+    AND recorded_at >= $3 AND recorded_at < $4
+  GROUP BY provider, service_name, service_category, region_id, consumed_unit, currency, day
+)
+SELECT g.provider, g.service_name, g.service_category, g.region_id, g.consumed_unit,
+       (CASE WHEN fx.usd IS NULL THEN g.currency ELSE 'USD' END)::text AS currency,
+       g.day, g.quantity, COALESCE(fx.usd, g.cost)::float8 AS billed_cost, g.has_quantity
+FROM g
+LEFT JOIN LATERAL (SELECT finops.convert_cost(g.cost, g.currency, 'USD', g.day::date) AS usd) fx ON true
+ORDER BY g.day, g.service_name
 `
 
 type AggregateDailyParams struct {
@@ -43,7 +50,9 @@ type AggregateDailyRow struct {
 	HasQuantity     bool      `json:"has_quantity"`
 }
 
-// Daily rollup per workload dimension: the input of the carbon engine.
+// Daily rollup per workload dimension: the input of the carbon engine. Cost is converted to USD at the rate of its
+// day (finops.convert_cost), so a bill in euro still gets a cost-based estimate; an amount in a currency without a
+// rate keeps its own currency and the engine skips it rather than guess.
 func (q *Queries) AggregateDaily(ctx context.Context, arg AggregateDailyParams) ([]AggregateDailyRow, error) {
 	rows, err := q.db.Query(ctx, aggregateDaily,
 		arg.TenantID,

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 // "soon" providers are stubs: the connector does not exist yet, so they are never shown as connectable or connected.
 const CLOUDS: { key: string; label: string; icon: LucideIcon; tile: string; soon?: boolean }[] = [
   { key: "aws", label: "AWS", icon: Cloud, tile: "bg-orange-100 text-orange-600" },
-  { key: "azure", label: "Azure", icon: Hexagon, tile: "bg-blue-100 text-blue-600", soon: true },
+  { key: "azure", label: "Azure", icon: Hexagon, tile: "bg-blue-100 text-blue-600" },
   { key: "gcp", label: "GCP", icon: Cloud, tile: "bg-emerald-100 text-emerald-600" },
   { key: "kubernetes", label: "Kubernetes", icon: Box, tile: "bg-sky-100 text-sky-600", soon: true },
 ];

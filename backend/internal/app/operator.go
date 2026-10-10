@@ -53,6 +53,16 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 			Coverage: "Countries (not sub-national zones); monthly, published with a delay of about two months",
 			Terms:    "Free with an API key. Ember states CC-BY 4.0 for its data; some libraries cite CC BY-SA 4.0. Credit Ember where figures are shown and check its terms before redistributing derived data.",
 			Note:     "A coarse second source behind Electricity Maps. It fills days where no hourly reading exists and is labelled “monthly average”; it never replaces hourly readings.", IntegrationID: "ember"},
+		{ID: "eia", Name: "EIA (US generation mix, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: state(ints != nil && ints.Value(ctx, "eia", "api_key") != ""),
+			Metrics:  []string{"Hourly carbon intensity computed from net generation by fuel (gCO2e/kWh)"},
+			Coverage: "United States balancing authorities that map to a cloud region's zone (PJM, MISO, CISO, PACW, PACE, ERCO, SC ...)",
+			Terms:    "Free with an API key; U.S. government data, public domain.",
+			Note:     "Computed, not measured: generic life-cycle factors per fuel applied to EIA-930 generation; imports between balancing authorities are not accounted for. Used behind a source that publishes a measured intensity.", IntegrationID: "eia"},
+		{ID: "energy-charts", Name: "Energy-Charts (Fraunhofer ISE, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: "ready",
+			Metrics:  []string{"Hourly carbon intensity computed from generation by production type (gCO2e/kWh), with history"},
+			Coverage: "European countries whose zone maps to a cloud region (DE, FR, ES, IT, PL, SE, FI, BE, NL, CH, AT, NO, DK, PT, CZ, HU, GR, IE)",
+			Terms:    "Free, no key. Data of the transmission system operators published by Fraunhofer ISE under CC BY 4.0: credit Energy-Charts / Fraunhofer ISE where figures are shown.",
+			Note:     "Computed, not measured: generic life-cycle factors per type applied to the public generation; cross-border flows are not accounted for and pumped storage is left out. It fills the past of European regions without a paid plan.", IntegrationID: "energy_charts"},
 		{ID: "aws-cost", Name: "AWS (Cost Explorer, FOCUS export)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
 			Metrics:  []string{"Cost", "Usage quantities", "Instance hours", "Storage"},
 			Coverage: "Accounts customers connect with a read-only role (External ID)",
@@ -79,14 +89,23 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 			Metrics: []string{"Emissions inventory by sector and country (tonnes)"}, Coverage: "Global; annual totals in the public API, monthly in bulk downloads",
 			Terms: "Free; CC-BY 4.0.",
 			Note:  "Evaluated, not connected as a grid-intensity source: the public API (beta, no availability guarantee) returns emission totals in tonnes without electricity generation, so no gCO2e/kWh can be derived from it. It may later supply power-sector totals as context next to the intensity figures."},
-		{ID: "azure-cost", Name: "Azure Cost Management", Category: "billing", Access: domain.AccessCustomer, State: "planned",
-			Metrics: []string{"Cost", "Usage"}, Coverage: "—", Terms: "Customer data.", Note: "Planned, phase 2."},
+		{ID: "azure-billing", Name: "Microsoft Azure (Cost Management export in Blob Storage)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
+			Metrics:  []string{"Cost", "Virtual machine vCPU hours", "Blob storage capacity"},
+			Coverage: "Subscriptions whose FOCUS cost and usage export the customer granted the platform application read access to",
+			Terms:    "Customer data; the platform's Microsoft Entra application only reads the export container.", Note: platformAzureNote(cfg), IntegrationID: "platform_azure"},
 	}
 }
 
 func platformGCPNote(cfg config.Config) string {
 	if cfg.PlatformGCPProject == "" {
 		return "The platform Google Cloud project is not set; the connector is off."
+	}
+	return ""
+}
+
+func platformAzureNote(cfg config.Config) string {
+	if cfg.PlatformAzureClientID == "" || cfg.PlatformAzureClientSecret == "" {
+		return "The platform Microsoft Entra application id or secret is not set; the connector is off."
 	}
 	return ""
 }

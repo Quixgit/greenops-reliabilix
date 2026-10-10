@@ -46,6 +46,22 @@ var defaultZones = map[string]string{
 	"asia-south1": "IN-WE", "asia-south2": "IN-NO", "asia-southeast1": "SG",
 	"australia-southeast1": "AU-NSW", "australia-southeast2": "AU-VIC",
 	"me-west1": "IL", "me-central1": "QA", "africa-south1": "ZA",
+	// Microsoft Azure regions (lower-case ids without separators never collide with AWS or Google Cloud ones). Same
+	// rule: verified by `admin doctor`, corrected with ELECTRICITYMAPS_ZONE_OVERRIDES.
+	"eastus": "US-MIDA-PJM", "eastus2": "US-MIDA-PJM", "eastus3": "US-SE-SOCO", "centralus": "US-MIDW-MISO",
+	"northcentralus": "US-MIDA-PJM", "southcentralus": "US-TEX-ERCO", "westus": "US-CAL-CISO", "westus2": "US-NW-PACW",
+	"westus3": "US-SW-AZPS", "westcentralus": "US-NW-PACE",
+	"canadacentral": "CA-ON", "canadaeast": "CA-QC", "brazilsouth": "BR-S", "brazilsoutheast": "BR-S",
+	"northeurope": "IE", "westeurope": "NL", "uksouth": "GB", "ukwest": "GB", "francecentral": "FR", "francesouth": "FR",
+	"germanywestcentral": "DE", "germanynorth": "DE", "switzerlandnorth": "CH", "switzerlandwest": "CH",
+	"norwayeast": "NO-NO1", "norwaywest": "NO-NO2", "swedencentral": "SE", "polandcentral": "PL", "italynorth": "IT-NO",
+	"spaincentral": "ES", "austriaeast": "AT", "denmarkeast": "DK-DK2", "belgiumcentral": "BE",
+	"japaneast": "JP-TK", "japanwest": "JP-KN", "koreacentral": "KR", "koreasouth": "KR", "southeastasia": "SG",
+	"eastasia": "HK", "australiaeast": "AU-NSW", "australiasoutheast": "AU-VIC", "australiacentral": "AU-NSW",
+	"centralindia": "IN-WE", "southindia": "IN-SO", "westindia": "IN-WE", "indonesiacentral": "ID", "malaysiawest": "MY-WM",
+	"newzealandnorth": "NZ", "taiwannorth": "TW",
+	"uaenorth": "AE", "uaecentral": "AE", "qatarcentral": "QA", "israelcentral": "IL", "southafricanorth": "ZA",
+	"southafricawest": "ZA", "chilecentral": "CL-SEN",
 }
 
 // DefaultZones returns the built-in cloud region to zone map (a copy).
@@ -303,7 +319,7 @@ func (c *Client) GetHistory(ctx context.Context, region string, from, to time.Ti
 		if err := c.get(ctx, path, &body); err != nil {
 			var se statusError
 			if errors.As(err, &se) && (se.status == http.StatusForbidden || se.status == http.StatusUnauthorized) {
-				return nil, fmt.Errorf("electricitymaps: past data is not available on this key or plan (status %d)", se.status)
+				return nil, fmt.Errorf("electricitymaps: %w (status %d)", domain.ErrPastUnavailable, se.status)
 			}
 			return nil, err
 		}

@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | AWS | cloud | ✅ | `connector/aws` | Cost Explorer, FOCUS data export, rightsizing |
 | Google Cloud | cloud | ✅ | `connector/gcp` | экспорт биллинга в BigQuery, измеренные compute и storage |
-| Microsoft Azure | cloud | 🗓️ фаза 2 | — | Cost Management API |
+| Microsoft Azure | cloud | ✅ | `connector/azure` | экспорт Cost Management (FOCUS) из Blob Storage, измеренные часы VM и хранилище (ADR-0041) |
 | Kubernetes | infrastructure | 🗓️ фаза 2 | — | workloads, утилизация, Kepler |
 | Prometheus | infrastructure | 🗓️ фаза 2 | — | CPU/RAM-метрики |
 | GitHub Actions / GitLab CI | ci-cd | 🗓️ фаза 3 | — | запуски пайплайнов, сборки |
@@ -31,7 +31,8 @@ create (ExternalId выдан) → configure access → verify → select source
 
 1. **Выбор интеграции** из каталога.
 2. **Настройка доступа:** AWS — роль `ReliabilixReadOnly` с ExternalId на подключение; GCP — сервисный аккаунт и
-   проверка владения экспортом. Платформа не хранит долгоживущих ключей (ADR-0010).
+   проверка владения экспортом; Azure — приложение платформы в Entra ID (service principal в тенанте клиента, роль
+   Storage Blob Data Reader на контейнере экспорта) и метка владения в метаданных контейнера. Платформа не хранит долгоживущих ключей (ADR-0010).
 3. **Проверка (`verify`):** учётные данные, права, доступность источника, принадлежность источника этому аккаунту.
 4. **Выбор данных и проекта:** какой источник (Cost Explorer или экспорт), к какому проекту привязано.
 5. **Первая синхронизация и контроль полноты:** сверка с суммой облака (см. часть 04, «Качество данных»).
@@ -60,7 +61,7 @@ FOCUS v1.4. Требования к реализации:
 Исходный набросок предлагал первой волной AWS, Kubernetes, GitHub Actions, Prometheus. По факту:
 
 1. ✅ AWS и GCP (биллинг, сверка качества, рекомендации).
-2. Kubernetes (Kepler → Prometheus → agent) и Azure.
+2. Kubernetes (Kepler → Prometheus → agent).
 3. GitHub Actions / GitLab CI, исполнители Terraform/Kubernetes за отдельными правами.
 
 Kubernetes раньше CI/CD, потому что данные об энергии контейнеров дают больше точности расчёта, чем оценка сборок.

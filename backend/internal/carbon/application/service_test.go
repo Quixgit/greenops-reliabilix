@@ -64,6 +64,10 @@ func (f *fakeStore) Latest(_ context.Context, region, provider string, _ *time.T
 func (f *fakeStore) Forecast(context.Context, string, string, time.Time, time.Time) ([]domain.ForecastPoint, error) {
 	return f.forecast, nil
 }
+func (f *fakeStore) RegionHourlyCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error) {
+	return f.RegionCoverage(ctx, days)
+}
+
 func (f *fakeStore) RegionCoverage(context.Context, int) ([]domain.RegionCoverage, error) {
 	return f.coverage, nil
 }

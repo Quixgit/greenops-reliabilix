@@ -37,6 +37,10 @@ type Config struct {
 	// project in which BigQuery jobs run. Empty PlatformGCPProject = no GCP connector.
 	PlatformGCPServiceAccount string
 	PlatformGCPProject        string
+	// Azure: the platform's own Microsoft Entra application. Customers create its service principal in their tenant
+	// and grant it read access to their export container. Empty id or secret = no Azure connector.
+	PlatformAzureClientID     string
+	PlatformAzureClientSecret string
 	SyncBackfillDays          int
 
 	Auth0Domain   string // e.g. reliabilix.eu.auth0.com
@@ -48,6 +52,10 @@ type Config struct {
 	RateBurst   int
 
 	ElectricityMapsKey           string
+	EmberKey                     string
+	EnergyChartsBaseURL          string
+	UKCIBaseURL                  string
+	EIAKey                       string
 	ElectricityMapsZoneOverrides string // region=ZONE,... (validated at startup)
 	OTLPEndpoint                 string
 
@@ -85,6 +93,8 @@ func Load() (Config, error) {
 
 		PlatformGCPServiceAccount: String("PLATFORM_GCP_SERVICE_ACCOUNT", ""),
 		PlatformGCPProject:        String("PLATFORM_GCP_PROJECT", ""),
+		PlatformAzureClientID:     String("PLATFORM_AZURE_CLIENT_ID", ""),
+		PlatformAzureClientSecret: String("PLATFORM_AZURE_CLIENT_SECRET", ""),
 		SyncBackfillDays:          Int("SYNC_BACKFILL_DAYS", 60),
 		Auth0Domain:               String("AUTH0_DOMAIN", ""),
 		Auth0Audience:             String("AUTH0_AUDIENCE", ""),
@@ -93,6 +103,10 @@ func Load() (Config, error) {
 		RateBurst:                 Int("RATE_BURST", 40),
 
 		ElectricityMapsKey:           String("ELECTRICITYMAPS_API_KEY", ""),
+		EmberKey:                     String("EMBER_API_KEY", ""),
+		EnergyChartsBaseURL:          String("ENERGYCHARTS_BASE_URL", ""),
+		UKCIBaseURL:                  String("UKCI_BASE_URL", ""),
+		EIAKey:                       String("EIA_API_KEY", ""),
 		ElectricityMapsZoneOverrides: String("ELECTRICITYMAPS_ZONE_OVERRIDES", ""),
 		OTLPEndpoint:                 String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 
@@ -110,6 +124,9 @@ func Load() (Config, error) {
 	}
 	if c.PlatformGCPProject != "" && !gcpProjectRe.MatchString(c.PlatformGCPProject) {
 		return c, fmt.Errorf("config: PLATFORM_GCP_PROJECT is not a valid GCP project id")
+	}
+	if c.PlatformAzureClientID != "" && !azureGUIDRe.MatchString(c.PlatformAzureClientID) {
+		return c, fmt.Errorf("config: PLATFORM_AZURE_CLIENT_ID must be an application (client) id GUID")
 	}
 	if c.PlatformGCPServiceAccount != "" && !gcpServiceAccountRe.MatchString(c.PlatformGCPServiceAccount) {
 		return c, fmt.Errorf("config: PLATFORM_GCP_SERVICE_ACCOUNT must be a service account email (…@<project>.iam.gserviceaccount.com)")
@@ -159,6 +176,7 @@ func (c Config) validateNotifications() error {
 
 var (
 	gcpProjectRe        = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	azureGUIDRe         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	gcpServiceAccountRe = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$`)
 )
 

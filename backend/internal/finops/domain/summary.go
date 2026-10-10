@@ -16,6 +16,22 @@ type Summary struct {
 	PreviousComparable bool   `json:"previous_comparable"`
 	Currency           string `json:"currency"`
 	ByService          []Line `json:"by_service"`
+	// Excluded lists currencies whose amounts could not be converted into Currency (no reference rate): they are not in
+	// the totals, and the client says so.
+	Excluded []Excluded `json:"excluded"`
+}
+
+// Excluded is a currency left out of the totals and how many cost rows it has in the window.
+type Excluded struct {
+	Currency string `json:"currency"`
+	Rows     int    `json:"rows"`
+}
+
+// FXRate is the value of one euro in a currency on a day (ECB reference rate).
+type FXRate struct {
+	Day      time.Time
+	Currency string
+	PerEUR   float64
 }
 
 type Line struct {
@@ -107,6 +123,8 @@ func Evaluate(b Budget, spent float64, now time.Time) BudgetStatus {
 }
 
 type Repository interface {
+	LatestRateDay(ctx context.Context) (time.Time, error)
+	SaveRates(ctx context.Context, rates []FXRate) error
 	Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (Summary, error)
 	ListBudgets(ctx context.Context, tenantID string) ([]Budget, error)
 	CreateBudget(ctx context.Context, tenantID string, b Budget) (Budget, error)

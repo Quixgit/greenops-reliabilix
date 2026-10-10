@@ -7,7 +7,9 @@ import type { EChartsCoreOption } from "echarts/core";
 const prefersReduced = () => typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 /** Thin ECharts wrapper: init once, update on option change, resize with the container, dispose on unmount. */
-export function Chart({ option, height, ariaLabel, onReady }: { option: EChartsCoreOption; height: number; ariaLabel: string; onReady?: () => void }) {
+export function Chart({ option, height, ariaLabel, onReady, onClick }: { option: EChartsCoreOption; height: number; ariaLabel: string; onReady?: () => void; onClick?: (p: { name?: string; data?: unknown }) => void }) {
+  const click = useRef(onClick);
+  click.current = onClick;
   const ref = useRef<HTMLDivElement>(null);
   const inst = useRef<ReturnType<typeof echarts.init> | null>(null);
 
@@ -16,6 +18,7 @@ export function Chart({ option, height, ariaLabel, onReady }: { option: EChartsC
     onReady?.();
     const chart = echarts.init(ref.current, undefined, { renderer: "canvas" });
     inst.current = chart;
+    chart.on("click", (p) => click.current?.(p as { name?: string; data?: unknown }));
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(ref.current);
     return () => { ro.disconnect(); chart.dispose(); inst.current = null; };

@@ -98,6 +98,7 @@ func validUser(v string) error {
 var (
 	awsAccount = regexp.MustCompile(`^[0-9]{12}$`)
 	gcpProject = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+	azureGUID  = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 	gcpSA      = regexp.MustCompile(`^[a-z0-9-]{6,30}@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$`)
 	region     = regexp.MustCompile(`^[a-z0-9-]{2,40}$`)
 	bucket     = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
@@ -197,6 +198,13 @@ func Catalog() []Integration {
 			},
 		},
 		{
+			ID: "energy_charts", Name: "Energy-Charts (Fraunhofer ISE)",
+			Description: "Free public electricity generation by production type for European countries, with history (data of the transmission system operators, CC BY 4.0). It needs no key: the platform COMPUTES the carbon intensity from the generation mix with generic life-cycle factors per type, an estimate used behind a source that publishes a measured intensity. The address can be changed for a mirror or a test double.",
+			Fields: []Field{
+				{Key: "base_url", Label: "API address", Env: "ENERGYCHARTS_BASE_URL", Default: "https://api.energy-charts.info", Placeholder: "https://api.energy-charts.info", validate: validURL},
+			},
+		},
+		{
 			ID: "stripe", Name: "Stripe (payments)",
 			Description: "Card payments and subscriptions worldwide, with Apple Pay and Google Pay (turn them on in the Stripe dashboard and register this site's domain for Apple Pay). Customers pay on Stripe's hosted checkout; the platform keeps only the subscription state. Point Stripe's webhook at /api/v1/billing/webhooks/stripe (events customer.subscription.created, updated, deleted).",
 			Fields: []Field{
@@ -269,6 +277,13 @@ func Catalog() []Integration {
 			},
 		},
 		{
+			ID: "eia", Name: "EIA (US grid, computed)", Testable: true,
+			Description: "Hourly net generation by fuel type of United States balancing authorities (EIA-930, free with a key). The platform COMPUTES the carbon intensity from the generation mix with generic life-cycle factors per fuel: an estimate, labelled as such, used behind a source that publishes a measured intensity. Get a free key at eia.gov/opendata.",
+			Fields: []Field{
+				{Key: "api_key", Label: "API key", Secret: true, Required: true, Env: "EIA_API_KEY", Help: "Free; register at eia.gov/opendata. Stored sealed, shown only as configured.", validate: validSecret(8)},
+			},
+		},
+		{
 			ID: "smtp", Name: "E-mail (SMTP)", Testable: true,
 			Description: "Sends e-mail notifications to organization members. TLS is required.",
 			Fields: []Field{
@@ -292,6 +307,14 @@ func Catalog() []Integration {
 			Fields: []Field{
 				{Key: "project", Label: "Job project", Env: "PLATFORM_GCP_PROJECT", Placeholder: "reliabilix-platform", Help: "The project in which BigQuery jobs run.", validate: match(gcpProject, "a Google Cloud project id")},
 				{Key: "service_account", Label: "Service account", Env: "PLATFORM_GCP_SERVICE_ACCOUNT", Placeholder: "reader@reliabilix-platform.iam.gserviceaccount.com", Help: "Shown to customers so they can grant it read access to their dataset.", validate: match(gcpSA, "a service account e-mail")},
+			},
+		},
+		{
+			ID: "platform_azure", Name: "Platform Microsoft Azure application", Startup: true,
+			Description: "The platform's own Microsoft Entra application (multi-tenant) that reads customers' Cost Management exports from Blob Storage. Customers create its service principal in their tenant and grant it Storage Blob Data Reader on their export container. Without an id and a secret the Azure connector is off.",
+			Fields: []Field{
+				{Key: "client_id", Label: "Application (client) id", Env: "PLATFORM_AZURE_CLIENT_ID", Placeholder: "00000000-0000-0000-0000-000000000000", Help: "Shown to customers so they can create its service principal and grant it read access.", validate: match(azureGUID, "an application (client) id GUID")},
+				{Key: "client_secret", Label: "Client secret", Secret: true, Env: "PLATFORM_AZURE_CLIENT_SECRET", Help: "Stored sealed, shown only as configured. Rotate it before it expires.", validate: validSecret(8)},
 			},
 		},
 		{

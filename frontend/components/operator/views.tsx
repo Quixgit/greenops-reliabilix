@@ -19,6 +19,7 @@ import { changed, settingsView, type OperatorTenant } from "@/lib/api/schemas";
 import { useQuery } from "@tanstack/react-query";
 import { shortTime } from "@/lib/format-time";
 import { PageTitle, selectCls, th } from "./parts";
+import { Check_, DataTable, Pill, type Column } from "./ui";
 
 const select = selectCls;
 
@@ -56,6 +57,20 @@ function OrgUsageCard() {
   );
 }
 
+const planTone = (p: string) => (p === "enterprise" ? "violet" : p === "business" ? "info" : p === "team" ? "good" : "neutral") as "violet" | "info" | "good" | "neutral";
+const ORG_COLUMNS: Column<OperatorTenant>[] = [
+  { key: "name", header: "Name", sort: (a, b) => a.name.localeCompare(b.name), render: (t) => t.name },
+  { key: "plan", header: "Plan", sort: (a, b) => a.plan.localeCompare(b.plan), render: (t) => <Pill tone={planTone(t.plan)}>{t.plan}</Pill> },
+  { key: "members", header: "Members", align: "right", sort: (a, b) => a.members - b.members, render: (t) => <span className="tabular-nums">{t.members}</span> },
+  { key: "projects", header: "Projects", align: "right", hideBelow: "md", sort: (a, b) => a.projects - b.projects, render: (t) => <span className="tabular-nums">{t.projects}</span> },
+  { key: "conns", header: "Connections", align: "right", sort: (a, b) => a.connections - b.connections,
+    render: (t) => <span className="tabular-nums">{t.connections}{t.connections_in_error > 0 && <span className="ml-1.5 font-medium text-bad">· {t.connections_in_error} error</span>}</span> },
+  { key: "dest", header: "Destinations", align: "right", hideBelow: "lg", render: (t) => <span className="tabular-nums">{t.destinations}</span> },
+  { key: "failed", header: "Failed (7 d)", align: "right", hideBelow: "md", sort: (a, b) => a.failed_deliveries_7d - b.failed_deliveries_7d,
+    render: (t) => (t.failed_deliveries_7d > 0 ? <Pill tone="warn">{t.failed_deliveries_7d}</Pill> : <span className="text-muted">0</span>) },
+  { key: "created", header: "Created", hideBelow: "lg", sort: (a, b) => a.created_at.localeCompare(b.created_at), render: (t) => <span className="whitespace-nowrap text-muted">{shortTime(t.created_at)}</span> },
+];
+
 export function OrganizationsView() {
   const tenants = useOperatorTenants();
   const [sort, setSort] = useState<OrgSort>("created");
@@ -77,30 +92,13 @@ export function OrganizationsView() {
       <Card interactive={false}>
         <CardHeader title={`All organizations${tenants.data ? ` (${rows.length})` : ""}`} action={
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} className="accent-[var(--color-primary)]" />Needs attention</label>
+            <Check_ label="Needs attention" checked={onlyAttention} onChange={setOnlyAttention}>Needs attention</Check_>
             <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as OrgSort)} className={selectCls}>
               <option value="created">Newest first</option><option value="name">Name</option><option value="members">Most members</option><option value="attention">Most problems</option>
             </select>
           </div>} />
         {tenants.isLoading ? <Skeleton className="h-32" /> : tenants.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Users} text={onlyAttention ? "No organization has problems right now." : "No organizations yet."} /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr><th className={th}>Name</th><th className={th}>Plan</th><th className={th}>Members</th><th className={th}>Projects</th><th className={th}>Connections</th><th className={th}>Destinations</th><th className={th}>Failed (7 d)</th><th className={th}>Created</th></tr></thead>
-              <tbody className="divide-y divide-line/70">
-                {rows.map((t) => (
-                  <tr key={t.id} className="transition-colors hover:bg-white/60">
-                    <td className="py-2 pr-3 font-medium" title={t.id}><Link href={`/operator/organizations/${t.id}`} className="text-primary hover:underline">{t.name}</Link></td>
-                    <td className="pr-3"><Badge>{t.plan}</Badge></td>
-                    <td className="pr-3">{t.members}</td><td className="pr-3">{t.projects}</td>
-                    <td className="pr-3">{t.connections}{t.connections_in_error > 0 && <Badge tone="bad" className="ml-2">{t.connections_in_error} error</Badge>}</td>
-                    <td className="pr-3">{t.destinations}</td>
-                    <td className="pr-3">{t.failed_deliveries_7d > 0 ? <Badge tone="warn">{t.failed_deliveries_7d}</Badge> : 0}</td>
-                    <td className="whitespace-nowrap text-muted">{shortTime(t.created_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable rows={rows} rowKey={(t) => t.id} href={(t) => `/operator/organizations/${t.id}`} columns={ORG_COLUMNS} />
         )}
       </Card>
       <OrgUsageCard />
@@ -131,31 +129,29 @@ export function ErrorsView() {
         </div>
       </div>
       <Card>
-        {q.isLoading ? <Skeleton className="h-40" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={AlertTriangle} text="No errors in this view. Errors of the api, the worker and the integrations they call are listed here, grouped." /> : (
-          <ul className="divide-y divide-line/70 text-sm">
-            {q.data!.map((e) => (
-              <li key={e.id} className="space-y-1.5 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={SEVERITY_TONE[e.severity]}>{e.severity}</Badge><Badge>{e.service}</Badge>
-                  <code className="text-xs">{e.component}</code>
-                  <span className="text-xs text-muted">× {e.occurrences.toLocaleString()} · last {shortTime(e.last_seen)} · first {shortTime(e.first_seen)}</span>
-                  {e.status !== "open" && <Badge tone="neutral">{e.status}</Badge>}
-                </div>
-                <p className="break-words font-mono text-xs text-slate-700">{e.message}</p>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-                  <span>{e.tenant_name ? `Last seen in “${e.tenant_name}”` : "Not tied to an organization"}{e.last_request_id ? ` · request ${e.last_request_id}` : ""}{e.handled_by ? ` · ${e.status} by ${e.handled_by}` : ""}</span>
-                  {canAct && (
-                    <span className="flex gap-2">
-                      {e.status === "open" ? (<>
-                        <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "resolve" })} className="rounded-lg px-2.5 py-1 font-medium text-primary ring-1 ring-line hover:bg-white">Resolve</button>
-                        <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "ignore" })} className="rounded-lg px-2.5 py-1 font-medium ring-1 ring-line hover:bg-white">Ignore</button>
-                      </>) : <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "reopen" })} className="rounded-lg px-2.5 py-1 font-medium ring-1 ring-line hover:bg-white">Reopen</button>}
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+        {q.isLoading ? <Skeleton className="h-40" /> : q.isError ? <ErrorState /> : (
+          <DataTable rowKey={(e) => e.id} rows={q.data!} initialSort={{ key: "last", dir: "desc" }}
+            empty="No errors in this view. Errors of the api, the worker and the integrations they call are listed here, grouped."
+            columns={[
+              { key: "sev", header: "Severity", sort: (a, b) => a.severity.localeCompare(b.severity), render: (e) => <Pill tone={SEVERITY_TONE[e.severity]}>{e.severity}</Pill> },
+              { key: "where", header: "Where", sort: (a, b) => a.service.localeCompare(b.service),
+                render: (e) => <span><span className="font-medium">{e.service}</span><code className="block text-xs text-muted">{e.component}</code></span> },
+              { key: "msg", header: "Message", render: (e) => (
+                <span className="block max-w-xl">
+                  <span className="line-clamp-2 break-words font-mono text-xs text-slate-700">{e.message}</span>
+                  <span className="mt-0.5 block text-xs text-muted">{e.tenant_name ? `Last seen in “${e.tenant_name}”` : "Not tied to an organization"}{e.last_request_id ? ` · request ${e.last_request_id}` : ""}{e.handled_by ? ` · ${e.status} by ${e.handled_by}` : ""}</span>
+                </span>) },
+              { key: "n", header: "×", align: "right", sort: (a, b) => a.occurrences - b.occurrences, render: (e) => <span className="tabular-nums">{e.occurrences.toLocaleString()}</span> },
+              { key: "last", header: "Last seen", hideBelow: "md", sort: (a, b) => a.last_seen.localeCompare(b.last_seen), render: (e) => <span className="whitespace-nowrap text-muted" title={`first ${shortTime(e.first_seen)}`}>{shortTime(e.last_seen)}</span> },
+              { key: "st", header: "Status", render: (e) => <Pill tone={e.status === "open" ? "bad" : e.status === "resolved" ? "good" : "neutral"}>{e.status}</Pill> },
+              { key: "act", header: "", align: "right", render: (e) => !canAct ? null : (
+                <span className="inline-flex gap-1.5">
+                  {e.status === "open" ? (<>
+                    <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "resolve" })} className="rounded-lg px-2.5 py-1 text-xs font-medium text-primary ring-1 ring-line hover:bg-white">Resolve</button>
+                    <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "ignore" })} className="rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ring-line hover:bg-white">Ignore</button>
+                  </>) : <button type="button" disabled={act.isPending} onClick={() => act.mutate({ id: e.id, action: "reopen" })} className="rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ring-line hover:bg-white">Reopen</button>}
+                </span>) },
+            ]} />
         )}
         {act.isError && <p role="alert" className="mt-2 text-sm text-bad">{act.error.message}</p>}
       </Card>

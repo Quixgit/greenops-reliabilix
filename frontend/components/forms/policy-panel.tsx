@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { Switch } from "@/components/operator/ui";
 import { api } from "@/lib/api/client";
 
 const policy = z.object({
@@ -13,6 +14,7 @@ const policy = z.object({
   ci_cost_warn: z.number().nullable(),
   ci_cost_block: z.number().nullable(),
   alert_carbon_monthly_kg: z.number().nullable().optional(),
+  auto_apply_types: z.array(z.string()).default([]),
 });
 
 const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
@@ -23,9 +25,11 @@ export function PolicyPanel({ projectId, canEdit }: { projectId: string; canEdit
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["policy", projectId], queryFn: () => api(`projects/${projectId}/policy`, policy) });
   const [f, setF] = useState({ regions: "", cw: "", cb: "", kw: "", kb: "", limit: "" });
+  const [auto, setAuto] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
     const p = q.data;
+    if (p) setAuto(p.auto_apply_types);
     if (p) setF({
       regions: p.allowed_regions.join(", "), cw: p.ci_carbon_warn_kg?.toString() ?? "", cb: p.ci_carbon_block_kg?.toString() ?? "",
       kw: p.ci_cost_warn?.toString() ?? "", kb: p.ci_cost_block?.toString() ?? "", limit: p.alert_carbon_monthly_kg?.toString() ?? "",
@@ -36,7 +40,7 @@ export function PolicyPanel({ projectId, canEdit }: { projectId: string; canEdit
       method: "PUT",
       body: JSON.stringify({
         allowed_regions: f.regions.split(",").map((s) => s.trim()).filter(Boolean),
-        ci_carbon_warn_kg: num(f.cw), ci_carbon_block_kg: num(f.cb), ci_cost_warn: num(f.kw), ci_cost_block: num(f.kb), alert_carbon_monthly_kg: num(f.limit),
+        ci_carbon_warn_kg: num(f.cw), ci_carbon_block_kg: num(f.cb), ci_cost_warn: num(f.kw), ci_cost_block: num(f.kb), alert_carbon_monthly_kg: num(f.limit), auto_apply_types: auto,
       }),
     }),
     onSuccess: (p) => { qc.setQueryData(["policy", projectId], p); setMsg({ ok: true, text: "Saved." }); },
@@ -63,6 +67,23 @@ export function PolicyPanel({ projectId, canEdit }: { projectId: string; canEdit
         <input className={`${input} mt-1`} inputMode="decimal" value={f.limit} onChange={set("limit")} disabled={!canEdit} placeholder="no limit" />
         <span className="mt-1 block text-xs text-muted">An alert opens at the warning level and at the limit.</span>
       </label>
+      <div className="rounded-xl bg-white p-3 ring-1 ring-line">
+        <p className="text-sm font-medium">Apply without approval</p>
+        <p className="mb-2 text-xs text-muted">What the platform may do on its own for this project. Everything else waits for a person.</p>
+        <ul className="divide-y divide-line/70 text-sm">
+          <li className="flex items-center gap-3 py-2">
+            <span className="min-w-0 flex-1"><span className="font-medium">Time shifting</span><span className="block text-xs text-muted">Run a flexible job in the cleanest hours of the grid forecast. Repeatable, moves no data.</span></span>
+            <Switch label="Apply time shifting without approval" checked={auto.includes("time_shift")} disabled={!canEdit}
+              onChange={(v) => { setAuto((a) => (v ? [...a, "time_shift"] : a.filter((x) => x !== "time_shift"))); setMsg(null); }} />
+          </li>
+          {[["Region moves", "Moves a workload to another region: data residency, price and latency need a person."], ["Rightsizing", "Changes production infrastructure: always needs approval."], ["Spot migration", "Changes how production runs: always needs approval."]].map(([t, d]) => (
+            <li key={t} className="flex items-center gap-3 py-2 opacity-70">
+              <span className="min-w-0 flex-1"><span className="font-medium">{t}</span><span className="block text-xs text-muted">{d}</span></span>
+              <Switch label={`${t}: always requires approval`} checked={false} disabled onChange={() => undefined} />
+            </li>
+          ))}
+        </ul>
+      </div>
       {msg && <p role="status" className={`text-sm ${msg.ok ? "text-emerald-700" : "text-bad"}`}>{msg.text}</p>}
       {canEdit && <button disabled={save.isPending} onClick={() => save.mutate()} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-60">Save policy</button>}
     </div>

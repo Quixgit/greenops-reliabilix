@@ -15,6 +15,8 @@ import (
 const (
 	TaskSyncAWSAccount      = "cloudaccounts:sync_aws_account"
 	TaskRecommendAll        = "recommendations:calculate_all"
+	TaskRefreshFX           = "finops:refresh_fx"                   // daily: ECB euro reference rates, for converting cost between currencies
+	TaskRefreshPrices       = "recommendations:refresh_price_index" // weekly: relative EC2 price per region (AWS price list)
 	TaskSyncAll             = "cloudaccounts:sync_all"
 	TaskRightsizingAll      = "cloudaccounts:rightsizing_all" // fan-out: one rightsizing job per connection
 	TaskSyncRightsizing     = "cloudaccounts:sync_rightsizing"

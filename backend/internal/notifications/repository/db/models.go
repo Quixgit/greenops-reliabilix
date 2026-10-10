@@ -158,6 +158,13 @@ type FinopsBudget struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type FinopsFxRate struct {
+	Day      time.Time `json:"day"`
+	Currency string    `json:"currency"`
+	PerEur   float64   `json:"per_eur"`
+	Source   string    `json:"source"`
+}
+
 type FinopsRegionPriceIndex struct {
 	Provider  string    `json:"provider"`
 	RegionID  string    `json:"region_id"`
@@ -304,6 +311,7 @@ type ProjectsPolicy struct {
 	CiCostBlock          *float64  `json:"ci_cost_block"`
 	UpdatedAt            time.Time `json:"updated_at"`
 	AlertCarbonMonthlyKg *float64  `json:"alert_carbon_monthly_kg"`
+	AutoApplyTypes       []string  `json:"auto_apply_types"`
 }
 
 type ProjectsProject struct {

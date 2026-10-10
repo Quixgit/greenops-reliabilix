@@ -5,7 +5,7 @@ import { tokens } from "@/design-system/tokens";
 import type { IntensityPoint } from "@/lib/api/schemas";
 import { Chart } from "./chart";
 
-export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity" };
+export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed from generation mix)", energy_charts: "Energy-Charts (computed from generation mix)" };
 const OTHER_COLORS = ["#8b5cf6", "#f59e0b", "#06b6d4"];
 
 /**
@@ -18,6 +18,13 @@ export function IntensityChart({ points, from, to }: { points: IntensityPoint[];
     const byDay = new Map(points.map((p) => [p.day.slice(0, 10), p]));
     const days: string[] = [];
     for (let t = new Date(from.slice(0, 10) + "T00:00:00Z").getTime(); t < new Date(to.slice(0, 10) + "T00:00:00Z").getTime(); t += 86_400_000) days.push(new Date(t).toISOString().slice(0, 10));
+    // A young history (readings only since the source was connected) would be a few dots at the far right of an empty
+    // month: start the axis shortly before the first reading instead, never narrower than a week.
+    if (points.length > 0 && points.length < days.length / 2) {
+      const first = points.map((p) => p.day.slice(0, 10)).sort()[0];
+      const at = Math.max(0, Math.min(days.indexOf(first) - 1, days.length - 7));
+      days.splice(0, at);
+    }
     const get = (d: string, f: (p: IntensityPoint) => number | null) => { const p = byDay.get(d); return p ? f(p) : null; };
     const others = Array.from(new Set(points.flatMap((p) => p.others.map((o) => o.source))));
     const axis = { axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: tokens.color.muted, fontSize: 12 } };

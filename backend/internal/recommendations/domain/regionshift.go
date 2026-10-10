@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -78,7 +79,8 @@ func GenerateRegionShift(in RegionShiftInput) []Recommendation {
 			Confidence: round(math.Min(0.9, (0.5+0.4*math.Min(1, pct/50))*dataFactor), 2),
 			Compliance: ComplianceCheck{Residency: "passed", AllowedRegions: append([]string(nil), in.AllowedRegions...), CheckedAt: in.Now},
 		}
-		if a, b := in.PriceIndex[w.Region], in.PriceIndex[target]; a > 0 && b > 0 {
+		// The index is an EC2 on-demand basket: it is applied to EC2 compute only, never to storage, databases or functions.
+		if a, b := in.PriceIndex[w.Region], in.PriceIndex[target]; a > 0 && b > 0 && isEC2Compute(w.Provider, w.Service) {
 			impact := round(w.Cost*monthly*(b/a-1), 2)
 			rec.CostImpact, rec.CostBasis = &impact, "region_price_index"
 		}
@@ -86,6 +88,12 @@ func GenerateRegionShift(in RegionShiftInput) []Recommendation {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CarbonReductionKg > out[j].CarbonReductionKg })
 	return out
+}
+
+// isEC2Compute reports whether a billed service is EC2 instance compute, the only cost the price index describes.
+func isEC2Compute(provider, service string) bool {
+	s := strings.ToLower(strings.TrimSpace(service))
+	return strings.EqualFold(provider, "aws") && (strings.Contains(s, "elastic compute cloud") || s == "amazon ec2" || s == "ec2")
 }
 
 func round(v float64, places int) float64 {

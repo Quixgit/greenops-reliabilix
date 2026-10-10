@@ -119,24 +119,26 @@ func (q *Queries) DailyCarbon(ctx context.Context, arg DailyCarbonParams) ([]Dai
 }
 
 const dailyCost = `-- name: DailyCost :many
-SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, sum(u.billed_cost)::float8 AS cost, max(u.currency)::text AS currency
+SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.project_id = $2
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.project_id = $2
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS currency
 FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND u.project_id = $2
-  AND ($3::text = '' OR u.service_name = $3::text)
-  AND u.recorded_at >= $4 AND u.recorded_at < $5
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND d.project_id = $2
-      AND d.recorded_at >= $4 AND d.recorded_at < $5
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
+  AND ($5::text = '' OR u.service_name = $5::text)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
 GROUP BY 1 ORDER BY 1
 `
 
 type DailyCostParams struct {
 	TenantID  string    `json:"tenant_id"`
 	ProjectID string    `json:"project_id"`
-	Service   string    `json:"service"`
 	FromTs    time.Time `json:"from_ts"`
 	ToTs      time.Time `json:"to_ts"`
+	Service   string    `json:"service"`
 }
 
 type DailyCostRow struct {
@@ -149,9 +151,9 @@ func (q *Queries) DailyCost(ctx context.Context, arg DailyCostParams) ([]DailyCo
 	rows, err := q.db.Query(ctx, dailyCost,
 		arg.TenantID,
 		arg.ProjectID,
-		arg.Service,
 		arg.FromTs,
 		arg.ToTs,
+		arg.Service,
 	)
 	if err != nil {
 		return nil, err
@@ -554,15 +556,37 @@ func (q *Queries) SetRecommendationStatus(ctx context.Context, arg SetRecommenda
 	return err
 }
 
+const upsertPriceIndex = `-- name: UpsertPriceIndex :exec
+INSERT INTO finops.region_price_index (provider, region_id, idx, source, updated_at)
+VALUES ($1, $2, $3, $4, now())
+ON CONFLICT (provider, region_id) DO UPDATE SET idx = EXCLUDED.idx, source = EXCLUDED.source, updated_at = now()
+`
+
+type UpsertPriceIndexParams struct {
+	Provider string  `json:"provider"`
+	RegionID string  `json:"region_id"`
+	Idx      float64 `json:"idx"`
+	Source   string  `json:"source"`
+}
+
+func (q *Queries) UpsertPriceIndex(ctx context.Context, arg UpsertPriceIndexParams) error {
+	_, err := q.db.Exec(ctx, upsertPriceIndex,
+		arg.Provider,
+		arg.RegionID,
+		arg.Idx,
+		arg.Source,
+	)
+	return err
+}
+
 const workloadCost = `-- name: WorkloadCost :many
-SELECT u.provider, u.service_name, u.region_id, sum(u.billed_cost)::float8 AS cost
+SELECT u.provider, u.service_name, u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.project_id = $2
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
 FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND u.project_id = $2
   AND u.recorded_at >= $3 AND u.recorded_at < $4
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND d.project_id = $2
-      AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY u.provider, u.service_name, u.region_id
 `
 

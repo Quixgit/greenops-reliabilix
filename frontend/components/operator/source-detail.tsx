@@ -12,7 +12,7 @@ import { ACCESS, CATEGORY, PAYMENT_IDS, STATE } from "./data-sources";
 import { IntegrationForm } from "./integrations";
 import { Chip } from "./parts";
 
-const PROVIDER_OF: Record<string, string> = { "aws-cost": "aws", "gcp-billing": "gcp" };
+const PROVIDER_OF: Record<string, string> = { "aws-cost": "aws", "gcp-billing": "gcp", "azure-billing": "azure" };
 
 /** Requests made to the provider: today against the daily cap, the last 7 and 30 days, and failures. Counts only. */
 function RequestUsage({ provider }: { provider: string }) {

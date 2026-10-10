@@ -57,7 +57,7 @@ func (q *Queries) FunctionalUnitsForDay(ctx context.Context, arg FunctionalUnits
 }
 
 const getPolicy = `-- name: GetPolicy :one
-SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg
+SELECT project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg, auto_apply_types
 FROM projects.policies WHERE tenant_id = $1 AND project_id = $2
 `
 
@@ -79,6 +79,7 @@ func (q *Queries) GetPolicy(ctx context.Context, arg GetPolicyParams) (ProjectsP
 		&i.CiCostBlock,
 		&i.UpdatedAt,
 		&i.AlertCarbonMonthlyKg,
+		&i.AutoApplyTypes,
 	)
 	return i, err
 }
@@ -212,12 +213,12 @@ func (q *Queries) UpsertFunctionalUnits(ctx context.Context, arg UpsertFunctiona
 }
 
 const upsertPolicy = `-- name: UpsertPolicy :one
-INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, alert_carbon_monthly_kg)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO projects.policies (project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, alert_carbon_monthly_kg, auto_apply_types)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 ON CONFLICT (project_id) DO UPDATE SET allowed_regions = EXCLUDED.allowed_regions, ci_carbon_warn_kg = EXCLUDED.ci_carbon_warn_kg,
   ci_carbon_block_kg = EXCLUDED.ci_carbon_block_kg, ci_cost_warn = EXCLUDED.ci_cost_warn, ci_cost_block = EXCLUDED.ci_cost_block,
-  alert_carbon_monthly_kg = EXCLUDED.alert_carbon_monthly_kg, updated_at = now()
-RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg
+  alert_carbon_monthly_kg = EXCLUDED.alert_carbon_monthly_kg, auto_apply_types = EXCLUDED.auto_apply_types, updated_at = now()
+RETURNING project_id, tenant_id, allowed_regions, ci_carbon_warn_kg, ci_carbon_block_kg, ci_cost_warn, ci_cost_block, updated_at, alert_carbon_monthly_kg, auto_apply_types
 `
 
 type UpsertPolicyParams struct {
@@ -229,6 +230,7 @@ type UpsertPolicyParams struct {
 	CiCostWarn           *float64 `json:"ci_cost_warn"`
 	CiCostBlock          *float64 `json:"ci_cost_block"`
 	AlertCarbonMonthlyKg *float64 `json:"alert_carbon_monthly_kg"`
+	AutoApplyTypes       []string `json:"auto_apply_types"`
 }
 
 func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (ProjectsPolicy, error) {
@@ -241,6 +243,7 @@ func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (Pro
 		arg.CiCostWarn,
 		arg.CiCostBlock,
 		arg.AlertCarbonMonthlyKg,
+		arg.AutoApplyTypes,
 	)
 	var i ProjectsPolicy
 	err := row.Scan(
@@ -253,6 +256,7 @@ func (q *Queries) UpsertPolicy(ctx context.Context, arg UpsertPolicyParams) (Pro
 		&i.CiCostBlock,
 		&i.UpdatedAt,
 		&i.AlertCarbonMonthlyKg,
+		&i.AutoApplyTypes,
 	)
 	return i, err
 }

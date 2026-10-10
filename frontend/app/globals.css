@@ -129,3 +129,36 @@ button:not(:disabled):active { transform: scale(0.97); }
 .thin-scroll::-webkit-scrollbar-thumb { background-color: rgba(148, 163, 184, 0.35); background-clip: padding-box; border: 4px solid transparent; border-radius: 999px; transition: background-color 0.2s; }
 .thin-scroll:hover::-webkit-scrollbar-thumb { background-color: rgba(148, 163, 184, 0.55); border-width: 3px; }
 .thin-scroll::-webkit-scrollbar-thumb:hover { background-color: rgba(203, 213, 225, 0.85); border-width: 2px; }
+
+/* ---- Region map: only transform and opacity animate (compositor-only); the dots are a canvas ------------------------- */
+@keyframes map-pulse { 0% { transform: scale(0.7); opacity: 0.5; } 100% { transform: scale(2.8); opacity: 0; } }
+@keyframes map-pop { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+@keyframes map-modal-in { from { opacity: 0; transform: translateY(18px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes map-flow { to { stroke-dashoffset: -11; } }
+@keyframes map-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.35); } }
+@keyframes map-spin { to { transform: rotate(360deg); } }
+@keyframes map-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes map-pill-in { from { opacity: 0; margin-top: 4px; } to { opacity: 1; margin-top: 0; } }
+.map-sweep { animation: map-sweep 0.9s cubic-bezier(0.22, 0.8, 0.24, 1) both; }
+.map-wrap { background: radial-gradient(120% 90% at 30% 0%, #fbfcff 0%, #f1f5fc 60%, #eaf0fa 100%); touch-action: none; }
+.map-grabbing { cursor: grabbing; }
+.map-stage { will-change: transform; transform: translate3d(0, 0, 0); }
+.map-stage.map-fly { transition: transform 0.75s cubic-bezier(0.22, 0.8, 0.24, 1); }
+.map-pulse, .map-breathe, .map-ring, .map-pop { transform-box: fill-box; transform-origin: center; }
+.map-pulse { animation: map-pulse 2.8s ease-out infinite; }
+.map-pop { animation: map-pop 0.5s var(--ease-out-soft) both; }
+.map-ring { animation: map-spin 6s linear infinite; }
+.map-breathe { animation: map-breathe 2.2s ease-in-out infinite; }
+.map-arc { stroke-dasharray: 3 2.4; animation: map-flow 1.6s linear infinite; }
+.map-marker .map-core { transition: r 0.2s var(--ease-out-soft); }
+.map-pill { animation: map-pill-in 0.2s ease both; }
+.map-backdrop { animation: fade 0.25s ease both; }
+.map-modal { animation: map-modal-in 0.4s var(--ease-out-soft) both; }
+@media (prefers-reduced-motion: reduce) { .map-pulse, .map-ring, .map-breathe, .map-arc, .map-pop, .map-modal, .map-backdrop, .map-pill, .map-sweep { animation: none; } .map-stage.map-fly { transition: none; } }
+
+/* ---- Personal preferences (Settings -> Preferences) ---------------------------------------------------------------- */
+html[data-density="compact"] .glass { padding: 0.875rem; }
+html[data-density="compact"] main table td { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important;
+}

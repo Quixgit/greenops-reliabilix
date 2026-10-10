@@ -32,14 +32,13 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id) AND 
 GROUP BY provider, service_name, region_id;
 
 -- name: WorkloadCost :many
-SELECT u.provider, u.service_name, u.region_id, sum(u.billed_cost)::float8 AS cost
+SELECT u.provider, u.service_name, u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
 FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND u.project_id = sqlc.arg(project_id)
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
-      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY u.provider, u.service_name, u.region_id;
 
 -- name: LatestIntensities :many
@@ -52,6 +51,11 @@ ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DES
 
 -- name: PriceIndex :many
 SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = sqlc.arg(provider);
+
+-- name: UpsertPriceIndex :exec
+INSERT INTO finops.region_price_index (provider, region_id, idx, source, updated_at)
+VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(idx), sqlc.arg(source), now())
+ON CONFLICT (provider, region_id) DO UPDATE SET idx = EXCLUDED.idx, source = EXCLUDED.source, updated_at = now();
 
 -- name: GetPolicyRegions :one
 SELECT allowed_regions FROM projects.policies WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id);
@@ -68,15 +72,17 @@ WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.project_id = sqlc.arg(project_id) 
 ORDER BY r.applied_at;
 
 -- name: DailyCost :many
-SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, sum(u.billed_cost)::float8 AS cost, max(u.currency)::text AS currency
+SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS currency
 FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND u.project_id = sqlc.arg(project_id)
   AND (sqlc.arg(service)::text = '' OR u.service_name = sqlc.arg(service)::text)
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
-      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY 1 ORDER BY 1;
 
 -- name: DailyCarbon :many

@@ -81,6 +81,26 @@ func TestRegionShiftCostFromPriceIndex(t *testing.T) {
 	}
 }
 
+func TestRegionShiftPriceIndexIsForEC2ComputeOnly(t *testing.T) {
+	in := input()
+	in.PriceIndex = map[string]float64{"us-east-1": 1.0, "us-west-2": 1.1}
+	for _, svc := range []string{"Amazon Relational Database Service", "Amazon Simple Storage Service", "AWS Lambda"} {
+		in.Workloads[0].Service = svc
+		r := GenerateRegionShift(in)[0]
+		if r.CostImpact != nil || r.CostBasis != "not_estimated" {
+			t.Errorf("%s: an EC2 price basket must not price %s (%v %s)", svc, svc, r.CostImpact, r.CostBasis)
+		}
+	}
+	in.Workloads[0].Service = "Amazon Elastic Compute Cloud - Compute"
+	if r := GenerateRegionShift(in)[0]; r.CostImpact == nil || *r.CostImpact != 300 || r.CostBasis != "region_price_index" {
+		t.Errorf("EC2 compute: want +300 from a 10%% dearer region, got %v %s", r.CostImpact, r.CostBasis)
+	}
+	in.Workloads[0].Provider = "gcp"
+	if r := GenerateRegionShift(in)[0]; r.CostImpact != nil {
+		t.Error("an AWS price index must not price another cloud")
+	}
+}
+
 func TestRegionShiftThresholdsAndScaling(t *testing.T) {
 	in := input()
 	in.Intensity["us-west-2"] = 360 // only ~5% cleaner: below the 10% minimum

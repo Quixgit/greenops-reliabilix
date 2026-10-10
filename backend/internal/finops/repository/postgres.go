@@ -16,11 +16,43 @@ import (
 
 type Postgres struct{ Pool *pgxpool.Pool }
 
+// LatestRateDay is the newest day with a stored rate (zero when none): the next refresh only needs what is newer.
+func (r Postgres) LatestRateDay(ctx context.Context) (time.Time, error) {
+	var d *time.Time
+	if err := r.Pool.QueryRow(ctx, `SELECT max(day)::timestamptz FROM finops.fx_rates`).Scan(&d); err != nil {
+		return time.Time{}, err
+	}
+	if d == nil {
+		return time.Time{}, nil
+	}
+	return *d, nil
+}
+
+// SaveRates upserts rates in batches (the first run loads the whole history, about 190 thousand rows).
+func (r Postgres) SaveRates(ctx context.Context, rates []domain.FXRate) error {
+	const batch = 5000
+	for i := 0; i < len(rates); i += batch {
+		end := min(i+batch, len(rates))
+		days := make([]time.Time, 0, end-i)
+		curs := make([]string, 0, end-i)
+		vals := make([]float64, 0, end-i)
+		for _, x := range rates[i:end] {
+			days, curs, vals = append(days, x.Day), append(curs, x.Currency), append(vals, x.PerEUR)
+		}
+		if _, err := r.Pool.Exec(ctx, `INSERT INTO finops.fx_rates (day, currency, per_eur)
+			SELECT d, c, v FROM unnest($1::date[], $2::text[], $3::numeric[]) AS t(d, c, v)
+			ON CONFLICT (day, currency) DO UPDATE SET per_eur = EXCLUDED.per_eur`, days, curs, vals); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Summary aggregates cost by service for the window and totals the preceding window of equal length.
-// Phase 1 assumes a single billing currency: when several exist only the dominant one is reported
-// (FX normalization is phase 2).
+// The reporting currency is the organization's choice, else the dominant one; other currencies are converted at the
+// day's reference rate and an amount without a rate is listed in Excluded.
 func (r Postgres) Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.Summary, error) {
-	s := domain.Summary{ByService: []domain.Line{}}
+	s := domain.Summary{ByService: []domain.Line{}, Excluded: []domain.Excluded{}}
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		q := db.New(tx)
 		rows, err := q.CostByService(ctx, db.CostByServiceParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
@@ -36,6 +68,13 @@ func (r Postgres) Summary(ctx context.Context, tenantID string, project *string,
 				s.ByService = append(s.ByService, domain.Line{Service: x.ServiceName, Cost: x.Cost})
 				s.HasData = true
 			}
+		}
+		ex, err := q.UnconvertedCost(ctx, db.UnconvertedCostParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		for _, x := range ex {
+			s.Excluded = append(s.Excluded, domain.Excluded{Currency: x.Currency, Rows: int(x.Rows)})
 		}
 		prevFrom := from.Add(-to.Sub(from))
 		if s.PreviousTotalCost, err = q.TotalCost(ctx, db.TotalCostParams{TenantID: tenantID, ProjectID: project, Currency: s.Currency, FromTs: prevFrom, ToTs: from}); err != nil {

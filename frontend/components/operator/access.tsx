@@ -13,7 +13,8 @@ import { useOperatorMe, useOperatorRecords } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
 import { operatorRecords } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
-import { PageTitle, selectCls, th } from "./parts";
+import { PageTitle, selectCls } from "./parts";
+import { DataTable, Pill } from "./ui";
 
 /** Operators: who may use the console, with which role. Assigned and withdrawn here; the database enforces the rules. */
 export function AccessView() {
@@ -40,30 +41,29 @@ export function AccessView() {
       <PageTitle title="Access & security" sub="Who may use this console and with which role. A person must have signed in to the platform before they can be made an operator. Every change is written to the audit log." />
       <Card index={0} interactive={false}>
         <CardHeader title="Operators" icon={<ShieldCheck className="size-4 text-primary" aria-hidden />} />
-        {q.isLoading ? <Skeleton className="h-28" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={ShieldCheck} text="No operators." /> : (
-          <div className="overflow-x-auto"><table className="w-full text-sm">
-            <thead><tr><th className={th}>Operator</th><th className={th}>Role</th><th className={th}>Added</th><th className={th}>Last active</th><th className={th}>Actions (30 d)</th><th /></tr></thead>
-            <tbody className="divide-y divide-line/70">{q.data!.map((o) => {
-              const self = o.subject === me.data?.subject;
-              const lastAdmin = o.role === "admin" && admins <= 1;
-              return (
-                <tr key={o.subject}>
-                  <td className="py-2 pr-3 font-medium">{o.email || o.subject}{self && <Badge className="ml-2" tone="neutral">you</Badge>}{o.email && <span className="block text-xs font-normal text-muted">{o.subject}</span>}</td>
-                  <td className="pr-3">
-                    {canAct && !self && o.email ? (
-                      <select aria-label={`Role of ${o.email}`} value={o.role} disabled={assign.isPending || lastAdmin} onChange={(e) => assign.mutate({ email: o.email, role: e.target.value })} className={selectCls}>
-                        <option value="viewer">viewer</option><option value="admin">admin</option>
-                      </select>
-                    ) : <Badge tone={o.role === "admin" ? "good" : "neutral"}>{o.role}</Badge>}
-                  </td>
-                  <td className="pr-3 text-muted">{shortTime(o.created_at)}</td><td className="pr-3 text-muted">{shortTime(o.last_seen_at)}</td><td className="pr-3">{o.actions_30d}</td>
-                  <td className="text-right">
-                    {canAct && !self && !lastAdmin && <ConfirmButton label="Withdraw" confirmLabel="Withdraw access" disabled={withdraw.isPending} onConfirm={() => withdraw.mutate(o.subject)} />}
-                  </td>
-                </tr>
-              );
-            })}</tbody>
-          </table></div>
+        {q.isLoading ? <Skeleton className="h-28" /> : q.isError ? <ErrorState /> : (
+          <DataTable rowKey={(o) => o.subject} rows={q.data!} empty="No operators."
+            columns={[
+              { key: "who", header: "Operator", sort: (a, b) => (a.email || a.subject).localeCompare(b.email || b.subject),
+                render: (o) => <span className="font-medium">{o.email || o.subject}{o.subject === me.data?.subject && <span className="ml-2"><Pill>you</Pill></span>}{o.email && <span className="block text-xs font-normal text-muted">{o.subject}</span>}</span> },
+              { key: "role", header: "Role", sort: (a, b) => a.role.localeCompare(b.role), render: (o) => {
+                const self = o.subject === me.data?.subject;
+                const lastAdmin = o.role === "admin" && admins <= 1;
+                return canAct && !self && o.email ? (
+                  <select aria-label={`Role of ${o.email}`} value={o.role} disabled={assign.isPending || lastAdmin} onChange={(e) => assign.mutate({ email: o.email, role: e.target.value })} className={selectCls}>
+                    <option value="viewer">viewer</option><option value="admin">admin</option>
+                  </select>
+                ) : <Pill tone={o.role === "admin" ? "good" : "neutral"}>{o.role}</Pill>;
+              } },
+              { key: "added", header: "Added", hideBelow: "md", sort: (a, b) => a.created_at.localeCompare(b.created_at), render: (o) => <span className="text-muted">{shortTime(o.created_at)}</span> },
+              { key: "seen", header: "Last active", hideBelow: "md", sort: (a, b) => (a.last_seen_at ?? "").localeCompare(b.last_seen_at ?? ""), render: (o) => <span className="text-muted">{shortTime(o.last_seen_at)}</span> },
+              { key: "acts", header: "Actions (30 d)", align: "right", sort: (a, b) => a.actions_30d - b.actions_30d, render: (o) => <span className="tabular-nums">{o.actions_30d}</span> },
+              { key: "x", header: "", align: "right", render: (o) => {
+                const self = o.subject === me.data?.subject;
+                const lastAdmin = o.role === "admin" && admins <= 1;
+                return canAct && !self && !lastAdmin ? <ConfirmButton label="Withdraw" confirmLabel="Withdraw access" disabled={withdraw.isPending} onConfirm={() => withdraw.mutate(o.subject)} /> : null;
+              } },
+            ]} />
         )}
         {err && <p role="alert" className="mt-3 text-sm text-bad">{err.message}</p>}
       </Card>

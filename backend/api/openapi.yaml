@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.23.0
+  version: 0.28.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -2147,6 +2147,85 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/RegionIntensity'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/regions/footprint:
+    get:
+      operationId: dashboardRegionFootprint
+      summary: Cost, energy and CO2e per cloud region, with a cleaner region of the same cloud when one is clearly better
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RegionFootprint'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/optimization:
+    get:
+      operationId: dashboardOptimization
+      summary: Potential (estimated) and verified (measured) effect of recommendations
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Optimization'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/efficiency:
+    get:
+      operationId: dashboardEfficiency
+      summary: Cost and carbon per unit of work, on days units were reported
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Efficiency'
         '400':
           $ref: '#/components/responses/Problem'
         '401':
@@ -4453,6 +4532,12 @@ components:
           type: number
           nullable: true
           description: Monthly carbon limit of the project in kg CO2e; a carbon alert opens when it is approached. Null = none.
+        auto_apply_types:
+          type: array
+          items:
+            type: string
+            enum: [time_shift]
+          description: Recommendation types applied without approval. Region moves and production changes always need approval.
       additionalProperties: true
     AutomationJob:
       type: object
@@ -4611,16 +4696,18 @@ components:
           enum:
           - aws
           - gcp
-          description: Azure arrives later. GCP is available when the platform has a Google identity configured.
+          - azure
+          description: GCP is available when the platform has a Google identity configured, Azure when it has its Microsoft Entra application configured.
         account_ref:
           type: string
-          description: AWS account id (12 digits) or GCP project id (6-30 lowercase letters, digits, hyphens).
+          description: AWS account id (12 digits), GCP project id (6-30 lowercase letters, digits, hyphens) or Azure subscription id (GUID).
         credential_ref:
           type: string
           description: |
             A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
             GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
-            `gcp_billing_export_resource_v1_*`). Raw keys are rejected.
+            `gcp_billing_export_resource_v1_*`). Azure: `azblob://<tenant id>@<storage account>/<container>/<export directory>`
+            of the Cost Management FOCUS export. Raw keys, SAS tokens and URLs are rejected.
       required:
       - project_id
       - provider
@@ -4632,10 +4719,10 @@ components:
       properties:
         external_id:
           type: string
-          description: Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset.
+          description: Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset. Azure - the container metadata key (hyphens become underscores) the customer sets to 1.
         platform_account_id:
           type: string
-          description: AWS account or GCP service account the customer grants access to.
+          description: AWS account, GCP service account or Azure application (client) id the customer grants access to.
         trust_policy:
           type: object
         permissions_policy:
@@ -4646,7 +4733,7 @@ components:
             type: string
         steps:
           type: array
-          description: Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access).
+          description: Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access; for Azure the export, container metadata, service principal and role).
           items:
             type: string
       additionalProperties: true
@@ -5376,6 +5463,14 @@ components:
         previous_comparable:
           type: boolean
           description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
+        excluded:
+          type: array
+          description: Currencies whose amounts could not be converted into `currency` (no reference rate) and are not in the totals.
+          items:
+            type: object
+            properties:
+              currency: {type: string}
+              rows: {type: integer}
       additionalProperties: true
     Budget:
       type: object
@@ -5513,6 +5608,58 @@ components:
         at:
           type: string
           format: date-time
+      additionalProperties: true
+    RegionFootprint:
+      type: object
+      properties:
+        provider: {type: string}
+        region: {type: string}
+        cost: {type: number}
+        energy_kwh: {type: number}
+        carbon_kg_co2e: {type: number}
+        g_per_kwh: {type: number, nullable: true}
+        alternative:
+          nullable: true
+          type: object
+          description: A cleaner region of the same cloud. Operational effect only; price, latency, residency and availability must be checked.
+          properties:
+            region: {type: string}
+            g_per_kwh: {type: number}
+            carbon_saving_kg: {type: number}
+            carbon_saving_pct: {type: number}
+            cost_estimated: {type: boolean}
+            cost_delta: {type: number, nullable: true, description: Estimated change of the EC2 compute cost in the period if the load ran in the candidate region (list-price index; excludes discounts, data transfer and migration).}
+            cost_basis: {type: string}
+            residency_ok: {type: boolean}
+            checks_required: {type: array, items: {type: string}}
+        relocation_blocked:
+          type: string
+          description: Why no cleaner region is proposed (residency_unknown or residency).
+      additionalProperties: true
+    Optimization:
+      type: object
+      properties:
+        open_count: {type: integer}
+        approved_count: {type: integer}
+        potential_carbon_kg_month: {type: number}
+        potential_saving_month: {type: number}
+        cost_not_estimated_count: {type: integer}
+        auto_apply_count: {type: integer}
+        verified_count: {type: integer}
+        not_realized_count: {type: integer}
+        verified_carbon_kg_month: {type: number}
+        verified_saving_month: {type: number}
+      additionalProperties: true
+    Efficiency:
+      type: object
+      properties:
+        has_units: {type: boolean}
+        unit: {type: string}
+        units: {type: number}
+        days: {type: integer}
+        carbon_g_per_unit: {type: number, nullable: true}
+        cost_per_unit: {type: number, nullable: true}
+        mixed_units: {type: boolean}
       additionalProperties: true
     Activity:
       type: object

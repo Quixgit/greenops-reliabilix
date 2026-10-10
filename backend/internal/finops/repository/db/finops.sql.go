@@ -12,14 +12,13 @@ import (
 
 const anomalies = `-- name: Anomalies :many
 WITH d AS (
-  SELECT date_trunc('day', u.recorded_at)::date AS day, sum(u.billed_cost)::float8 AS cost
+  SELECT date_trunc('day', u.recorded_at)::date AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
   FROM usage.usage_records u
   WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
     AND u.recorded_at >= $3 AND u.recorded_at < $4
-    AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
-      AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
   GROUP BY 1
 ), s AS (
   SELECT day, cost,
@@ -45,7 +44,7 @@ type AnomaliesRow struct {
 }
 
 // Days whose cost exceeds the trailing mean by > 3 standard deviations (needs >= 7 prior days). One currency only:
-// the dominant one of the window (a sum over mixed currencies would be meaningless).
+// the dominant one of the window, other currencies converted at the day's reference rate.
 func (q *Queries) Anomalies(ctx context.Context, arg AnomaliesParams) ([]AnomaliesRow, error) {
 	rows, err := q.db.Query(ctx, anomalies,
 		arg.TenantID,
@@ -77,15 +76,18 @@ func (q *Queries) Anomalies(ctx context.Context, arg AnomaliesParams) ([]Anomali
 }
 
 const costByService = `-- name: CostByService :many
-SELECT u.service_name, u.currency::text AS currency, sum(u.billed_cost)::float8 AS cost
+SELECT u.service_name, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS currency,
+       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
 FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
-      AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
-GROUP BY u.service_name, u.currency ORDER BY cost DESC LIMIT 100
+GROUP BY u.service_name ORDER BY cost DESC LIMIT 100
 `
 
 type CostByServiceParams struct {
@@ -101,8 +103,8 @@ type CostByServiceRow struct {
 	Cost        float64 `json:"cost"`
 }
 
-// Cost per service in the DOMINANT currency of the window (largest total absolute cost). Amounts in different
-// currencies are never added together; FX normalization does not exist yet.
+// Cost per service in the DOMINANT currency of the window (largest total absolute cost). Amounts in other currencies
+// are converted at the day's ECB reference rate; an amount without a rate is left out (never guessed).
 func (q *Queries) CostByService(ctx context.Context, arg CostByServiceParams) ([]CostByServiceRow, error) {
 	rows, err := q.db.Query(ctx, costByService,
 		arg.TenantID,
@@ -260,30 +262,81 @@ func (q *Queries) ListBudgets(ctx context.Context, tenantID string) ([]ListBudge
 }
 
 const totalCost = `-- name: TotalCost :one
-SELECT COALESCE(sum(billed_cost), 0)::float8 AS cost
+SELECT COALESCE(sum(CASE WHEN $1::text = '' THEN billed_cost
+                       ELSE finops.convert_cost(billed_cost, currency::text, $1::text, recorded_at::date) END), 0)::float8 AS cost
 FROM usage.usage_records
-WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
-  AND ($3::text = '' OR currency = $3::text)
+WHERE tenant_id = $2 AND ($3::uuid IS NULL OR project_id = $3)
   AND recorded_at >= $4 AND recorded_at < $5
 `
 
 type TotalCostParams struct {
+	Currency  string    `json:"currency"`
 	TenantID  string    `json:"tenant_id"`
 	ProjectID *string   `json:"project_id"`
-	Currency  string    `json:"currency"`
 	FromTs    time.Time `json:"from_ts"`
 	ToTs      time.Time `json:"to_ts"`
 }
 
 func (q *Queries) TotalCost(ctx context.Context, arg TotalCostParams) (float64, error) {
 	row := q.db.QueryRow(ctx, totalCost,
+		arg.Currency,
 		arg.TenantID,
 		arg.ProjectID,
-		arg.Currency,
 		arg.FromTs,
 		arg.ToTs,
 	)
 	var cost float64
 	err := row.Scan(&cost)
 	return cost, err
+}
+
+const unconvertedCost = `-- name: UnconvertedCost :many
+SELECT u.currency::text AS currency, count(*)::int AS rows
+FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+  AND finops.convert_cost(1, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date) IS NULL
+GROUP BY 1 ORDER BY 2 DESC
+`
+
+type UnconvertedCostParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type UnconvertedCostRow struct {
+	Currency string `json:"currency"`
+	Rows     int32  `json:"rows"`
+}
+
+// Currencies with amounts in the window that have no reference rate for the reporting currency: they are left out of the
+// totals, and the overview says which and how many, so a total is never silently short.
+func (q *Queries) UnconvertedCost(ctx context.Context, arg UnconvertedCostParams) ([]UnconvertedCostRow, error) {
+	rows, err := q.db.Query(ctx, unconvertedCost,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UnconvertedCostRow{}
+	for rows.Next() {
+		var i UnconvertedCostRow
+		if err := rows.Scan(&i.Currency, &i.Rows); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

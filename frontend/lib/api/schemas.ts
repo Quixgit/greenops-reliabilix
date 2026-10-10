@@ -55,6 +55,7 @@ export const finopsSummary = z.object({
   previous_comparable: z.boolean(),
   currency: z.string(),
   by_service: z.array(z.object({ service: z.string(), cost: z.number() })),
+  excluded: z.array(z.object({ currency: z.string(), rows: z.number() })).default([]),
 });
 export type FinopsSummary = z.infer<typeof finopsSummary>;
 
@@ -75,6 +76,29 @@ export const regions = items(z.object({
   region: z.string(), g_per_kwh: z.number(), change_pct: z.number().nullable(), at: z.string(),
 }));
 export type RegionIntensity = z.infer<typeof regions>[number];
+
+export const regionFootprint = items(z.object({
+  provider: z.string(), region: z.string(), cost: z.number(), energy_kwh: z.number(), carbon_kg_co2e: z.number(), g_per_kwh: z.number().nullable(),
+  alternative: z.object({
+    region: z.string(), g_per_kwh: z.number(), carbon_saving_kg: z.number(), carbon_saving_pct: z.number(),
+    cost_estimated: z.boolean(), cost_delta: z.number().nullable().default(null), cost_basis: z.string().optional(), residency_ok: z.boolean().default(false), checks_required: z.array(z.string()),
+  }).nullable(),
+  relocation_blocked: z.string().optional(),
+}));
+export type RegionFootprint = z.infer<typeof regionFootprint>[number];
+
+export const optimization = z.object({
+  open_count: z.number(), approved_count: z.number(), potential_carbon_kg_month: z.number(), potential_saving_month: z.number(),
+  cost_not_estimated_count: z.number(), auto_apply_count: z.number().default(0), verified_count: z.number(), not_realized_count: z.number(),
+  verified_carbon_kg_month: z.number(), verified_saving_month: z.number(),
+});
+export type Optimization = z.infer<typeof optimization>;
+
+export const efficiency = z.object({
+  has_units: z.boolean(), unit: z.string(), units: z.number(), days: z.number(), mixed_units: z.boolean(),
+  carbon_g_per_unit: z.number().nullable(), cost_per_unit: z.number().nullable(),
+});
+export type Efficiency = z.infer<typeof efficiency>;
 
 export const activity = items(z.object({ id: z.number(), action: z.string(), target: z.string(), at: z.string() }));
 export type Activity = z.infer<typeof activity>[number];
@@ -443,3 +467,6 @@ export const alert = z.object({
 });
 export type Alert = z.infer<typeof alert>;
 export const alerts = items(alert);
+
+export const automationJobs = items(z.object({ id: z.string(), kind: z.string(), status: z.string() }));
+export type AutomationJobLite = z.infer<typeof automationJobs>[number];

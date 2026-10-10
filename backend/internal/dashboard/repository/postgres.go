@@ -3,7 +3,10 @@ package repository
 
 import (
 	"context"
+	"math"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -106,4 +109,207 @@ func (r Postgres) Activity(ctx context.Context, tenantID string, limit int) ([]d
 		return err
 	})
 	return out, err
+}
+
+// minRelocationSavingPct: a cleaner region is only proposed when it is at least this much cleaner; below it the grid
+// reading noise is larger than the effect.
+const minRelocationSavingPct = 15.0
+
+// RegionFootprint joins cost and carbon per (cloud, region) with the latest grid reading, and proposes the cleanest
+// region of the same cloud when it is clearly better.
+func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domain.RegionFootprint, error) {
+	type key struct{ p, r string }
+	rows := map[key]*domain.RegionFootprint{}
+	get := func(p, reg string) *domain.RegionFootprint {
+		k := key{p, reg}
+		if rows[k] == nil {
+			rows[k] = &domain.RegionFootprint{Provider: p, Region: reg}
+		}
+		return rows[k]
+	}
+	// allowedFor: per (cloud, region) the regions every project using it may move to; unknown when one has no allow-list.
+	ec2Cost := map[string]float64{}
+	priceIdx := map[string]float64{}
+	allowedFor := map[key]map[string]bool{}
+	unknown := map[key]bool{}
+	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		res, err := q.DashboardRegionResidency(ctx, db.DashboardRegionResidencyParams{TenantID: f.TenantID, ProjectID: f.Project, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		for _, x := range res {
+			k := key{x.Provider, x.RegionID}
+			if len(x.AllowedRegions) == 0 {
+				unknown[k] = true
+				continue
+			}
+			set := map[string]bool{}
+			for _, a := range x.AllowedRegions {
+				set[a] = true
+			}
+			if cur, ok := allowedFor[k]; ok { // intersection: a region must be allowed for every project using the source
+				for a := range cur {
+					if !set[a] {
+						delete(cur, a)
+					}
+				}
+			} else {
+				allowedFor[k] = set
+			}
+		}
+		ec2, err := q.DashboardRegionEC2Cost(ctx, db.DashboardRegionEC2CostParams{TenantID: f.TenantID, ProjectID: f.Project, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		for _, x := range ec2 {
+			ec2Cost[x.RegionID] = x.Cost
+		}
+		pi, err := q.DashboardPriceIndex(ctx)
+		if err != nil {
+			return err
+		}
+		for _, x := range pi {
+			priceIdx[x.RegionID] = x.Idx
+		}
+		costs, err := q.DashboardRegionCost(ctx, db.DashboardRegionCostParams{TenantID: f.TenantID, ProjectID: f.Project, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		for _, x := range costs {
+			get(x.Provider, x.RegionID).Cost = x.Cost
+		}
+		cs, err := q.DashboardRegionCarbon(ctx, db.DashboardRegionCarbonParams{TenantID: f.TenantID, ProjectID: f.Project,
+			MethodologyVersion: methodology.Version, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		for _, x := range cs {
+			e := get(x.Provider, x.RegionID)
+			e.EnergyKWh, e.CO2eKg = x.EnergyKwh, x.CarbonKgCo2e
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	grid, err := r.Regions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	g := map[string]float64{}
+	for _, x := range grid {
+		g[x.Region] = x.GPerKWh
+	}
+	out := make([]domain.RegionFootprint, 0, len(rows))
+	for _, e := range rows {
+		if v, ok := g[e.Region]; ok {
+			vv := v
+			e.GPerKWh = &vv
+		}
+		out = append(out, *e)
+	}
+	for i := range out {
+		e := &out[i]
+		if e.GPerKWh == nil || e.EnergyKWh <= 0 || *e.GPerKWh <= 0 {
+			continue
+		}
+		k := key{e.Provider, e.Region}
+		if unknown[k] || allowedFor[k] == nil {
+			e.RelocationBlocked = "residency_unknown"
+			continue
+		}
+		var best *domain.RegionIntensity
+		for j := range grid {
+			c := &grid[j]
+			if c.Region == e.Region || regionCloud(c.Region) != regionCloud(e.Region) || !allowedFor[k][c.Region] {
+				continue
+			}
+			if best == nil || c.GPerKWh < best.GPerKWh {
+				best = c
+			}
+		}
+		if best == nil {
+			e.RelocationBlocked = "residency"
+			continue
+		}
+		pct := (*e.GPerKWh - best.GPerKWh) / *e.GPerKWh * 100
+		if pct < minRelocationSavingPct {
+			continue
+		}
+		var costDelta *float64
+		basis := ""
+		if from, to := priceIdx[e.Region], priceIdx[best.Region]; from > 0 && to > 0 && ec2Cost[e.Region] > 0 {
+			d := math.Round(ec2Cost[e.Region]*(to/from-1)*100) / 100
+			costDelta, basis = &d, "region_price_index"
+		}
+		e.Alternative = &domain.Alternative{CostDelta: costDelta, CostBasis: basis, CostEstimated: costDelta != nil, Region: best.Region, GPerKWh: best.GPerKWh, SavingPct: pct,
+			SavingKg:    e.EnergyKWh * (*e.GPerKWh - best.GPerKWh) / 1000,
+			ResidencyOK: true, ChecksRequired: []string{"price", "latency", "service_availability"}}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CO2eKg > out[j].CO2eKg })
+	return out, nil
+}
+
+// regionCloud tells the cloud from the shape of a region id, so a candidate is never proposed across clouds.
+func regionCloud(id string) string {
+	switch {
+	case awsRegion.MatchString(id):
+		return "aws"
+	case strings.Contains(id, "-") && gcpRegion.MatchString(id):
+		return "gcp"
+	case azureRegion.MatchString(id):
+		return "azure"
+	default:
+		return "other"
+	}
+}
+
+var (
+	awsRegion = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-\d$`)
+	gcpRegion = regexp.MustCompile(`^[a-z]+(-[a-z]+)?\d+$`)
+	// Azure ids are one lower-case word, optionally ending in a digit ("westeurope", "eastus2"): without a hyphen they
+	// also fit the Google Cloud shape, so the Google check requires one.
+	azureRegion = regexp.MustCompile(`^[a-z]+\d*$`)
+)
+
+func (r Postgres) Optimization(ctx context.Context, f domain.Filter) (domain.Optimization, error) {
+	var o domain.Optimization
+	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		p, err := q.DashboardPotential(ctx, db.DashboardPotentialParams{TenantID: f.TenantID, ProjectID: f.Project})
+		if err != nil {
+			return err
+		}
+		v, err := q.DashboardVerified(ctx, db.DashboardVerifiedParams{TenantID: f.TenantID, ProjectID: f.Project})
+		if err != nil {
+			return err
+		}
+		o = domain.Optimization{OpenCount: int(p.OpenCount), ApprovedCount: int(p.ApprovedCount), PotentialCarbonKg: p.PotentialCarbonKgMonth,
+			PotentialSaving: p.PotentialSavingMonth, CostNotEstimated: int(p.CostNotEstimated), AutoCount: int(p.AutoCount), VerifiedCount: int(v.VerifiedCount),
+			NotRealizedCount: int(v.NotRealizedCount), VerifiedCarbonKg: v.VerifiedCarbonKgMonth, VerifiedSaving: v.VerifiedSavingMonth}
+		return nil
+	})
+	return o, err
+}
+
+func (r Postgres) Efficiency(ctx context.Context, f domain.Filter) (domain.Efficiency, error) {
+	var e domain.Efficiency
+	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
+		x, err := db.New(tx).DashboardEfficiency(ctx, db.DashboardEfficiencyParams{TenantID: f.TenantID, ProjectID: f.Project,
+			MethodologyVersion: methodology.Version, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		e = domain.Efficiency{Units: x.Units, Days: int(x.Days), HasUnits: x.Units > 0, MixedUnits: len(x.UnitNames) > 1}
+		if len(x.UnitNames) == 1 {
+			e.Unit = x.UnitNames[0]
+		}
+		if e.HasUnits && !e.MixedUnits {
+			c, k := x.CarbonG/x.Units, x.Cost/x.Units
+			e.CarbonGPerUnit, e.CostPerUnit = &c, &k
+		}
+		return nil
+	})
+	return e, err
 }

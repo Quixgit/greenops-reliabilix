@@ -33,7 +33,7 @@ type Calculation struct {
 const (
 	SkipNoRegion   = "no_region"            // global services have no grid to attribute to
 	SkipNoGridData = "no_grid_data"         // no carbon intensity known for the region
-	SkipCurrency   = "unsupported_currency" // cost-based estimates need USD until FX normalization exists
+	SkipCurrency   = "unsupported_currency" // cost in a currency without a reference rate (cost is converted to USD before the engine sees it)
 	SkipNoMeasure  = "no_measurable_usage"
 	// SkipSuperseded: a cost-based row was dropped because measured usage exists for the same
 	// service, region and day. Counting both would double the energy.

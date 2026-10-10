@@ -96,7 +96,7 @@ func (r Postgres) FunctionalUnitsForDay(ctx context.Context, tenantID, projectID
 }
 
 func (r Postgres) GetPolicy(ctx context.Context, tenantID, projectID string) (p domain.Policy, err error) {
-	p = domain.Policy{ProjectID: projectID, AllowedRegions: []string{}}
+	p = domain.Policy{ProjectID: projectID, AllowedRegions: []string{}, AutoApplyTypes: []string{}}
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		row, err := db.New(tx).GetPolicy(ctx, db.GetPolicyParams{TenantID: tenantID, ProjectID: projectID})
 		if database.IsNotFound(err) {
@@ -106,7 +106,7 @@ func (r Postgres) GetPolicy(ctx context.Context, tenantID, projectID string) (p 
 			return err
 		}
 		p = domain.Policy{ProjectID: projectID, AllowedRegions: row.AllowedRegions, CICarbonWarnKg: row.CiCarbonWarnKg,
-			CICarbonBlockKg: row.CiCarbonBlockKg, CICostWarn: row.CiCostWarn, CICostBlock: row.CiCostBlock, AlertCarbonMonthlyKg: row.AlertCarbonMonthlyKg}
+			CICarbonBlockKg: row.CiCarbonBlockKg, CICostWarn: row.CiCostWarn, CICostBlock: row.CiCostBlock, AlertCarbonMonthlyKg: row.AlertCarbonMonthlyKg, AutoApplyTypes: row.AutoApplyTypes}
 		return nil
 	})
 	return
@@ -123,10 +123,10 @@ func (r Postgres) UpsertPolicy(ctx context.Context, tenantID string, p domain.Po
 		}
 		if _, err := q.UpsertPolicy(ctx, db.UpsertPolicyParams{ProjectID: p.ProjectID, TenantID: tenantID, AllowedRegions: p.AllowedRegions,
 			CiCarbonWarnKg: p.CICarbonWarnKg, CiCarbonBlockKg: p.CICarbonBlockKg, CiCostWarn: p.CICostWarn, CiCostBlock: p.CICostBlock,
-			AlertCarbonMonthlyKg: p.AlertCarbonMonthlyKg}); err != nil {
+			AlertCarbonMonthlyKg: p.AlertCarbonMonthlyKg, AutoApplyTypes: p.AutoApplyTypes}); err != nil {
 			return err
 		}
-		return audit.Record(ctx, tx, "project.policy_updated", "project:"+p.ProjectID, map[string]any{"allowed_regions": p.AllowedRegions})
+		return audit.Record(ctx, tx, "project.policy_updated", "project:"+p.ProjectID, map[string]any{"allowed_regions": p.AllowedRegions, "auto_apply_types": p.AutoApplyTypes})
 	})
 }
 

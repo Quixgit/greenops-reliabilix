@@ -23,7 +23,14 @@ const gcp = z.object({
   // The export table the customer enabled in Cloud Billing: bq://<project>/<dataset>/<table>
   credential_ref: z.string().trim().regex(/^bq:\/\/[a-z][a-z0-9-]{4,28}[a-z0-9]\/[A-Za-z0-9_]{1,1024}\/gcp_billing_export_(resource_)?v1_[A-Za-z0-9_]+$/, "Use bq://<project>/<dataset>/gcp_billing_export_v1_…"),
 });
-type Provider = "aws" | "gcp";
+const azure = z.object({
+  project_id: z.string().min(1, "Choose a project"),
+  provider: z.literal("azure"),
+  account_ref: z.string().trim().regex(/^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/, "Azure subscription id: a GUID"),
+  // The Cost Management export folder: azblob://<tenant id>@<storage account>/<container>/<export directory>
+  credential_ref: z.string().trim().regex(/^azblob:\/\/[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}@[a-z0-9]{3,24}\/[a-z0-9-]{3,63}\/[\w.-]+(\/[\w.-]+)*$/, "Use azblob://<tenant id>@<storage account>/<container>/<export directory>"),
+});
+type Provider = "aws" | "gcp" | "azure";
 
 /** Step 1: register the connection and show what the customer must set up. Step 2: verify once it is in place. */
 export function ConnectionForm({ initialProvider = "aws", onDone }: { initialProvider?: Provider; onDone?: () => void }) {
@@ -33,7 +40,7 @@ export function ConnectionForm({ initialProvider = "aws", onDone }: { initialPro
   type Values = { project_id: string; provider: Provider; account_ref: string; credential_ref: string };
   // The rules depend on the provider that is selected, so the resolver picks the schema per submit.
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<Values>({
-    resolver: (values, ctx, opts) => zodResolver(values.provider === "gcp" ? gcp : aws)(values as never, ctx, opts as never) as never,
+    resolver: (values, ctx, opts) => zodResolver(values.provider === "gcp" ? gcp : values.provider === "azure" ? azure : aws)(values as never, ctx, opts as never) as never,
     defaultValues: { provider: initialProvider, project_id: "", account_ref: "", credential_ref: "" },
   });
   const provider = watch("provider");
@@ -49,10 +56,18 @@ export function ConnectionForm({ initialProvider = "aws", onDone }: { initialPro
 
   if (created) {
     const { setup, connection: c } = created;
-    const isGcp = c.provider === "gcp";
+    const isGcp = c.provider === "gcp", isAzure = c.provider === "azure";
     return (
       <div className="space-y-4 text-sm">
-        {isGcp ? (
+        {isAzure ? (
+          <>
+            <p>To read the Cost Management export of subscription <b>{c.account_ref}</b>, do these steps:</p>
+            <ol className="list-decimal space-y-2 pl-5">{(setup.steps ?? []).map((s, i) => <li key={i} className="break-words">{s}</li>)}</ol>
+            {setup.platform_account_id && <p className="text-muted">Grant this application read access to the container: <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{setup.platform_account_id}</code></p>}
+            <p className="text-muted">Container ownership token (set as metadata, value = 1)</p>
+            <code className="block break-all rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs">{setup.external_id.replaceAll("-", "_")}</code>
+          </>
+        ) : isGcp ? (
           <>
             <p>To read the billing export of project <b>{c.account_ref}</b>, do these steps:</p>
             <ol className="list-decimal space-y-2 pl-5">{(setup.steps ?? []).map((s, i) => <li key={i} className="break-words">{s}</li>)}</ol>
@@ -81,7 +96,7 @@ export function ConnectionForm({ initialProvider = "aws", onDone }: { initialPro
     <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3 sm:grid-cols-2" noValidate>
       <Field label="Provider">
         <select {...register("provider")} className={input}>
-          <option value="aws">AWS</option><option value="gcp">Google Cloud</option><option disabled>Azure (coming soon)</option>
+          <option value="aws">AWS</option><option value="gcp">Google Cloud</option><option value="azure">Microsoft Azure</option>
         </select>
       </Field>
       <Field label="Project" error={errors.project_id?.message}>
@@ -95,6 +110,12 @@ export function ConnectionForm({ initialProvider = "aws", onDone }: { initialPro
           <Field label="AWS account id" error={errors.account_ref?.message}><input {...register("account_ref")} className={input} placeholder="123456789012" inputMode="numeric" /></Field>
           <Field label="IAM role ARN (read-only)" error={errors.credential_ref?.message}><input {...register("credential_ref")} className={input} placeholder="arn:aws:iam::123456789012:role/ReliabilixReadOnly" /></Field>
           <p className="text-xs text-muted sm:col-span-2">Reliabilix assumes this role with an External ID. We never ask for access keys.</p>
+        </>
+      ) : provider === "azure" ? (
+        <>
+          <Field label="Azure subscription id" error={errors.account_ref?.message}><input {...register("account_ref")} className={input} placeholder="00000000-0000-0000-0000-000000000000" /></Field>
+          <Field label="Cost Management export folder" error={errors.credential_ref?.message}><input {...register("credential_ref")} className={input} placeholder="azblob://<tenant id>@acmebilling/exports/reliabilix/daily-focus" /></Field>
+          <p className="text-xs text-muted sm:col-span-2">Reliabilix reads the FOCUS cost and usage export from your Blob Storage container with its own Microsoft Entra application, read-only. We never ask for a key or a SAS token.</p>
         </>
       ) : (
         <>

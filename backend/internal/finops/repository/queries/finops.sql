@@ -1,21 +1,24 @@
 -- name: CostByService :many
--- Cost per service in the DOMINANT currency of the window (largest total absolute cost). Amounts in different
--- currencies are never added together; FX normalization does not exist yet.
-SELECT u.service_name, u.currency::text AS currency, sum(u.billed_cost)::float8 AS cost
+-- Cost per service in the DOMINANT currency of the window (largest total absolute cost). Amounts in other currencies
+-- are converted at the day's ECB reference rate; an amount without a rate is left out (never guessed).
+SELECT u.service_name, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS currency,
+       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
 FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
-      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
-GROUP BY u.service_name, u.currency ORDER BY cost DESC LIMIT 100;
+GROUP BY u.service_name ORDER BY cost DESC LIMIT 100;
 
 -- name: TotalCost :one
-SELECT COALESCE(sum(billed_cost), 0)::float8 AS cost
+SELECT COALESCE(sum(CASE WHEN sqlc.arg(currency)::text = '' THEN billed_cost
+                       ELSE finops.convert_cost(billed_cost, currency::text, sqlc.arg(currency)::text, recorded_at::date) END), 0)::float8 AS cost
 FROM usage.usage_records
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
-  AND (sqlc.arg(currency)::text = '' OR currency = sqlc.arg(currency)::text)
   AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts);
 
 -- name: CostDays :one
@@ -38,16 +41,15 @@ DELETE FROM finops.budgets WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.a
 
 -- name: Anomalies :many
 -- Days whose cost exceeds the trailing mean by > 3 standard deviations (needs >= 7 prior days). One currency only:
--- the dominant one of the window (a sum over mixed currencies would be meaningless).
+-- the dominant one of the window, other currencies converted at the day's reference rate.
 WITH d AS (
-  SELECT date_trunc('day', u.recorded_at)::date AS day, sum(u.billed_cost)::float8 AS cost
+  SELECT date_trunc('day', u.recorded_at)::date AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost
   FROM usage.usage_records u
   WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
     AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-    AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
-      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
   GROUP BY 1
 ), s AS (
   SELECT day, cost,
@@ -56,3 +58,16 @@ WITH d AS (
 )
 SELECT day::timestamptz AS day, cost, mean::float8 AS mean, sd::float8 AS stddev
 FROM s WHERE n >= 7 AND sd > 0 AND cost > mean + 3 * sd ORDER BY day DESC LIMIT 20;
+
+-- name: UnconvertedCost :many
+-- Currencies with amounts in the window that have no reference rate for the reporting currency: they are left out of the
+-- totals, and the overview says which and how many, so a total is never silently short.
+SELECT u.currency::text AS currency, count(*)::int AS rows
+FROM usage.usage_records u
+WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
+  AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+  AND finops.convert_cost(1, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date) IS NULL
+GROUP BY 1 ORDER BY 2 DESC;

@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useOperatorAudit } from "@/hooks/use-admin";
 import type { OperatorAuditEntry } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
-import { PageTitle, selectCls, th } from "./parts";
+import { PageTitle, selectCls } from "./parts";
+import { Check_, DataTable, Pill } from "./ui";
 
 const AREAS: Record<string, string> = {
   me: "Signed in", tenants: "Organizations", notifications: "Notifications", connections: "Connections", system: "System", errors: "Errors",
@@ -37,31 +38,22 @@ export function AuditView() {
       <PageTitle title="Audit log" sub="Every read and every change made in this console, by operator. The log is append-only: this page cannot edit or delete a line. Changes to an organization are also written to that organization’s own audit log." />
       <Card interactive={false}>
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={onlyChanges} onChange={(e) => setOnlyChanges(e.target.checked)} className="accent-[var(--color-primary)]" />Changes only</label>
+          <Check_ label="Changes only" checked={onlyChanges} onChange={setOnlyChanges}>Changes only</Check_>
           <select aria-label="Lines" value={limit} onChange={(e) => setLimit(Number(e.target.value))} className={`${selectCls} ml-auto`}>
             {[50, 100, 250, 500].map((n) => <option key={n} value={n}>Last {n}</option>)}
           </select>
         </div>
-        {log.isLoading ? <Skeleton className="h-48" /> : log.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={History} text="No changes in this range." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr><th className={th}>When</th><th className={th}>Operator</th><th className={th}>Area</th><th className={th}>Kind</th><th className={th}>Request</th></tr></thead>
-              <tbody className="divide-y divide-line/70">
-                {rows.map((e) => {
-                  const d = describe(e.action);
-                  return (
-                    <tr key={e.id}>
-                      <td className="whitespace-nowrap py-2 pr-3 text-muted" title={e.at}>{shortTime(e.at)}</td>
-                      <td className="pr-3">{e.operator_email || e.operator_sub}{e.role && <span className="ml-2 text-xs text-muted">{e.role}</span>}</td>
-                      <td className="pr-3">{d.area}</td>
-                      <td className="pr-3"><Badge tone={d.write ? "warn" : "neutral"}>{d.write ? "change" : "read"}</Badge></td>
-                      <td className="max-w-md break-all font-mono text-xs text-slate-600">{d.method} {d.path}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        {log.isLoading ? <Skeleton className="h-48" /> : log.isError ? <ErrorState /> : (
+          <DataTable dense rowKey={(e) => String(e.id)} rows={rows} empty="No changes in this range." initialSort={{ key: "when", dir: "desc" }}
+            columns={[
+              { key: "when", header: "When", sort: (a, b) => a.at.localeCompare(b.at), render: (e) => <span className="whitespace-nowrap text-muted" title={e.at}>{shortTime(e.at)}</span> },
+              { key: "op", header: "Operator", sort: (a, b) => (a.operator_email || a.operator_sub).localeCompare(b.operator_email || b.operator_sub),
+                render: (e) => <span>{e.operator_email || e.operator_sub}{e.role && <span className="ml-2 text-xs text-muted">{e.role}</span>}</span> },
+              { key: "area", header: "Area", sort: (a, b) => describe(a.action).area.localeCompare(describe(b.action).area), render: (e) => describe(e.action).area },
+              { key: "kind", header: "Kind", sort: (a, b) => Number(describe(a.action).write) - Number(describe(b.action).write),
+                render: (e) => (describe(e.action).write ? <Pill tone="warn">change</Pill> : <Pill tone="neutral">read</Pill>) },
+              { key: "req", header: "Request", hideBelow: "md", render: (e) => { const d = describe(e.action); return <span className="break-all font-mono text-xs text-slate-600">{d.method} {d.path}</span>; } },
+            ]} />
         )}
       </Card>
     </div>

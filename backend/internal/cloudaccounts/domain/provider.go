@@ -47,6 +47,9 @@ var (
 	ErrOwnershipNotProven = errors.New("ownership of the billing export is not proven")
 	// ErrAccessDenied: the granted access is missing or too narrow. Retrying cannot help.
 	ErrAccessDenied = errors.New("access denied by the cloud provider")
+	// ErrSubscriptionNotInExport: the export has data files, but none of its rows belongs to the connection's
+	// subscription (a wrong subscription id, or an export of another scope). Retrying cannot help.
+	ErrSubscriptionNotInExport = errors.New("the export has no rows for this subscription")
 )
 
 // NeedsCustomerAction reports whether an error can only be fixed by the customer (permissions, export setup,
@@ -54,7 +57,7 @@ var (
 // until the customer verifies again.
 func NeedsCustomerAction(err error) bool {
 	return errors.Is(err, ErrAccessDenied) || errors.Is(err, ErrExportNotFound) ||
-		errors.Is(err, ErrBigQueryDisabled) || errors.Is(err, ErrOwnershipNotProven)
+		errors.Is(err, ErrBigQueryDisabled) || errors.Is(err, ErrOwnershipNotProven) || errors.Is(err, ErrSubscriptionNotInExport)
 }
 
 // Connection links a project to a cloud account. CredentialRef is a *reference* (IAM role ARN),
@@ -103,6 +106,11 @@ func (c Connection) Validate() error {
 	}
 	if c.Provider == GCP {
 		if err := c.validateGCP(); err != nil {
+			return err
+		}
+	}
+	if c.Provider == Azure {
+		if err := c.validateAzure(); err != nil {
 			return err
 		}
 	}

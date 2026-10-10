@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import * as s from "@/lib/api/schemas";
+import { setDefaultCurrency } from "@/lib/formatters";
 import { periodRange, useUi } from "@/lib/store";
 
 /** Filters shared by every Overview query; changing project/period refetches all of them. */
@@ -18,7 +19,7 @@ export const useCarbonSummary = () => {
 };
 export const useFinopsSummary = () => {
   const f = useFilters();
-  return useQuery({ queryKey: ["finops-summary", f], queryFn: () => api("finops/summary", s.finopsSummary, f) });
+  return useQuery({ queryKey: ["finops-summary", f], queryFn: async () => { const d = await api("finops/summary", s.finopsSummary, f); setDefaultCurrency(d.currency); return d; } });
 };
 export const useTrend = () => {
   const f = useFilters();
@@ -36,6 +37,18 @@ export const useServices = (category: string) => {
   });
 };
 export const useRegions = () => useQuery({ queryKey: ["regions"], queryFn: () => api("dashboard/regions", s.regions) });
+export const useRegionFootprint = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["region-footprint", f], queryFn: () => api("dashboard/regions/footprint", s.regionFootprint, f) });
+};
+export const useOptimization = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["optimization", f], queryFn: () => api("dashboard/optimization", s.optimization, f) });
+};
+export const useEfficiency = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["efficiency", f], queryFn: () => api("dashboard/efficiency", s.efficiency, f) });
+};
 export const useActivity = () => useQuery({ queryKey: ["activity"], queryFn: () => api("dashboard/activity", s.activity, { limit: "6" }) });
 export const useProjects = () => useQuery({ queryKey: ["projects"], queryFn: () => api("projects", s.projects) });
 export const useConnections = () => useQuery({ queryKey: ["connections"], queryFn: () => api("cloud-accounts", s.connections) });
@@ -75,3 +88,6 @@ export const useK8sWorkloads = (cluster: string) => {
   const f = useFilters();
   return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
 };
+/** Automation jobs, for the Overview counters only; a user without the permission simply sees none. */
+export const useAutomationJobs = () =>
+  useQuery({ queryKey: ["automation-jobs-lite"], retry: false, queryFn: () => api("automation/jobs", s.automationJobs, { limit: "100" }) });

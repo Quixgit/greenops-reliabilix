@@ -6,14 +6,28 @@ export function setFormatLocale(locale: string): void {
 }
 export const getFormatLocale = () => formatLocale;
 
+/** The unit the person prefers for carbon: "auto" picks kg or t by size. Set once from the preferences. */
+let carbonUnit: "auto" | "kg" | "t" = "auto";
+export function setCarbonUnit(u: "auto" | "kg" | "t"): void {
+  carbonUnit = u;
+}
+const asTonnes = (kg: number) => carbonUnit === "t" || (carbonUnit === "auto" && Math.abs(kg) >= 1000);
+
 export const nf = (max = 1) => new Intl.NumberFormat(formatLocale, { maximumFractionDigits: max });
 
 /** kg CO2e -> "42.6 t" above 1000 kg, else "320 kg". */
 export function formatCarbon(kg: number): string {
-  return Math.abs(kg) >= 1000 ? `${nf(1).format(kg / 1000)} t` : `${nf(0).format(kg)} kg`;
+  return asTonnes(kg) ? `${nf(carbonUnit === "t" ? 2 : 1).format(kg / 1000)} t` : `${nf(0).format(kg)} kg`;
 }
 
-export function formatCost(v: number, currency = "USD"): string {
+/** The currency cost is shown in when a call does not name one: the organization's reporting currency, set from the summary. */
+let defaultCurrency = "USD";
+export function setDefaultCurrency(c: string): void {
+  if (/^[A-Z]{3}$/.test(c)) defaultCurrency = c;
+}
+export const getDefaultCurrency = () => defaultCurrency;
+
+export function formatCost(v: number, currency = defaultCurrency): string {
   return new Intl.NumberFormat(formatLocale, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
 }
 
@@ -37,7 +51,7 @@ export function timeAgo(iso: string, now = Date.now()): string {
 
 /** The number and unit of formatCarbon separately, so the number can be animated while the unit stays put. */
 export function carbonParts(kg: number): { n: number; unit: "t" | "kg" } {
-  return Math.abs(kg) >= 1000 ? { n: kg / 1000, unit: "t" } : { n: kg, unit: "kg" };
+  return asTonnes(kg) ? { n: kg / 1000, unit: "t" } : { n: kg, unit: "kg" };
 }
 
 /** Change between the first and the second half of a series (null when it cannot be computed honestly). */

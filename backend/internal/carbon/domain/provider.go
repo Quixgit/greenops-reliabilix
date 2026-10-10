@@ -25,6 +25,10 @@ type Forecast struct {
 // quietly: it is a state of the deployment, not a failure of the provider.
 var ErrNotConfigured = errors.New("carbon data provider is not configured")
 
+// ErrPastUnavailable: the provider does not return past data on this key or plan. Not a failure of the job: other
+// sources still fill the past, and the daily loading must not be retried over it.
+var ErrPastUnavailable = errors.New("past data is not available on this key or plan")
+
 // RegionLister is implemented by providers that can enumerate the regions they cover.
 type RegionLister interface{ Regions() []string }
 
@@ -32,6 +36,8 @@ type RegionLister interface{ Regions() []string }
 const (
 	ProviderElectricityMaps = "electricitymaps"
 	ProviderEmber           = "ember"
+	ProviderEIA             = "eia"
+	ProviderEnergyCharts    = "energy_charts"
 	ProviderUKCI            = "uk_carbon_intensity"
 	ProviderWattTime        = "watttime"
 )

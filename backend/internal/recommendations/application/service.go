@@ -51,6 +51,41 @@ func fingerprint(project string, r domain.Recommendation) string {
 	return hex.EncodeToString(h[:])
 }
 
+// PriceSource fetches the relative region price index (an AWS price list adapter in production, a stand-in in tests).
+type PriceSource interface {
+	BuildIndex(ctx context.Context, regions []string) ([]PriceEntry, map[string]error, error)
+}
+
+// PriceEntry is one region's relative price and how many basket instances it rests on.
+type PriceEntry struct {
+	Region string
+	Idx    float64
+	N      int
+}
+
+// RefreshPriceIndex stores the relative on-demand price per region. A region that could not be read keeps its previous
+// value (stale beats absent), and the first failure is returned after the others were stored.
+func (s Service) RefreshPriceIndex(ctx context.Context, src PriceSource, regions []string) (stored int, err error) {
+	idx, errs, err := src.BuildIndex(ctx, regions)
+	if err != nil {
+		return 0, err
+	}
+	source := "aws_ec2_ondemand_basket:" + s.now().Format("2006-01-02")
+	for _, e := range idx {
+		if err := s.Repo.SavePriceIndex(ctx, "aws", e.Region, e.Idx, source); err != nil {
+			return stored, err
+		}
+		stored++
+	}
+	for r, e := range errs {
+		s.Log.Warn("price index", "region", r, "err", e)
+		if err == nil {
+			err = e
+		}
+	}
+	return stored, err
+}
+
 // Generate analyses the last 30 days of a project and stores new findings (deduplicated by fingerprint;
 // decided findings are never recreated or reopened). Returns the number of new recommendations.
 func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int, error) {

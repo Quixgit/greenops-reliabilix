@@ -57,8 +57,11 @@ type Service struct {
 	PlatformAWSAccountID string
 	// PlatformGCPServiceAccount is the principal GCP customers grant read access to their billing dataset.
 	PlatformGCPServiceAccount string
-	BackfillDays              int // first sync window, capped at 365
-	Now                       func() time.Time
+	// PlatformAzureAppID is the application (client) id of the platform's Microsoft Entra application: the principal
+	// Azure customers create in their tenant and grant read access to their export container.
+	PlatformAzureAppID string
+	BackfillDays       int // first sync window, capped at 365
+	Now                func() time.Time
 }
 
 // overlap re-fetches the most recent days on every sync: cloud billing is adjusted retroactively.
@@ -120,8 +123,11 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 }
 
 func (s Service) setup(c domain.Connection) Setup {
-	if c.Provider == domain.GCP {
+	switch c.Provider {
+	case domain.GCP:
 		return s.gcpSetup(c)
+	case domain.Azure:
+		return s.azureSetup(c)
 	}
 	st := Setup{
 		ExternalID:        c.ExternalID,
@@ -172,6 +178,46 @@ func (s Service) gcpSetup(c domain.Connection) Setup {
 		st.Steps = append(st.Steps, "Contact support for the service account to share the dataset with (it is not configured on this platform yet).")
 	}
 	st.Steps = append(st.Steps, "Verify the connection. Nothing else is shared: the platform reads only the billing export table of the dataset.")
+	return st
+}
+
+// azureSetup explains how a customer connects their Cost Management export. Nothing here is a secret: the metadata
+// key is the connection's ownership token and the application id is the platform's public client id.
+func (s Service) azureSetup(c domain.Connection) Setup {
+	e, err := domain.ParseAzureExportRef(c.CredentialRef)
+	if err != nil { // validated on creation; defensive
+		return Setup{ExternalID: c.ExternalID, RequiredPermissions: []string{}, PermissionsPolicy: map[string]any{}}
+	}
+	key := domain.AzureOwnershipKey(c.ExternalID)
+	app := s.PlatformAzureAppID
+	st := Setup{
+		ExternalID:          c.ExternalID,
+		PlatformAccountID:   app,
+		RequiredPermissions: []string{"Storage Blob Data Reader on the export container (read-only)"},
+		PermissionsPolicy: map[string]any{
+			"container":          e.Account + "/" + e.Container,
+			"container_metadata": map[string]string{"key": key, "value": "1"},
+			"role_assignment":    map[string]string{"role": "Storage Blob Data Reader", "assignee": app},
+		},
+	}
+	st.Steps = []string{
+		fmt.Sprintf("In subscription %s create a Cost Management export of type \"Cost and usage details (FOCUS)\", version 1.0, "+
+			"a daily export of month-to-date costs, format CSV, into storage account %s, container %s, directory %s. "+
+			"Data is exported from the day you create it (use \"Export all data\" for history), and the first delivery can take up to 24 hours.",
+			c.AccountRef, e.Account, e.Container, e.Dir),
+		fmt.Sprintf("Prove you control the container by marking it: az storage container metadata update --account-name %s --name %s --metadata %s=1 --auth-mode login",
+			e.Account, e.Container, key),
+	}
+	if app != "" {
+		st.Steps = append(st.Steps,
+			fmt.Sprintf("Create the platform application's service principal in your tenant: az ad sp create --id %s", app),
+			fmt.Sprintf("Grant it read access to the container only: az role assignment create --assignee %s --role \"Storage Blob Data Reader\" "+
+				"--scope \"$(az storage account show --name %s --query id -o tsv)/blobServices/default/containers/%s\"; "+
+				"deploy/azure/customer-access.tf does steps 2 to 4 in Terraform.", app, e.Account, e.Container))
+	} else {
+		st.Steps = append(st.Steps, "Contact support for the application id to grant access to (it is not configured on this platform yet).")
+	}
+	st.Steps = append(st.Steps, "Verify the connection. Nothing else is shared: the platform reads only the export directory of that container.")
 	return st
 }
 
@@ -487,11 +533,13 @@ func (s Service) announceMismatch(ctx context.Context, tenantID string, c domain
 func safeMessage(err error) string {
 	switch {
 	case errors.Is(err, domain.ErrAccessDenied):
-		return "Access denied: check the access you granted (AWS role and its read permissions, or the platform's read access to the BigQuery dataset)."
+		return "Access denied: check the access you granted (AWS role and its read permissions, the platform's read access to the BigQuery dataset, or the platform application's Storage Blob Data Reader role on the Azure container)."
 	case errors.Is(err, domain.ErrBigQueryDisabled):
 		return "BigQuery is not enabled in your Google Cloud project. Enable the BigQuery API, turn on Cloud Billing export to BigQuery, then verify again."
 	case errors.Is(err, domain.ErrOwnershipNotProven):
 		return "Ownership of the billing dataset is not proven: add the connection's label to the dataset (see the setup steps), then verify again."
+	case errors.Is(err, domain.ErrSubscriptionNotInExport):
+		return "The export has no rows for this subscription: check the subscription id and that the export covers it (subscription, resource group or billing scope), then verify again."
 	case errors.Is(err, domain.ErrExportNotFound):
 		return "Billing export not found: check that the export is enabled, delivered (the first delivery can take up to 48 hours) and that the location is correct, then verify again."
 	default:

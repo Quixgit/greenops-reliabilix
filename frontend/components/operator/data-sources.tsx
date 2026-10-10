@@ -68,8 +68,8 @@ function SourceCard({ s, st, index }: { s: DataSource; st?: ManagedIntegration; 
   );
 }
 
-const SRC_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity" };
-const OFFERED = ["electricitymaps", "uk_carbon_intensity", "ember"];
+const SRC_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed)", energy_charts: "Energy-Charts (computed)" };
+const OFFERED = ["electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "ember"];
 
 /** Which source serves each region in use: what each source has, the choice in force and a selector to pin one. */
 function RegionSources({ canAct }: { canAct: boolean }) {

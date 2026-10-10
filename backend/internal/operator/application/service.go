@@ -126,7 +126,7 @@ func (s Service) Audit(ctx context.Context, limit int) ([]domain.AuditEntry, err
 }
 
 // providerOf maps a catalog source to the provider name stored on customer connections.
-var providerOf = map[string]string{"aws-cost": "aws", "gcp-billing": "gcp"}
+var providerOf = map[string]string{"aws-cost": "aws", "gcp-billing": "gcp", "azure-billing": "azure"}
 
 // DataSources returns the registry. A connector source gets the number of real connections; a source with failing
 // connections is marked "attention". Nothing is invented: a source nobody connected shows zero.
@@ -313,7 +313,7 @@ func (s Service) RegionSources(ctx context.Context) ([]domain.RegionSources, err
 	if err != nil {
 		return nil, err
 	}
-	priority, overrides := []string{"electricitymaps", "uk_carbon_intensity", "ember"}, map[string]string{}
+	priority, overrides := []string{"electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "ember"}, map[string]string{}
 	if s.Settings != nil {
 		if items, err := s.Settings.PlatformItems(ctx); err == nil {
 			for _, it := range items {

@@ -153,8 +153,9 @@ func TestConnectIssuesExternalIDAndTrustPolicy(t *testing.T) {
 	if c.ExternalID == "" || setup.ExternalID != c.ExternalID || setup.TrustPolicy == nil {
 		t.Fatalf("setup incomplete: %+v", setup)
 	}
-	if _, _, err := s.Connect(context.Background(), domain.Connection{ProjectID: "p", Provider: domain.Azure, AccountRef: "x", CredentialRef: "y"}); !errors.Is(err, domain.ErrUnsupportedProvider) {
-		t.Errorf("azure must be unsupported in phase 1: %v", err)
+	if _, _, err := s.Connect(context.Background(), domain.Connection{ProjectID: "p", Provider: domain.Azure, AccountRef: azureSub,
+		CredentialRef: "azblob://" + azureTenant + "@acmebilling/exports/rlx/daily"}); !errors.Is(err, domain.ErrUnsupportedProvider) {
+		t.Errorf("a provider that is not registered must be refused: %v", err)
 	}
 }
 
@@ -303,6 +304,36 @@ func TestSetExport(t *testing.T) {
 	s2 := newSvc(newRepo(azure), &fakeProvider{}, fakeIngestor{}, &recorder{})
 	if _, err := s2.SetExport(context.Background(), "t", "c2", good); !errors.Is(err, domain.ErrInvalidConnection) {
 		t.Fatalf("exports are AWS only: %v", err)
+	}
+}
+
+const (
+	azureSub    = "11111111-2222-3333-4444-555555555555"
+	azureTenant = "99999999-8888-7777-6666-555555555555"
+)
+
+func TestAzureSetupGivesNonSecretInstructions(t *testing.T) {
+	az := domain.Connection{ID: "z1", TenantID: "t", ProjectID: "p", Provider: domain.Azure, AccountRef: azureSub, ExternalID: "rlx-abc",
+		CredentialRef: "azblob://" + azureTenant + "@acmebilling/exports/rlx/daily"}
+	s := newSvc(newRepo(az), &fakeProvider{}, fakeIngestor{}, &recorder{})
+	s.PlatformAzureAppID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+	st, err := s.SetupFor(context.Background(), "t", "z1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := strings.Join(st.Steps, "\n")
+	for _, want := range []string{"Cost and usage details (FOCUS)", "storage account acmebilling, container exports, directory rlx/daily",
+		"--metadata rlx_abc=1", "az ad sp create --id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee", "Storage Blob Data Reader"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("steps lack %q:\n%s", want, all)
+		}
+	}
+	if st.ExternalID != "rlx-abc" || st.PlatformAccountID != s.PlatformAzureAppID || st.TrustPolicy != nil {
+		t.Errorf("setup wrong: %+v", st)
+	}
+	s.PlatformAzureAppID = ""
+	if st, _ := s.SetupFor(context.Background(), "t", "z1"); !strings.Contains(strings.Join(st.Steps, "\n"), "Contact support") {
+		t.Error("without a configured application the customer must be told to ask for it")
 	}
 }
 

@@ -5,6 +5,245 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.53] - 2026-10-10
+
+### Added
+- **Azure connector** (ADR-0041): reads the customer's Cost Management export (FOCUS 1.0 cost and usage, CSV or gzip)
+  from Blob Storage with the platform's own multi-tenant Microsoft Entra application. The customer creates the
+  application's service principal in their tenant, grants it Storage Blob Data Reader on the one export container and
+  marks the container with the connection's token as metadata (proof of control, re-checked on every sync). No key,
+  SAS token or secret of the customer is accepted or stored. A billing-scope export is filtered to the connection's
+  subscription. Virtual machine running hours (x the SKU's core count) become measured vCPU hours and Blob "Data
+  Stored" becomes measured GB-months; licences, purchases, operations and the rest keep a cost-based estimate. Memory
+  and managed disks are not measured (stated in the ADR). Setup steps and `deploy/azure/customer-access.tf` are given
+  to the customer; the platform application is entered in the operator console (Platform Microsoft Azure application,
+  `PLATFORM_AZURE_CLIENT_ID` / `PLATFORM_AZURE_CLIENT_SECRET`); without it the connector is off.
+- 56 Azure regions mapped to grid zones and to places on the map; a region move is only proposed inside the same cloud
+  (an Azure id such as `eastus2` no longer fits the Google Cloud shape).
+- Operator console: the "Azure Cost Management" stub became the "Microsoft Azure" data source with its connections.
+
+### Changed
+- **Cost-based carbon in other currencies**: the carbon engine used to skip every cost line that was not in USD. Cost
+  is now converted to USD at the rate of its day (the ECB rates of alpha.51) before the estimate, so a bill in euro or
+  pound gets one; an amount in a currency without a rate is still skipped and counted as such. This also applies to
+  AWS and Google Cloud accounts billed in another currency: run "Recalculate carbon" to fill earlier days.
+- The `providers_allowed` note no longer says Azure is unavailable. API contract 0.28.0 (`azure` in the connection input).
+
+## [0.1.0-alpha.52] - 2026-10-10
+
+### Added
+- **Reporting currency**: an organization setting (Settings, Organization, Cost reporting: auto or one of 16 currencies)
+  says which currency every cost figure is shown in; "auto" is the currency most of the cost is billed in. Charts, tables
+  and totals follow it (symbols and the chart legend too). `finops.reporting_currency` (migration 0047).
+- **Nothing silently short**: amounts in a currency without a reference rate are left out of the totals and the cost KPI
+  says which currency and how many amounts. `excluded` in the cost summary. API contract 0.27.0.
+
+### Fixed
+- A cost sum whose amounts all lack a rate no longer breaks the endpoint (null-safe sums).
+
+## [0.1.0-alpha.51] - 2026-10-10
+
+### Added
+- **Currency conversion**: cost in several currencies is now converted into one instead of dropping everything but the
+  dominant currency. A daily job loads the European Central Bank euro reference rates (free, no key; the first run loads
+  the history); `finops.convert_cost` converts at the rate of the amount's day, carrying a rate over weekends and holidays
+  (at most 10 days). Totals, trend, per-service and per-region cost, anomalies, unit cost, verification and budgets use it.
+  An amount in a currency the ECB does not publish, or without a rate, is left out rather than guessed. Daily reference
+  rates, not transaction rates: for reporting, not for invoicing. Migration 0046, task `finops:refresh_fx`,
+  `admin refresh-fx`.
+
+### Changed
+- Budgets are measured in the budget's own currency (other currencies are converted into it).
+
+## [0.1.0-alpha.50] - 2026-10-10
+
+### Added
+- **Price of a region move (EC2 compute)**: a weekly job reads the on-demand EC2 price list AWS publishes for its pricing
+  pages and stores a relative price index per region (geometric mean over a fixed basket of m5, c5, r5, m6i, c6i and t3
+  instances, Linux, shared tenancy; baseline us-east-1 = 1.0; 26 regions). Region-shift recommendations and the map's
+  relocation layer use it to estimate the cost change of the EC2 compute in the same period as the carbon effect. It is a
+  list-price estimate: discounts, savings plans, data transfer and the cost of the move are outside it, and it is applied
+  to EC2 compute only (never to storage, databases or functions). `finops.region_price_index`, migration 0045, task
+  `recommendations:refresh_price_index`, `admin refresh-prices`. API contract 0.26.0 (`cost_delta`, `cost_basis`).
+
+### Changed
+- A recommendation whose cost comes from the index says so ("list-price estimate") with what it excludes in the tooltip;
+  other services keep "cost: awaiting price data". Data residency is no longer listed as unchecked.
+
+## [0.1.0-alpha.49] - 2026-10-10
+
+### Added
+- **Customer settings rebuilt** (Settings): a section rail (Account, Organization, Access, Billing, Data) with search and
+  addressable sections instead of one row of tabs; a profile card with the role and what it can do; **Preferences**
+  (default period, carbon unit kg/t/auto, density, reduced motion; kept in the browser); **Projects & policies**: every
+  project's allowed regions, what it applies on its own, carbon limit and CI gate in one table, a row opens the policy.
+- **Distance and round-trip estimate** for a proposed region move (from the distance between the regions; labelled as an
+  estimate), next to the residency rule that is already enforced.
+
+### Changed
+- Operator console: Errors, Jobs & scheduler (queues, failed tasks, schedules), Audit log and Access are sortable tables
+  with status pills, like the Overview and Organizations.
+
+## [0.1.0-alpha.48] - 2026-10-10
+
+### Added
+- **Apply without approval, per project**: the project policy lists the recommendation types the platform may apply on its
+  own (`auto_apply_types`; only time shifting can be listed, region moves and production changes always need approval,
+  enforced in the domain). The Overview counts "safe to automate" from these policies instead of guessing by type.
+  Migration 0044. API contract 0.25.0.
+- **Relocation respects data residency**: a cleaner region is proposed only among the regions every project using the
+  source region may use (the same rule as the recommendation engine); with no allow-list it says why
+  (`relocation_blocked`) and what to set. Residency is no longer in the list of checks still to do.
+- **Operator console, redesigned Overview**: eight metrics, platform controls as switches (maintenance mode with a
+  confirmation, sign-up, automatic loading of the past), and sortable tables for organizations, queues, paid API usage
+  against the daily cap, data sources, plans and integrations. Shared components: switch, checkbox, status pill, meter and
+  a sortable data table.
+
+### Changed
+- Platform and organization settings use switches for on/off values and checkbox chips for lists; the plan catalog is a
+  matrix; the organizations list is a sortable table.
+
+## [0.1.0-alpha.47] - 2026-10-10
+
+### Fixed
+- A monthly national figure no longer stops the automatic loading of a region's past when a free hourly source (UK
+  Carbon Intensity, EIA, Energy-Charts) covers that region: coverage by hourly readings is checked separately
+  (`carbon.region_hourly_coverage`, migration 0043).
+
+## [0.1.0-alpha.46] - 2026-10-10
+
+### Added
+- **Energy-Charts as a free source for Europe** (Fraunhofer ISE; no key, CC BY 4.0, data of the transmission system
+  operators): hourly intensity COMPUTED from public generation by production type, with history, for DE, FR, ES, IT, PL,
+  SE, FI, BE, NL, CH, AT, NO, DK, PT, CZ, HU, GR, IE. It fills the past of European regions without a paid plan. Source id
+  `energy_charts`, integration `energy_charts` (address only), default order Electricity Maps, UK Carbon Intensity, EIA,
+  Energy-Charts, Ember. Migration 0042. `ENERGYCHARTS_BASE_URL` and `UKCI_BASE_URL` are read from the environment.
+
+### Changed
+- The separate "Optimization potential" card is gone: its totals (estimated per month, verified, safe to automate vs. need
+  approval) are a summary at the top of Top Recommendations, next to the list they sum up. The fourth KPI keeps the figure.
+
+## [0.1.0-alpha.45] - 2026-10-10
+
+### Added
+- **Methodology page** (`/methodology`): the active version and its caveats, the formulas, the grid sources in the order
+  used with what each is (measured, computed, monthly), and the accuracy and limits. The "read before using externally"
+  notice and the Data quality card link to it.
+
+### Changed
+- The new Overview cards (data quality, optimization potential, workload efficiency, header, cost vs. carbon by service,
+  regions, KPIs, recommendation cost reason) are translated: keys in both catalogs (ADR-0036).
+
+## [0.1.0-alpha.44] - 2026-10-10
+
+### Fixed
+- `EMBER_API_KEY` and `EIA_API_KEY` in the environment were not read at all (only the console-stored key worked); they
+  are now part of the integration environment map like the other keys.
+- A main grid provider that does not return the past on its plan no longer fails the daily history loading (and its
+  retries): the other sources still fill the past and the calculations are redone.
+
+### Added
+- `admin load-history`: starts the daily automatic loading of the past of regions with gaps right now.
+
+## [0.1.0-alpha.43] - 2026-10-10
+
+### Changed
+- Grid intensity over time: a young history no longer sits as two dots at the far end of an empty month (the axis starts
+  shortly before the first reading), and a note explains why few days have readings and what fills the past.
+- Regions card: beside the map, a summary of where the footprint is, the cleanest and highest-carbon grid and the best
+  move to evaluate. The map pop-up puts the map on the full width with the details and the list below it (no empty column).
+
+## [0.1.0-alpha.42] - 2026-10-10
+
+### Added
+- **Cost vs. carbon by service**: a bubble chart (x share of cost, y share of CO2e, area cost); a click on a bubble
+  scrolls to and highlights that service in Details by Service.
+- **Regions: Map / List**. The list has cloud, exact region ID, grid intensity with its 24 h change, cost, CO2e and the
+  possible improvement (a clearly cleaner region of the same cloud; price, latency and residency marked as not checked).
+- **Overview header** with the scope of every figure: project, period and how fresh the data is.
+- **Automation counters** in the optimization card: how many open recommendations are safe to automate (time shifting)
+  and how many need approval (region moves, production changes), plus the jobs in progress and done.
+- Chart cards link to their detail sections; the project and period filters are remembered between sections and visits.
+
+### Changed
+- The fourth KPI is **Optimization potential** (estimated kg CO2e per month, not verified) instead of SCI; per-unit
+  figures live in Workload efficiency, which names the unit.
+- "Total CO2e" is now **Operational CO2e** with a hint that it is not a life-cycle assessment; Carbon intensity says it is an
+  energy-weighted average.
+
+## [0.1.0-alpha.41] - 2026-10-10
+
+### Changed
+- **Overview loads faster**: the dot-matrix land of the region map is precomputed (`frontend/lib/land-dots.json`,
+  generated by `scripts/gen-land-dots.ts`) instead of being calculated in the browser on first show; the map is a lazy
+  chunk with a placeholder of its exact size; the world topology is no longer in the charts bundle.
+- The map pop-up opens without recomputing or replaying the sweep, the canvas is sized to the screen, hover repaints only
+  the dots of one country, and the heavy background blur is gone.
+
+## [0.1.0-alpha.40] - 2026-10-10
+
+### Changed
+- **Region map rebuilt for speed and feel**: the land dots are drawn on one canvas (about 2500 animated SVG circles
+  before), only transform and opacity are animated, and hover no longer redraws the map. In the pop-up you can zoom
+  (wheel or buttons) and drag; choosing a region flies the camera to it; the country of the hovered region lights up;
+  markers and labels keep their size while zooming; markers pop in one after another; the selected region gets a slowly
+  turning ring. Honours reduced-motion.
+
+## [0.1.0-alpha.39] - 2026-10-10
+
+### Fixed
+- The expanded region map opened inside its card (a transformed ancestor captured the fixed overlay) with a broken
+  list. It is now a real pop-up over the page; a click on a marker opens it on that region, and every region the account
+  uses is listed, also those without a grid reading yet.
+
+## [0.1.0-alpha.38] - 2026-10-10
+
+### Added
+- **Optimization potential** on the Overview: what open and approved recommendations could save per month (estimated,
+  carbon always, cost only where priced) next to what applied ones were MEASURED to save (impact verification). The two
+  are never added together. `GET /dashboard/optimization`.
+- **Workload efficiency**: cost and CO2e per unit of work over the project-days where units were reported, with the unit
+  named; refused (with the reason) when no units were reported or the selected projects count different things.
+  `GET /dashboard/efficiency`.
+- **Map layers**: grid intensity, my footprint (marker size = cost in the period, colour = grid intensity) and relocation
+  (a cleaner region of the same cloud, at least 15% cleaner, with the carbon it could save in the period). The detail
+  panel shows cost, energy and operational CO2e of the region and lists what is NOT yet checked (price, latency, data
+  residency, availability); the cost effect of a move is never guessed. `GET /dashboard/regions/footprint`.
+  API contract 0.24.0.
+
+### Changed
+- The SCI card names the unit of work it is per (and says so when projects mix units).
+- A recommendation without a price shows "cost: awaiting price data" with the reason; its carbon effect is labelled per
+  month.
+
+## [0.1.0-alpha.37] - 2026-10-10
+
+### Added
+- **Data quality** block on the Overview: share of grid intensity that is measured, where it came from (source and basis),
+  freshness of the last sync, connections that need attention; links to the methodology.
+
+### Changed
+- Carbon Intensity by Region lists the cloud and the exact region ID of every row (AWS and Google Cloud IDs were mixed
+  without a label).
+- "Provisional estimates" notice links to the methodology page.
+
+## [0.1.0-alpha.36] - 2026-10-10
+
+### Added
+- **EIA as a grid source for the United States** ([ADR-0035](docs/adr/0035-multi-source-grid-intensity.md)): hourly net
+  generation by fuel of a balancing authority (PJM, MISO, CISO, PACW, PACE, ERCO, SC ...) from EIA-930, free with a key.
+  The intensity is COMPUTED from the generation mix with generic life-cycle factors per fuel (an estimate; imports
+  between authorities are not accounted for) and is used behind a source that publishes a measured value. Integration
+  `eia` (sealed key, console test), source id `eia`, default order Electricity Maps, UK Carbon Intensity, EIA, Ember.
+  Migration 0041.
+- **Region map redrawn** as a dot-matrix world in pastel colours: every country is tinted from mint (clean) to rose
+  (high carbon) by the grid intensity of the cloud regions in it, markers pulse softly, and the map opens full-screen
+  (icon in the corner) with a region list and a detail panel (cloud, region ID, intensity, change, time of reading).
+  Around 60 AWS and Google Cloud regions are placed on the map.
+
+### Changed
+- The source selectors in the operator console and the settings list offer EIA.
+
 ## [0.1.0-alpha.35] - 2026-10-10
 
 ### Added

@@ -70,7 +70,13 @@ type Policy struct {
 	CICostBlock     *float64 `json:"ci_cost_block"`
 	// AlertCarbonMonthlyKg opens a carbon alert when the project's emissions in a calendar month approach it (kg CO2e).
 	AlertCarbonMonthlyKg *float64 `json:"alert_carbon_monthly_kg"`
+	// AutoApplyTypes lists the recommendation types the platform may apply without approval. Only types in
+	// AutoApplyAllowed can be listed; region moves and production changes always need approval.
+	AutoApplyTypes []string `json:"auto_apply_types"`
 }
+
+// AutoApplyAllowed are the recommendation types that are safe to apply on their own (repeatable, no data moves).
+var AutoApplyAllowed = map[string]bool{"time_shift": true}
 
 // CarbonLimit is a project with a monthly carbon limit (read by the alerts evaluation through a port).
 type CarbonLimit struct {
@@ -98,6 +104,15 @@ func (p *Policy) Validate() error {
 		}
 	}
 	p.AllowedRegions = out
+	auto := make([]string, 0, len(p.AutoApplyTypes))
+	for _, t := range p.AutoApplyTypes {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if !AutoApplyAllowed[t] {
+			return fmt.Errorf("%w: %q cannot be applied without approval", ErrInvalidPolicy, t)
+		}
+		auto = append(auto, t)
+	}
+	p.AutoApplyTypes = auto
 	for _, v := range []*float64{p.CICarbonWarnKg, p.CICarbonBlockKg, p.CICostWarn, p.CICostBlock, p.AlertCarbonMonthlyKg} {
 		if v != nil && *v < 0 {
 			return fmt.Errorf("%w: thresholds must be >= 0", ErrInvalidPolicy)

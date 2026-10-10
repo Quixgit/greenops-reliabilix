@@ -216,6 +216,11 @@ func (r Postgres) PriceIndex(ctx context.Context, provider string) (map[string]f
 	return m, err
 }
 
+// SavePriceIndex stores one region's relative price; source says where it came from and when.
+func (r Postgres) SavePriceIndex(ctx context.Context, provider, region string, idx float64, source string) error {
+	return db.New(r.Pool).UpsertPriceIndex(ctx, db.UpsertPriceIndexParams{Provider: provider, RegionID: region, Idx: idx, Source: source})
+}
+
 func (r Postgres) AllowedRegions(ctx context.Context, tenantID, projectID string) (regions []string, err error) {
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		regions, err = db.New(tx).GetPolicyRegions(ctx, db.GetPolicyRegionsParams{TenantID: tenantID, ProjectID: projectID})

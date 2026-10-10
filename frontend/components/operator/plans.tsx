@@ -10,6 +10,7 @@ import { useOperatorBillingEvents, useOperatorIntegrations, useOperatorPlans } f
 import { PAYMENT_IDS } from "./data-sources";
 import { shortTime } from "@/lib/format-time";
 import { PageTitle, th } from "./parts";
+import { Pill, type PillTone } from "./ui";
 
 const LIMITS: [string, string][] = [
   ["limits.projects", "Projects"], ["limits.cloud_connections", "Cloud connections"], ["limits.members", "Members"], ["limits.notification_destinations", "Notification destinations"],
@@ -73,6 +74,8 @@ function BillingEvents() {
   );
 }
 
+const planTone = (p: string): PillTone => (p === "enterprise" ? "violet" : p === "business" ? "info" : p === "team" ? "good" : "neutral");
+
 export function PlansView() {
   const q = useOperatorPlans();
   return (
@@ -81,19 +84,48 @@ export function PlansView() {
       <Card interactive={false}>
         <CardHeader title="Plan catalog" />
         {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr><th className={th}> </th>{q.data!.map((p) => <th key={p.id} className={th}><span className="text-sm font-semibold text-ink">{p.name}</span>{p.id !== p.name.toLowerCase() && <Badge className="ml-2">{p.id}</Badge>}</th>)}</tr></thead>
-              <tbody className="divide-y divide-line/70">
-                <tr><td className="py-2 pr-4 text-muted">Organizations</td>{q.data!.map((p) => <td key={p.id} className="pr-4 font-semibold">{p.organizations}</td>)}</tr>
-                {LIMITS.map(([k, label]) => (
-                  <tr key={k}><td className="py-2 pr-4 text-muted">{label}</td>{q.data!.map((p) => <td key={p.id} className="pr-4">{p.limits[k] === undefined ? "—" : p.limits[k] === 0 ? "Unlimited" : p.limits[k]}</td>)}</tr>
-                ))}
-                {MODULES.map(([k, label]) => (
-                  <tr key={k}><td className="py-2 pr-4 text-muted">{label}</td>{q.data!.map((p) => <td key={p.id} className="pr-4">{p.modules[k] === undefined ? "—" : p.modules[k] ? <Check className="size-4 text-emerald-600" aria-label="on" /> : <Minus className="size-4 text-slate-400" aria-label="off" />}</td>)}</tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="overflow-hidden rounded-2xl ring-1 ring-line">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
+                    <th className="border-b border-line bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Plan</th>
+                    {q.data!.map((p) => (
+                      <th key={p.id} className="border-b border-l border-line bg-slate-50 px-4 py-3 text-left">
+                        <Pill tone={planTone(p.id)}>{p.name}</Pill>
+                        <span className="mt-1 block text-[11px] font-normal normal-case text-muted">{p.organizations} organization{p.organizations === 1 ? "" : "s"}</span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colSpan={q.data!.length + 1} className="bg-slate-50/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Limits</td></tr>
+                  {LIMITS.map(([k, label]) => (
+                    <tr key={k} className="transition-colors hover:bg-sky-50/40">
+                      <td className="border-b border-line/60 px-4 py-3 text-slate-600">{label}</td>
+                      {q.data!.map((p) => (
+                        <td key={p.id} className="border-b border-l border-line/60 px-4 py-3 font-medium tabular-nums">
+                          {p.limits[k] === undefined ? "—" : p.limits[k] === 0 ? <span className="text-emerald-700">Unlimited</span> : p.limits[k]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  <tr><td colSpan={q.data!.length + 1} className="bg-slate-50/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Modules</td></tr>
+                  {MODULES.map(([k, label]) => (
+                    <tr key={k} className="transition-colors hover:bg-sky-50/40">
+                      <td className="border-b border-line/60 px-4 py-3 text-slate-600">{label}</td>
+                      {q.data!.map((p) => (
+                        <td key={p.id} className="border-b border-l border-line/60 px-4 py-3">
+                          {p.modules[k] === undefined ? "—" : p.modules[k]
+                            ? <span className="inline-grid size-6 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="size-3.5" strokeWidth={3} aria-label="on" /></span>
+                            : <span className="inline-grid size-6 place-items-center rounded-full bg-slate-100 text-slate-400"><Minus className="size-3.5" aria-label="off" /></span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </Card>

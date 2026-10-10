@@ -120,5 +120,6 @@ type Repository interface {
 	Workloads(ctx context.Context, tenantID, projectID string, from, to time.Time) (ws []Workload, dataDays int, err error)
 	Intensities(ctx context.Context) (map[string]float64, error)
 	PriceIndex(ctx context.Context, provider string) (map[string]float64, error)
+	SavePriceIndex(ctx context.Context, provider, region string, idx float64, source string) error
 	AllowedRegions(ctx context.Context, tenantID, projectID string) ([]string, error)
 }

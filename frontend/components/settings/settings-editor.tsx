@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
 import { settingChanges, settingsView, type SettingItem, type SettingsView } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
+import { Check_, Switch } from "@/components/operator/ui";
 import { cn } from "@/lib/utils";
 
 /**
@@ -33,10 +34,10 @@ function Control({ item, value, onChange, disabled }: { item: SettingItem; value
   switch (item.type) {
     case "bool":
       return (
-        <label className="inline-flex cursor-pointer items-center gap-2">
-          <input type="checkbox" role="switch" aria-label={item.title} checked={value === true} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="size-5 accent-[var(--color-primary)]" />
-          <span className="text-sm text-muted">{value === true ? "On" : "Off"}</span>
-        </label>
+        <span className="inline-flex items-center gap-3">
+          <Switch label={item.title} checked={value === true} disabled={disabled} onChange={onChange} />
+          <span className={cn("text-sm font-medium", value === true ? "text-emerald-700" : "text-muted")}>{value === true ? "On" : "Off"}</span>
+        </span>
       );
     case "int":
     case "float":
@@ -59,11 +60,11 @@ function Control({ item, value, onChange, disabled }: { item: SettingItem; value
         <div className="flex flex-wrap gap-x-4 gap-y-1.5" role="group" aria-label={item.title}>
           {item.list_enum.map((o) => {
             const cur = Array.isArray(value) ? (value as string[]) : [];
+            const on = cur.includes(o);
             return (
-              <label key={o} className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" disabled={disabled} checked={cur.includes(o)} className="size-4 accent-[var(--color-primary)]"
-                  onChange={(e) => onChange(e.target.checked ? [...cur, o] : cur.filter((x) => x !== o))} />{o}
-              </label>
+              <span key={o} className={cn("rounded-xl px-2.5 py-1.5 ring-1 transition", on ? "bg-emerald-50 ring-emerald-200" : "bg-white ring-line")}>
+                <Check_ label={o} disabled={disabled} checked={on} onChange={(v) => onChange(v ? [...cur, o] : cur.filter((x) => x !== o))}>{o}</Check_>
+              </span>
             );
           })}
         </div>

@@ -12,12 +12,12 @@ import { useConnections } from "@/hooks/use-overview";
 import { timeAgo } from "@/lib/formatters";
 import { CATALOG, CATEGORIES, type CatalogItem } from "./catalog";
 
-type Provider = "aws" | "gcp";
+type Provider = "aws" | "gcp" | "azure";
 
 function Action({ item, connected, canConnect, onConnect }: { item: CatalogItem; connected: number; canConnect: boolean; onConnect: (p: Provider) => void }) {
   if (item.status === "planned") return <Badge tone="stub">{item.phase ?? "Planned"}</Badge>;
   if (item.status === "platform") return <Badge tone="neutral">Managed by Reliabilix</Badge>;
-  if (item.category === "cloud" && (item.provider === "aws" || item.provider === "gcp")) {
+  if (item.category === "cloud" && (item.provider === "aws" || item.provider === "gcp" || item.provider === "azure")) {
     const p = item.provider;
     return canConnect
       ? <button onClick={() => onConnect(p)} className="text-sm font-medium text-primary hover:underline">{connected ? "Add another" : "Connect"}</button>

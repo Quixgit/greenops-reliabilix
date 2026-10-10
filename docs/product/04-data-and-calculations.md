@@ -44,7 +44,7 @@
 
 ## 3. Стоимость
 
-- Источник: AWS Cost Explorer или FOCUS-экспорт, GCP BigQuery export → нормализация в **FOCUS v1.4**.
+- Источник: AWS Cost Explorer или FOCUS-экспорт, GCP BigQuery export, Azure Cost Management export (FOCUS, Blob Storage) → нормализация в **FOCUS v1.4**. Azure: часы VM × число ядер SKU и «Data Stored» Blob измеряются, остальное — по стоимости; память VM и управляемые диски не измеряются (ADR-0041).
 - Хранится исходная валюта и сумма; суммы — `numeric`, не `float`; `NaN`/`Inf` и неверный код валюты отвергаются
   до записи.
 - Импорт идемпотентен (upsert по ключу строки): повтор не удваивает расходы. Поздние корректировки перезаписывают

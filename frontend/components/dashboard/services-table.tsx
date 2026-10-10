@@ -1,15 +1,16 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Boxes, Database, HardDrive, Network, Server, Table2, type LucideIcon } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PillTabs } from "@/components/ui/tabs";
 import { Sparkline } from "@/components/charts/sparkline";
 import { content } from "@/content/schema";
-import { useServices } from "@/hooks/use-overview";
+import { useFinopsSummary, useServices } from "@/hooks/use-overview";
 import { formatCarbon, formatCost, formatPct, halfTrend } from "@/lib/formatters";
+import { useUi } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -27,9 +28,13 @@ const ICON: Record<string, { icon: LucideIcon; tile: string }> = {
 export function ServicesTable() {
   const [tab, setTab] = useState("all");
   const q = useServices(tab);
+  useFinopsSummary(); // re-render when the reporting currency is known
+  const focus = useUi((s) => s.focusService);
+  const setFocus = useUi((s) => s.setFocusService);
+  useEffect(() => { if (!focus) return; const t = setTimeout(() => setFocus(null), 4000); return () => clearTimeout(t); }, [focus, setFocus]);
   const max = Math.max(1, ...(q.data ?? []).map((r) => r.cost));
   return (
-    <Card index={6} interactive={false}>
+    <Card index={6} interactive={false} id="services-table">
       <CardHeader title="Details by Service" />
       <div className="mb-3"><PillTabs value={tab} onChange={setTab} tabs={TABS} /></div>
       {q.isLoading ? <Skeleton className="h-48" /> : q.isError ? <ErrorState /> :
@@ -49,7 +54,7 @@ export function ServicesTable() {
                   const trend = halfTrend(r.trend);
                   const good = trend !== null && trend <= 0;
                   return (
-                    <tr key={r.service} className="rise group border-t border-line/70 transition-colors hover:bg-slate-50/70" style={{ "--i": i + 1 } as CSSProperties}>
+                    <tr key={r.service} className={cn("rise group border-t border-line/70 transition-colors hover:bg-slate-50/70", focus === r.service && "bg-sky-50 ring-2 ring-inset ring-sky-200")} style={{ "--i": i + 1 } as CSSProperties}>
                       <td className="py-2.5">
                         <span className="flex min-w-0 items-center gap-3">
                           <span className={cn("flex size-9 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-300 group-hover:scale-110", meta.tile)}><meta.icon className="size-[18px]" strokeWidth={1.8} /></span>

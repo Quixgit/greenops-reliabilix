@@ -35,7 +35,7 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
       <p>
         <span className="font-semibold text-primary">−{r.estimated_carbon_reduction_pct.toFixed(0)}% carbon</span>
         {" "}(~{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/month) ·{" "}
-        {r.estimated_cost_impact === null ? <span className="text-muted">cost impact not estimated</span> : <span>cost {r.estimated_cost_impact < 0 ? "saving" : "increase"} {Math.abs(r.estimated_cost_impact).toFixed(2)}</span>}
+        {r.estimated_cost_impact === null ? <span className="text-muted">cost impact not estimated</span> : <span title={r.cost_basis === "region_price_index" ? "Estimated from AWS on-demand list prices of the EC2 instance basket in both regions. Excludes discounts, data transfer and the cost of the move." : undefined}>cost {r.estimated_cost_impact < 0 ? "saving" : "increase"} {Math.abs(r.estimated_cost_impact).toFixed(2)}{r.cost_basis === "region_price_index" && <span className="ml-1 text-xs text-muted">(list-price estimate)</span>}</span>}
         {" "}· confidence {(r.confidence * 100).toFixed(0)}%
       </p>
       )}

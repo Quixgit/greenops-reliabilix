@@ -54,6 +54,140 @@ func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityPa
 	return items, nil
 }
 
+const dashboardEfficiency = `-- name: DashboardEfficiency :one
+WITH carbon_d AS (
+  SELECT x.project_id, date_trunc('day', x.period_start) AS day, sum(x.carbon_kg_co2e) AS kg, max(x.functional_units) AS r
+  FROM carbon.calculations x
+  WHERE x.tenant_id = $1 AND ($2::uuid IS NULL OR x.project_id = $2)
+    AND x.methodology_version = $3
+    AND x.period_start >= $4 AND x.period_start < $5
+  GROUP BY 1, 2 HAVING max(x.functional_units) IS NOT NULL
+), cost_d AS (
+  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+      WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+        AND d.recorded_at >= $4 AND d.recorded_at < $5
+      GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+    AND u.recorded_at >= $4 AND u.recorded_at < $5
+  GROUP BY 1, 2
+)
+SELECT COALESCE(sum(c.kg) * 1000, 0)::float8 AS carbon_g,
+       COALESCE(sum(c.r), 0)::float8 AS units,
+       COALESCE(sum(k.cost), 0)::float8 AS cost,
+       COALESCE((SELECT array_agg(DISTINCT p.functional_unit ORDER BY p.functional_unit)
+                 FROM projects.projects p WHERE p.id IN (SELECT project_id FROM carbon_d)), '{}')::text[] AS unit_names,
+       count(*)::int AS days
+FROM carbon_d c LEFT JOIN cost_d k ON k.project_id = c.project_id AND k.day = c.day
+`
+
+type DashboardEfficiencyParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type DashboardEfficiencyRow struct {
+	CarbonG   float64  `json:"carbon_g"`
+	Units     float64  `json:"units"`
+	Cost      float64  `json:"cost"`
+	UnitNames []string `json:"unit_names"`
+	Days      int32    `json:"days"`
+}
+
+// Carbon and cost per unit of work, over the (project, day) pairs where the customer reported functional units: never
+// extrapolated to days without them. `units` lists the distinct unit names, so a mixed answer can be refused.
+func (q *Queries) DashboardEfficiency(ctx context.Context, arg DashboardEfficiencyParams) (DashboardEfficiencyRow, error) {
+	row := q.db.QueryRow(ctx, dashboardEfficiency,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	var i DashboardEfficiencyRow
+	err := row.Scan(
+		&i.CarbonG,
+		&i.Units,
+		&i.Cost,
+		&i.UnitNames,
+		&i.Days,
+	)
+	return i, err
+}
+
+const dashboardPotential = `-- name: DashboardPotential :one
+SELECT count(*) FILTER (WHERE r.status = 'open')::int AS open_count,
+       count(*) FILTER (WHERE status = 'approved')::int AS approved_count,
+       COALESCE(sum(carbon_reduction_kg_month) FILTER (WHERE status IN ('open','approved')), 0)::float8 AS potential_carbon_kg_month,
+       COALESCE(sum(-estimated_cost_impact) FILTER (WHERE status IN ('open','approved') AND estimated_cost_impact IS NOT NULL), 0)::float8 AS potential_saving_month,
+       count(*) FILTER (WHERE status IN ('open','approved') AND estimated_cost_impact IS NULL)::int AS cost_not_estimated,
+       count(*) FILTER (WHERE status = 'open' AND r.type = ANY(COALESCE(pol.auto_apply_types, '{}')))::int AS auto_count
+FROM recommendations.recommendations r
+LEFT JOIN projects.policies pol ON pol.project_id = r.project_id
+WHERE r.tenant_id = $1 AND ($2::uuid IS NULL OR r.project_id = $2)
+`
+
+type DashboardPotentialParams struct {
+	TenantID  string  `json:"tenant_id"`
+	ProjectID *string `json:"project_id"`
+}
+
+type DashboardPotentialRow struct {
+	OpenCount              int32   `json:"open_count"`
+	ApprovedCount          int32   `json:"approved_count"`
+	PotentialCarbonKgMonth float64 `json:"potential_carbon_kg_month"`
+	PotentialSavingMonth   float64 `json:"potential_saving_month"`
+	CostNotEstimated       int32   `json:"cost_not_estimated"`
+	AutoCount              int32   `json:"auto_count"`
+}
+
+// What the open and approved recommendations could save per month, as estimated (not yet verified), and how many of
+// them have no cost estimate (their carbon effect is still counted; the cost is never guessed).
+func (q *Queries) DashboardPotential(ctx context.Context, arg DashboardPotentialParams) (DashboardPotentialRow, error) {
+	row := q.db.QueryRow(ctx, dashboardPotential, arg.TenantID, arg.ProjectID)
+	var i DashboardPotentialRow
+	err := row.Scan(
+		&i.OpenCount,
+		&i.ApprovedCount,
+		&i.PotentialCarbonKgMonth,
+		&i.PotentialSavingMonth,
+		&i.CostNotEstimated,
+		&i.AutoCount,
+	)
+	return i, err
+}
+
+const dashboardPriceIndex = `-- name: DashboardPriceIndex :many
+SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = 'aws'
+`
+
+type DashboardPriceIndexRow struct {
+	RegionID string  `json:"region_id"`
+	Idx      float64 `json:"idx"`
+}
+
+func (q *Queries) DashboardPriceIndex(ctx context.Context) ([]DashboardPriceIndexRow, error) {
+	rows, err := q.db.Query(ctx, dashboardPriceIndex)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardPriceIndexRow{}
+	for rows.Next() {
+		var i DashboardPriceIndexRow
+		if err := rows.Scan(&i.RegionID, &i.Idx); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dashboardProviders = `-- name: DashboardProviders :many
 SELECT provider, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e FROM carbon.calculations
 WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
@@ -91,6 +225,212 @@ func (q *Queries) DashboardProviders(ctx context.Context, arg DashboardProviders
 	for rows.Next() {
 		var i DashboardProvidersRow
 		if err := rows.Scan(&i.Provider, &i.CarbonKgCo2e); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardRegionCarbon = `-- name: DashboardRegionCarbon :many
+SELECT provider, region_id, sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3
+  AND period_start >= $4 AND period_start < $5
+GROUP BY 1, 2
+`
+
+type DashboardRegionCarbonParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type DashboardRegionCarbonRow struct {
+	Provider     string  `json:"provider"`
+	RegionID     string  `json:"region_id"`
+	EnergyKwh    float64 `json:"energy_kwh"`
+	CarbonKgCo2e float64 `json:"carbon_kg_co2e"`
+}
+
+func (q *Queries) DashboardRegionCarbon(ctx context.Context, arg DashboardRegionCarbonParams) ([]DashboardRegionCarbonRow, error) {
+	rows, err := q.db.Query(ctx, dashboardRegionCarbon,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardRegionCarbonRow{}
+	for rows.Next() {
+		var i DashboardRegionCarbonRow
+		if err := rows.Scan(
+			&i.Provider,
+			&i.RegionID,
+			&i.EnergyKwh,
+			&i.CarbonKgCo2e,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardRegionCost = `-- name: DashboardRegionCost :many
+SELECT u.provider, u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+GROUP BY 1, 2
+`
+
+type DashboardRegionCostParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type DashboardRegionCostRow struct {
+	Provider string  `json:"provider"`
+	RegionID string  `json:"region_id"`
+	Cost     float64 `json:"cost"`
+}
+
+func (q *Queries) DashboardRegionCost(ctx context.Context, arg DashboardRegionCostParams) ([]DashboardRegionCostRow, error) {
+	rows, err := q.db.Query(ctx, dashboardRegionCost,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardRegionCostRow{}
+	for rows.Next() {
+		var i DashboardRegionCostRow
+		if err := rows.Scan(&i.Provider, &i.RegionID, &i.Cost); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardRegionEC2Cost = `-- name: DashboardRegionEC2Cost :many
+SELECT u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+  AND u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%'
+GROUP BY 1
+`
+
+type DashboardRegionEC2CostParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type DashboardRegionEC2CostRow struct {
+	RegionID string  `json:"region_id"`
+	Cost     float64 `json:"cost"`
+}
+
+// EC2 instance compute cost per region (the only cost the region price index describes), in the dominant currency.
+func (q *Queries) DashboardRegionEC2Cost(ctx context.Context, arg DashboardRegionEC2CostParams) ([]DashboardRegionEC2CostRow, error) {
+	rows, err := q.db.Query(ctx, dashboardRegionEC2Cost,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardRegionEC2CostRow{}
+	for rows.Next() {
+		var i DashboardRegionEC2CostRow
+		if err := rows.Scan(&i.RegionID, &i.Cost); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dashboardRegionResidency = `-- name: DashboardRegionResidency :many
+SELECT u.provider, u.region_id, u.project_id::text AS project_id, COALESCE(p.allowed_regions, '{}')::text[] AS allowed_regions
+FROM (SELECT DISTINCT x.provider, x.region_id, x.project_id FROM usage.usage_records x
+      WHERE x.tenant_id = $1 AND ($2::uuid IS NULL OR x.project_id = $2)
+        AND x.recorded_at >= $3 AND x.recorded_at < $4) u
+LEFT JOIN projects.policies p ON p.project_id = u.project_id
+`
+
+type DashboardRegionResidencyParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type DashboardRegionResidencyRow struct {
+	Provider       string   `json:"provider"`
+	RegionID       string   `json:"region_id"`
+	ProjectID      string   `json:"project_id"`
+	AllowedRegions []string `json:"allowed_regions"`
+}
+
+// For each (cloud, region) the account uses in the period: the data-residency allow-list of every project using it.
+// An empty list means residency is unknown for that project, so no move out of the region is proposed (the same rule
+// the recommendation engine follows).
+func (q *Queries) DashboardRegionResidency(ctx context.Context, arg DashboardRegionResidencyParams) ([]DashboardRegionResidencyRow, error) {
+	rows, err := q.db.Query(ctx, dashboardRegionResidency,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardRegionResidencyRow{}
+	for rows.Next() {
+		var i DashboardRegionResidencyRow
+		if err := rows.Scan(
+			&i.Provider,
+			&i.RegionID,
+			&i.ProjectID,
+			&i.AllowedRegions,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -208,14 +548,13 @@ func (q *Queries) DashboardServiceCarbon(ctx context.Context, arg DashboardServi
 }
 
 const dashboardServiceCost = `-- name: DashboardServiceCost :many
-SELECT u.service_name, u.service_category, sum(u.billed_cost)::float8 AS cost FROM usage.usage_records u
+SELECT u.service_name, u.service_category, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
   AND ($5::text = '' OR u.service_category = $5::text)
-  AND u.currency = (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
-      AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY 1, 2
 `
 
@@ -261,13 +600,12 @@ func (q *Queries) DashboardServiceCost(ctx context.Context, arg DashboardService
 
 const dashboardTrend = `-- name: DashboardTrend :many
 WITH cost_d AS (
-  SELECT date_trunc('day', u.recorded_at) AS d, sum(u.billed_cost) AS cost FROM usage.usage_records u
-  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
-    AND u.recorded_at >= $3 AND u.recorded_at < $4
-    AND u.currency = (SELECT d.currency FROM usage.usage_records d
+  SELECT date_trunc('day', u.recorded_at) AS d, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1) GROUP BY 1
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+    AND u.recorded_at >= $3 AND u.recorded_at < $4 GROUP BY 1
 ), carbon_d AS (
   SELECT date_trunc('day', x.period_start) AS d, sum(x.carbon_kg_co2e) AS co2e FROM carbon.calculations x
   WHERE x.tenant_id = $1 AND ($2::uuid IS NULL OR x.project_id = $2)
@@ -316,4 +654,38 @@ func (q *Queries) DashboardTrend(ctx context.Context, arg DashboardTrendParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const dashboardVerified = `-- name: DashboardVerified :one
+SELECT count(*) FILTER (WHERE outcome IN ('realized','partial'))::int AS verified_count,
+       count(*) FILTER (WHERE outcome = 'not_realized')::int AS not_realized_count,
+       COALESCE(sum(measured_carbon_kg_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_carbon_kg_month,
+       COALESCE(sum(measured_cost_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_saving_month
+FROM recommendations.impact_verifications
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+`
+
+type DashboardVerifiedParams struct {
+	TenantID  string  `json:"tenant_id"`
+	ProjectID *string `json:"project_id"`
+}
+
+type DashboardVerifiedRow struct {
+	VerifiedCount         int32   `json:"verified_count"`
+	NotRealizedCount      int32   `json:"not_realized_count"`
+	VerifiedCarbonKgMonth float64 `json:"verified_carbon_kg_month"`
+	VerifiedSavingMonth   float64 `json:"verified_saving_month"`
+}
+
+// What applied recommendations were MEASURED to save (per 30 days), from the impact verification.
+func (q *Queries) DashboardVerified(ctx context.Context, arg DashboardVerifiedParams) (DashboardVerifiedRow, error) {
+	row := q.db.QueryRow(ctx, dashboardVerified, arg.TenantID, arg.ProjectID)
+	var i DashboardVerifiedRow
+	err := row.Scan(
+		&i.VerifiedCount,
+		&i.NotRealizedCount,
+		&i.VerifiedCarbonKgMonth,
+		&i.VerifiedSavingMonth,
+	)
+	return i, err
 }

@@ -20,6 +20,29 @@ func (s Service) now() time.Time {
 	return time.Now()
 }
 
+// RateSource returns the reference rates on or after a day.
+type RateSource interface {
+	Fetch(ctx context.Context, since time.Time) ([]domain.FXRate, error)
+}
+
+// RefreshRates stores the rates newer than what is stored (all of them the first time). A week of overlap is kept so a
+// correction published for a recent day is picked up.
+func (s Service) RefreshRates(ctx context.Context, src RateSource) (int, error) {
+	latest, err := s.Repo.LatestRateDay(ctx)
+	if err != nil {
+		return 0, err
+	}
+	since := time.Time{}
+	if !latest.IsZero() {
+		since = latest.AddDate(0, 0, -7)
+	}
+	rates, err := src.Fetch(ctx, since)
+	if err != nil {
+		return 0, err
+	}
+	return len(rates), s.Repo.SaveRates(ctx, rates)
+}
+
 func (s Service) Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.Summary, error) {
 	return s.Repo.Summary(ctx, tenantID, project, from, to)
 }

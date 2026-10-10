@@ -25,7 +25,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: admin doctor|recalc|recommend|refresh-grid|partitions")
+		fmt.Fprintln(os.Stderr, "usage: admin doctor|recalc|recommend|refresh-grid|load-history|refresh-prices|refresh-fx|partitions")
 		os.Exit(2)
 	}
 	log := observability.Logger("admin")
@@ -67,6 +67,15 @@ func main() {
 		run = func() error { return mux.ProcessTask(ctx, asynq.NewTask(queue.TaskRecommendAll, []byte("{}"))) }
 	case "refresh-grid":
 		run = func() error { return mux.ProcessTask(ctx, asynq.NewTask(queue.TaskRefreshGrid, []byte("{}"))) }
+	case "refresh-fx":
+		// The ECB euro reference rates (daily job; the first run loads the whole history), started now.
+		run = func() error { return mux.ProcessTask(ctx, asynq.NewTask(queue.TaskRefreshFX, []byte("{}"))) }
+	case "refresh-prices":
+		// The relative EC2 price per region (weekly job), started now.
+		run = func() error { return mux.ProcessTask(ctx, asynq.NewTask(queue.TaskRefreshPrices, []byte("{}"))) }
+	case "load-history":
+		// The daily automatic loading of the past of regions with gaps, started now (also redoes the calculations).
+		run = func() error { return mux.ProcessTask(ctx, asynq.NewTask(queue.TaskAutoLoadHistory, []byte("{}"))) }
 	case "partitions":
 		run = func() error { return database.EnsurePartitions(ctx, pool, time.Now().UTC()) }
 	default:

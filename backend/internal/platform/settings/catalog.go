@@ -33,6 +33,8 @@ const (
 	KeyCarbonAutoLoad    = "carbon.auto_load_history"
 	KeyCarbonAutoDays    = "carbon.auto_load_days"
 
+	KeyReportingCurrency = "finops.reporting_currency"
+
 	// Unit costs of serving an organization (USD): inputs of the console's estimated cost per organization.
 	KeyCostBase       = "costs.base_per_organization_month"
 	KeyCostUsageRows  = "costs.per_million_usage_rows"
@@ -70,6 +72,7 @@ var groups = []Group{
 	{"costs", "Cost of serving an organization", "Unit costs (USD) that turn an organization's resource use into an estimated monthly cost of serving it."},
 	{"i18n", "Languages", "Which languages the platform offers and which one is used when a person has not chosen."},
 	{"carbon", "Grid data sources", "Which source supplies the grid carbon intensity, and how much data a source needs before it is used."},
+	{"reporting", "Cost reporting", "In which currency cost is shown when a bill has several."},
 	{"modules", "Modules", "Which product areas an organization can use."},
 	{"limits", "Limits", "Quotas per organization. 0 means unlimited."},
 	{"security", "Security", "Invitations and machine access."},
@@ -139,6 +142,12 @@ func definitions() []Def {
 		floatDef(KeyCostReport, "costs", "Per generated report", "Rendering and storing a report file.", 0.02, 0, 1000, "USD", ""),
 		floatDef(KeyCostK8sSamples, "costs", "Per million Kubernetes samples", "Storage and processing of workload energy samples.", 3, 0, 100000, "USD", ""),
 
+		// ---- cost reporting (organization) ----
+		{Key: KeyReportingCurrency, Group: "reporting", Title: "Reporting currency", Description: "The currency every cost figure is shown in. Amounts in other currencies are converted at the day's ECB reference rate. \"auto\" uses the currency most of your cost is billed in.",
+			Scope: ScopeTenant, Type: Enum, Default: "auto",
+			Enum: []string{"auto", "USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD", "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "INR", "BRL", "SGD"},
+			Note: "Reference rates for reporting, not for invoicing. An amount in a currency without a published rate is left out of the totals and the overview says so."},
+
 		// ---- languages (platform) ----
 		{Key: KeyDefaultLocale, Group: "i18n", Title: "Default language", Description: "Used for people who have not chosen a language and whose browser does not ask for an offered one; also for e-mails and reports without a recipient preference.",
 			Scope: ScopePlatform, Type: Enum, Default: "en", Enum: []string{"en", "ru"}},
@@ -148,10 +157,10 @@ func definitions() []Def {
 
 		// ---- grid data sources (platform) ----
 		{Key: KeyCarbonPriority, Group: "carbon", Title: "Source priority", Description: "Sources of grid carbon intensity, most trusted first. For a day, the first source with enough readings is used; sources are never averaged together.",
-			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "uk_carbon_intensity", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity"}, MinItems: 1, MaxItems: 5,
+			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity", "eia", "energy_charts"}, MinItems: 1, MaxItems: 7,
 			Note: "Only sources that have a released connector can supply data. Marginal intensity (WattTime) is a different measure and is not part of this list."},
 		{Key: KeyCarbonOverrides, Group: "carbon", Title: "Source per region", Description: "Use a specific source for a region, before the priority list. One entry per line as region=source, for example eu-west-2=uk_carbon_intensity.",
-			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity)$`},
+			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity|eia|energy_charts)$`},
 		intDef(KeyCarbonMaxRequests, "carbon", "Requests per day to the grid data provider", "Cost control: once this many requests were made today to the provider (all processes together), no more are made until the next UTC day, and stored readings are used. 0 is unlimited.", ScopePlatform, 2000, 0, 1000000, "requests", "The hourly refresh needs about one request per region in use; loading past data needs one per region per 9 days."),
 		boolDef(KeyCarbonAutoLoad, "carbon", "Load the past of a region by itself", "Every day, a region in use whose last days are not covered by grid data gets its past loaded from every source that can supply it, and the affected calculations are redone. Requests count against the daily cap.", ScopePlatform, true, "Turn off to load history only by hand from this page."),
 		intDef(KeyCarbonAutoDays, "carbon", "How far back to load by itself", "The window the automatic loading covers and recalculates.", ScopePlatform, 90, 7, 365, "days", ""),
@@ -170,7 +179,7 @@ func definitions() []Def {
 
 		// ---- cloud connectors ----
 		{Key: KeyProvidersAllowed, Group: "connectors", Title: "Allowed providers", Description: "Cloud providers this organization may connect.", Scope: ScopeOperator, Type: List,
-			Default: []string{"aws", "gcp"}, ListEnum: []string{"aws", "gcp", "azure"}, MinItems: 1, MaxItems: 3, Note: "Azure is not available yet; listing it has no effect until the connector exists."},
+			Default: []string{"aws", "gcp"}, ListEnum: []string{"aws", "gcp", "azure"}, MinItems: 1, MaxItems: 3, Note: "Azure is available when the platform has its Microsoft Entra application configured; listing it before that has no effect."},
 		intDef(KeySyncMinIntervalH, "connectors", "Minimum hours between data pulls", "Each connection is pulled at most this often.", ScopeTenant, 6, 6, 168, "hours",
 			"The platform pulls every 6 hours; a larger value skips runs. Lower values cannot make it faster."),
 

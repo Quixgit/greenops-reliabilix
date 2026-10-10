@@ -20,6 +20,9 @@ func (h Handlers) Routes(r chi.Router) {
 	read.Get("/dashboard/providers", h.providers)
 	read.Get("/dashboard/services", h.services)
 	read.Get("/dashboard/regions", h.regions)
+	read.Get("/dashboard/regions/footprint", h.footprint)
+	read.Get("/dashboard/optimization", h.optimization)
+	read.Get("/dashboard/efficiency", h.efficiency)
 	read.Get("/dashboard/activity", h.activity)
 }
 
@@ -83,4 +86,37 @@ func (h Handlers) activity(w http.ResponseWriter, r *http.Request) {
 	}
 	v, err := h.Repo.Activity(r.Context(), c.TenantID, limit)
 	respond(w, r, v, err)
+}
+
+func (h Handlers) footprint(w http.ResponseWriter, r *http.Request) {
+	if f, ok := filter(w, r); ok {
+		v, err := h.Repo.RegionFootprint(r.Context(), f)
+		respond(w, r, v, err)
+	}
+}
+
+func (h Handlers) optimization(w http.ResponseWriter, r *http.Request) {
+	f, ok := filter(w, r)
+	if !ok {
+		return
+	}
+	v, err := h.Repo.Optimization(r.Context(), f)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, v)
+}
+
+func (h Handlers) efficiency(w http.ResponseWriter, r *http.Request) {
+	f, ok := filter(w, r)
+	if !ok {
+		return
+	}
+	v, err := h.Repo.Efficiency(r.Context(), f)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, v)
 }

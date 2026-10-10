@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/eia"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/ember"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/channels/email"
@@ -23,6 +24,14 @@ func integrationEnv(cfg config.Config) func(integration, key string) string {
 		switch integration + "/" + key {
 		case "electricitymaps/api_key":
 			return cfg.ElectricityMapsKey
+		case "energy_charts/base_url":
+			return cfg.EnergyChartsBaseURL
+		case "uk_carbon_intensity/base_url":
+			return cfg.UKCIBaseURL
+		case "ember/api_key":
+			return cfg.EmberKey
+		case "eia/api_key":
+			return cfg.EIAKey
 		case "electricitymaps/zone_overrides":
 			return cfg.ElectricityMapsZoneOverrides
 		case "smtp/host":
@@ -43,6 +52,10 @@ func integrationEnv(cfg config.Config) func(integration, key string) string {
 			return cfg.PlatformGCPProject
 		case "platform_gcp/service_account":
 			return cfg.PlatformGCPServiceAccount
+		case "platform_azure/client_id":
+			return cfg.PlatformAzureClientID
+		case "platform_azure/client_secret":
+			return cfg.PlatformAzureClientSecret
 		case "object_storage/bucket":
 			return cfg.S3Bucket
 		case "object_storage/endpoint":
@@ -122,6 +135,15 @@ func (p integrationsPort) Test(ctx context.Context, integration string) (string,
 			return "", errors.New("Ember did not accept the key, or could not be reached")
 		}
 		return "The key is accepted: monthly national carbon intensity is available.", nil
+	case "eia":
+		key := p.store.Value(ctx, "eia", "api_key")
+		if key == "" {
+			return "", errors.New("no API key is configured")
+		}
+		if err := eia.New(key).Check(ctx); err != nil {
+			return "", errors.New("EIA did not accept the key, or could not be reached")
+		}
+		return "The key is accepted: hourly US generation data is available.", nil
 	case "smtp":
 		s, _, ok := smtpFrom(ctx, p.store, p.allowPlain)
 		if !ok {
@@ -151,6 +173,8 @@ func overlayIntegrations(ctx context.Context, cfg config.Config, r valueReader) 
 	set(&cfg.PlatformAWSAccountID, "platform_aws", "account_id")
 	set(&cfg.PlatformGCPProject, "platform_gcp", "project")
 	set(&cfg.PlatformGCPServiceAccount, "platform_gcp", "service_account")
+	set(&cfg.PlatformAzureClientID, "platform_azure", "client_id")
+	set(&cfg.PlatformAzureClientSecret, "platform_azure", "client_secret")
 	set(&cfg.S3Bucket, "object_storage", "bucket")
 	set(&cfg.S3Endpoint, "object_storage", "endpoint")
 	set(&cfg.S3Region, "object_storage", "region")

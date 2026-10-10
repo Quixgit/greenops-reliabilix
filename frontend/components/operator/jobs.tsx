@@ -7,7 +7,8 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOperatorJobs } from "@/hooks/use-admin";
 import { shortTime } from "@/lib/format-time";
-import { PageTitle, Tile, th } from "./parts";
+import { PageTitle, Tile } from "./parts";
+import { DataTable, Pill } from "./ui";
 
 const age = (s: number) => (s < 1 ? "none waiting" : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`);
 
@@ -31,46 +32,42 @@ export function JobsView() {
 
         <Card index={4}>
           <CardHeader title="Queues" />
-          {d.queues.length === 0 ? <EmptyState icon={Layers} text="No queue has had a task yet." /> : (
-            <div className="overflow-x-auto"><table className="w-full text-sm">
-              <thead><tr><th className={th}>Queue</th><th className={th}>Waiting</th><th className={th}>Running</th><th className={th}>Scheduled</th><th className={th}>Retrying</th><th className={th}>Gave up</th><th className={th}>Done today</th><th className={th}>Failed today</th><th className={th}>Oldest wait</th></tr></thead>
-              <tbody className="divide-y divide-line/70">{d.queues.map((x) => (
-                <tr key={x.name}><td className="py-2 pr-3 font-medium">{x.name}{x.paused && <Badge tone="warn" className="ml-2">paused</Badge>}</td>
-                  <td className="pr-3">{x.pending}</td><td className="pr-3">{x.active}</td><td className="pr-3">{x.scheduled}</td>
-                  <td className="pr-3">{x.retry > 0 ? <Badge tone="warn">{x.retry}</Badge> : 0}</td>
-                  <td className="pr-3">{x.archived > 0 ? <Badge tone="bad">{x.archived}</Badge> : 0}</td>
-                  <td className="pr-3">{x.processed_today}</td><td className="pr-3">{x.failed_today}</td>
-                  <td className="text-muted">{age(x.latency_seconds)}</td></tr>
-              ))}</tbody>
-            </table></div>
-          )}
+          <DataTable rowKey={(x) => x.name} rows={d.queues} empty="No queue has had a task yet."
+            columns={[
+              { key: "name", header: "Queue", sort: (a, b) => a.name.localeCompare(b.name), render: (x) => <span className="font-medium">{x.name}{x.paused && <span className="ml-2"><Pill tone="warn">paused</Pill></span>}</span> },
+              { key: "pending", header: "Waiting", align: "right", sort: (a, b) => a.pending - b.pending, render: (x) => <span className="tabular-nums">{x.pending}</span> },
+              { key: "active", header: "Running", align: "right", render: (x) => <span className="tabular-nums">{x.active}</span> },
+              { key: "scheduled", header: "Scheduled", align: "right", hideBelow: "md", render: (x) => <span className="tabular-nums">{x.scheduled}</span> },
+              { key: "retry", header: "Retrying", align: "right", sort: (a, b) => a.retry - b.retry, render: (x) => (x.retry > 0 ? <Pill tone="warn">{x.retry}</Pill> : <span className="text-muted">0</span>) },
+              { key: "archived", header: "Gave up", align: "right", sort: (a, b) => a.archived - b.archived, render: (x) => (x.archived > 0 ? <Pill tone="bad">{x.archived}</Pill> : <span className="text-muted">0</span>) },
+              { key: "done", header: "Done today", align: "right", hideBelow: "lg", render: (x) => <span className="tabular-nums">{x.processed_today}</span> },
+              { key: "failed", header: "Failed today", align: "right", hideBelow: "lg", sort: (a, b) => a.failed_today - b.failed_today, render: (x) => <span className={x.failed_today ? "font-medium text-bad tabular-nums" : "tabular-nums text-muted"}>{x.failed_today}</span> },
+              { key: "wait", header: "Oldest wait", hideBelow: "md", render: (x) => <span className="text-muted">{age(x.latency_seconds)}</span> },
+            ]} />
         </Card>
 
         <Card index={5}>
           <CardHeader title="Failed tasks" />
-          {d.failed.length === 0 ? <EmptyState icon={AlertTriangle} text="No task is waiting for a retry and none has given up." /> : (
-            <ul className="divide-y divide-line/70 text-sm">{d.failed.map((f) => (
-              <li key={f.id} className="space-y-1 py-3">
-                <p className="flex flex-wrap items-center gap-2"><code className="text-xs font-semibold">{f.type}</code><Badge>{f.queue}</Badge>
-                  <Badge tone={f.state === "archived" ? "bad" : "warn"}>{f.state === "archived" ? "gave up" : "will retry"}</Badge>
-                  <span className="text-xs text-muted">attempt {f.retried}/{f.max_retry}{f.last_failed_at ? ` · failed ${shortTime(f.last_failed_at)}` : ""}{f.next_attempt_at && f.state !== "archived" ? ` · next ${shortTime(f.next_attempt_at)}` : ""}</span></p>
-                <p className="break-words font-mono text-xs text-slate-700">{f.last_error || "no error text"}</p>
-              </li>
-            ))}</ul>
-          )}
+          <DataTable rowKey={(f) => f.id} rows={d.failed} empty="No task is waiting for a retry and none has given up."
+            columns={[
+              { key: "type", header: "Task", render: (f) => <code className="text-xs font-semibold">{f.type}</code> },
+              { key: "queue", header: "Queue", hideBelow: "md", render: (f) => <span className="text-muted">{f.queue}</span> },
+              { key: "state", header: "State", sort: (a, b) => a.state.localeCompare(b.state), render: (f) => <Pill tone={f.state === "archived" ? "bad" : "warn"}>{f.state === "archived" ? "gave up" : "will retry"}</Pill> },
+              { key: "try", header: "Attempt", align: "right", render: (f) => <span className="tabular-nums">{f.retried}/{f.max_retry}</span> },
+              { key: "at", header: "Failed", hideBelow: "lg", sort: (a, b) => (a.last_failed_at ?? "").localeCompare(b.last_failed_at ?? ""), render: (f) => <span className="whitespace-nowrap text-muted">{f.last_failed_at ? shortTime(f.last_failed_at) : "—"}</span> },
+              { key: "err", header: "Last error", render: (f) => <span className="line-clamp-2 break-words font-mono text-xs text-slate-700">{f.last_error || "no error text"}</span> },
+            ]} />
         </Card>
 
         <Card index={6}>
           <CardHeader title="Periodic schedules" />
-          {d.schedules.length === 0 ? <EmptyState icon={Clock} text="The scheduler process has not reported any schedule. Is it running?" /> : (
-            <div className="overflow-x-auto"><table className="w-full text-sm">
-              <thead><tr><th className={th}>Job</th><th className={th}>Schedule</th><th className={th}>Last run</th><th className={th}>Next run</th></tr></thead>
-              <tbody className="divide-y divide-line/70">{d.schedules.map((s) => (
-                <tr key={s.type}><td className="py-2 pr-3 font-medium"><code className="text-xs">{s.type}</code></td><td className="pr-3"><code className="text-xs">{s.spec}</code></td>
-                  <td className="pr-3 text-muted">{s.prev ? shortTime(s.prev) : "—"}</td><td className="text-muted">{shortTime(s.next)}</td></tr>
-              ))}</tbody>
-            </table></div>
-          )}
+          <DataTable rowKey={(x) => x.type} rows={d.schedules} empty="The scheduler process has not reported any schedule. Is it running?"
+            columns={[
+              { key: "type", header: "Job", sort: (a, b) => a.type.localeCompare(b.type), render: (x) => <code className="text-xs font-semibold">{x.type}</code> },
+              { key: "spec", header: "Schedule", render: (x) => <code className="text-xs">{x.spec}</code> },
+              { key: "prev", header: "Last run", render: (x) => <span className="text-muted">{x.prev ? shortTime(x.prev) : "—"}</span> },
+              { key: "next", header: "Next run", sort: (a, b) => a.next.localeCompare(b.next), render: (x) => <span className="text-muted">{shortTime(x.next)}</span> },
+            ]} />
         </Card>
       </>)}
     </div>

@@ -1341,6 +1341,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/regions/footprint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost, energy and CO2e per cloud region, with a cleaner region of the same cloud when one is clearly better
+         * @description Requires permission `usage:read`.
+         */
+        get: operations["dashboardRegionFootprint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/optimization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Potential (estimated) and verified (measured) effect of recommendations
+         * @description Requires permission `usage:read`.
+         */
+        get: operations["dashboardOptimization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/efficiency": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost and carbon per unit of work, on days units were reported
+         * @description Requires permission `usage:read`.
+         */
+        get: operations["dashboardEfficiency"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/activity": {
         parameters: {
             query?: never;
@@ -2732,6 +2792,8 @@ export interface components {
             ci_cost_block?: number | null;
             /** @description Monthly carbon limit of the project in kg CO2e; a carbon alert opens when it is approached. Null = none. */
             alert_carbon_monthly_kg?: number | null;
+            /** @description Recommendation types applied without approval. Region moves and production changes always need approval. */
+            auto_apply_types?: "time_shift"[];
         } & {
             [key: string]: unknown;
         };
@@ -2808,7 +2870,7 @@ export interface components {
              * @description Azure arrives later. GCP is available when the platform has a Google identity configured.
              * @enum {string}
              */
-            provider: "aws" | "gcp";
+            provider: "aws" | "gcp" | "azure";
             /** @description AWS account id (12 digits) or GCP project id (6-30 lowercase letters, digits, hyphens). */
             account_ref: string;
             /**
@@ -3243,6 +3305,11 @@ export interface components {
             })[];
             /** @description False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then. */
             previous_comparable?: boolean;
+            /** @description Currencies whose amounts could not be converted into `currency` (no reference rate) and are not in the totals. */
+            excluded?: {
+                currency?: string;
+                rows?: number;
+            }[];
         } & {
             [key: string]: unknown;
         };
@@ -3322,6 +3389,56 @@ export interface components {
             change_pct?: number | null;
             /** Format: date-time */
             at?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        RegionFootprint: {
+            provider?: string;
+            region?: string;
+            cost?: number;
+            energy_kwh?: number;
+            carbon_kg_co2e?: number;
+            g_per_kwh?: number | null;
+            /** @description A cleaner region of the same cloud. Operational effect only; price, latency, residency and availability must be checked. */
+            alternative?: {
+                region?: string;
+                g_per_kwh?: number;
+                carbon_saving_kg?: number;
+                carbon_saving_pct?: number;
+                cost_estimated?: boolean;
+                /** @description Estimated change of the EC2 compute cost in the period if the load ran in the candidate region (list-price index; excludes discounts */
+                cost_delta?: number | null;
+                cost_basis?: string;
+                residency_ok?: boolean;
+                checks_required?: string[];
+            } | null;
+            /** @description Why no cleaner region is proposed (residency_unknown or residency). */
+            relocation_blocked?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        Optimization: {
+            open_count?: number;
+            approved_count?: number;
+            potential_carbon_kg_month?: number;
+            potential_saving_month?: number;
+            cost_not_estimated_count?: number;
+            auto_apply_count?: number;
+            verified_count?: number;
+            not_realized_count?: number;
+            verified_carbon_kg_month?: number;
+            verified_saving_month?: number;
+        } & {
+            [key: string]: unknown;
+        };
+        Efficiency: {
+            has_units?: boolean;
+            unit?: string;
+            units?: number;
+            days?: number;
+            carbon_g_per_unit?: number | null;
+            cost_per_unit?: number | null;
+            mixed_units?: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5886,6 +6003,95 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["RegionIntensity"][];
                     };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    dashboardRegionFootprint: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RegionFootprint"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    dashboardOptimization: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Optimization"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    dashboardEfficiency: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Efficiency"];
                 };
             };
             400: components["responses"]["Problem"];

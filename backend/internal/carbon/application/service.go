@@ -31,6 +31,7 @@ type Store interface {
 	Forecast(ctx context.Context, region, provider string, from, to time.Time) ([]domain.ForecastPoint, error)
 	// RegionCoverage says, per region in use, how many of the last N days have grid data (hourly or a monthly figure).
 	RegionCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error)
+	RegionHourlyCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error)
 	// RegionsInUse lists the regions that have calculations, for any organization.
 	RegionsInUse(ctx context.Context) ([]string, error)
 	// MonthlyHistory returns the published monthly figures of a region that cover [from, to).
@@ -727,8 +728,24 @@ func (s *Service) AutoLoadHistory(ctx context.Context) (AutoLoadResult, error) {
 	if err != nil {
 		return res, err
 	}
+	hourly, err := s.Store.RegionHourlyCoverage(ctx, days)
+	if err != nil {
+		return res, err
+	}
+	hourlyOf := map[string]domain.RegionCoverage{}
+	for _, h := range hourly {
+		hourlyOf[h.Region] = h
+	}
 	for _, c := range cov {
-		if c.Total > 0 && float64(c.Covered)/float64(c.Total) < minCoverage {
+		if c.Total <= 0 {
+			continue
+		}
+		need := float64(c.Covered)/float64(c.Total) < minCoverage
+		// A monthly figure alone does not settle a region that a free hourly source covers: that source has the past.
+		if h, ok := hourlyOf[c.Region]; !need && ok && h.Total > 0 && float64(h.Covered)/float64(h.Total) < minCoverage && s.extraCovers(ctx, c.Region) {
+			need = true
+		}
+		if need {
 			res.Regions = append(res.Regions, c.Region)
 		}
 	}
@@ -738,6 +755,10 @@ func (s *Service) AutoLoadHistory(ctx context.Context) (AutoLoadResult, error) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	res.WindowFrom, res.WindowTo = today.AddDate(0, 0, -days), today
 	_, first := s.BackfillIntensity(ctx, res.Regions, res.WindowFrom, res.WindowTo)
+	if errors.Is(first, domain.ErrPastUnavailable) {
+		s.Log.Info("main grid provider has no past data on this plan; filling the past from the other sources")
+		first = nil
+	}
 	if _, err := s.RefreshMonthly(ctx); err != nil && first == nil {
 		first = err
 	}
@@ -747,6 +768,16 @@ func (s *Service) AutoLoadHistory(ctx context.Context) (AutoLoadResult, error) {
 		first = err
 	}
 	return res, first
+}
+
+// extraCovers reports whether an additional free hourly source can supply the region.
+func (s *Service) extraCovers(ctx context.Context, region string) bool {
+	for _, x := range s.Extras {
+		if x.Covers(ctx, region) {
+			return true
+		}
+	}
+	return false
 }
 
 // RecalculateEverything queues a recalculation of [from, to) for every project (operator action).

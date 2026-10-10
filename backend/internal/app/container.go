@@ -19,6 +19,7 @@ import (
 	cloudapp "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/application"
 	clouddomain "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/aws"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/azure"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/providers/gcp"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops"
@@ -114,6 +115,13 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 			}
 			providers = append(providers, gcpProvider)
 		}
+		if cfg.PlatformAzureClientID != "" && cfg.PlatformAzureClientSecret != "" { // opt-in: needs the platform's Entra application
+			azureProvider, err := azure.New(cfg.PlatformAzureClientID, cfg.PlatformAzureClientSecret)
+			if err != nil {
+				return nil, err
+			}
+			providers = append(providers, azureProvider)
+		}
 		registry = clouddomain.NewRegistry(providers...)
 	}
 
@@ -133,10 +141,10 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	ingestionM := ingestion.New(usageM.Svc, store, log)
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
-		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}}})
+		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}, eiaSource{ints: ints, meter: meter}, energyChartsSource{ints: ints, meter: meter}}})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
-		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})
+		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, PlatformAzureAppID: cfg.PlatformAzureClientID, BackfillDays: cfg.SyncBackfillDays})
 	finopsM := finops.New(pool)
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 
@@ -151,7 +159,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, licensingM, alertsM,
 	}
 	c.Settings = cfgr
-	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
+	c.jobs = []queue.JobRegistrar{cloudM, carbonM, finopsM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
 
 	switch {
 	case cfg.IsDev():

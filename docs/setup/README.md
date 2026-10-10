@@ -119,6 +119,35 @@ and `credential_ref` = `bq://<project>/<dataset>/<table>`):
 
 Queries are capped at 20 GiB scanned each and 500k result lines; they only read the billing export table.
 
+## 5d. Azure: platform application and customer onboarding
+
+The Azure connector is opt-in. It reads the customer's **Cost Management export (FOCUS cost and usage, CSV) from Blob
+Storage** with the platform's own Microsoft Entra application; no customer credential, SAS token or key is stored
+(ADR-0041).
+
+Platform side (once):
+1. Register a **multi-tenant** application in Microsoft Entra ID (accounts in any organizational directory). No API
+   permissions are needed: access comes from the role the customer assigns on their container.
+2. Create a client secret for it and note its expiry (rotate before it lapses).
+3. Enter the application (client) id and the secret in the operator console (Integrations, Platform Microsoft Azure
+   application) or set `PLATFORM_AZURE_CLIENT_ID` and `PLATFORM_AZURE_CLIENT_SECRET`; restart api, worker and
+   scheduler (the application is read at start, like the GCP project).
+
+Per customer (shown step by step by `POST /cloud-accounts` with `provider: azure`, `account_ref` = the subscription id
+and `credential_ref` = `azblob://<tenant id>@<storage account>/<container>/<export directory>`):
+1. Create a Cost Management export of type "Cost and usage details (FOCUS)", version 1.0, daily, CSV (gzip is fine),
+   into that storage account, container and directory. Use "Export all data" for history; the first delivery can take
+   up to 24 hours. Until then verification answers "billing export not found": verify again later.
+2. Mark the container with the connection's token as metadata (`az storage container metadata update ... --metadata
+   <external_id with - replaced by _>=1`): proof that they control it.
+3. Create the platform application's service principal in their tenant (`az ad sp create --id <application id>`) and
+   assign it Storage Blob Data Reader on the container only. `deploy/azure/customer-access.tf` covers steps 2 and 3.
+4. They verify. Failures are specific: application refused in the tenant or no role (access denied), export not found,
+   ownership not proven, no rows for the subscription.
+
+A billing-scope export may contain many subscriptions; only the connection's subscription is read. Reads are bounded
+(500 files, 24 GiB per sync).
+
 ## 6. Electricity Maps (grid carbon intensity)
 
 1. Get an API key at <https://www.electricitymaps.com/> (Free tier is enough for testing).
@@ -210,6 +239,7 @@ secret, then call the gate endpoint (see `docs/api/README.md`).
 | `AUTH0_DOMAIN`, `AUTH0_AUDIENCE`, `AUTH_CLAIM_NS` | prod | JWT verification |
 | `PLATFORM_AWS_ACCOUNT_ID` | for AWS sync | trust principal given to customers |
 | `PLATFORM_GCP_PROJECT`, `PLATFORM_GCP_SERVICE_ACCOUNT` | for GCP sync | project where BigQuery jobs run; principal customers share their dataset with (credentials via `GOOGLE_APPLICATION_CREDENTIALS` or workload identity) |
+| `PLATFORM_AZURE_CLIENT_ID`, `PLATFORM_AZURE_CLIENT_SECRET` | for Azure sync | the platform's multi-tenant Entra application: customers create its service principal and grant it read access to their export container |
 | `ELECTRICITYMAPS_API_KEY`, `ELECTRICITYMAPS_ZONE_OVERRIDES` | for carbon | grid intensity |
 | `NOTIFICATIONS_SECRET_KEY` | prod, for notifications | 32 random bytes, base64 (`openssl rand -base64 32`); seals destination addresses and derives webhook signing secrets. Losing or changing it makes stored destinations unreadable |
 | `PUBLIC_BASE_URL` | no | https address of the web app, used for links in notifications |

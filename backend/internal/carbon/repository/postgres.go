@@ -232,9 +232,18 @@ func (r Postgres) RegionsInUse(ctx context.Context) ([]string, error) {
 	return out, rows.Err()
 }
 
-// RegionCoverage reports, per region in use, how many of the last `days` days have grid data.
+// RegionCoverage reports, per region in use, how many of the last `days` days have grid data (monthly figures count).
 func (r Postgres) RegionCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error) {
-	rows, err := r.Pool.Query(ctx, `SELECT region_id, covered_days, total_days FROM carbon.region_coverage($1)`, days)
+	return r.coverage(ctx, `SELECT region_id, covered_days, total_days FROM carbon.region_coverage($1)`, days)
+}
+
+// RegionHourlyCoverage is the same, counting only days with hourly readings.
+func (r Postgres) RegionHourlyCoverage(ctx context.Context, days int) ([]domain.RegionCoverage, error) {
+	return r.coverage(ctx, `SELECT region_id, covered_days, total_days FROM carbon.region_hourly_coverage($1)`, days)
+}
+
+func (r Postgres) coverage(ctx context.Context, query string, days int) ([]domain.RegionCoverage, error) {
+	rows, err := r.Pool.Query(ctx, query, days)
 	if err != nil {
 		return nil, err
 	}

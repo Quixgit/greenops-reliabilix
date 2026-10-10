@@ -53,6 +53,13 @@ function IntensityHistoryCard() {
           Sources are shown side by side and never averaged together.
           {d.points.some((x) => x.source === "ember") && " Monthly national averages are from Ember (CC-BY 4.0)."}
         </p>
+        {d.days_with_data < d.window_days / 2 && (
+          <div className="mt-3 rounded-xl bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-900 ring-1 ring-sky-100">
+            <b>Why so few days?</b> Hourly readings are stored from the moment a source was connected; most plans do not return the past. The history
+            of this region is filled automatically from sources that provide it (Ember monthly averages, UK Carbon Intensity for Great Britain, EIA for
+            US balancing authorities) once the operator has connected them, and every day adds 24 more readings.
+          </div>
+        )}
       </>)}
     </Card>
   );
