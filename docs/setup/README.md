@@ -131,6 +131,13 @@ and `client_secret`):
 3. They enter the subscription id, tenant id, application id and the secret value and verify. The platform reads the
    costs of every service through the Cost Management API; the secret is stored sealed and never shown again.
 
+If a connection verifies but its sync fails, the sync history shows the cause. To see exactly what Azure answers, run
+the same queries from any machine (no database or platform configuration needed; the secret is read from the
+environment so it stays out of the shell history):
+`AZURE_CLIENT_SECRET='<secret value>' admin azure-check <subscription id> <tenant id> <application id>`.
+Every service (api, worker, scheduler) must run with the same `NOTIFICATIONS_SECRET_KEY`: the API seals the client
+secret, the worker opens it.
+
 **Advanced: a Cost Management export in Blob Storage (ADR-0041)**, for measured virtual machine hours. It reads the
 customer's **FOCUS cost and usage export (CSV)** with the platform's own Microsoft Entra application; no customer
 credential, SAS token or key is stored.

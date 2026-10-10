@@ -101,9 +101,9 @@ func (c *ClientCredentials) Token(ctx context.Context, tenantID string) (string,
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 	if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnauthorized {
-		// The platform application has no service principal in the customer's tenant (or consent is missing), or
-		// the tenant id is wrong. Only the customer can fix that; retrying cannot help.
-		return "", fmt.Errorf("%w: Microsoft Entra refused the platform application in this tenant", domain.ErrAccessDenied)
+		// The application does not exist in that tenant (or has no service principal there), the secret is wrong or
+		// expired, or the tenant id is wrong. Only the customer can fix that; retrying cannot help.
+		return "", fmt.Errorf("%w: Microsoft Entra refused the sign-in (check the tenant id, the application id and that the secret is its value and has not expired)", domain.ErrAccessDenied)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("azure: token request: status %d", resp.StatusCode)

@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.61] - 2026-10-10
+
+### Added
+- **`admin azure-check`**: signs in as an Azure service principal and runs the three queries of a sync (billed cost per
+  day, billed and amortized cost by service and location), printing the status, the columns and the first rows or
+  Azure's own error. `AZURE_CLIENT_SECRET='...' admin azure-check <subscription> <tenant> <application>`; it needs no
+  database or platform configuration and prints no secret.
+- An end-to-end test of the Azure path (API seals the secret, a separate worker container opens it, costs are read from a
+  Cost Management endpoint, stored, reconciled and listed by the dashboard).
+
+### Changed
+- The sign-in failure of an Azure service principal says what to check (tenant id, application id, secret value, expiry).
+
 ## [0.1.0-alpha.60] - 2026-10-10
 
 ### Fixed

@@ -25,8 +25,11 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: admin doctor|recalc|recommend|refresh-grid|load-history|refresh-prices|refresh-fx|partitions")
+		fmt.Fprintln(os.Stderr, "usage: admin doctor|azure-check|recalc|recommend|refresh-grid|load-history|refresh-prices|refresh-fx|partitions")
 		os.Exit(2)
+	}
+	if os.Args[1] == "azure-check" { // needs neither the database nor the platform configuration
+		os.Exit(runAzureCheck(os.Args[2:]))
 	}
 	log := observability.Logger("admin")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
