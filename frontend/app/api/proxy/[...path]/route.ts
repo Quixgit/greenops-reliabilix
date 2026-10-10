@@ -4,8 +4,8 @@ import { getApiToken } from "@/lib/auth/session";
 // Browser -> this route -> Go API. The access token is attached server-side and never reaches
 // client JavaScript. Only the API's /api/v1 namespace is reachable.
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
-const ALLOWED = new Set(["GET", "POST", "PATCH", "DELETE"]); // what the admin screens need; PUT stays closed
-const WITH_BODY = new Set(["POST", "PATCH"]);
+const ALLOWED = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]); // PUT replaces a setting, policy or list: the screens need it
+const WITH_BODY = new Set(["POST", "PUT", "PATCH"]);
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   if (!ALLOWED.has(req.method)) return NextResponse.json({ title: "method not allowed", status: 405 }, { status: 405 });
@@ -30,4 +30,4 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   });
 }
 
-export { handle as GET, handle as POST, handle as PATCH, handle as DELETE };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };

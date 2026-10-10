@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.58] - 2026-10-10
+
+### Fixed
+- **Saving from the browser answered "Method Not Allowed"** for everything that uses HTTP PUT: the operator console's
+  integration fields (the Azure application, SMTP, Electricity Maps and the other keys), project policies, operator
+  access and, since alpha.57, a project's team and an environment's connections. The web server's proxy to the API
+  exported no PUT handler (the API itself always accepted it). The proxy now passes PUT, and a test pins every method
+  the screens use.
+
 ## [0.1.0-alpha.57] - 2026-10-10
 
 ### Added
