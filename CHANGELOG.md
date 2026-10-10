@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.9] - 2026-10-10
+
+### Added
+- Sign-in page in the GreenOps style: landscape illustration, Google and GitHub buttons, e-mail entry that hands over
+  to the identity provider (password and the two-step code are typed only there), password recovery form
+  (`/api/auth/forgot-password`, same answer for any address, rate limited), responsive, with a clear development-mode
+  notice. `/login?preview` shows it in the development environment.
+
 ## [0.1.0-alpha.8] - 2026-10-10
 
 ### Added
