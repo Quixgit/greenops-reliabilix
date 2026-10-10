@@ -5,7 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
+
+### Added
+- **UK Carbon Intensity** as a free hourly source for Great Britain (no key; National Grid ESO): half-hourly measured values
+  for the cloud regions whose zone is GB, refreshed hourly, loaded for the past with the same backfill, second in the
+  default source order. It is "ready" with no setup. Migration 0039 (default order).
+
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Ember as a free second grid source** ([ADR-0039](docs/adr/0039-ember-and-climate-trace.md)): monthly national carbon
@@ -24,7 +31,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 ### Changed
 - Calculation rows may carry the intensity basis `month_mean`.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Cost control for paid APIs**: every request to the grid data provider is counted per day (and failures), and a daily
@@ -32,13 +39,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   next UTC day; stored readings are used meanwhile. The source page shows today against the cap and the last 7 and 30
   days. `GET /operator/api-usage`. API contract 0.20.0. Migration 0036.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Changed
 - Payment provider settings moved to where they are looked for: **Plans & billing → Payment providers** (each opens its own
   settings page). They are no longer listed among the platform services under Data sources.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Subscriptions and payments** ([ADR-0038](docs/adr/0038-payments-and-subscriptions.md)): a subscription per organization
@@ -53,7 +60,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - Operator **Methodology & SCI** page: every coefficient set with provenance, coefficients, caveats and checksum.
   `GET /operator/methodology`. API contract 0.19.0. Migration 0035.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Custom roles per organization** ([ADR-0037](docs/adr/0037-custom-roles.md)): define a role as a named set of
@@ -64,7 +71,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   `custom_role_id`. API contract 0.18.0. Migration 0034.
 - The public `GET /locales` honours the platform language settings (the languages on offer and the default).
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Multi-language platform** ([ADR-0036](docs/adr/0036-multi-language-platform.md)): English and Russian. Language
@@ -77,7 +84,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   limits (400 days, 2000 requests). Days calculated before readings existed can then use measured intensity after a
   recalculation. `POST /operator/carbon/backfill`, job `carbon:backfill_intensity`. API contract 0.17.0. Migration 0033.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - **Grid intensity from several sources** ([ADR-0035](docs/adr/0035-multi-source-grid-intensity.md)): a platform source policy
@@ -93,7 +100,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 ### Changed
 - Dashboard region intensities and recommendation inputs read the most trusted source (not "the latest of any provider").
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Operator roles can be assigned and withdrawn from **Access & security** ([ADR-0034](docs/adr/0034-operator-roles-from-the-console.md)):
@@ -101,7 +108,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   and to leave the platform without an admin; every change is in the audit log. `PUT /operator/operators`,
   `POST /operator/operators/withdraw`. API contract 0.15.0. Migration 0031.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Fixed
 - **Mixed currencies.** Cost totals, the dashboard cost trend, cost by service, cost anomalies and the cost basis of
@@ -122,7 +129,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - Suspended organizations are skipped by the scheduler fan-out (no synchronization or calculation jobs). Migration 0030.
 - A hand-computed reference test of the carbon arithmetic (energy, PUE, intensity, SCI shares).
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Plan catalog and assignment ([ADR-0033](docs/adr/0033-plan-catalog-and-assignment.md)): Free, Team, Business and
@@ -131,7 +138,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   settings history, plan and reason in the organization's audit log). `GET /operator/plans`,
   `PUT /operator/tenants/{id}/plan`. API contract 0.13.0. Migration 0029.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Suspend and restore an organization from its console page. Suspension is the locked operator setting
@@ -139,20 +146,20 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
   with 403 until an operator restores access. The change is in the settings history and the organization's audit log.
   Background synchronization of a suspended organization is not stopped yet (see the gap list).
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Integrations for sources that are planned: **WattTime** (user name and password) and **UK Carbon Intensity API**
   (address, no key). They are marked "Prepared · not used yet": the values are stored sealed and no platform code reads
   them until the connector is released; the data source registry links to them.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Changed
 - Operator console uses the same frame as the client workspace: the dark left panel with the same logo, links and
   version, the white header and a white content area. The pastel theme of alpha.18 is removed.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Operator console **Jobs & scheduler**: queues (waiting, running, scheduled, retrying, gave up, done and failed today,
@@ -161,7 +168,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - Operator console **Access & security**: the operators with role, date added and recent activity (read-only on purpose).
   `GET /operator/operators`. API contract 0.12.0. Migration 0028.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Operator console rebuilt ([ADR-0032](docs/adr/0032-operator-console-structure.md)): a calm pastel theme, a grouped menu
@@ -188,7 +195,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - Organizations moved to `/operator/organizations` and can be sorted and narrowed to those with problems; `/operator` is
   now the Overview.
 
-## [0.1.0-alpha.32] - 2026-10-10
+## [0.1.0-alpha.33] - 2026-10-10
 
 ### Added
 - Kubernetes right-sizing recommendations from measured usage ([ADR-0031](docs/adr/0031-kubernetes-rightsizing.md)): smaller

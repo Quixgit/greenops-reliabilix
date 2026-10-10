@@ -45,6 +45,16 @@ type MonthlyProvider interface {
 	Monthly(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error)
 }
 
+// HourlyExtra is an additional free source of finer-than-monthly readings for some regions (UK Carbon Intensity).
+type HourlyExtra interface {
+	// ID is the provider id stored with its readings.
+	ID() string
+	// Covers reports whether the source has data for the cloud region.
+	Covers(ctx context.Context, region string) bool
+	// Range returns measured readings in [from, to).
+	Range(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error)
+}
+
 // Ports implemented by other modules and wired in the composition root (no cross-domain imports).
 type UsageSource interface {
 	DailyAggregates(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]domain.UsageDay, error)
@@ -67,6 +77,8 @@ type Service struct {
 	Policies PolicySource
 	Projects ProjectLister
 	Provider domain.CarbonDataProvider // nil: live lookups fail closed; stored readings still work
+	// Extras are additional sources of measured readings, refreshed with the main provider (optional).
+	Extras []HourlyExtra
 	// Monthly is the source of monthly national figures (optional).
 	Monthly MonthlyProvider
 	// Settings supplies the source policy (carbon.* platform settings). nil: catalog defaults.
@@ -364,8 +376,17 @@ func (s *Service) Trend(ctx context.Context, tenantID string, project *string, f
 	return s.Store.Trend(ctx, tenantID, project, from, to)
 }
 
-// RefreshGrid persists the latest intensity of every region the provider covers, so dashboards read local data.
+// RefreshGrid persists the latest intensity of every region the main provider covers, so dashboards read local data,
+// and the last hours of every additional source for the regions in use. One failing source does not stop the others.
 func (s *Service) RefreshGrid(ctx context.Context) error {
+	firstErr := s.refreshMain(ctx)
+	if err := s.refreshExtras(ctx, 6*time.Hour); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
+}
+
+func (s *Service) refreshMain(ctx context.Context) error {
 	lister, ok := s.Provider.(domain.RegionLister)
 	if !ok || len(lister.Regions()) == 0 {
 		s.Log.Warn("grid refresh skipped: no provider configured")
@@ -389,6 +410,49 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 		}
 	}
 	return firstErr
+}
+
+// refreshExtras stores the last `window` of every additional source for the regions in use that it covers.
+func (s *Service) refreshExtras(ctx context.Context, window time.Duration) error {
+	if len(s.Extras) == 0 {
+		return nil
+	}
+	regions, err := s.Store.RegionsInUse(ctx)
+	if err != nil {
+		return err
+	}
+	to := time.Now().UTC()
+	return s.loadExtras(ctx, regions, to.Add(-window), to)
+}
+
+// loadExtras fetches [from, to) from every additional source for the regions it covers and stores the readings.
+func (s *Service) loadExtras(ctx context.Context, regions []string, from, to time.Time) error {
+	var first error
+	for _, x := range s.Extras {
+		for _, region := range regions {
+			if !x.Covers(ctx, region) {
+				continue
+			}
+			pts, err := x.Range(ctx, region, from, to)
+			if err != nil {
+				observability.CarbonAPIErrors.Inc()
+				s.Log.Warn("grid source", "source", x.ID(), "region", region, "err", err)
+				if first == nil {
+					first = err
+				}
+				if errors.Is(err, apiusage.ErrBudget) {
+					break
+				}
+				continue
+			}
+			for _, p := range pts {
+				if e := s.Store.SaveGridIntensity(ctx, x.ID(), region, p.At, p.GPerKWh, false, domain.MeasureAverage, "hourly"); e != nil {
+					return e
+				}
+			}
+		}
+	}
+	return first
 }
 
 // saveForecast persists the provider forecast for a region. A forecast is optional (not every plan includes
@@ -531,14 +595,21 @@ func BackfillEstimate(regions, days int) int {
 // stored reading is never overwritten). It does nothing without a provider that offers history. One region failing
 // does not stop the others; the first error is returned after all were tried.
 func (s *Service) BackfillIntensity(ctx context.Context, regions []string, from, to time.Time) (stored int, err error) {
-	hp, ok := s.Provider.(domain.HistoryProvider)
-	if !ok {
-		return 0, errors.New("carbon: the grid provider cannot return past data")
-	}
 	if days := int(to.Sub(from).Hours() / 24); days < 1 || days > BackfillMaxDays || BackfillEstimate(len(regions), days) > BackfillMaxRequests {
 		return 0, fmt.Errorf("carbon: backfill of %d regions over %d days is outside the limits", len(regions), days)
 	}
 	var first error
+	// The additional free sources (UK Carbon Intensity) load their past without a key or a plan.
+	if err := s.loadExtras(ctx, regions, from, to); err != nil {
+		first = err
+	}
+	hp, ok := s.Provider.(domain.HistoryProvider)
+	if !ok {
+		if first == nil && len(s.Extras) == 0 {
+			first = errors.New("carbon: the grid provider cannot return past data")
+		}
+		return 0, first
+	}
 	for _, region := range regions {
 		pts, e := hp.GetHistory(ctx, region, from, to)
 		if e != nil {

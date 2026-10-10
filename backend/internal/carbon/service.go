@@ -29,6 +29,8 @@ type Deps struct {
 	Units    application.UnitsSource
 	Policies application.PolicySource
 	Projects application.ProjectLister
+	// Extras are additional free sources of measured readings (optional).
+	Extras []application.HourlyExtra
 	// Monthly supplies monthly national figures (optional).
 	Monthly application.MonthlyProvider
 	// Settings supplies the grid source policy (optional: catalog defaults).
@@ -42,7 +44,7 @@ type Module struct {
 
 func New(d Deps) *Module {
 	svc := &application.Service{Store: repository.Postgres{Pool: d.Pool}, Usage: d.Usage, Units: d.Units, Policies: d.Policies,
-		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings, Monthly: d.Monthly}
+		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings, Monthly: d.Monthly, Extras: d.Extras}
 	return &Module{h: chttp.Handlers{Svc: svc}, Svc: svc}
 }
 

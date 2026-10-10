@@ -146,7 +146,7 @@ func definitions() []Def {
 
 		// ---- grid data sources (platform) ----
 		{Key: KeyCarbonPriority, Group: "carbon", Title: "Source priority", Description: "Sources of grid carbon intensity, most trusted first. For a day, the first source with enough readings is used; sources are never averaged together.",
-			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity"}, MinItems: 1, MaxItems: 5,
+			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "uk_carbon_intensity", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity"}, MinItems: 1, MaxItems: 5,
 			Note: "Only sources that have a released connector can supply data. Marginal intensity (WattTime) is a different measure and is not part of this list."},
 		{Key: KeyCarbonOverrides, Group: "carbon", Title: "Source per region", Description: "Use a specific source for a region, before the priority list. One entry per line as region=source, for example eu-west-2=uk_carbon_intensity.",
 			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity)$`},

@@ -1,6 +1,6 @@
 # ADR-0035: Grid intensity from several sources
 
-Status: accepted · 0.1.0-alpha.32
+Status: accepted · 0.1.0-alpha.33
 
 ## Context
 The platform stores grid carbon intensity from external providers (Electricity Maps today; UK Carbon Intensity and

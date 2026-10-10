@@ -12,6 +12,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/alerts"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/automation"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon"
+	carbonapp "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/application"
 	carbondomain "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts"
@@ -132,7 +133,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	ingestionM := ingestion.New(usageM.Svc, store, log)
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
-		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}})
+		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}}})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})

@@ -1,7 +1,7 @@
 // Package version carries what a running process knows about its own build: the platform release, which service
 // it is and which commit it was built from. The values are injected at build time (see deploy/docker/Dockerfile):
 //
-//	-X .../platform/version.Platform=0.1.0-alpha.32 -X .../platform/version.Service=api -X .../platform/version.Commit=<sha>
+//	-X .../platform/version.Platform=0.1.0-alpha.33 -X .../platform/version.Service=api -X .../platform/version.Commit=<sha>
 //
 // Release rules are in docs/release/versioning.md; the manifest of every service, module and image version is
 // VERSIONS.md.
@@ -10,7 +10,7 @@ package version
 import "strings"
 
 var (
-	// Platform is the release the whole platform belongs to (SemVer, for example 0.1.0-alpha.32). "dev" for local builds.
+	// Platform is the release the whole platform belongs to (SemVer, for example 0.1.0-alpha.33). "dev" for local builds.
 	Platform = "dev"
 	// Service is the process: api, worker, scheduler, admin ... "unknown" when not injected.
 	Service = "unknown"
@@ -26,7 +26,7 @@ type Info struct {
 	Commit   string `json:"commit"`
 }
 
-// Stage derives the release stage from the SemVer pre-release identifier: 0.1.0-alpha.32 -> alpha.
+// Stage derives the release stage from the SemVer pre-release identifier: 0.1.0-alpha.33 -> alpha.
 func Stage(v string) string {
 	if v == "" || v == "dev" {
 		return "dev"

@@ -230,3 +230,37 @@ func TestCalculateWindowUsesTheMeanIntensityOfTheDay(t *testing.T) {
 		t.Errorf("intensity = %v, want the day mean 300 (not the last reading 900)", got)
 	}
 }
+
+type fakeExtra struct{ calls int }
+
+func (f *fakeExtra) ID() string                                   { return "uk_carbon_intensity" }
+func (f *fakeExtra) Covers(_ context.Context, region string) bool { return region == "eu-west-2" }
+func (f *fakeExtra) Range(_ context.Context, region string, from, _ time.Time) ([]domain.Intensity, error) {
+	f.calls++
+	return []domain.Intensity{{Region: region, GPerKWh: 150, At: from.Add(30 * time.Minute)}}, nil
+}
+
+type regionsStore struct {
+	*fakeStore
+	regions []string
+}
+
+func (r regionsStore) RegionsInUse(context.Context) ([]string, error) { return r.regions, nil }
+
+// An additional free source is asked only for the regions it covers, and its readings are stored under its own id.
+func TestAdditionalSourceIsAskedOnlyForTheRegionsItCovers(t *testing.T) {
+	st := &fakeStore{}
+	x := &fakeExtra{}
+	svc, _ := newSvc(st, nil, unitsSrc{}, &grid{g: 400}, domain.Thresholds{})
+	svc.Store = regionsStore{fakeStore: st, regions: []string{"eu-west-2", "us-east-1"}}
+	svc.Extras = []HourlyExtra{x}
+	if err := svc.RefreshGrid(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if x.calls != 1 {
+		t.Errorf("the source must be asked once, for the one region it covers; calls = %d", x.calls)
+	}
+	if st.savedGrid["eu-west-2"] != 150 {
+		t.Errorf("readings not stored: %v", st.savedGrid)
+	}
+}

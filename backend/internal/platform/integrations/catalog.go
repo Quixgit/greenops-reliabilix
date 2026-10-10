@@ -190,8 +190,8 @@ func Catalog() []Integration {
 			},
 		},
 		{
-			ID: "uk_carbon_intensity", Name: "UK Carbon Intensity API", Prepared: true,
-			Description: "Free grid carbon intensity for Great Britain. It needs no key; the address can be changed for a mirror or a test double. Prepared: not read by the platform yet.",
+			ID: "uk_carbon_intensity", Name: "UK Carbon Intensity API",
+			Description: "Free half-hourly grid carbon intensity for Great Britain (National Grid ESO), measured values only. It needs no key and works as soon as it is in the source priority; the address can be changed for a mirror or a test double.",
 			Fields: []Field{
 				{Key: "base_url", Label: "API address", Env: "UKCI_BASE_URL", Default: "https://api.carbonintensity.org.uk", Placeholder: "https://api.carbonintensity.org.uk", validate: validURL},
 			},

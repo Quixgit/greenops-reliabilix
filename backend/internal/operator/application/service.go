@@ -313,7 +313,7 @@ func (s Service) RegionSources(ctx context.Context) ([]domain.RegionSources, err
 	if err != nil {
 		return nil, err
 	}
-	priority, overrides := []string{"electricitymaps", "ember"}, map[string]string{}
+	priority, overrides := []string{"electricitymaps", "uk_carbon_intensity", "ember"}, map[string]string{}
 	if s.Settings != nil {
 		if items, err := s.Settings.PlatformItems(ctx); err == nil {
 			for _, it := range items {

@@ -1,6 +1,6 @@
 # ADR-0033: Plan catalog and plan assignment
 
-Status: accepted · 0.1.0-alpha.32 · implements the first step of [ADR-0022](0022-licensing-and-subscriptions.md)
+Status: accepted · 0.1.0-alpha.33 · implements the first step of [ADR-0022](0022-licensing-and-subscriptions.md)
 
 ## Decision
 - The catalog is code (`internal/platform/plans`): `free`, `team`, `business`, `enterprise`. A plan is a preset of the
