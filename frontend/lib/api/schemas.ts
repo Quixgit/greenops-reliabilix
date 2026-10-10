@@ -71,6 +71,7 @@ export const setup = z.object({
   trust_policy: z.record(z.string(), z.unknown()).optional(),
   permissions_policy: z.record(z.string(), z.unknown()),
   required_permissions: z.array(z.string()),
+  steps: z.array(z.string()).optional(),
 });
 export const connectResponse = z.object({ connection: connection, setup });
 export type ConnectResponse = z.infer<typeof connectResponse>;
@@ -109,6 +110,7 @@ export const recommendation = z.object({
   compliance_check: z.object({ residency: z.string(), allowed_regions: z.array(z.string()).optional() }).passthrough(),
   status: z.enum(["open", "approved", "applied", "verified", "dismissed"]),
   verification: impactVerification.nullish(),
+  details: z.record(z.string(), z.string()).nullish(),
 });
 export type Recommendation = z.infer<typeof recommendation>;
 export const recommendations = items(recommendation);

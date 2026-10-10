@@ -77,6 +77,13 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 	recs := domain.GenerateRegionShift(domain.RegionShiftInput{Workloads: ws, WindowDays: windowDays, DataDays: days,
 		Intensity: intensity, AllowedRegions: allowed, PriceIndex: prices, Now: now})
 
+	// Kubernetes: smaller requests for workloads that use a fraction of them (ADR-0031). Two weeks of measurements.
+	if usage, err := s.Repo.K8sUsage(ctx, tenantID, projectID, now.AddDate(0, 0, -14), now); err != nil {
+		return 0, err
+	} else {
+		recs = append(recs, domain.GenerateK8sRightsizing(projectID, usage, now)...)
+	}
+
 	created := 0
 	for _, r := range recs {
 		r.ProjectID = projectID
@@ -104,6 +111,9 @@ func (s Service) VerifyApplied(ctx context.Context, tenantID, projectID string) 
 	}
 	done := 0
 	for _, r := range recs {
+		if r.Type == domain.K8sRightsizing {
+			continue // it claims no carbon or cost saving, so there is nothing to measure afterwards
+		}
 		if r.AppliedAt == nil || !domain.Due(*r.AppliedAt, now) {
 			continue
 		}

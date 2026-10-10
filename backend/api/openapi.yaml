@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.9.0
+  version: 0.10.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -4563,6 +4563,7 @@ components:
           - region_shift
           - time_shift
           - spot_migration
+          - k8s_rightsizing
         title:
           type: string
         provider:

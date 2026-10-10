@@ -48,7 +48,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
   const c = conn.data?.connection;
   return (
     <div className="space-y-5">
-      <Link href="/cloud" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" />Cloud accounts</Link>
+      <Link href="/connectors#accounts" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" />Connectors</Link>
       {conn.isLoading ? <Skeleton className="h-32" /> : conn.isError || !c ? <ErrorState text="This account could not be loaded." /> : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">

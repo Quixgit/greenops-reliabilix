@@ -113,6 +113,9 @@ type Repository interface {
 	// DailySeries also returns the cost currency of the window ("" when there is no cost data).
 	DailySeries(ctx context.Context, tenantID, projectID, service string, from, to time.Time) ([]DayPoint, string, error)
 	SaveVerification(ctx context.Context, tenantID, id string, v Verification, currency string) error
+	// K8sUsage is the measured usage of the project's Kubernetes workloads over [from, to) (read-only view of the
+	// kubernetes schema); empty when no agent reports.
+	K8sUsage(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]K8sWorkloadUsage, error)
 	// Inputs of the generators (read-only views of carbon, finops and project policy).
 	Workloads(ctx context.Context, tenantID, projectID string, from, to time.Time) (ws []Workload, dataDays int, err error)
 	Intensities(ctx context.Context) (map[string]float64, error)

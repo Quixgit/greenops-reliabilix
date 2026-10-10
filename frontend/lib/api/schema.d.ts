@@ -2722,7 +2722,7 @@ export interface components {
             /** Format: uuid */
             project_id?: string;
             /** @enum {string} */
-            type?: "rightsizing" | "region_shift" | "time_shift" | "spot_migration";
+            type?: "rightsizing" | "region_shift" | "time_shift" | "spot_migration" | "k8s_rightsizing";
             title?: string;
             provider?: string;
             service_name?: string;

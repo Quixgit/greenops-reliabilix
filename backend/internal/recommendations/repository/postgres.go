@@ -305,3 +305,34 @@ func (r Postgres) SaveVerification(ctx context.Context, tenantID, id string, v d
 		return audit.Record(audit.WithTenant(ctx, tenantID), tx, "recommendation.verified", "recommendation:"+id, map[string]any{"outcome": v.Outcome})
 	})
 }
+
+// K8sUsage aggregates the agent's usage figures per workload over the window.
+func (r Postgres) K8sUsage(ctx context.Context, tenantID, projectID string, from, to time.Time) (out []domain.K8sWorkloadUsage, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT cluster, namespace, workload, max(kind),
+				(count(*) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0))::int,
+				COALESCE(sum(cpu_core_seconds) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0)
+				  / NULLIF(sum(cpu_request_cores * 3600) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0), 0) * 100, 0)::float8,
+				COALESCE(max(cpu_core_seconds / 3600.0), 0)::float8,
+				COALESCE(avg(cpu_request_cores) FILTER (WHERE cpu_request_cores > 0), 0)::float8,
+				COALESCE(max(memory_avg_bytes), 0)::float8,
+				COALESCE(avg(memory_request_bytes) FILTER (WHERE memory_request_bytes > 0), 0)::float8
+			FROM kubernetes.workload_energy
+			WHERE tenant_id = $1 AND project_id = $2 AND period_start >= $3 AND period_start < $4
+			GROUP BY cluster, namespace, workload`, tenantID, projectID, from, to)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var u domain.K8sWorkloadUsage
+			if err := rows.Scan(&u.Cluster, &u.Namespace, &u.Workload, &u.Kind, &u.Hours, &u.AvgCPUUtilPct, &u.PeakCPUCores,
+				&u.CPURequestCores, &u.PeakMemBytes, &u.MemRequestBytes); err != nil {
+				return err
+			}
+			out = append(out, u)
+		}
+		return rows.Err()
+	})
+	return
+}

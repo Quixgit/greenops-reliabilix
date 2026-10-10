@@ -5,6 +5,18 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.17] - 2026-10-10
+
+### Added
+- Kubernetes right-sizing recommendations from measured usage ([ADR-0031](docs/adr/0031-kubernetes-rightsizing.md)): smaller
+  CPU and memory requests for workloads whose peak hourly usage is far below what they request, with the measured peak next
+  to the request; no saving is claimed. API contract 0.10.0. Migration 0026.
+- Google Cloud can be connected from the Connectors page (project, billing export table, setup steps).
+
+### Changed
+- Cloud Accounts and Connectors are one page: connected accounts and the connect flow on top, the catalog below.
+  `/cloud` redirects to `/connectors`; the account page stays at `/cloud/<id>`.
+
 ## [0.1.0-alpha.16] - 2026-10-10
 
 ### Added

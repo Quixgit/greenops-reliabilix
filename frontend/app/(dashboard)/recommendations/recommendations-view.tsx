@@ -20,7 +20,7 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
       api(`recommendations/${r.id}/${verb}`, recommendation, undefined, { method: "POST", body: "{}" }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["recommendations"] }); void qc.invalidateQueries({ queryKey: ["activity"] }); },
   });
-  const passed = r.compliance_check.residency === "passed";
+  const passed = r.compliance_check.residency === "passed" || r.compliance_check.residency === "not_applicable";
   const btn = "rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
   return (
     <li className="space-y-2 py-3 text-sm">
@@ -31,14 +31,16 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
         </div>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize">{r.status}</span>
       </div>
+      {r.type === "k8s_rightsizing" ? <K8sDetail r={r} /> : (
       <p>
         <span className="font-semibold text-primary">−{r.estimated_carbon_reduction_pct.toFixed(0)}% carbon</span>
         {" "}(~{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/month) ·{" "}
         {r.estimated_cost_impact === null ? <span className="text-muted">cost impact not estimated</span> : <span>cost {r.estimated_cost_impact < 0 ? "saving" : "increase"} {Math.abs(r.estimated_cost_impact).toFixed(2)}</span>}
         {" "}· confidence {(r.confidence * 100).toFixed(0)}%
       </p>
-      <p className={passed ? "text-muted" : "text-bad"}>Data residency: {r.compliance_check.residency}{r.compliance_check.allowed_regions?.length ? ` (allowed: ${r.compliance_check.allowed_regions.join(", ")})` : ""}</p>
-      {r.status === "applied" && <p className="text-muted">Applied — measured result appears once 18 days of data after the change are in.</p>}
+      )}
+      {r.type !== "k8s_rightsizing" && <p className={passed ? "text-muted" : "text-bad"}>Data residency: {r.compliance_check.residency}{r.compliance_check.allowed_regions?.length ? ` (allowed: ${r.compliance_check.allowed_regions.join(", ")})` : ""}</p>}
+      {r.status === "applied" && r.type !== "k8s_rightsizing" && <p className="text-muted">Applied — measured result appears once 18 days of data after the change are in.</p>}
       {r.verification && <VerifiedImpact v={r.verification} />}
       {canDecide && (r.status === "open" || r.status === "approved") && (
         <div className="flex gap-2">
@@ -49,6 +51,29 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
       )}
       {act.isError && <p role="alert" className="text-xs text-bad">{act.error.message}</p>}
     </li>
+  );
+}
+
+/** A Kubernetes request change claims no carbon or cost saving: it shows the measured peak next to the request. */
+function K8sDetail({ r }: { r: Recommendation }) {
+  const d = r.details ?? {};
+  const gib = (b?: string) => (b ? `${(Number(b) / 1024 ** 3).toFixed(1)} GiB` : "");
+  return (
+    <div className="space-y-1 text-sm">
+      {d.cpu_request_recommended_cores && (
+        <p>CPU request <b>{d.cpu_request_current_cores}</b> → <b className="text-primary">{d.cpu_request_recommended_cores}</b> cores
+          <span className="text-muted"> (measured peak {d.cpu_peak_cores} cores)</span></p>
+      )}
+      {d.memory_request_recommended_bytes && (
+        <p>Memory request <b>{gib(d.memory_request_current_bytes)}</b> → <b className="text-primary">{gib(d.memory_request_recommended_bytes)}</b>
+          <span className="text-muted"> (measured peak {gib(d.memory_peak_bytes)})</span></p>
+      )}
+      <p className="text-xs text-muted">
+        From {d.hours} hours of measurements in {r.current_region}. The recommended request is the highest hourly usage plus 25 % headroom.
+        It frees reserved capacity; fewer nodes follow only if the scheduler can pack better, so no saving is claimed.
+        Hourly averages hide short spikes: check them before applying.
+      </p>
+    </div>
   );
 }
 
