@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.54] - 2026-10-10
+
+### Added
+- **SCI calculator** (Carbon & Energy): the person names the functional unit (API request, order, active user) and how many
+  were delivered in the period; the page returns SCI = ((E x I) + M) / R in CO2e per unit from the period's own energy
+  and carbon, with E, I, M and R shown, an optional comparison with the previous period (own R) and a plain statement
+  of inputs and limits (cloud boundary, whether embodied emissions are included, average not marginal intensity, R is the
+  person's). Frontend only; the formula is tested in `frontend/lib/sci.ts`. English and Russian.
+
 ## [0.1.0-alpha.53] - 2026-10-10
 
 ### Added

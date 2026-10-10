@@ -8,6 +8,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/charts/sparkline";
+import { SciCalculator } from "@/components/carbon/sci-calculator";
 import { useCarbonSummary, useCarbonTrend, useIntensityHistory, useMethodologyVersions, useScheduleAdvice } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { periodRange } from "@/lib/store";
@@ -159,6 +160,7 @@ export function CarbonView() {
           <p className="text-sm text-muted">Not enough days yet for a trend.</p> :
           <Sparkline values={trend.data!.map((p) => p.carbon_kg_co2e)} width={420} height={56} />}
       </Card>
+      {sum.data?.has_data && <SciCalculator summary={sum.data} />}
       <IntensityHistoryCard />
       <ScheduleCard />
       {sum.data && <IntensityOriginCard origins={sum.data.intensity_origins} measured={sum.data.intensity_measured_share_pct} />}
