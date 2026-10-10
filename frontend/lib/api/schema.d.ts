@@ -1950,6 +1950,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/operator/carbon/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redo the carbon calculations of every project over the last days
+         * @description Platform operators with the `admin` role only. Queues a background recalculation of every project over the last
+         *     `days` days (1-400), so stored carbon uses the grid data that exists now. A window is replaced as a whole.
+         */
+        post: operations["recalculateAllCarbon"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operator/operators/withdraw": {
         parameters: {
             query?: never;
@@ -6729,6 +6750,41 @@ export interface operations {
                         days: number;
                         estimated_requests: number;
                         queued: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    recalculateAllCarbon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    days: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: boolean;
+                        /** Format: date */
+                        from: string;
+                        /** Format: date */
+                        to: string;
                     };
                 };
             };

@@ -122,6 +122,29 @@ function RegionSources({ canAct }: { canAct: boolean }) {
   );
 }
 
+/** Redo the carbon of every project with the grid data that exists now (after loading the past, or a source change). */
+function RecalculateCard({ canAct }: { canAct: boolean }) {
+  const [days, setDays] = useState(90);
+  const run = useMutation({
+    mutationFn: () => api("operator/carbon/recalculate", z.object({ queued: z.boolean(), from: z.string(), to: z.string() }), undefined, { method: "POST", body: JSON.stringify({ days }) }),
+  });
+  return (
+    <Card interactive={false}>
+      <h3 className="text-[15px] font-semibold tracking-tight">Recalculate carbon</h3>
+      <p className="mt-1 text-sm text-muted">Redoes the carbon calculations of every organization’s projects with the grid data that exists now, so figures that used a latest-reading estimate use the data loaded since. It runs in the background; a window is replaced as a whole and results of other methodology versions are untouched. This also happens by itself after the daily automatic loading of a region’s past.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+        <label className="flex items-center gap-2">Last
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="rounded-lg bg-white/80 px-2.5 py-1.5 ring-1 ring-line">
+            {[7, 30, 90, 180, 365].map((d) => <option key={d} value={d}>{d} days</option>)}
+          </select></label>
+        <button type="button" disabled={!canAct || run.isPending} onClick={() => run.mutate()} className="brand-gradient rounded-xl px-4 py-2 font-semibold text-white disabled:opacity-50">{run.isPending ? "Queuing…" : "Recalculate everything"}</button>
+      </div>
+      {run.data && <p role="status" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm">Queued for {run.data.from} to {run.data.to}. Follow it on Jobs &amp; scheduler.</p>}
+      {run.isError && <p role="alert" className="mt-2 text-sm text-bad">{run.error.message}</p>}
+    </Card>
+  );
+}
+
 const backfillPlan = z.object({ regions: z.array(z.string()), days: z.number(), estimated_requests: z.number(), queued: z.boolean() });
 
 /** Fetch past grid readings so history is measured, not estimated. The estimate is shown before anything is asked. */
@@ -192,6 +215,7 @@ export function DataSourcesView() {
           <SettingsEditor mode="platform" path="operator/settings" historyPath="operator/settings/history" canEdit={me.data?.role === "admin"} onlyGroup="carbon" hideKeys={["carbon.region_provider_overrides"]} />
           <RegionSources canAct={me.data?.role === "admin"} />
           <BackfillCard canAct={me.data?.role === "admin"} />
+          <RecalculateCard canAct={me.data?.role === "admin"} />
         </div>
       ) : tab === "sources" ? (<>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

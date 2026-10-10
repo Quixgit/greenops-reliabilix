@@ -6,6 +6,7 @@ import "testing"
 // with a new version name, never an edit; this test then needs a new line, not a changed one.
 var pinned = map[string]string{
 	"RLX-PROVISIONAL-1": "99269da432c463c1536593932a4a44911b9a92f4aaefc0e5178dab821006f526",
+	"RLX-CCF-1":         "b81e8d6b145ecfe420b884cab30f956bf3ba4bea92dcf1d533ecd940c5b7cf98",
 }
 
 func TestPublishedSetsAreImmutable(t *testing.T) {

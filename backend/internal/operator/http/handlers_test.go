@@ -426,3 +426,21 @@ func TestServingCostIsCountsTimesUnitCostsAndSortedByCost(t *testing.T) {
 		t.Error("days must be validated")
 	}
 }
+
+func TestRecalculateAllIsAdminOnlyAndBounded(t *testing.T) {
+	post := func(h http.Handler, body string) int {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), "POST", "/operator/carbon/recalculate", strings.NewReader(body)))
+		return rec.Code
+	}
+	_, h := setup("viewer-1")
+	if c := post(h, `{"days":30}`); c != 403 {
+		t.Errorf("viewer = %d, want 403", c)
+	}
+	_, h = setup("admin-1")
+	for _, b := range []string{`{"days":0}`, `{"days":999}`, `{}`} {
+		if c := post(h, b); c != 422 {
+			t.Errorf("%s = %d, want 422", b, c)
+		}
+	}
+}

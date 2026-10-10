@@ -97,12 +97,13 @@ func methodologyNotes() []string {
 }
 
 func (r Postgres) CarbonTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (t domain.Table, err error) {
-	t = domain.Table{Title: "Carbon footprint report", Period: period(from, to), Notes: methodologyNotes(),
-		Headers: []string{"day", "provider", "service", "region", "method", "energy_kwh", "carbon_kg_co2e", "methodology_version"}}
+	t = domain.Table{Title: "Carbon footprint report", Period: period(from, to), Notes: append(methodologyNotes(),
+		"intensity_basis says how the grid intensity of a row was obtained: day_mean = mean of that day's readings of the source; month_mean = the source's monthly national average; partial_day_mean = few readings that day; latest_before and latest_overall = the last known reading, an estimate; empty = calculated before the origin was recorded."),
+		Headers: []string{"day", "provider", "service", "region", "method", "energy_kwh", "carbon_kg_co2e", "methodology_version", "intensity_g_per_kwh", "intensity_source", "intensity_basis"}}
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).ReportCarbonDaily(ctx, db.ReportCarbonDailyParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
 		for _, x := range rows {
-			t.Rows = append(t.Rows, []string{day(x.Day), x.Provider, x.ServiceName, x.RegionID, x.Method, f(x.EnergyKwh), f(x.CarbonKgCo2e), x.MethodologyVersion})
+			t.Rows = append(t.Rows, []string{day(x.Day), x.Provider, x.ServiceName, x.RegionID, x.Method, f(x.EnergyKwh), f(x.CarbonKgCo2e), x.MethodologyVersion, f(x.IntensityGPerKwh), x.IntensitySource, x.IntensityBasis})
 		}
 		return err
 	})

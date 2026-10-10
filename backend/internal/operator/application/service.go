@@ -458,3 +458,15 @@ func (s Service) OrgUsage(ctx context.Context, days int) ([]domain.OrgUsage, Uni
 	sort.Slice(rows, func(a, b int) bool { return rows[a].EstimatedCost > rows[b].EstimatedCost })
 	return rows, c, nil
 }
+
+// RecalculateAll queues the recalculation of every project over the last `days` days (the stored carbon then uses the grid
+// data that exists now). It is idempotent: a window is replaced as a whole.
+func (s Service) RecalculateAll(ctx context.Context, days int) (from, to time.Time, err error) {
+	if days < 1 || days > 400 || s.Queue == nil {
+		return from, to, domain.ErrInvalid
+	}
+	to = time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, 1)
+	from = to.AddDate(0, 0, -days)
+	err = s.Queue.Enqueue(ctx, queue.TaskRecalculateWindow, queue.RecalcPayload{From: from.Format(time.DateOnly), To: to.Format(time.DateOnly)})
+	return from, to, err
+}

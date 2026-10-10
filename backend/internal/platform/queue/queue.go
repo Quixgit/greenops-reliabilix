@@ -35,6 +35,7 @@ const (
 	TaskEraseDue            = "lifecycle:erase_due"                   // erase organizations whose grace period is over (hourly)
 	TaskEnforceRetention    = "platform:enforce_retention"            // drop usage and carbon partitions past retention (daily)
 	TaskExpireSubscriptions = "licensing:expire"                      // return organizations whose period ended to the Free plan (hourly)
+	TaskRecalculateWindow   = "carbon:recalculate_window"             // operator-started: redo the calculations of every project over a window
 	TaskAutoLoadHistory     = "carbon:auto_load_history"              // load the past of regions with gaps and redo their calculations (daily)
 	TaskRefreshMonthly      = "carbon:refresh_monthly"                // monthly national figures of the regions in use (daily)
 	TaskBackfillIntensity   = "carbon:backfill_intensity"             // operator-started: fetch past grid readings of some regions
@@ -63,6 +64,12 @@ type WindowPayload struct {
 	To        string `json:"to"`
 	// MethodologyVersion selects a coefficient set for a carbon calculation; empty = the active one.
 	MethodologyVersion string `json:"methodology_version,omitempty"`
+}
+
+// RecalcPayload asks for every project's calculations over [From, To) (YYYY-MM-DD) to be redone.
+type RecalcPayload struct {
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // BackfillPayload asks for past grid readings of regions over [From, To) (YYYY-MM-DD).

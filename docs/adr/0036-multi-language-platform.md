@@ -1,6 +1,6 @@
 # ADR-0036: Multi-language platform
 
-Status: accepted · 0.1.0-alpha.34
+Status: accepted · 0.1.0-alpha.35
 
 ## Decision
 1. **The server speaks codes, the client speaks languages.** API problems carry a stable `code` (the English title as a

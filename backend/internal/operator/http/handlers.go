@@ -42,6 +42,7 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 	r.With(read).Get("/operator/operators", h.operators)
 	r.With(read).Get("/operator/plans", h.plans)
 	r.With(write).Post("/operator/carbon/backfill", h.backfill)
+	r.With(write).Post("/operator/carbon/recalculate", h.recalculateAll)
 	r.With(write).Put("/operator/operators", h.assignOperator)
 	r.With(write).Post("/operator/operators/withdraw", h.withdrawOperator)
 	r.With(write).Put("/operator/tenants/{tenant_id}/plan", h.assignPlan)
@@ -372,6 +373,27 @@ func (h Handlers) withdrawOperator(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.operators(w, r)
+}
+
+// recalculateAll takes {"days": 1-400}: every project's calculations over that many days are redone in the background.
+func (h Handlers) recalculateAll(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Days int `json:"days"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"days": 1-400}`)
+		return
+	}
+	from, to, err := h.Svc.RecalculateAll(r.Context(), in.Days)
+	if errors.Is(err, domain.ErrInvalid) {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "days must be 1 to 400.")
+		return
+	}
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]any{"queued": true, "from": from.Format(time.DateOnly), "to": to.Format(time.DateOnly)})
 }
 
 // backfill takes {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD", "dry_run": bool}.

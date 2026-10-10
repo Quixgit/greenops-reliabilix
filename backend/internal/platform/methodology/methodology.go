@@ -20,7 +20,7 @@ var setFiles embed.FS
 
 // ActiveVersion is the coefficient set that new calculations, dashboards and reports use. Changing it is a release
 // decision (the old sets stay available, so old results remain reproducible and comparable).
-const ActiveVersion = "RLX-PROVISIONAL-1"
+const ActiveVersion = "RLX-CCF-1"
 
 // Factors is a versioned coefficient set.
 type Factors struct {

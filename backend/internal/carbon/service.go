@@ -69,6 +69,20 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		return err
 	})
 	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
+	mux.HandleFunc(queue.TaskRecalculateWindow, func(ctx context.Context, t *asynq.Task) error {
+		p, err := queue.DecodeAs[queue.RecalcPayload](t)
+		if err != nil {
+			return err
+		}
+		from, e1 := time.Parse(time.DateOnly, p.From)
+		to, e2 := time.Parse(time.DateOnly, p.To)
+		if e1 != nil || e2 != nil || !to.After(from) || to.Sub(from) > 400*24*time.Hour {
+			return errors.Join(asynq.SkipRetry, errors.New("carbon: bad recalculation window"))
+		}
+		n, err := m.Svc.RecalculateEverything(ctx, from, to)
+		m.Svc.Log.Info("recalculation of every project queued", "projects", n, "from", p.From, "to", p.To, "err", err)
+		return err
+	})
 	mux.HandleFunc(queue.TaskAutoLoadHistory, func(ctx context.Context, _ *asynq.Task) error {
 		res, err := m.Svc.AutoLoadHistory(ctx)
 		if len(res.Regions) > 0 {

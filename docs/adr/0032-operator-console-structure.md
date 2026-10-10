@@ -1,6 +1,6 @@
 # ADR-0032: Operator console structure, data source registry and audit view
 
-Status: accepted · 0.1.0-alpha.34
+Status: accepted · 0.1.0-alpha.35
 
 ## Context
 The console grew by accretion (ADR-0020, 0021, 0023, 0029): a flat list of seven pages. The product specification
@@ -24,7 +24,7 @@ terms and state, and a view of the operators' own audit trail.
 - A real, editable source registry (priorities, fallback, cost limits) needs its own tables and a methodology decision;
   it is the next step of the "Aggregation & policies" section.
 
-## Update (0.1.0-alpha.34): one place for sources and their settings
+## Update (0.1.0-alpha.35): one place for sources and their settings
 Integrations are merged into Data sources. A data source and the keys or addresses it needs are one thing, so the keys are
 edited on the source's own page (`/operator/data-sources/<id>`); platform services without a data source (mail, object
 storage, error tracking) are in the "Platform services" tab of the same section. The registry entry carries

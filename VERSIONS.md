@@ -5,7 +5,7 @@ The single place that says which version every part of Reliabilix is at. Rules f
 A test (`backend/internal/platform/version`) fails the build when this file, `VERSION`, `frontend/package.json`,
 `backend/api/openapi.yaml` and the migrations disagree, or when a service or module has no row.
 
-**Platform release: `0.1.0-alpha.34`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
+**Platform release: `0.1.0-alpha.35`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
 
 Row format (the test reads it): `` | `key` | version | ... | ``.
 
@@ -13,7 +13,7 @@ Row format (the test reads it): `` | `key` | version | ... | ``.
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform` | 0.1.0-alpha.34 | Same as the `VERSION` file and `frontend/package.json`. |
+| `platform` | 0.1.0-alpha.35 | Same as the `VERSION` file and `frontend/package.json`. |
 
 ## Services and container images
 
@@ -23,13 +23,13 @@ Image name: `<registry>/reliabilix/<service>:<version>`. Never deploy `latest` (
 
 | Item | Version | Image | Built from |
 |---|---|---|---|
-| `service/api` | 0.1.0-alpha.34 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
-| `service/worker` | 0.1.0-alpha.34 | `reliabilix/worker` | `backend/cmd/worker` |
-| `service/scheduler` | 0.1.0-alpha.34 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
-| `service/migrate` | 0.1.0-alpha.34 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
-| `service/web` | 0.1.0-alpha.34 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
-| `service/agent` | 0.1.0-alpha.34 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
-| `service/admin` | 0.1.0-alpha.34 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
+| `service/api` | 0.1.0-alpha.35 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
+| `service/worker` | 0.1.0-alpha.35 | `reliabilix/worker` | `backend/cmd/worker` |
+| `service/scheduler` | 0.1.0-alpha.35 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
+| `service/migrate` | 0.1.0-alpha.35 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
+| `service/web` | 0.1.0-alpha.35 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
+| `service/agent` | 0.1.0-alpha.35 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
+| `service/admin` | 0.1.0-alpha.35 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
 
 ## Backend domain modules
 
@@ -38,53 +38,53 @@ that module changes in a way listed in the policy.
 
 | Item | Version | Notes |
 |---|---|---|
-| `internal/app` | 0.1.0-alpha.34 | Composition root, router, gates |
-| `internal/alerts` | 0.1.0-alpha.34 | Budget and connection alerts |
-| `internal/automation` | 0.1.0-alpha.34 | Plans only, no executors |
-| `internal/carbon` | 0.1.0-alpha.34 | Engine, SCI, methodology use |
-| `internal/cloudaccounts` | 0.1.0-alpha.34 | Connections, sync, reconciliation |
-| `internal/dashboard` | 0.1.0-alpha.34 | Read models |
-| `internal/finops` | 0.1.0-alpha.34 | Spend, budgets, anomalies |
-| `internal/ingestion` | 0.1.0-alpha.34 | Normalizers to FOCUS |
-| `internal/licensing` | 0.1.0-alpha.34 | Plan view, checkout, payment webhooks, subscription expiry |
-| `internal/lifecycle` | 0.1.0-alpha.34 | Export, scheduled erasure, retention |
-| `internal/kubernetes` | 0.1.0-alpha.34 | Placeholder layers |
-| `internal/notifications` | 0.1.0-alpha.34 | Channels, outbox |
-| `internal/operator` | 0.1.0-alpha.34 | Operator console |
-| `internal/projects` | 0.1.0-alpha.34 | Projects, policies |
-| `internal/recommendations` | 0.1.0-alpha.34 | region_shift, rightsizing |
-| `internal/reports` | 0.1.0-alpha.34 | CSV, JSON, PDF |
-| `internal/settings` | 0.1.0-alpha.34 | Settings engine |
-| `internal/tenants` | 0.1.0-alpha.34 | Organizations, members, keys |
-| `internal/usage` | 0.1.0-alpha.34 | FOCUS records |
-| `internal/users` | 0.1.0-alpha.34 | Identity |
+| `internal/app` | 0.1.0-alpha.35 | Composition root, router, gates |
+| `internal/alerts` | 0.1.0-alpha.35 | Budget and connection alerts |
+| `internal/automation` | 0.1.0-alpha.35 | Plans only, no executors |
+| `internal/carbon` | 0.1.0-alpha.35 | Engine, SCI, methodology use |
+| `internal/cloudaccounts` | 0.1.0-alpha.35 | Connections, sync, reconciliation |
+| `internal/dashboard` | 0.1.0-alpha.35 | Read models |
+| `internal/finops` | 0.1.0-alpha.35 | Spend, budgets, anomalies |
+| `internal/ingestion` | 0.1.0-alpha.35 | Normalizers to FOCUS |
+| `internal/licensing` | 0.1.0-alpha.35 | Plan view, checkout, payment webhooks, subscription expiry |
+| `internal/lifecycle` | 0.1.0-alpha.35 | Export, scheduled erasure, retention |
+| `internal/kubernetes` | 0.1.0-alpha.35 | Placeholder layers |
+| `internal/notifications` | 0.1.0-alpha.35 | Channels, outbox |
+| `internal/operator` | 0.1.0-alpha.35 | Operator console |
+| `internal/projects` | 0.1.0-alpha.35 | Projects, policies |
+| `internal/recommendations` | 0.1.0-alpha.35 | region_shift, rightsizing |
+| `internal/reports` | 0.1.0-alpha.35 | CSV, JSON, PDF |
+| `internal/settings` | 0.1.0-alpha.35 | Settings engine |
+| `internal/tenants` | 0.1.0-alpha.35 | Organizations, members, keys |
+| `internal/usage` | 0.1.0-alpha.35 | FOCUS records |
+| `internal/users` | 0.1.0-alpha.35 | Identity |
 
 ## Platform packages
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform/audit` | 0.1.0-alpha.34 | |
-| `platform/apiusage` | 0.1.0-alpha.34 | Request metering and daily cap for paid APIs |
-| `platform/auth` | 0.1.0-alpha.34 | OIDC, API keys, RBAC |
-| `platform/config` | 0.1.0-alpha.34 | |
-| `platform/database` | 0.1.0-alpha.34 | |
-| `platform/ec2spec` | 0.1.0-alpha.34 | |
-| `platform/entitlements` | 0.1.0-alpha.34 | Limits port |
-| `platform/errlog` | 0.1.0-alpha.34 | Error log |
-| `platform/focus` | 0.1.0-alpha.34 | FOCUS record contract |
-| `platform/integrations` | 0.1.0-alpha.34 | External-service credentials |
-| `platform/billing` | 0.1.0-alpha.34 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
-| `platform/http` | 0.1.0-alpha.34 | |
-| `platform/i18n` | 0.1.0-alpha.34 | Server-side language catalogs and negotiation (ADR-0036) |
-| `platform/methodology` | 0.1.0-alpha.34 | |
-| `platform/notify` | 0.1.0-alpha.34 | Producer port, event catalog |
-| `platform/observability` | 0.1.0-alpha.34 | |
-| `platform/plans` | 0.1.0-alpha.34 | Plan catalog: presets of limits and modules (ADR-0033) |
-| `platform/queue` | 0.1.0-alpha.34 | |
-| `platform/secretbox` | 0.1.0-alpha.34 | |
-| `platform/settings` | 0.1.0-alpha.34 | Settings catalog |
-| `platform/storage` | 0.1.0-alpha.34 | |
-| `platform/version` | 0.1.0-alpha.34 | |
+| `platform/audit` | 0.1.0-alpha.35 | |
+| `platform/apiusage` | 0.1.0-alpha.35 | Request metering and daily cap for paid APIs |
+| `platform/auth` | 0.1.0-alpha.35 | OIDC, API keys, RBAC |
+| `platform/config` | 0.1.0-alpha.35 | |
+| `platform/database` | 0.1.0-alpha.35 | |
+| `platform/ec2spec` | 0.1.0-alpha.35 | |
+| `platform/entitlements` | 0.1.0-alpha.35 | Limits port |
+| `platform/errlog` | 0.1.0-alpha.35 | Error log |
+| `platform/focus` | 0.1.0-alpha.35 | FOCUS record contract |
+| `platform/integrations` | 0.1.0-alpha.35 | External-service credentials |
+| `platform/billing` | 0.1.0-alpha.35 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
+| `platform/http` | 0.1.0-alpha.35 | |
+| `platform/i18n` | 0.1.0-alpha.35 | Server-side language catalogs and negotiation (ADR-0036) |
+| `platform/methodology` | 0.1.0-alpha.35 | |
+| `platform/notify` | 0.1.0-alpha.35 | Producer port, event catalog |
+| `platform/observability` | 0.1.0-alpha.35 | |
+| `platform/plans` | 0.1.0-alpha.35 | Plan catalog: presets of limits and modules (ADR-0033) |
+| `platform/queue` | 0.1.0-alpha.35 | |
+| `platform/secretbox` | 0.1.0-alpha.35 | |
+| `platform/settings` | 0.1.0-alpha.35 | Settings catalog |
+| `platform/storage` | 0.1.0-alpha.35 | |
+| `platform/version` | 0.1.0-alpha.35 | |
 
 ## Connectors and plugins
 
@@ -93,12 +93,12 @@ that third party changes.
 
 | Item | Version | Notes |
 |---|---|---|
-| `connector/aws` | 0.1.0-alpha.34 | Cost Explorer, FOCUS export, rightsizing |
-| `connector/gcp` | 0.1.0-alpha.34 | Billing export in BigQuery |
-| `connector/electricitymaps` | 0.1.0-alpha.34 | Grid carbon intensity |
-| `channel/email` | 0.1.0-alpha.34 | SMTP |
-| `channel/webhook` | 0.1.0-alpha.34 | Signed JSON |
-| `channel/slack` | 0.1.0-alpha.34 | Incoming webhook |
+| `connector/aws` | 0.1.0-alpha.35 | Cost Explorer, FOCUS export, rightsizing |
+| `connector/gcp` | 0.1.0-alpha.35 | Billing export in BigQuery |
+| `connector/electricitymaps` | 0.1.0-alpha.35 | Grid carbon intensity |
+| `channel/email` | 0.1.0-alpha.35 | SMTP |
+| `channel/webhook` | 0.1.0-alpha.35 | Signed JSON |
+| `channel/slack` | 0.1.0-alpha.35 | Incoming webhook |
 
 ## Contracts and data
 
@@ -106,7 +106,7 @@ These are what other systems and stored data depend on; they follow stricter rul
 
 | Item | Version | Notes |
 |---|---|---|
-| `contract/api` | 0.22.0 | `backend/api/openapi.yaml` `info.version`; paths stay under `/api/v1` |
+| `contract/api` | 0.23.0 | `backend/api/openapi.yaml` `info.version`; paths stay under `/api/v1` |
 | `contract/webhook-payload` | 1 | Notification webhook body (`version` field) |
 | `contract/webhook-signature` | 1 | `X-Reliabilix-Signature: t=,v1=` |
 | `contract/focus` | 1.4 | FOCUS specification followed by `platform/focus` |

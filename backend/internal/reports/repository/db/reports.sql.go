@@ -127,11 +127,13 @@ func (q *Queries) ListReports(ctx context.Context, tenantID string) ([]ReportsRe
 
 const reportCarbonDaily = `-- name: ReportCarbonDaily :many
 SELECT date_trunc('day', period_start)::timestamptz AS day, provider, service_name, region_id, method,
-       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e, methodology_version
+       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e, methodology_version,
+       COALESCE(intensity_source, '')::text AS intensity_source, COALESCE(intensity_basis, '')::text AS intensity_basis,
+       (CASE WHEN sum(energy_kwh) > 0 THEN sum(carbon_kg_co2e) * 1000 / sum(energy_kwh) ELSE 0 END)::float8 AS intensity_g_per_kwh
 FROM carbon.calculations
 WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
   AND period_start >= $3 AND period_start < $4
-GROUP BY day, provider, service_name, region_id, method, methodology_version ORDER BY day, service_name
+GROUP BY day, provider, service_name, region_id, method, methodology_version, intensity_source, intensity_basis ORDER BY day, service_name
 `
 
 type ReportCarbonDailyParams struct {
@@ -150,8 +152,12 @@ type ReportCarbonDailyRow struct {
 	EnergyKwh          float64   `json:"energy_kwh"`
 	CarbonKgCo2e       float64   `json:"carbon_kg_co2e"`
 	MethodologyVersion string    `json:"methodology_version"`
+	IntensitySource    string    `json:"intensity_source"`
+	IntensityBasis     string    `json:"intensity_basis"`
+	IntensityGPerKwh   float64   `json:"intensity_g_per_kwh"`
 }
 
+// Rows carry where the grid intensity came from (source and basis); empty = calculated before the origin was recorded.
 func (q *Queries) ReportCarbonDaily(ctx context.Context, arg ReportCarbonDailyParams) ([]ReportCarbonDailyRow, error) {
 	rows, err := q.db.Query(ctx, reportCarbonDaily,
 		arg.TenantID,
@@ -175,6 +181,9 @@ func (q *Queries) ReportCarbonDaily(ctx context.Context, arg ReportCarbonDailyPa
 			&i.EnergyKwh,
 			&i.CarbonKgCo2e,
 			&i.MethodologyVersion,
+			&i.IntensitySource,
+			&i.IntensityBasis,
+			&i.IntensityGPerKwh,
 		); err != nil {
 			return nil, err
 		}

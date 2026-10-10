@@ -121,7 +121,7 @@ func TestMeasuredUsageSupersedesCostBasedRowOfTheSameWorkload(t *testing.T) {
 	}
 }
 
-// Hand-computed reference: 100 vCPU-hours = 100 x 0.0021 kWh x PUE 1.135 = 0.23835 kWh; at 400 g/kWh that is 95.34 g.
+// Hand-computed reference: 100 vCPU-hours = 100 x 0.00212 kWh x PUE 1.135 = 0.24062 kWh; at 400 g/kWh that is 96.248 g.
 // Two rows of one day share the day's R, so their SCI shares add up to the day's SCI (total grams / R).
 func TestGoldenNumbers(t *testing.T) {
 	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
@@ -137,11 +137,11 @@ func TestGoldenNumbers(t *testing.T) {
 	if err != nil || len(skipped) != 0 || len(out) != 2 {
 		t.Fatalf("%v %v %v", out, skipped, err)
 	}
-	if got := out[0].EnergyKWh; math.Abs(got-0.23835) > 1e-9 {
-		t.Errorf("energy = %v, want 0.23835 kWh", got)
+	if got := out[0].EnergyKWh; math.Abs(got-0.24062) > 1e-9 {
+		t.Errorf("energy = %v, want 0.24062 kWh", got)
 	}
-	if got := out[0].CO2eKg; math.Abs(got-0.09534) > 1e-9 {
-		t.Errorf("carbon = %v, want 0.09534 kg", got)
+	if got := out[0].CO2eKg; math.Abs(got-0.096248) > 1e-9 {
+		t.Errorf("carbon = %v, want 0.096248 kg", got)
 	}
 	var sum, grams float64
 	for _, c := range out {

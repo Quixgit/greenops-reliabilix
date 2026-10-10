@@ -20,12 +20,15 @@ UPDATE reports.reports SET status = 'failed', error = sqlc.arg(error), completed
 WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
 
 -- name: ReportCarbonDaily :many
+-- Rows carry where the grid intensity came from (source and basis); empty = calculated before the origin was recorded.
 SELECT date_trunc('day', period_start)::timestamptz AS day, provider, service_name, region_id, method,
-       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e, methodology_version
+       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e, methodology_version,
+       COALESCE(intensity_source, '')::text AS intensity_source, COALESCE(intensity_basis, '')::text AS intensity_basis,
+       (CASE WHEN sum(energy_kwh) > 0 THEN sum(carbon_kg_co2e) * 1000 / sum(energy_kwh) ELSE 0 END)::float8 AS intensity_g_per_kwh
 FROM carbon.calculations
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
   AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
-GROUP BY day, provider, service_name, region_id, method, methodology_version ORDER BY day, service_name;
+GROUP BY day, provider, service_name, region_id, method, methodology_version, intensity_source, intensity_basis ORDER BY day, service_name;
 
 -- name: ReportCostDaily :many
 SELECT date_trunc('day', recorded_at)::timestamptz AS day, provider, service_name, service_category, region_id,

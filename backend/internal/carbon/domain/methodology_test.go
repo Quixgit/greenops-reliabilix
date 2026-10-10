@@ -5,10 +5,14 @@ import (
 	"math"
 	"strings"
 	"testing"
+
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 )
 
+var methodologyGet = methodology.Get
+
 func TestFactorsLoaded(t *testing.T) {
-	if MethodologyVersion != "RLX-PROVISIONAL-1" || Current.Status != "provisional" || Current.PUE < 1 {
+	if MethodologyVersion != "RLX-CCF-1" || Current.Status != "provisional" || Current.PUE < 1 {
 		t.Fatalf("factors: %+v", Current)
 	}
 }
@@ -33,19 +37,25 @@ func TestCoefficientsArePlausible(t *testing.T) {
 	}
 }
 
+// A set says exactly where its numbers come from. The active set cites the published constants it was derived from and
+// still names what it leaves out; the earlier author-estimate set must never be mistaken for a CCF import.
 func TestMethodologyIsHonestAboutItsOrigin(t *testing.T) {
 	if Current.Provenance == "" || len(Current.Caveats) == 0 {
-		t.Fatalf("a provisional set must say where it comes from and what it leaves out: %+v", Current)
+		t.Fatalf("a set must say where it comes from and what it leaves out: %+v", Current)
 	}
 	if Current.EmbodiedIncluded() {
 		t.Error("this set does not model embodied emissions and must not claim to")
 	}
 	joined := strings.Join(Current.Caveats, " ")
-	if !strings.Contains(joined, "Embodied") || !strings.Contains(joined, "not imported from or verified") {
-		t.Errorf("caveats must name the missing embodied term and the missing provenance: %v", Current.Caveats)
+	if !strings.Contains(joined, "Embodied") || !strings.Contains(joined, "not sourced") {
+		t.Errorf("caveats must name the missing embodied term and the unsourced cost-based factors: %v", Current.Caveats)
 	}
-	if strings.Contains(strings.ToUpper(MethodologyVersion), "CCF") {
-		t.Errorf("the version %q must not claim CCF provenance", MethodologyVersion)
+	if !strings.Contains(Current.Notes, "AwsFootprintEstimationConstants") || !strings.Contains(Current.Notes, "0.74") {
+		t.Errorf("a set derived from published constants must cite the file and the numbers it used: %q", Current.Notes)
+	}
+	old, ok := methodologyGet("RLX-PROVISIONAL-1")
+	if !ok || !strings.Contains(old.Provenance, "unverified") || strings.Contains(strings.ToUpper(old.Version), "CCF") {
+		t.Errorf("the author-estimate set must stay labelled as unverified: %+v", old)
 	}
 }
 

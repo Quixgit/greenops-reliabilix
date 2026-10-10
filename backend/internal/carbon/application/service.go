@@ -749,6 +749,11 @@ func (s *Service) AutoLoadHistory(ctx context.Context) (AutoLoadResult, error) {
 	return res, first
 }
 
+// RecalculateEverything queues a recalculation of [from, to) for every project (operator action).
+func (s *Service) RecalculateEverything(ctx context.Context, from, to time.Time) (int, error) {
+	return s.recalculateAll(ctx, from, to)
+}
+
 // recalculateAll queues a recalculation of [from, to) for every project that has jobs.
 func (s *Service) recalculateAll(ctx context.Context, from, to time.Time) (int, error) {
 	refs, err := s.Projects.ProjectsForJobs(ctx)

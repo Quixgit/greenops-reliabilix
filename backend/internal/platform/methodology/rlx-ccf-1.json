@@ -1,0 +1,25 @@
+{
+  "version": "RLX-CCF-1",
+  "status": "provisional",
+  "provenance": "ccf_published_constants_for_usage_based; author_estimates_for_cost_based",
+  "notes": "The usage-based coefficients are taken from the Cloud Carbon Footprint (CCF) methodology and its AWS constants file (cloud-carbon-footprint/packages/aws/src/domain/AwsFootprintEstimationConstants.ts, trunk, read 2026-10-10; methodology page https://www.cloudcarbonfootprint.org/docs/methodology/, Apache-2.0). Derivations: vcpu_hours = (MIN_WATTS_AVG 0.74 W + 50% default utilisation x (MAX_WATTS_AVG 3.5 W - 0.74 W)) = 2.12 W = 0.00212 kWh per vCPU-hour; memory_gb_hours = MEMORY_COEFFICIENT 0.000392 kWh per GB-hour; storage_gb_months = HDDCOEFFICIENT 0.65 Wh per TB-hour = 0.00000065 kWh per GB-hour x 730 h = 0.0004745 kWh per GB-month (SSD, 1.2 Wh per TB-hour, would be 0.000876); PUE = PUE_AVG 1.135. The cost_based factors have no CCF counterpart: they are the platform authors' rough fallbacks for sources that expose cost only, and are not sourced. Embodied emissions are not included: CCF derives them per instance type from Teads data, which this set does not import. A change of any number is a NEW version, never an edit of this file.",
+  "caveats": [
+    "Embodied emissions (the M term of SCI) are not included: figures are operational emissions only.",
+    "Usage-based coefficients follow the published CCF constants for AWS averages (50% default CPU utilisation, average vCPU power, HDD storage); other clouds and instance types use the same averages.",
+    "Rows marked cost_based are rough estimates derived from spend with factors chosen by the platform authors; they are not sourced and have low confidence."
+  ],
+  "pue": 1.135,
+  "energy_kwh_per_unit": {
+    "vcpu_hours": 0.00212,
+    "memory_gb_hours": 0.000392,
+    "storage_gb_months": 0.0004745
+  },
+  "cost_based_kwh_per_usd": {
+    "compute": 0.9,
+    "storage": 0.35,
+    "database": 0.7,
+    "networking": 0.12,
+    "other": 0.25
+  },
+  "embodied_g_per_kwh": 0
+}
