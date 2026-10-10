@@ -595,7 +595,10 @@ func (s Service) announceMismatch(ctx context.Context, tenantID string, c domain
 
 // safeMessage is stored and shown to users: it never contains provider internals or secrets.
 func safeMessage(err error) string {
+	var pe domain.PublicError
 	switch {
+	case errors.As(err, &pe):
+		return pe.Message
 	case errors.Is(err, domain.ErrAccessDenied):
 		return "Access denied: check the access you granted (AWS role and its read permissions, the platform's read access to the BigQuery dataset, or the platform application's Storage Blob Data Reader role on the Azure container)."
 	case errors.Is(err, domain.ErrBigQueryDisabled):

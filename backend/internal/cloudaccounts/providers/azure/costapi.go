@@ -196,15 +196,45 @@ func (a *CostAPI) post(ctx context.Context, token, target string, body []byte) (
 		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable:
 			wait := retryAfter(resp.Header.Get("Retry-After"))
 			if attempt >= maxRetries || wait > maxRetryWait {
-				return qr, fmt.Errorf("azure: cost query throttled (status %d)", resp.StatusCode)
+				return qr, domain.PublicError{Message: fmt.Sprintf("Azure Cost Management is throttling requests (HTTP %d, retry in %ds); the sync is retried automatically.", resp.StatusCode, int(wait.Seconds()))}
 			}
 			if err := a.sleep(ctx, wait); err != nil {
 				return qr, err
 			}
+		case resp.StatusCode == http.StatusBadRequest:
+			return qr, &badQueryError{code: azureErrorCode(data)}
 		default:
-			return qr, fmt.Errorf("azure: cost query: status %d", resp.StatusCode)
+			return qr, domain.PublicError{Message: fmt.Sprintf("Azure Cost Management answered HTTP %d%s; the sync is retried automatically.", resp.StatusCode, azureErrorSuffix(data))}
 		}
 	}
+}
+
+// badQueryError is HTTP 400: the API refused the query itself (for example an unsupported cost type for the offer).
+type badQueryError struct{ code string }
+
+func (e *badQueryError) Error() string {
+	return "azure: cost query refused (HTTP 400" + map[bool]string{true: ", " + e.code, false: ""}[e.code != ""] + ")"
+}
+
+// azureErrorCode reads error.code of an Azure error body ("BadRequest", "InvalidAuthenticationToken" ...): a short
+// machine word, safe to show.
+func azureErrorCode(body []byte) string {
+	var e struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(body, &e) != nil || len(e.Error.Code) > 64 || strings.ContainsAny(e.Error.Code, " \n\t") {
+		return ""
+	}
+	return e.Error.Code
+}
+
+func azureErrorSuffix(body []byte) string {
+	if c := azureErrorCode(body); c != "" {
+		return " (" + c + ")"
+	}
+	return ""
 }
 
 func retryAfter(h string) time.Duration {
@@ -266,10 +296,19 @@ type apiCostKey struct{ day, service, location, currency string }
 func (a *CostAPI) usage(ctx context.Context, token, subscription string, from, to time.Time) (focus.RawBatch, error) {
 	type sums struct{ billed, effective float64 }
 	agg := map[apiCostKey]*sums{}
+	amortizedUnavailable := false
 	for _, w := range windows(from, to) {
 		for i, costType := range []string{"ActualCost", "AmortizedCost"} {
 			rows, err := a.query(ctx, token, subscription, costType, w[0], w[1], []string{"ServiceName", "ResourceLocation"})
-			if err != nil {
+			var bad *badQueryError
+			switch {
+			case errors.As(err, &bad) && i == 1:
+				// The amortized view is not offered for every kind of subscription. Without reservations it equals the
+				// billed amount, so the billed amount stands in for it rather than failing the whole sync.
+				rows, amortizedUnavailable = nil, true
+			case errors.As(err, &bad):
+				return focus.RawBatch{}, domain.PublicError{Message: "Azure Cost Management refused the cost query for this subscription (" + bad.code + "). Costs may not be available for this kind of subscription."}
+			case err != nil:
 				return focus.RawBatch{}, err
 			}
 			for _, r := range rows {
@@ -297,6 +336,9 @@ func (a *CostAPI) usage(ctx context.Context, token, subscription string, from, t
 	}
 	rows := make([]row, 0, len(agg))
 	for k, v := range agg {
+		if amortizedUnavailable {
+			v.effective = v.billed
+		}
 		rows = append(rows, row{k.day, k.service, k.location, k.currency, v.billed, v.effective})
 	}
 	sort.Slice(rows, func(i, j int) bool {

@@ -52,6 +52,12 @@ var (
 	ErrSubscriptionNotInExport = errors.New("the export has no rows for this subscription")
 )
 
+// PublicError is a failure whose text is safe to show the customer as it is (no secret, no provider internals beyond a
+// status code and the provider's own error code). Anything else is shown as a generic "will be retried".
+type PublicError struct{ Message string }
+
+func (e PublicError) Error() string { return e.Message }
+
 // NeedsCustomerAction reports whether an error can only be fixed by the customer (permissions, export setup,
 // ownership proof). Retrying cannot help, so such errors are not retried and mark the connection as errored
 // until the customer verifies again.

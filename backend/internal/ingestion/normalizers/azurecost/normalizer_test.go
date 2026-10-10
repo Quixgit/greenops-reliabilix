@@ -37,6 +37,20 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestRowsThatMapToTheSameRegionAreMerged(t *testing.T) {
+	raw := focus.RawBatch{Provider: "azure", Source: "cost_management_api", Payload: []byte(`{"rows":[
+	 {"day":"2026-10-01","service":"Bandwidth","location":"","currency":"EUR","billed":1,"effective":1},
+	 {"day":"2026-10-01","service":"Bandwidth","location":"Unassigned","currency":"EUR","billed":2,"effective":2},
+	 {"day":"2026-10-01","service":"Bandwidth","location":"Zone 1","currency":"EUR","billed":4,"effective":3}]}`)}
+	recs, err := Normalizer{}.Normalize(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 1 || recs[0].RegionID != "global" || recs[0].BilledCost != 7 || recs[0].EffectiveCost != 6 {
+		t.Errorf("the three locations are one region and must be one record, or storing them would overwrite: %+v", recs)
+	}
+}
+
 func TestRegion(t *testing.T) {
 	for in, want := range map[string]string{
 		"EU West": "westeurope", "EU North": "northeurope", "US East": "eastus", "US East 2": "eastus2", "US Central": "centralus",

@@ -5,6 +5,18 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.60] - 2026-10-10
+
+### Fixed
+- **A failed sync now says why.** Until now every failure that was not "access denied" showed only "Sync failed; it will
+  be retried automatically". Azure failures that are safe to show now carry their cause: throttling by Cost Management
+  (with the wait), an HTTP status and Azure's own error code, a refused cost query, and, importantly, a stored client
+  secret that the service cannot open because the worker runs without the same `NOTIFICATIONS_SECRET_KEY` as the API.
+- **Azure: the amortized view is optional.** Some subscription kinds refuse the amortized cost query (HTTP 400); the
+  billed amount stands in for it instead of failing the whole sync.
+- **Azure: locations that map to one region are merged** ("", "Unassigned", "Zone 1" are all "global"): they were stored
+  as separate rows that overwrote each other.
+
 ## [0.1.0-alpha.59] - 2026-10-10
 
 ### Added

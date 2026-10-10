@@ -159,6 +159,55 @@ func TestServicePrincipalValidateAndThrottling(t *testing.T) {
 	}
 }
 
+func TestRefusedAmortizedViewFallsBackToBilled(t *testing.T) {
+	arm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body["type"] == "AmortizedCost" {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error":{"code":"BadRequest","message":"not supported for this offer"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"properties":{"columns":[{"name":"Cost"},{"name":"UsageDate"},{"name":"ServiceName"},{"name":"ResourceLocation"},{"name":"Currency"}],"rows":[[7,20261001,"Storage","EU West","EUR"]]}}`)
+	}))
+	defer arm.Close()
+	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
+	b, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b.Payload), `"billed":7,"effective":7`) {
+		t.Errorf("effective must fall back to billed: %s", b.Payload)
+	}
+}
+
+func TestRefusedBilledQueryIsExplainedToTheCustomer(t *testing.T) {
+	arm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, `{"error":{"code":"BadRequest","message":"x"}}`)
+	}))
+	defer arm.Close()
+	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
+	_, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC))
+	var pe domain.PublicError
+	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "BadRequest") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestServerErrorsAreShownWithTheirStatus(t *testing.T) {
+	arm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer arm.Close()
+	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
+	_, err := a.query(context.Background(), "tok", spSub, "ActualCost", time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), nil)
+	var pe domain.PublicError
+	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "502") {
+		t.Errorf("err = %v", err)
+	}
+}
+
 func TestServicePrincipalWrongSecretIsAccessDenied(t *testing.T) {
 	f := newFakeAzure(t)
 	p := f.provider()

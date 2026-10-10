@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -61,7 +60,9 @@ func (p *Provider) token(ctx context.Context, c domain.Connection) (string, erro
 	}
 	secret, err := p.OpenSecret(c)
 	if err != nil {
-		return "", fmt.Errorf("azure: the stored secret cannot be opened: %w", err)
+		// The worker and the API must share the sealing key (NOTIFICATIONS_SECRET_KEY): the API sealed the secret,
+		// the worker opens it. Say so instead of a generic "sync failed".
+		return "", domain.PublicError{Message: "The stored client secret cannot be opened by this service: every service (api, worker, scheduler) must run with the same NOTIFICATIONS_SECRET_KEY. Reconnect the account if the key was changed."}
 	}
 	cc := &ClientCredentials{ClientID: acc.ClientID, Secret: secret, Authority: p.Authority, HTTP: p.HTTP, Scope: "https://management.azure.com/.default"}
 	return cc.Token(ctx, acc.TenantID)

@@ -35,22 +35,38 @@ func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 	if err := json.Unmarshal(raw.Payload, &p); err != nil {
 		return nil, fmt.Errorf("azurecost: decode payload: %w", err)
 	}
-	out := make([]focus.Record, 0, len(p.Rows))
+	// Several raw locations map to one region ("", "Unassigned", "Zone 1" are all "global"): one record per final key,
+	// or the rows would overwrite each other when stored.
+	type key struct{ day, service, region, currency string }
+	type sums struct{ billed, effective float64 }
+	merged := map[key]*sums{}
+	var order []key
 	for _, r := range p.Rows {
-		day, err := time.Parse(time.DateOnly, r.Day)
-		if err != nil {
-			return nil, fmt.Errorf("azurecost: bad day %q", r.Day)
-		}
-		if r.Billed == 0 && r.Effective == 0 {
-			continue // nothing charged: no row
-		}
 		service := strings.TrimSpace(r.Service)
 		if service == "" {
 			service = "Other"
 		}
+		k := key{r.Day, service, Region(r.Location), strings.ToUpper(strings.TrimSpace(r.Currency))}
+		if merged[k] == nil {
+			merged[k] = &sums{}
+			order = append(order, k)
+		}
+		merged[k].billed += r.Billed
+		merged[k].effective += r.Effective
+	}
+	out := make([]focus.Record, 0, len(order))
+	for _, k := range order {
+		day, err := time.Parse(time.DateOnly, k.day)
+		if err != nil {
+			return nil, fmt.Errorf("azurecost: bad day %q", k.day)
+		}
+		s := merged[k]
+		if s.billed == 0 && s.effective == 0 {
+			continue // nothing charged: no row
+		}
 		out = append(out, focus.Record{
-			Provider: "azure", Source: raw.Source, ServiceName: service, ServiceCategory: Category(service),
-			RegionID: Region(r.Location), BilledCost: r.Billed, EffectiveCost: r.Effective, Currency: strings.ToUpper(strings.TrimSpace(r.Currency)),
+			Provider: "azure", Source: raw.Source, ServiceName: k.service, ServiceCategory: Category(k.service),
+			RegionID: k.region, BilledCost: s.billed, EffectiveCost: s.effective, Currency: k.currency,
 			ChargePeriodStart: day, ChargePeriodEnd: day.AddDate(0, 0, 1),
 		})
 	}
