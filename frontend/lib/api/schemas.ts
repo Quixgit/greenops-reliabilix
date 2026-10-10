@@ -146,7 +146,7 @@ export type AllocationReport = z.infer<typeof allocationReport>;
 
 export const connection = z.object({
   id: z.string(), project_id: z.string(), provider: z.string(), account_ref: z.string(), credential_ref: z.string().optional(),
-  sync_status: z.string(), last_sync_at: z.string().nullable(),
+  sync_status: z.string(), last_sync_at: z.string().nullable(), last_error: z.string().nullable().optional(),
 });
 export const connections = items(connection);
 

@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.62] - 2026-10-10
+
+### Fixed
+- **A connection that never delivered data no longer looks connected.** The Overview tile, the Connectors list and the
+  connection page said "Connected" / "healthy" as soon as the access check passed, even when the first sync had failed
+  or not run: the sign that nothing was being read was a "never" in a corner. They now say "Waiting for first sync",
+  "Sync failing" or "Needs attention", and "Connected" only after a successful sync.
+- **A temporary sync failure is shown on the connection** (Last error) instead of "none": it keeps the connection's state
+  (the next attempt may work) and clears itself on the first success.
+- **Azure and throttling:** Cost Management's own retry headers (`x-ms-ratelimit-microsoft.costmanagement-*-retry-after`)
+  are honoured, the longest wait wins, up to two minutes and five attempts, and queries of one sync are paced two
+  seconds apart.
+
 ## [0.1.0-alpha.61] - 2026-10-10
 
 ### Added

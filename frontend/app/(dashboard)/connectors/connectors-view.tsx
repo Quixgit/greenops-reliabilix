@@ -4,11 +4,13 @@ import { Cloud } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { ConnectionForm } from "@/components/forms/connection-form";
-import { Badge, statusTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConnections } from "@/hooks/use-overview";
+import { useT } from "@/i18n/provider";
+import { connectionState, stateTone } from "@/lib/connection-state";
 import { timeAgo } from "@/lib/formatters";
 import { CATALOG, CATEGORIES, type CatalogItem } from "./catalog";
 
@@ -29,6 +31,7 @@ function Action({ item, connected, canConnect, onConnect }: { item: CatalogItem;
 
 /** Cloud accounts and every other integration in one place: connected accounts and the connect flow on top, the catalog below. */
 export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
+  const t = useT();
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]["id"]>("all");
   const [connectAs, setConnectAs] = useState<Provider | null>(null);
   const accounts = useRef<HTMLDivElement>(null);
@@ -67,7 +70,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <Link href={`/cloud/${c.id}`} className="hover:underline"><b className="uppercase">{c.provider}</b> <span className="text-muted">{c.account_ref}</span></Link>
                   <span className="flex items-center gap-2 text-xs text-muted">
-                    <Badge tone={statusTone(c.sync_status)}>{c.sync_status}</Badge>
+                    <Badge tone={stateTone(connectionState(c))}>{t(`connection.state.${connectionState(c)}`)}</Badge>
                     {c.last_sync_at ? `synced ${timeAgo(c.last_sync_at)}` : "not synced yet"}
                   </span>
                 </li>

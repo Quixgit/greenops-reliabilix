@@ -239,6 +239,18 @@ func TestExportModeNeedsThePlatformApplication(t *testing.T) {
 	}
 }
 
+func TestThrottleWaitReadsTheCostManagementHeaders(t *testing.T) {
+	h := http.Header{}
+	if got := throttleWait(h); got != 15*time.Second {
+		t.Errorf("no header: %v", got)
+	}
+	h.Set("x-ms-ratelimit-microsoft.costmanagement-entity-retry-after", "42")
+	h.Set("Retry-After", "7")
+	if got := throttleWait(h); got != 42*time.Second {
+		t.Errorf("the longest wait must win: %v", got)
+	}
+}
+
 func TestWindowsAreChunked(t *testing.T) {
 	from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	ws := windows(from, from.AddDate(0, 0, 200))

@@ -8,6 +8,8 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConnection, useSyncRuns } from "@/hooks/use-overview";
+import { useT } from "@/i18n/provider";
+import { connectionState, stateTone } from "@/lib/connection-state";
 import { api } from "@/lib/api/client";
 import { z } from "zod";
 import type { DataQuality } from "@/lib/api/schemas";
@@ -38,6 +40,7 @@ function Quality({ q }: { q: DataQuality | null }) {
 }
 
 export function AccountView({ id, canWrite }: { id: string; canWrite: boolean }) {
+  const t = useT();
   const qc = useQueryClient();
   const conn = useConnection(id);
   const runs = useSyncRuns(id);
@@ -65,7 +68,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
             <Card index={0}>
               <CardHeader title="Connection" />
               <dl className="grid grid-cols-[130px_1fr] gap-y-2 text-sm">
-                <dt className="text-muted">Status</dt><dd><Badge tone={statusTone(c.sync_status)}>{c.sync_status}</Badge></dd>
+                <dt className="text-muted">Status</dt><dd><Badge tone={stateTone(connectionState(c))}>{t(`connection.state.${connectionState(c)}`)}</Badge></dd>
                 <dt className="text-muted">Last sync</dt><dd>{c.last_sync_at ? shortTime(c.last_sync_at) : "never"}</dd>
                 <dt className="text-muted">Data read up to</dt><dd>{c.synced_through ? shortTime(c.synced_through) : "—"}</dd>
                 <dt className="text-muted">Last error</dt><dd className={c.last_error ? "text-bad" : ""}>{c.last_error ?? "none"}</dd>

@@ -501,6 +501,9 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 			observability.CloudSyncTotal.WithLabelValues(label, "denied").Inc()
 		} else {
 			observability.CloudSyncTotal.WithLabelValues(label, "failed").Inc()
+			// A temporary failure keeps the connection's state (the next attempt may work) but is shown on it, so a
+			// connection that has never synced does not look healthy and silent.
+			_ = s.Repo.SetStatus(ctx, tenantID, connectionID, c.SyncStatus, &msg)
 		}
 		observability.CloudSyncDuration.WithLabelValues(label).Observe(time.Since(start).Seconds())
 		return cause

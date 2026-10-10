@@ -27,9 +27,10 @@ const (
 	maxCostPages   = 100
 	maxCostRows    = 500_000
 	maxBodyBytes   = 32 << 20
-	maxRetries     = 4
-	maxRetryWait   = 60 * time.Second
-	queryChunkDays = 92 // the API refuses very long daily windows: a sync reads at most a quarter at a time
+	maxRetries     = 5
+	maxRetryWait   = 120 * time.Second
+	queryPacing    = 2 * time.Second // between queries of one sync: Cost Management throttles bursts
+	queryChunkDays = 92              // the API refuses very long daily windows: a sync reads at most a quarter at a time
 )
 
 // CostAPI reads costs of a subscription with the customer's own service principal.
@@ -37,6 +38,8 @@ type CostAPI struct {
 	HTTP      *http.Client
 	Authority string // token endpoint base; "" = Microsoft's
 	ARM       string // management endpoint base; "" = https://management.azure.com
+	// Pace is the wait before each query of a sync (0 = none, as in tests).
+	Pace time.Duration
 	// Sleep waits between throttled retries (replaced in tests).
 	Sleep func(context.Context, time.Duration) error
 }
@@ -101,6 +104,11 @@ func (a *CostAPI) query(ctx context.Context, token, subscription, costType strin
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
+	}
+	if a.Pace > 0 {
+		if err := a.sleep(ctx, a.Pace); err != nil {
+			return nil, err
+		}
 	}
 	base := a.arm()
 	next := base + "/subscriptions/" + url.PathEscape(subscription) + "/providers/Microsoft.CostManagement/query?api-version=" + costAPIVersion
@@ -194,7 +202,7 @@ func (a *CostAPI) post(ctx context.Context, token, target string, body []byte) (
 		case resp.StatusCode == http.StatusNotFound:
 			return qr, fmt.Errorf("%w: the subscription was not found for this service principal", domain.ErrAccessDenied)
 		case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable:
-			wait := retryAfter(resp.Header.Get("Retry-After"))
+			wait := throttleWait(resp.Header)
 			if attempt >= maxRetries || wait > maxRetryWait {
 				return qr, domain.PublicError{Message: fmt.Sprintf("Azure Cost Management is throttling requests (HTTP %d, retry in %ds); the sync is retried automatically.", resp.StatusCode, int(wait.Seconds()))}
 			}
@@ -235,6 +243,29 @@ func azureErrorSuffix(body []byte) string {
 		return " (" + c + ")"
 	}
 	return ""
+}
+
+// throttleWait reads how long Azure asks to wait: the standard Retry-After, or one of the Cost Management specific
+// x-ms-ratelimit-microsoft.costmanagement-*-retry-after headers (seconds). The longest one wins.
+func throttleWait(h http.Header) time.Duration {
+	var wait time.Duration
+	found := false
+	for name, vals := range h {
+		l := strings.ToLower(name)
+		if l != "retry-after" && !(strings.HasPrefix(l, "x-ms-ratelimit-microsoft.costmanagement-") && strings.HasSuffix(l, "-retry-after")) {
+			continue
+		}
+		for _, v := range vals {
+			if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && n >= 0 {
+				found = true
+				wait = max(wait, time.Duration(n)*time.Second)
+			}
+		}
+	}
+	if !found {
+		return 15 * time.Second
+	}
+	return wait
 }
 
 func retryAfter(h string) time.Duration {

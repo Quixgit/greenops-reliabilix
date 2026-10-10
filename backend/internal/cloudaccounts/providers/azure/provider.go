@@ -39,7 +39,7 @@ type Provider struct {
 // be empty; service-principal connections need nothing from the platform but the key that opens their secret.
 func New(clientID, clientSecret string, openSecret func(domain.Connection) (string, error)) *Provider {
 	h := NoRedirects(&http.Client{Timeout: 3 * time.Minute})
-	p := &Provider{Cost: &CostAPI{HTTP: h}, OpenSecret: openSecret, HTTP: h}
+	p := &Provider{Cost: &CostAPI{HTTP: h, Pace: queryPacing}, OpenSecret: openSecret, HTTP: h}
 	if clientID != "" && clientSecret != "" {
 		p.Blobs = &RESTBlobs{HTTP: h, Tokens: &ClientCredentials{ClientID: clientID, Secret: clientSecret, HTTP: h}}
 	}
