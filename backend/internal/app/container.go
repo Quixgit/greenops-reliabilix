@@ -124,7 +124,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	finopsM := finops.New(pool)
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 
-	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc},
+	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc}, Carbon: alertCarbon{carbon: carbonM.Svc}, Settings: cfgr,
 		Tenants: alertTenants{projects: projectsM.Svc}, Notify: notifyM.Svc, Log: log})
 	lifecycleM := lifecycle.New(lifecycle.Deps{Pool: pool, Store: store, Settings: cfgr, Log: log})
 

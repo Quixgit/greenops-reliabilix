@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.8] - 2026-10-10
+
+### Added
+- Alert settings per organization: the warning level (`alerts.warn_pct`, default 80 %) and a monthly carbon limit
+  (`alerts.carbon_monthly_kg`, default 0 = off) that opens a `carbon` alert for the calendar month so far
+  ([ADR-0028](docs/adr/0028-alerts.md)). Migration 0021.
+
 ## [0.1.0-alpha.7] - 2026-10-10
 
 ### Added

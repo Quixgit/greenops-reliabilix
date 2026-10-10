@@ -2292,7 +2292,7 @@ export interface components {
             /** Format: uuid */
             id?: string;
             /** @enum {string} */
-            kind?: "budget" | "connection_error" | "data_quality";
+            kind?: "budget" | "carbon" | "connection_error" | "data_quality";
             /** @enum {string} */
             severity?: "info" | "warning" | "critical";
             /** @enum {string} */

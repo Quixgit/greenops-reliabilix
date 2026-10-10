@@ -133,7 +133,7 @@ func TestOperatorConsole(t *testing.T) {
 	}
 	c.must("GET", "/api/v1/operator/connections/unhealthy", viewerOp, "", 200)
 	sys := c.must("GET", "/api/v1/operator/system", viewerOp, "", 200)
-	if sys["expected_migration"] != float64(20) || len(sys["integrations"].([]any)) < 8 {
+	if sys["expected_migration"] != float64(21) || len(sys["integrations"].([]any)) < 8 {
 		t.Fatalf("system = %v", sys)
 	}
 	statuses := map[string]string{}

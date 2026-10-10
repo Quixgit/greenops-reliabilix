@@ -273,7 +273,7 @@ export const syncRuns = items(syncRun);
 
 export const alert = z.object({
   id: z.string(),
-  kind: z.enum(["budget", "connection_error", "data_quality"]),
+  kind: z.enum(["budget", "carbon", "connection_error", "data_quality"]),
   severity: z.enum(["info", "warning", "critical"]),
   status: z.enum(["new", "acknowledged", "muted", "resolved"]),
   title: z.string(),

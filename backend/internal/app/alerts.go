@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"time"
 
 	alertsdomain "github.com/quixgit/greenops-reliabilix/backend/internal/alerts/domain"
+	carbonapp "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/application"
 	clouddomain "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/application"
 	finopsapp "github.com/quixgit/greenops-reliabilix/backend/internal/finops/application"
 	projectsapp "github.com/quixgit/greenops-reliabilix/backend/internal/projects/application"
@@ -63,4 +65,16 @@ func (a alertTenants) TenantIDs(ctx context.Context) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// alertCarbon lets the alerts module read this month's emissions without importing carbon.
+type alertCarbon struct{ carbon *carbonapp.Service }
+
+func (a alertCarbon) MonthToDate(ctx context.Context, tenantID string, now time.Time) (alertsdomain.CarbonSignal, error) {
+	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	s, err := a.carbon.Summary(ctx, tenantID, nil, from, now.Add(time.Hour))
+	if err != nil {
+		return alertsdomain.CarbonSignal{}, err
+	}
+	return alertsdomain.CarbonSignal{MonthToDateKg: s.Current.CO2eKg}, nil
 }

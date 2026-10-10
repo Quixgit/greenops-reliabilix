@@ -15,13 +15,16 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/alerts/repository"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 type Deps struct {
 	Pool        *pgxpool.Pool
 	Budgets     application.BudgetSource
 	Connections application.ConnectionSource
+	Carbon      application.CarbonSource
 	Tenants     application.TenantLister
+	Settings    settings.Reader
 	Notify      notify.Notifier
 	Log         *slog.Logger
 }
@@ -32,7 +35,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Budgets: d.Budgets, Connections: d.Connections,
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Budgets: d.Budgets, Connections: d.Connections, Carbon: d.Carbon, Settings: d.Settings,
 		Tenants: d.Tenants, Notify: d.Notify, Log: d.Log}
 	return &Module{h: ahttp.Handlers{Svc: svc}, svc: svc}
 }

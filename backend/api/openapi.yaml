@@ -3764,6 +3764,7 @@ components:
           type: string
           enum:
           - budget
+          - carbon
           - connection_error
           - data_quality
         severity:

@@ -8,6 +8,7 @@ import (
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/alerts/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 // Ports implemented in the composition root from other modules (no cross-domain imports).
@@ -17,6 +18,9 @@ type BudgetSource interface {
 type ConnectionSource interface {
 	ConnectionSignals(ctx context.Context, tenantID string) ([]domain.ConnectionSignal, error)
 }
+type CarbonSource interface {
+	MonthToDate(ctx context.Context, tenantID string, now time.Time) (domain.CarbonSignal, error)
+}
 type TenantLister interface {
 	TenantIDs(ctx context.Context) ([]string, error)
 }
@@ -25,10 +29,19 @@ type Service struct {
 	Repo        domain.Repository
 	Budgets     BudgetSource
 	Connections ConnectionSource
+	Carbon      CarbonSource
 	Tenants     TenantLister
+	Settings    settings.Reader // optional: catalog defaults without it
 	Notify      notify.Notifier // optional
 	Log         *slog.Logger
 	Now         func() time.Time
+}
+
+func (s Service) cfg() settings.Reader {
+	if s.Settings != nil {
+		return s.Settings
+	}
+	return settings.Defaults{}
 }
 
 func (s Service) now() time.Time {
@@ -47,7 +60,17 @@ func (s Service) Evaluate(ctx context.Context, tenantID string) error {
 	}
 	var budgets []domain.BudgetSignal
 	var conns []domain.ConnectionSignal
-	budgetsOK, connsOK := true, true
+	budgetsOK, connsOK, carbonOK := true, true, true
+	var carbon *domain.CarbonSignal
+	if s.Carbon != nil {
+		sig, err := s.Carbon.MonthToDate(ctx, tenantID, s.now())
+		if err != nil {
+			carbonOK = false
+			s.Log.Warn("alerts: carbon unavailable", "tenant", tenantID, "err", err)
+		} else {
+			carbon = &sig
+		}
+	}
 	if s.Budgets != nil {
 		if budgets, err = s.Budgets.BudgetSignals(ctx, tenantID); err != nil {
 			budgetsOK = false
@@ -63,11 +86,21 @@ func (s Service) Evaluate(ctx context.Context, tenantID string) error {
 	// Only the alerts of the sources that answered take part in the reconciliation.
 	var scoped []domain.Alert
 	for _, a := range live {
-		if (a.Kind == domain.KindBudget && budgetsOK) || (a.Kind != domain.KindBudget && connsOK) {
+		ok := connsOK
+		switch a.Kind {
+		case domain.KindBudget:
+			ok = budgetsOK
+		case domain.KindCarbon:
+			ok = carbonOK
+		}
+		if ok {
 			scoped = append(scoped, a)
 		}
 	}
-	plan := domain.Reconcile(scoped, domain.Conditions(budgets, conns))
+	cfg := s.cfg()
+	th := domain.Thresholds{WarnPct: float64(cfg.Int(ctx, tenantID, settings.KeyAlertsWarnPct)),
+		CarbonMonthlyKg: float64(cfg.Int(ctx, tenantID, settings.KeyAlertsCarbonMonthlyKg))}
+	plan := domain.Reconcile(scoped, domain.Conditions(budgets, conns, carbon, th))
 	at := s.now()
 	for _, c := range plan.Open {
 		a, created, err := s.Repo.Open(ctx, tenantID, c, at)

@@ -14,6 +14,8 @@ const (
 	KeyNotifSendTimeoutSeconds = "notifications.send_timeout_seconds"
 	KeyErrorsRetentionDays     = "errors.retention_days"
 	KeyOperatorLogRetention    = "operator.access_log_retention_days"
+	KeyAlertsWarnPct           = "alerts.warn_pct"
+	KeyAlertsCarbonMonthlyKg   = "alerts.carbon_monthly_kg"
 	KeyDataRetentionMonths     = "retention.data_months"
 	KeyDeletionGraceDays       = "lifecycle.deletion_grace_days"
 
@@ -46,6 +48,7 @@ var groups = []Group{
 	{"connectors", "Cloud connectors", "Which cloud providers can be connected and how often data is pulled."},
 	{"reports", "Reports", "What can be generated."},
 	{"notifications", "Notifications", "Delivery of events by e-mail, webhook and Slack."},
+	{"alerts", "Alerts", "When the platform raises an alert for the organization."},
 	{"retention", "Retention", "How long operational records are kept."},
 }
 
@@ -94,6 +97,10 @@ func definitions() []Def {
 		{Key: KeyInviteAllowedDomain, Group: "security", Title: "Invitation e-mail domains", Description: "Only addresses in these domains can be invited. Empty allows every domain.",
 			Scope: ScopeTenant, Type: List, Default: []string{}, MaxItems: 50, MaxLen: 100, Pattern: domainRe},
 		intDef(KeyAPIKeysMaxActive, "security", "Active API keys", "Maximum number of API keys that are not revoked.", ScopeTenant, 10, 1, 50, "", ""),
+
+		// ---- alerts (organization) ----
+		intDef(KeyAlertsWarnPct, "alerts", "Warning level", "A budget or carbon limit raises a warning at this share of the limit; reaching the limit itself is critical.", ScopeTenant, 80, 10, 99, "%", "Applies at the next hourly check."),
+		intDef(KeyAlertsCarbonMonthlyKg, "alerts", "Monthly carbon limit", "Alert when the organization's emissions in a calendar month approach this many kg CO2e. 0 turns the carbon alert off.", ScopeTenant, 0, 0, 1000000000, "kg CO2e", "Operational emissions, as shown on Carbon & Energy."),
 
 		// ---- cloud connectors ----
 		{Key: KeyProvidersAllowed, Group: "connectors", Title: "Allowed providers", Description: "Cloud providers this organization may connect.", Scope: ScopeOperator, Type: List,

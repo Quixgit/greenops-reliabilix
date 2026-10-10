@@ -13,6 +13,7 @@ type Kind string
 
 const (
 	KindBudget          Kind = "budget"
+	KindCarbon          Kind = "carbon"
 	KindConnectionError Kind = "connection_error"
 	KindDataQuality     Kind = "data_quality"
 )
@@ -72,11 +73,28 @@ type Condition struct {
 	Threshold *float64
 }
 
-// Budget thresholds: a warning from 80 % of the budget, critical once it is exceeded.
+// Default and fixed thresholds. The warning level is an organization setting (alerts.warn_pct); "critical" is always
+// the limit itself.
 const (
-	BudgetWarnPct     = 80.0
+	DefaultWarnPct    = 80.0
 	BudgetCriticalPct = 100.0
 )
+
+// Thresholds are the organization's alert settings. Zero values mean "default" (warning) and "off" (carbon).
+type Thresholds struct {
+	WarnPct         float64 // percent of a limit at which a warning opens
+	CarbonMonthlyKg float64 // kg CO2e per calendar month for the whole organization; 0 = no carbon alert
+}
+
+func (t Thresholds) warn() float64 {
+	if t.WarnPct <= 0 || t.WarnPct >= BudgetCriticalPct {
+		return DefaultWarnPct
+	}
+	return t.WarnPct
+}
+
+// CarbonSignal is the organization's emissions in the current calendar month so far (from the carbon module).
+type CarbonSignal struct{ MonthToDateKg float64 }
 
 // BudgetSignal is a budget with what was spent in its current period (supplied by the finops module through a port).
 type BudgetSignal struct {
@@ -101,17 +119,18 @@ type ConnectionSignal struct {
 }
 
 // Conditions turns the current signals into the set of conditions that hold. Pure: the same input, the same result.
-func Conditions(budgets []BudgetSignal, conns []ConnectionSignal) []Condition {
+func Conditions(budgets []BudgetSignal, conns []ConnectionSignal, carbon *CarbonSignal, th Thresholds) []Condition {
 	var out []Condition
+	warnAt := th.warn()
 	for _, b := range budgets {
 		if b.Amount <= 0 {
 			continue // a zero budget would be "infinitely exceeded" by any spend: not an alert, a misconfiguration
 		}
 		pct := b.Spent / b.Amount * 100
-		if pct < BudgetWarnPct {
+		if pct < warnAt {
 			continue
 		}
-		sev, thr, what := Warning, BudgetWarnPct, "is at"
+		sev, thr, what := Warning, warnAt, "is at"
 		if pct >= BudgetCriticalPct {
 			sev, thr, what = Critical, BudgetCriticalPct, "is over"
 		}
@@ -121,6 +140,21 @@ func Conditions(budgets []BudgetSignal, conns []ConnectionSignal) []Condition {
 			Title:  fmt.Sprintf("A %s budget %s %.0f%% (%.2f of %.2f %s)", b.Period, what, pct, b.Spent, b.Amount, b.Currency),
 			Detail: "Spend counts the current budget period so far.",
 		})
+	}
+	if carbon != nil && th.CarbonMonthlyKg > 0 {
+		pct := carbon.MonthToDateKg / th.CarbonMonthlyKg * 100
+		if pct >= warnAt {
+			sev, thr, what := Warning, warnAt, "is at"
+			if pct >= BudgetCriticalPct {
+				sev, thr, what = Critical, BudgetCriticalPct, "is over"
+			}
+			v := round1(pct)
+			out = append(out, Condition{
+				DedupeKey: "carbon:month", Kind: KindCarbon, Severity: sev, Value: &v, Threshold: &thr,
+				Title:  fmt.Sprintf("Carbon this month %s %.0f%% of the %.0f kg CO2e limit (%.1f kg so far)", what, pct, th.CarbonMonthlyKg, carbon.MonthToDateKg),
+				Detail: "Operational emissions of the whole organization in the current calendar month.",
+			})
+		}
 	}
 	for _, c := range conns {
 		pid := c.ProjectID

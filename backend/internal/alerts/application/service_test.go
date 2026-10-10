@@ -39,7 +39,9 @@ type budgets struct {
 	err error
 }
 
-func (b budgets) BudgetSignals(context.Context, string) ([]domain.BudgetSignal, error) { return b.sig, b.err }
+func (b budgets) BudgetSignals(context.Context, string) ([]domain.BudgetSignal, error) {
+	return b.sig, b.err
+}
 
 type conns struct {
 	sig []domain.ConnectionSignal
