@@ -50,16 +50,21 @@ type Result struct {
 	MethodologyVersion string  `json:"methodology_version"`
 }
 
-// EnergyKWh converts measured usage into energy including PUE.
+// EnergyKWh converts measured usage into energy including PUE, with the active coefficient set.
 func EnergyKWh(kind UsageKind, amount float64) (float64, error) {
-	coef, ok := Current.EnergyPerUnit[string(kind)]
+	return EnergyKWhWith(Current, kind, amount)
+}
+
+// EnergyKWhWith is EnergyKWh for an explicit coefficient set (used to calculate under another version).
+func EnergyKWhWith(f methodology.Factors, kind UsageKind, amount float64) (float64, error) {
+	coef, ok := f.EnergyPerUnit[string(kind)]
 	if !ok {
 		return 0, fmt.Errorf("%w: unknown usage kind %q", ErrInvalidInput, kind)
 	}
 	if amount < 0 {
 		return 0, fmt.Errorf("%w: negative amount", ErrInvalidInput)
 	}
-	return amount * coef * Current.PUE, nil
+	return amount * coef * f.PUE, nil
 }
 
 // Calculate converts usage to energy and operational emissions.
@@ -77,9 +82,14 @@ func Calculate(in Input) (Result, error) {
 // CostBasedEnergyKWh estimates energy from spend for a FOCUS service category. Credits (negative
 // cost) never produce negative energy.
 func CostBasedEnergyKWh(category string, usd float64) (float64, bool) {
-	coef, ok := Current.CostBasedKWhPerUSD[category]
+	return CostBasedEnergyKWhWith(Current, category, usd)
+}
+
+// CostBasedEnergyKWhWith is CostBasedEnergyKWh for an explicit coefficient set.
+func CostBasedEnergyKWhWith(f methodology.Factors, category string, usd float64) (float64, bool) {
+	coef, ok := f.CostBasedKWhPerUSD[category]
 	if !ok {
-		coef, ok = Current.CostBasedKWhPerUSD["other"]
+		coef, ok = f.CostBasedKWhPerUSD["other"]
 	}
 	if !ok {
 		return 0, false
@@ -87,7 +97,7 @@ func CostBasedEnergyKWh(category string, usd float64) (float64, bool) {
 	if usd < 0 {
 		usd = 0
 	}
-	return usd * coef * Current.PUE, true
+	return usd * coef * f.PUE, true
 }
 
 // KindForUnit maps a FOCUS ConsumedUnit string to a measurable usage kind.

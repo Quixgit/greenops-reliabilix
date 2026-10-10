@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] - 2026-10-10
+
+### Added
+- Methodology registry: several immutable coefficient sets, one active; a test pins each file's checksum so a published
+  set cannot be edited. `GET /carbon/methodology/versions`.
+- Shadow recalculation under another version (`methodology_version` on `POST /carbon/recalculate`) and a read-only
+  comparison of two versions over a window (`GET /carbon/compare`) ([ADR-0026](docs/adr/0026-methodology-registry-and-comparison.md)).
+
 ## [0.1.0-alpha.3] - 2026-10-10
 
 ### Added
@@ -35,6 +43,7 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - FOCUS records reject NaN/Inf amounts and malformed currency codes before they reach the database.
 
 ### Changed
+- API contract 0.3.0: methodology versions and comparison endpoints, optional `methodology_version` on recalculate (additive).
 - API contract 0.2.0: optional `verification` on recommendations and the `verified` status (additive).
 - A failed carbon-calculation enqueue after a successful sync no longer fails (and re-bills) the whole sync.
 

@@ -1,6 +1,6 @@
 # Versioning and releases
 
-Reliabilix is **pre-release**: the current line is `0.1.0-alpha.3`. This document is the policy; the actual numbers
+Reliabilix is **pre-release**: the current line is `0.1.0-alpha.4`. This document is the policy; the actual numbers
 live in [`VERSIONS.md`](../../VERSIONS.md) and the history in [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 1. Release stages
@@ -59,8 +59,8 @@ migration that cannot be rolled forward, an API removal, or a changed webhook fi
 ## 4. Container images
 
 - Names: `<registry>/reliabilix/<service>`; services `api`, `worker`, `scheduler`, `migrate`, `web`.
-- Tags per build: the exact version (`reliabilix/api:0.1.0-alpha.3`) **and** an immutable build tag
-  (`0.1.0-alpha.3-<git sha7>`). Moving tags are allowed only as conveniences for humans: `0.1` (latest patch of a minor),
+- Tags per build: the exact version (`reliabilix/api:0.1.0-alpha.4`) **and** an immutable build tag
+  (`0.1.0-alpha.4-<git sha7>`). Moving tags are allowed only as conveniences for humans: `0.1` (latest patch of a minor),
   `alpha` / `beta` (latest build of a stage). **Production deploys pin the exact version tag (or the digest); `latest` is
   never used and is never published.**
 - Every image carries OCI labels: `org.opencontainers.image.version`, `.revision`, `.title`, `.source`, `.created`.
@@ -88,7 +88,7 @@ migration that cannot be rolled forward, an API removal, or a changed webhook fi
    (move **Unreleased** under the new version with the date).
 2. `go test ./...` runs the manifest consistency test: it fails when those files disagree, when a service, module or
    package has no row in `VERSIONS.md`, or when `data/db-schema` is not the newest migration.
-3. Tag `v<version>` (for example `v0.1.0-alpha.3`). CI builds the five images with `VERSION` and `COMMIT`, tags them as in
+3. Tag `v<version>` (for example `v0.1.0-alpha.4`). CI builds the five images with `VERSION` and `COMMIT`, tags them as in
    section 4 and pushes them. The release notes are the changelog section.
 4. Deploy by pinning the exact tags from the manifest of that release. Run `migrate` first. Check `GET /version` on api and
    the `build_info` metric of every service.

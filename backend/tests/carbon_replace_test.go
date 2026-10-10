@@ -29,10 +29,10 @@ func TestReplaceCalculationsRewritesOnlyTheWindowOfThisProject(t *testing.T) {
 			PeriodStart: d, PeriodEnd: d.Add(24 * time.Hour), EnergyKWh: 1, IntensityGPerKWh: 300, CO2eKg: kg, MethodologyVersion: domain.MethodologyVersion}
 	}
 	from, to := day, day.AddDate(0, 0, 2)
-	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, []domain.Calculation{calc(domain.CostBased, day, 10), calc(domain.CostBased, day.AddDate(0, 0, 1), 11)}); err != nil {
+	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, domain.MethodologyVersion, []domain.Calculation{calc(domain.CostBased, day, 10), calc(domain.CostBased, day.AddDate(0, 0, 1), 11)}); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.ReplaceCalculations(ctx, tenant, projB, from, to, []domain.Calculation{calc(domain.CostBased, day, 99)}); err != nil {
+	if err := repo.ReplaceCalculations(ctx, tenant, projB, from, to, domain.MethodologyVersion, []domain.Calculation{calc(domain.CostBased, day, 99)}); err != nil {
 		t.Fatal(err)
 	}
 	// a row of an older methodology version in the same window is history and must survive
@@ -43,7 +43,7 @@ func TestReplaceCalculationsRewritesOnlyTheWindowOfThisProject(t *testing.T) {
 	}
 
 	// the engine now measures day 0 and no longer produces the cost-based rows
-	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, []domain.Calculation{calc(domain.UsageBased, day, 4)}); err != nil {
+	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, domain.MethodologyVersion, []domain.Calculation{calc(domain.UsageBased, day, 4)}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,7 +73,7 @@ func TestReplaceCalculationsRewritesOnlyTheWindowOfThisProject(t *testing.T) {
 	}
 
 	// an empty result still clears the window (nothing measurable any more)
-	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, nil); err != nil {
+	if err := repo.ReplaceCalculations(ctx, tenant, projA, from, to, domain.MethodologyVersion, nil); err != nil {
 		t.Fatal(err)
 	}
 	if a := rows(projA); a["usage_based/"+domain.MethodologyVersion] != 0 {

@@ -51,3 +51,5 @@ export const useCarbonTrend = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["carbon-trend", f], queryFn: () => api("carbon/trend", s.carbonTrend, f) });
 };
+export const useMethodologyVersions = () =>
+  useQuery({ queryKey: ["methodology-versions"], queryFn: () => api("carbon/methodology/versions", s.methodologyVersions), staleTime: 10 * 60_000 });

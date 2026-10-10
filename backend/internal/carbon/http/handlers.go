@@ -12,6 +12,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 )
 
 type Handlers struct{ Svc *application.Service }
@@ -20,6 +21,8 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/summary", h.summary)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/trend", h.trend)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology", h.methodology)
+	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology/versions", h.versions)
+	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/compare", h.compare)
 	r.With(auth.Require(auth.PermCarbonCompute)).Post("/carbon/calculate", h.calculate)
 	r.With(auth.Require(auth.PermCarbonCompute)).Post("/carbon/recalculate", h.recalculate)
 	// CI gate: reachable with an API key (role ci) as well as by people who may compute carbon.
@@ -103,6 +106,50 @@ func (h Handlers) methodology(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, domain.Current)
 }
 
+// versions lists every coefficient set the platform knows, so a customer can see which one produced which result.
+func (h Handlers) versions(w http.ResponseWriter, r *http.Request) {
+	type item struct {
+		Version    string `json:"version"`
+		Status     string `json:"status"`
+		Provenance string `json:"provenance"`
+		Active     bool   `json:"active"`
+	}
+	out := []item{}
+	for _, f := range methodology.Versions() {
+		out = append(out, item{Version: f.Version, Status: f.Status, Provenance: f.Provenance, Active: f.Version == methodology.Version})
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+// compare puts two versions' stored results side by side; it never calculates anything.
+func (h Handlers) compare(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	from, to, project, ok := query(w, r)
+	if !ok {
+		return
+	}
+	a, b := r.URL.Query().Get("a"), r.URL.Query().Get("b")
+	if a == "" || b == "" {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "a and b (methodology versions) are required")
+		return
+	}
+	cmp, err := h.Svc.Compare(r.Context(), c.TenantID, project, from, to, a, b)
+	if errors.Is(err, application.ErrUnknownVersion) {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "unknown methodology version", "")
+		return
+	}
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	side := func(s application.VersionSide) map[string]any {
+		return map[string]any{"version": s.Version, "status": s.Status, "provenance": s.Provenance, "has_data": s.HasData,
+			"days": s.Totals.Days, "totals": toTotals(s.Totals)}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"a": side(cmp.A), "b": side(cmp.B),
+		"delta_carbon_kg_co2e": cmp.DeltaCO2eKg, "delta_pct": cmp.DeltaPct, "note": cmp.Note})
+}
+
 func (h Handlers) calculate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Kind   domain.UsageKind `json:"kind"`
@@ -132,6 +179,8 @@ func (h Handlers) recalculate(w http.ResponseWriter, r *http.Request) {
 		ProjectID string `json:"project_id"`
 		From      string `json:"from"`
 		To        string `json:"to"`
+		// MethodologyVersion calculates under another coefficient set (a shadow run for comparison); empty = active.
+		MethodologyVersion string `json:"methodology_version"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil || !httpx.ParseUUID(in.ProjectID) {
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
@@ -143,7 +192,11 @@ func (h Handlers) recalculate(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid period", "from/to must be YYYY-MM-DD, to after from, at most 400 days")
 		return
 	}
-	if err := h.Svc.Recalculate(r.Context(), c.TenantID, in.ProjectID, from, to); err != nil {
+	if err := h.Svc.RecalculateVersion(r.Context(), c.TenantID, in.ProjectID, from, to, in.MethodologyVersion); err != nil {
+		if errors.Is(err, application.ErrUnknownVersion) {
+			httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "unknown methodology version", "")
+			return
+		}
 		httpx.Internal(w, r, err)
 		return
 	}

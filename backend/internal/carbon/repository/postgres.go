@@ -15,8 +15,8 @@ import (
 
 type Postgres struct{ Pool *pgxpool.Pool }
 
-func totals(ctx context.Context, q *db.Queries, tenantID string, project *string, from, to time.Time) (domain.Totals, error) {
-	row, err := q.CarbonTotals(ctx, db.CarbonTotalsParams{TenantID: tenantID, ProjectID: project, MethodologyVersion: domain.MethodologyVersion, FromTs: from, ToTs: to})
+func totals(ctx context.Context, q *db.Queries, tenantID string, project *string, from, to time.Time, version string) (domain.Totals, error) {
+	row, err := q.CarbonTotals(ctx, db.CarbonTotalsParams{TenantID: tenantID, ProjectID: project, MethodologyVersion: version, FromTs: from, ToTs: to})
 	if err != nil {
 		return domain.Totals{}, err
 	}
@@ -36,10 +36,20 @@ func (r Postgres) Summary(ctx context.Context, tenantID string, project *string,
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		q := db.New(tx)
 		var err error
-		if s.Current, err = totals(ctx, q, tenantID, project, from, to); err != nil {
+		if s.Current, err = totals(ctx, q, tenantID, project, from, to, domain.MethodologyVersion); err != nil {
 			return err
 		}
-		s.Previous, err = totals(ctx, q, tenantID, project, from.Add(-to.Sub(from)), from)
+		s.Previous, err = totals(ctx, q, tenantID, project, from.Add(-to.Sub(from)), from, domain.MethodologyVersion)
+		return err
+	})
+	return
+}
+
+// VersionTotals aggregates the stored rows of one methodology version.
+func (r Postgres) VersionTotals(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (t domain.Totals, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		var err error
+		t, err = totals(ctx, db.New(tx), tenantID, project, from, to, version)
 		return err
 	})
 	return
@@ -59,10 +69,10 @@ func (r Postgres) Trend(ctx context.Context, tenantID string, project *string, f
 
 const batchSize = 500
 
-// ReplaceCalculations makes [from, to) of the current methodology version equal to calcs, atomically:
+// ReplaceCalculations makes [from, to) of the given methodology version equal to calcs, atomically:
 // stale rows are deleted and the new ones upserted in one transaction, so readers never see a half-written window.
 // Partitions are ensured first (see usage repository).
-func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, calcs []domain.Calculation) error {
+func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, version string, calcs []domain.Calculation) error {
 	months := map[time.Time]bool{}
 	for _, c := range calcs {
 		months[time.Date(c.PeriodStart.Year(), c.PeriodStart.Month(), 1, 0, 0, 0, 0, time.UTC)] = true
@@ -75,7 +85,7 @@ func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID s
 	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		q := db.New(tx)
 		if err := q.DeleteCalculationsInWindow(ctx, db.DeleteCalculationsInWindowParams{
-			TenantID: tenantID, ProjectID: projectID, FromTs: from, ToTs: to, MethodologyVersion: domain.MethodologyVersion}); err != nil {
+			TenantID: tenantID, ProjectID: projectID, FromTs: from, ToTs: to, MethodologyVersion: version}); err != nil {
 			return err
 		}
 		for start := 0; start < len(calcs); start += batchSize {

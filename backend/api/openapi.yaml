@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.2.0
+  version: 0.3.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -1118,6 +1118,69 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/methodology/versions:
+    get:
+      operationId: listMethodologyVersions
+      summary: Every coefficient set the platform knows, and which one is active
+      tags:
+      - carbon
+      description: Requires permission `carbon:read`. A published set is immutable; a new set is a new version.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MethodologyVersion'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/compare:
+    get:
+      operationId: compareMethodologyVersions
+      summary: Two methodology versions side by side over the same window
+      tags:
+      - carbon
+      description: |
+        Requires permission `carbon:read`. Reads stored results only and never calculates: a version that has not been
+        run for the window has `has_data: false` and no delta (run `POST /carbon/recalculate` with that version first).
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - name: a
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: b
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MethodologyComparison'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
           $ref: '#/components/responses/Problem'
   /api/v1/carbon/calculate:
     post:
@@ -3410,6 +3473,52 @@ components:
           type: boolean
           description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
       additionalProperties: true
+    MethodologyVersion:
+      type: object
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+        provenance:
+          type: string
+        active:
+          type: boolean
+      additionalProperties: true
+    MethodologySide:
+      type: object
+      properties:
+        version:
+          type: string
+        status:
+          type: string
+        provenance:
+          type: string
+        has_data:
+          type: boolean
+        days:
+          type: integer
+        totals:
+          type: object
+          additionalProperties: true
+      additionalProperties: true
+    MethodologyComparison:
+      type: object
+      properties:
+        a:
+          $ref: '#/components/schemas/MethodologySide'
+        b:
+          $ref: '#/components/schemas/MethodologySide'
+        delta_carbon_kg_co2e:
+          type: number
+          nullable: true
+          description: B minus A; null unless both versions have the same days of data.
+        delta_pct:
+          type: number
+          nullable: true
+        note:
+          type: string
+      additionalProperties: true
     CarbonTrendPoint:
       type: object
       properties:
@@ -3478,6 +3587,9 @@ components:
         to:
           type: string
           format: date
+        methodology_version:
+          type: string
+          description: Calculate under this coefficient set (a shadow run for comparison). Empty = the active version.
       required:
       - project_id
       - from

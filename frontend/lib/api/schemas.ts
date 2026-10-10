@@ -243,3 +243,5 @@ export const anomaly = z.object({ day: z.string(), cost: z.number(), expected: z
 export type Anomaly = z.infer<typeof anomaly>;
 export const anomalies = items(anomaly);
 export const carbonTrend = items(z.object({ day: z.string(), carbon_kg_co2e: z.number() }));
+
+export const methodologyVersions = items(z.object({ version: z.string(), status: z.string(), provenance: z.string(), active: z.boolean() }));

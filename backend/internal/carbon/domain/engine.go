@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"time"
+
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 )
 
 // UsageDay is one day of one workload dimension (provider, service, region), as aggregated by the usage domain.
@@ -43,6 +45,11 @@ type IntensityLookup func(ctx context.Context, region string, at time.Time) (g f
 // Compute turns daily usage into calculations. unitsByDay holds SCI's R per day (missing/0 = unknown, so
 // SCI stays NULL). It is pure apart from the IntensityLookup callback, which makes it fully testable.
 func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, unitsByDay map[time.Time]float64) (out []Calculation, skipped map[string]int, err error) {
+	return ComputeWith(Current, ctx, rows, lookup, unitsByDay)
+}
+
+// ComputeWith is Compute under an explicit coefficient set; every row carries that set's version.
+func ComputeWith(f methodology.Factors, ctx context.Context, rows []UsageDay, lookup IntensityLookup, unitsByDay map[time.Time]float64) (out []Calculation, skipped map[string]int, err error) {
 	skipped = map[string]int{}
 	measured := measuredKeys(rows)
 	for _, u := range rows {
@@ -55,7 +62,7 @@ func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, units
 			method Method
 		)
 		if kind, ok := measurableKind(u); ok {
-			kwh, err = EnergyKWh(kind, u.Quantity)
+			kwh, err = EnergyKWhWith(f, kind, u.Quantity)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -70,7 +77,7 @@ func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, units
 				continue
 			}
 			var ok bool
-			if kwh, ok = CostBasedEnergyKWh(u.ServiceCategory, u.BilledCost); !ok {
+			if kwh, ok = CostBasedEnergyKWhWith(f, u.ServiceCategory, u.BilledCost); !ok {
 				skipped[SkipNoMeasure]++
 				continue
 			}
@@ -85,12 +92,12 @@ func Compute(ctx context.Context, rows []UsageDay, lookup IntensityLookup, units
 			skipped[SkipNoGridData]++
 			continue
 		}
-		embodied := kwh * Current.EmbodiedGPerKWh
+		embodied := kwh * f.EmbodiedGPerKWh
 		grams := kwh*g + embodied
 		c := Calculation{
 			Provider: u.Provider, ServiceName: u.ServiceName, ServiceCategory: u.ServiceCategory, RegionID: u.RegionID, Method: method,
 			PeriodStart: u.Day, PeriodEnd: end, EnergyKWh: kwh, IntensityGPerKWh: g, EmbodiedG: embodied, CO2eKg: grams / 1000,
-			MethodologyVersion: MethodologyVersion,
+			MethodologyVersion: f.Version,
 		}
 		if r := unitsByDay[u.Day]; r > 0 {
 			sci := grams / r // SCI = ((E*I)+M)/R, this row's share of the day

@@ -54,6 +54,8 @@ type WindowPayload struct {
 	ProjectID string `json:"project_id"`
 	From      string `json:"from"`
 	To        string `json:"to"`
+	// MethodologyVersion selects a coefficient set for a carbon calculation; empty = the active one.
+	MethodologyVersion string `json:"methodology_version,omitempty"`
 }
 
 // Client enqueues jobs.

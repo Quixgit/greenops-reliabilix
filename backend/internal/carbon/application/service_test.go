@@ -19,6 +19,8 @@ type fakeStore struct {
 	saved     []domain.Calculation
 	stored    map[string]float64
 	savedGrid map[string]float64
+	totals    map[string]domain.Totals // by methodology version
+	replaced  []string                 // versions passed to ReplaceCalculations
 }
 
 func (f *fakeStore) Summary(context.Context, string, *string, time.Time, time.Time) (domain.Summary, error) {
@@ -27,7 +29,11 @@ func (f *fakeStore) Summary(context.Context, string, *string, time.Time, time.Ti
 func (f *fakeStore) Trend(context.Context, string, *string, time.Time, time.Time) ([]domain.TrendPoint, error) {
 	return nil, nil
 }
-func (f *fakeStore) ReplaceCalculations(_ context.Context, _, _ string, _, _ time.Time, c []domain.Calculation) error {
+func (f *fakeStore) VersionTotals(_ context.Context, _ string, _ *string, _, _ time.Time, v string) (domain.Totals, error) {
+	return f.totals[v], nil
+}
+func (f *fakeStore) ReplaceCalculations(_ context.Context, _, _ string, _, _ time.Time, v string, c []domain.Calculation) error {
+	f.replaced = append(f.replaced, v)
 	f.saved = append(f.saved, c...)
 	return nil
 }

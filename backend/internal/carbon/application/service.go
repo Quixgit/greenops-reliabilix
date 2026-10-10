@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
@@ -18,7 +19,10 @@ import (
 type Store interface {
 	Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.Summary, error)
 	Trend(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.TrendPoint, error)
-	ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, calcs []domain.Calculation) error
+	// ReplaceCalculations makes [from, to) of one methodology version equal to calcs; other versions are untouched.
+	ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, version string, calcs []domain.Calculation) error
+	// VersionTotals aggregates the stored rows of one methodology version.
+	VersionTotals(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (domain.Totals, error)
 	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool) error
 	IntensityAt(ctx context.Context, region string, ts time.Time) (float64, bool, error)
 }
@@ -119,6 +123,19 @@ type WindowResult struct {
 // CalculateWindow recomputes carbon for [from, to) of a project from stored FOCUS usage. It is idempotent:
 // rerunning replaces the window's rows of the same methodology version (new versions add rows, history is kept).
 func (s *Service) CalculateWindow(ctx context.Context, tenantID, projectID string, from, to time.Time) (WindowResult, error) {
+	return s.CalculateWindowVersion(ctx, tenantID, projectID, from, to, methodology.Version)
+}
+
+// ErrUnknownVersion means a methodology version that is not in the registry.
+var ErrUnknownVersion = errors.New("unknown methodology version")
+
+// CalculateWindowVersion is CalculateWindow under a chosen coefficient set. Rows of that version only are replaced:
+// results of other versions stay as they were, so a new version can be calculated next to the active one and compared.
+func (s *Service) CalculateWindowVersion(ctx context.Context, tenantID, projectID string, from, to time.Time, version string) (WindowResult, error) {
+	factors, ok := methodology.Get(version)
+	if !ok {
+		return WindowResult{}, ErrUnknownVersion
+	}
 	rows, err := s.Usage.DailyAggregates(ctx, tenantID, projectID, from, to)
 	if err != nil {
 		return WindowResult{}, fmt.Errorf("carbon: read usage: %w", err)
@@ -156,11 +173,11 @@ func (s *Service) CalculateWindow(ctx context.Context, tenantID, projectID strin
 		}{g, ok}
 		return g, ok, nil
 	}
-	calcs, skipped, err := domain.Compute(ctx, rows, lookup, units)
+	calcs, skipped, err := domain.ComputeWith(factors, ctx, rows, lookup, units)
 	if err != nil {
 		return WindowResult{}, err
 	}
-	if err := s.Store.ReplaceCalculations(ctx, tenantID, projectID, from, to, calcs); err != nil {
+	if err := s.Store.ReplaceCalculations(ctx, tenantID, projectID, from, to, factors.Version, calcs); err != nil {
 		return WindowResult{}, fmt.Errorf("carbon: persist: %w", err)
 	}
 	observability.CarbonCalculations.Add(float64(len(calcs)))
@@ -174,9 +191,16 @@ func (s *Service) RunWindowJob(ctx context.Context, p queue.WindowPayload) error
 	if err1 != nil || err2 != nil || !to.After(from) || to.Sub(from) > 400*24*time.Hour {
 		return fmt.Errorf("carbon: bad window %q..%q", p.From, p.To)
 	}
-	res, err := s.CalculateWindow(ctx, p.TenantID, p.ProjectID, from, to)
+	version := p.MethodologyVersion
+	if version == "" {
+		version = methodology.Version
+	}
+	res, err := s.CalculateWindowVersion(ctx, p.TenantID, p.ProjectID, from, to, version)
 	if err != nil {
 		return err
+	}
+	if version != methodology.Version {
+		return nil // a shadow calculation for comparison: recommendations and dashboards read the active version only
 	}
 	if len(res.Skipped) > 0 {
 		s.Log.Info("carbon rows skipped", "project", p.ProjectID, "skipped", res.Skipped)
@@ -189,8 +213,74 @@ func (s *Service) RunWindowJob(ctx context.Context, p queue.WindowPayload) error
 
 // Recalculate queues a calculation (e.g. after functional units were reported).
 func (s *Service) Recalculate(ctx context.Context, tenantID, projectID string, from, to time.Time) error {
+	return s.RecalculateVersion(ctx, tenantID, projectID, from, to, "")
+}
+
+// RecalculateVersion queues a calculation under a methodology version ("" = the active one).
+func (s *Service) RecalculateVersion(ctx context.Context, tenantID, projectID string, from, to time.Time, version string) error {
+	if version != "" {
+		if _, ok := methodology.Get(version); !ok {
+			return ErrUnknownVersion
+		}
+	}
 	return s.Queue.Enqueue(ctx, queue.TaskCalculateCarbon, queue.WindowPayload{
-		TenantID: tenantID, ProjectID: projectID, From: from.Format(time.DateOnly), To: to.Format(time.DateOnly)})
+		TenantID: tenantID, ProjectID: projectID, From: from.Format(time.DateOnly), To: to.Format(time.DateOnly), MethodologyVersion: version})
+}
+
+// VersionSide is one methodology version's result over the compared window.
+type VersionSide struct {
+	Version    string        `json:"version"`
+	Status     string        `json:"status"`
+	Provenance string        `json:"provenance"`
+	HasData    bool          `json:"has_data"` // false: this version has not been calculated for the window
+	Totals     domain.Totals `json:"-"`
+}
+
+// Comparison puts two methodology versions side by side over the same window and scope.
+type Comparison struct {
+	A, B VersionSide
+	// DeltaCO2eKg and DeltaPct are B relative to A; nil unless both versions have the same days of data.
+	DeltaCO2eKg *float64
+	DeltaPct    *float64
+	Note        string
+}
+
+// Compare reads the stored results of two versions. It never calculates: a version that has not been run for the
+// window says so (run POST /carbon/recalculate with that version first), it is not estimated here.
+func (s *Service) Compare(ctx context.Context, tenantID string, project *string, from, to time.Time, a, b string) (Comparison, error) {
+	side := func(v string) (VersionSide, error) {
+		f, ok := methodology.Get(v)
+		if !ok {
+			return VersionSide{}, ErrUnknownVersion
+		}
+		t, err := s.Store.VersionTotals(ctx, tenantID, project, from, to, v)
+		if err != nil {
+			return VersionSide{}, err
+		}
+		return VersionSide{Version: v, Status: f.Status, Provenance: f.Provenance, HasData: t.Rows > 0, Totals: t}, nil
+	}
+	var c Comparison
+	var err error
+	if c.A, err = side(a); err != nil {
+		return c, err
+	}
+	if c.B, err = side(b); err != nil {
+		return c, err
+	}
+	switch {
+	case !c.A.HasData || !c.B.HasData:
+		c.Note = "At least one version has no results for this window; recalculate it under that version first."
+	case c.A.Totals.Days != c.B.Totals.Days:
+		c.Note = "The versions cover a different number of days, so they are not compared."
+	default:
+		d := c.B.Totals.CO2eKg - c.A.Totals.CO2eKg
+		c.DeltaCO2eKg = &d
+		if c.A.Totals.CO2eKg > 0 {
+			p := d / c.A.Totals.CO2eKg * 100
+			c.DeltaPct = &p
+		}
+	}
+	return c, nil
 }
 
 // RecalculateAll queues the last 35 days of every project (scheduler): picks up newly reported functional units.

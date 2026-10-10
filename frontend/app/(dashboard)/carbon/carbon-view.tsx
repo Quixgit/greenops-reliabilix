@@ -6,7 +6,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/charts/sparkline";
-import { useCarbonSummary, useCarbonTrend } from "@/hooks/use-overview";
+import { useCarbonSummary, useCarbonTrend, useMethodologyVersions } from "@/hooks/use-overview";
 import { carbonParts, nf } from "@/lib/formatters";
 
 function Figure({ label, value, unit, note }: { label: string; value: string; unit: string; note?: string }) {
@@ -23,6 +23,7 @@ export function CarbonView() {
   const sum = useCarbonSummary();
   const trend = useCarbonTrend();
   const m = sum.data?.methodology;
+  const versions = useMethodologyVersions();
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Carbon &amp; Energy</h1>
@@ -53,6 +54,11 @@ export function CarbonView() {
             <p><b>{m.version}</b> — {m.provenance}</p>
             <p className="text-muted">Embodied carbon: <b>{m.embodied_carbon_included ? "included" : "not included"}</b>.</p>
             <ul className="list-disc space-y-1 pl-5 text-muted">{m.caveats.map((c) => <li key={c}>{c}</li>)}</ul>
+            {versions.data && versions.data.length > 0 && (
+              <p className="text-xs text-muted">
+                Known versions: {versions.data.map((v) => `${v.version}${v.active ? " (active)" : ""}`).join(", ")}. A published version is never edited.
+              </p>
+            )}
             <p className="text-xs text-muted">Figures are estimates produced with the methodology version above; a new version never rewrites old results.</p>
           </div>
         )}

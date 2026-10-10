@@ -3,6 +3,7 @@ package carbon
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -49,7 +50,11 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		if err != nil {
 			return err
 		}
-		return m.Svc.RunWindowJob(ctx, p)
+		err = m.Svc.RunWindowJob(ctx, p)
+		if errors.Is(err, application.ErrUnknownVersion) {
+			return errors.Join(asynq.SkipRetry, err) // a retry cannot make an unknown version known
+		}
+		return err
 	})
 	mux.HandleFunc(queue.TaskRecalculateAll, func(ctx context.Context, _ *asynq.Task) error {
 		_, err := m.Svc.RecalculateAll(ctx)

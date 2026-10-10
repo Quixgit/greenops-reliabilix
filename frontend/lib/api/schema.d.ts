@@ -682,6 +682,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/carbon/methodology/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every coefficient set the platform knows, and which one is active
+         * @description Requires permission `carbon:read`. A published set is immutable; a new set is a new version.
+         */
+        get: operations["listMethodologyVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/carbon/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Two methodology versions side by side over the same window
+         * @description Requires permission `carbon:read`. Reads stored results only and never calculates: a version that has not been
+         *     run for the window has `has_data: false` and no delta (run `POST /carbon/recalculate` with that version first).
+         */
+        get: operations["compareMethodologyVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/carbon/calculate": {
         parameters: {
             query?: never;
@@ -2074,6 +2115,36 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        MethodologyVersion: {
+            version?: string;
+            status?: string;
+            provenance?: string;
+            active?: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        MethodologySide: {
+            version?: string;
+            status?: string;
+            provenance?: string;
+            has_data?: boolean;
+            days?: number;
+            totals?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        MethodologyComparison: {
+            a?: components["schemas"]["MethodologySide"];
+            b?: components["schemas"]["MethodologySide"];
+            /** @description B minus A; null unless both versions have the same days of data. */
+            delta_carbon_kg_co2e?: number | null;
+            delta_pct?: number | null;
+            note?: string;
+        } & {
+            [key: string]: unknown;
+        };
         CarbonTrendPoint: {
             /** Format: date-time */
             day?: string;
@@ -2114,6 +2185,8 @@ export interface components {
             from: string;
             /** Format: date */
             to: string;
+            /** @description Calculate under this coefficient set (a shadow run for comparison). Empty = the active version. */
+            methodology_version?: string;
         } & {
             [key: string]: unknown;
         };
@@ -3737,6 +3810,62 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    listMethodologyVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["MethodologyVersion"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    compareMethodologyVersions: {
+        parameters: {
+            query: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                a: string;
+                b: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodologyComparison"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
         };
     };
     calculateCarbon: {
