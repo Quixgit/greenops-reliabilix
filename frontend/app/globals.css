@@ -104,3 +104,24 @@ button:not(:disabled):active { transform: scale(0.97); }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
   .draw { stroke-dashoffset: 0; }
 }
+
+/* ---- Sign-in backdrop: an engineered control-room scene, dark, precise, slow ------------------------------------- */
+@keyframes ind-scan { from { transform: translateY(-12%); } to { transform: translateY(112%); } }
+@keyframes ind-led { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes ind-flow { to { stroke-dashoffset: -64; } }
+@keyframes ind-bar { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+@keyframes ind-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes ind-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.ind-scan { animation: ind-scan 9s linear infinite; }
+.ind-led { animation: ind-led 2.8s ease-in-out infinite; }
+.ind-flow { stroke-dasharray: 6 10; animation: ind-flow 3.2s linear infinite; }
+.ind-bar { transform-origin: bottom; animation: ind-bar 4.2s ease-in-out infinite; }
+.ind-pulse { animation: ind-pulse 3.4s ease-in-out infinite; }
+.ind-in { animation: ind-in 0.7s var(--ease-out-soft) both; }
+.ind-panel { border: 1px solid rgba(148, 178, 210, 0.22); background: linear-gradient(180deg, rgba(20, 34, 52, 0.72), rgba(12, 22, 36, 0.72));
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.ind-card { background: #ffffff; border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(148, 178, 210, 0.18), 0 24px 60px rgba(2, 8, 18, 0.45); }
+@media (prefers-reduced-motion: reduce) {
+  .ind-scan, .ind-led, .ind-flow, .ind-bar, .ind-pulse, .ind-in { animation: none; }
+}

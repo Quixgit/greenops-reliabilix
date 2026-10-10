@@ -5,7 +5,7 @@ The single place that says which version every part of Reliabilix is at. Rules f
 A test (`backend/internal/platform/version`) fails the build when this file, `VERSION`, `frontend/package.json`,
 `backend/api/openapi.yaml` and the migrations disagree, or when a service or module has no row.
 
-**Platform release: `0.1.0-alpha.11`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
+**Platform release: `0.1.0-alpha.12`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
 
 Row format (the test reads it): `` | `key` | version | ... | ``.
 
@@ -13,7 +13,7 @@ Row format (the test reads it): `` | `key` | version | ... | ``.
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform` | 0.1.0-alpha.11 | Same as the `VERSION` file and `frontend/package.json`. |
+| `platform` | 0.1.0-alpha.12 | Same as the `VERSION` file and `frontend/package.json`. |
 
 ## Services and container images
 
@@ -23,12 +23,12 @@ Image name: `<registry>/reliabilix/<service>:<version>`. Never deploy `latest` (
 
 | Item | Version | Image | Built from |
 |---|---|---|---|
-| `service/api` | 0.1.0-alpha.11 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
-| `service/worker` | 0.1.0-alpha.11 | `reliabilix/worker` | `backend/cmd/worker` |
-| `service/scheduler` | 0.1.0-alpha.11 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
-| `service/migrate` | 0.1.0-alpha.11 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
-| `service/web` | 0.1.0-alpha.11 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
-| `service/admin` | 0.1.0-alpha.11 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
+| `service/api` | 0.1.0-alpha.12 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
+| `service/worker` | 0.1.0-alpha.12 | `reliabilix/worker` | `backend/cmd/worker` |
+| `service/scheduler` | 0.1.0-alpha.12 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
+| `service/migrate` | 0.1.0-alpha.12 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
+| `service/web` | 0.1.0-alpha.12 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
+| `service/admin` | 0.1.0-alpha.12 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
 
 ## Backend domain modules
 
@@ -37,48 +37,48 @@ that module changes in a way listed in the policy.
 
 | Item | Version | Notes |
 |---|---|---|
-| `internal/app` | 0.1.0-alpha.11 | Composition root, router, gates |
-| `internal/alerts` | 0.1.0-alpha.11 | Budget and connection alerts |
-| `internal/automation` | 0.1.0-alpha.11 | Plans only, no executors |
-| `internal/carbon` | 0.1.0-alpha.11 | Engine, SCI, methodology use |
-| `internal/cloudaccounts` | 0.1.0-alpha.11 | Connections, sync, reconciliation |
-| `internal/dashboard` | 0.1.0-alpha.11 | Read models |
-| `internal/finops` | 0.1.0-alpha.11 | Spend, budgets, anomalies |
-| `internal/ingestion` | 0.1.0-alpha.11 | Normalizers to FOCUS |
-| `internal/lifecycle` | 0.1.0-alpha.11 | Export, scheduled erasure, retention |
-| `internal/kubernetes` | 0.1.0-alpha.11 | Placeholder layers |
-| `internal/notifications` | 0.1.0-alpha.11 | Channels, outbox |
-| `internal/operator` | 0.1.0-alpha.11 | Operator console |
-| `internal/projects` | 0.1.0-alpha.11 | Projects, policies |
-| `internal/recommendations` | 0.1.0-alpha.11 | region_shift, rightsizing |
-| `internal/reports` | 0.1.0-alpha.11 | CSV, JSON, PDF |
-| `internal/settings` | 0.1.0-alpha.11 | Settings engine |
-| `internal/tenants` | 0.1.0-alpha.11 | Organizations, members, keys |
-| `internal/usage` | 0.1.0-alpha.11 | FOCUS records |
-| `internal/users` | 0.1.0-alpha.11 | Identity |
+| `internal/app` | 0.1.0-alpha.12 | Composition root, router, gates |
+| `internal/alerts` | 0.1.0-alpha.12 | Budget and connection alerts |
+| `internal/automation` | 0.1.0-alpha.12 | Plans only, no executors |
+| `internal/carbon` | 0.1.0-alpha.12 | Engine, SCI, methodology use |
+| `internal/cloudaccounts` | 0.1.0-alpha.12 | Connections, sync, reconciliation |
+| `internal/dashboard` | 0.1.0-alpha.12 | Read models |
+| `internal/finops` | 0.1.0-alpha.12 | Spend, budgets, anomalies |
+| `internal/ingestion` | 0.1.0-alpha.12 | Normalizers to FOCUS |
+| `internal/lifecycle` | 0.1.0-alpha.12 | Export, scheduled erasure, retention |
+| `internal/kubernetes` | 0.1.0-alpha.12 | Placeholder layers |
+| `internal/notifications` | 0.1.0-alpha.12 | Channels, outbox |
+| `internal/operator` | 0.1.0-alpha.12 | Operator console |
+| `internal/projects` | 0.1.0-alpha.12 | Projects, policies |
+| `internal/recommendations` | 0.1.0-alpha.12 | region_shift, rightsizing |
+| `internal/reports` | 0.1.0-alpha.12 | CSV, JSON, PDF |
+| `internal/settings` | 0.1.0-alpha.12 | Settings engine |
+| `internal/tenants` | 0.1.0-alpha.12 | Organizations, members, keys |
+| `internal/usage` | 0.1.0-alpha.12 | FOCUS records |
+| `internal/users` | 0.1.0-alpha.12 | Identity |
 
 ## Platform packages
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform/audit` | 0.1.0-alpha.11 | |
-| `platform/auth` | 0.1.0-alpha.11 | OIDC, API keys, RBAC |
-| `platform/config` | 0.1.0-alpha.11 | |
-| `platform/database` | 0.1.0-alpha.11 | |
-| `platform/ec2spec` | 0.1.0-alpha.11 | |
-| `platform/entitlements` | 0.1.0-alpha.11 | Limits port |
-| `platform/errlog` | 0.1.0-alpha.11 | Error log |
-| `platform/focus` | 0.1.0-alpha.11 | FOCUS record contract |
-| `platform/integrations` | 0.1.0-alpha.11 | External-service credentials |
-| `platform/http` | 0.1.0-alpha.11 | |
-| `platform/methodology` | 0.1.0-alpha.11 | |
-| `platform/notify` | 0.1.0-alpha.11 | Producer port, event catalog |
-| `platform/observability` | 0.1.0-alpha.11 | |
-| `platform/queue` | 0.1.0-alpha.11 | |
-| `platform/secretbox` | 0.1.0-alpha.11 | |
-| `platform/settings` | 0.1.0-alpha.11 | Settings catalog |
-| `platform/storage` | 0.1.0-alpha.11 | |
-| `platform/version` | 0.1.0-alpha.11 | |
+| `platform/audit` | 0.1.0-alpha.12 | |
+| `platform/auth` | 0.1.0-alpha.12 | OIDC, API keys, RBAC |
+| `platform/config` | 0.1.0-alpha.12 | |
+| `platform/database` | 0.1.0-alpha.12 | |
+| `platform/ec2spec` | 0.1.0-alpha.12 | |
+| `platform/entitlements` | 0.1.0-alpha.12 | Limits port |
+| `platform/errlog` | 0.1.0-alpha.12 | Error log |
+| `platform/focus` | 0.1.0-alpha.12 | FOCUS record contract |
+| `platform/integrations` | 0.1.0-alpha.12 | External-service credentials |
+| `platform/http` | 0.1.0-alpha.12 | |
+| `platform/methodology` | 0.1.0-alpha.12 | |
+| `platform/notify` | 0.1.0-alpha.12 | Producer port, event catalog |
+| `platform/observability` | 0.1.0-alpha.12 | |
+| `platform/queue` | 0.1.0-alpha.12 | |
+| `platform/secretbox` | 0.1.0-alpha.12 | |
+| `platform/settings` | 0.1.0-alpha.12 | Settings catalog |
+| `platform/storage` | 0.1.0-alpha.12 | |
+| `platform/version` | 0.1.0-alpha.12 | |
 
 ## Connectors and plugins
 
@@ -87,12 +87,12 @@ that third party changes.
 
 | Item | Version | Notes |
 |---|---|---|
-| `connector/aws` | 0.1.0-alpha.11 | Cost Explorer, FOCUS export, rightsizing |
-| `connector/gcp` | 0.1.0-alpha.11 | Billing export in BigQuery |
-| `connector/electricitymaps` | 0.1.0-alpha.11 | Grid carbon intensity |
-| `channel/email` | 0.1.0-alpha.11 | SMTP |
-| `channel/webhook` | 0.1.0-alpha.11 | Signed JSON |
-| `channel/slack` | 0.1.0-alpha.11 | Incoming webhook |
+| `connector/aws` | 0.1.0-alpha.12 | Cost Explorer, FOCUS export, rightsizing |
+| `connector/gcp` | 0.1.0-alpha.12 | Billing export in BigQuery |
+| `connector/electricitymaps` | 0.1.0-alpha.12 | Grid carbon intensity |
+| `channel/email` | 0.1.0-alpha.12 | SMTP |
+| `channel/webhook` | 0.1.0-alpha.12 | Signed JSON |
+| `channel/slack` | 0.1.0-alpha.12 | Incoming webhook |
 
 ## Contracts and data
 

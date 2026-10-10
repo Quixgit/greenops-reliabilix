@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.12] - 2026-10-10
+
+### Changed
+- Sign-in page redesigned as one full-screen industrial scene: dark control-room look with an engineering grid, cost and
+  carbon telemetry traces, region nodes joined by flowing lines, server racks with status lights and instrument panels;
+  the form sits in the middle on a light panel. Calm motion, switched off for people who prefer reduced motion.
+
 ## [0.1.0-alpha.11] - 2026-10-10
 
 ### Added
