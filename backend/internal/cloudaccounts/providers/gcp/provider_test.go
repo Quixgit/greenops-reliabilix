@@ -301,3 +301,43 @@ func TestPreflight(t *testing.T) {
 		t.Fatalf("a disabled API must be reported as a platform problem: %v", err)
 	}
 }
+
+func TestControlTotalsUseASeparateUngroupedQuery(t *testing.T) {
+	f := &fakeBigQuery{labels: map[string]string{extID: "1"}, pages: [][][]string{
+		{{"2026-09-01", "usd", "10.5"}, {"2026-09-02", "USD", "11.25"}},
+	}}
+	p := setup(t, f)
+	var _ domain.ControlProvider = p
+	got, err := p.GetControlTotals(context.Background(), usageReq())
+	if err != nil || len(got) != 2 {
+		t.Fatalf("totals=%v err=%v", got, err)
+	}
+	if got[0].Day != "2026-09-01" || got[0].Currency != "USD" || got[0].Billed != 10.5 {
+		t.Errorf("first total wrong: %+v", got[0])
+	}
+	var sql string
+	for _, r := range f.requests {
+		if r.Method == http.MethodPost {
+			sql, _ = r.Body["query"].(string)
+		}
+	}
+	if strings.Contains(sql, "sku") || strings.Contains(sql, "service") || !strings.Contains(sql, "GROUP BY day, currency") {
+		t.Errorf("the control query must not use the detailed grouping:\n%s", sql)
+	}
+	if !strings.Contains(sql, "project.id = @project_id") || strings.Contains(sql, "acme-prod-123") {
+		t.Errorf("same project filter, as a parameter:\n%s", sql)
+	}
+}
+
+func TestControlTotalsRequireOwnershipAndSaneNumbers(t *testing.T) {
+	f := &fakeBigQuery{labels: map[string]string{}, pages: [][][]string{{{"2026-09-01", "USD", "1"}}}}
+	if _, err := setup(t, f).GetControlTotals(context.Background(), usageReq()); !errors.Is(err, domain.ErrOwnershipNotProven) {
+		t.Fatalf("no ownership label must stop the control query too, got %v", err)
+	}
+	for _, bad := range []string{"NaN", "+Inf", "abc"} {
+		f := &fakeBigQuery{labels: map[string]string{extID: "1"}, pages: [][][]string{{{"2026-09-01", "USD", bad}}}}
+		if _, err := setup(t, f).GetControlTotals(context.Background(), usageReq()); err == nil {
+			t.Errorf("control total %q must be rejected", bad)
+		}
+	}
+}

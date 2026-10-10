@@ -11,7 +11,8 @@ by the customer, which is the worst way.
 - **Never truncate silently.** A pagination cap, an oversized export line or an unexpected export owner is an error,
   not a shortened result (AWS connector).
 - **Reconcile after every sync.** The day totals stored by the platform are compared with an independent total from the
-  cloud (AWS: a Cost Explorer query without grouping). Tolerance: 0.5 % of the day's total or 0.05 in the billing
+  cloud (AWS: a Cost Explorer query without grouping; GCP: a second BigQuery query on the same export table with no
+  service/SKU/region grouping, same project filter and byte cap, ownership proof repeated). Tolerance: 0.5 % of the day's total or 0.05 in the billing
   currency. A day that the cloud reports but we have no cost for counts as a full mismatch.
 - **Self-heal.** Mismatching days rewind the sync cursor to the earliest bad day so the next sync reads them again.
 - **Say so.** The result is stored on the run and on the connection (`quality`, `last_quality`), shown in the product and
@@ -22,5 +23,10 @@ by the customer, which is the worst way.
 
 ## Consequences
 - One extra, ungrouped Cost Explorer query per sync (a few cents per month per connection at most).
-- GCP and the FOCUS export path report `unchecked` until they get a control total (tracked in `docs/product/06-gap-analysis.md`).
+- GCP costs one more BigQuery scan per sync (small: three columns, capped by `MaxBytesBilled`).
+- The GCP control reads the same table at nearly the same moment, so it catches dropped, truncated or mis-parsed lines
+  on our side, not an export that is itself late or incomplete at Google. That is stated, not hidden.
+- The AWS FOCUS export path stays `unchecked` **on purpose**: the export is the invoice-level source, and Cost
+  Explorer differs from it for legitimate reasons (credits, refunds, tax, amortisation), so comparing them would raise
+  false alarms. Its completeness is protected by reading only what the manifest lists, within size limits.
 - The tolerance is a constant; if customers need to tune it it becomes a setting in the settings catalog.

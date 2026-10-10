@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3] - 2026-10-10
+
+### Added
+- GCP cost data quality: every sync is reconciled with a second, ungrouped BigQuery query on the billing export
+  ([ADR-0024](docs/adr/0024-cost-data-quality-reconciliation.md)). The AWS FOCUS export path stays unchecked on purpose.
+
 ## [0.1.0-alpha.2] - 2026-10-10
 
 ### Added

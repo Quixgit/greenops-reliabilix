@@ -9,6 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2/google"
@@ -181,4 +184,51 @@ func (p *Provider) usageQuery(t domain.BigQueryTable, project string, from, to t
 func (p *Provider) Preflight(ctx context.Context) error {
 	_, err := p.BQ.Query(ctx, Query{JobProject: p.JobProject, SQL: "SELECT 1", DryRun: true, MaxBytesBilled: 1 << 20})
 	return err
+}
+
+// GetControlTotals implements domain.ControlProvider: the day totals of the billed cost, read with a second,
+// separate query that has no SKU/service/region grouping, so a row dropped or mis-parsed on the way from the
+// detailed query to the database shows up as a difference. The ownership proof is repeated: this is a read of the
+// customer's table like any other.
+func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest) ([]focus.ControlTotal, error) {
+	c := req.Connection
+	t, err := table(c)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.proveOwnership(ctx, t, c.ExternalID); err != nil {
+		return nil, err
+	}
+	rows, err := p.BQ.Query(ctx, p.controlQuery(t, c.AccountRef, req.From, req.To))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]focus.ControlTotal, 0, len(rows))
+	for _, r := range rows {
+		amount, err := strconv.ParseFloat(r[2], 64)
+		if err != nil || math.IsNaN(amount) || math.IsInf(amount, 0) {
+			return nil, errors.New("gcp: unreadable control total")
+		}
+		out = append(out, focus.ControlTotal{Day: r[0], Currency: strings.ToUpper(r[1]), Billed: amount})
+	}
+	return out, nil
+}
+
+// controlQuery sums cost per day and currency for the same project and window as usageQuery. It has the same byte cap.
+func (p *Provider) controlQuery(t domain.BigQueryTable, project string, from, to time.Time) Query {
+	sql := fmt.Sprintf("SELECT\n"+
+		"  FORMAT_DATE('%%Y-%%m-%%d', DATE(usage_start_time, 'UTC')) AS day,\n"+
+		"  currency,\n"+
+		"  CAST(SUM(cost) AS STRING) AS cost\n"+
+		"FROM `%s.%s.%s`\n"+
+		"WHERE project.id = @project_id AND usage_start_time >= @from_ts AND usage_start_time < @to_ts\n"+
+		"GROUP BY day, currency", t.Project, t.Dataset, t.Table)
+	return Query{
+		JobProject: p.JobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 3,
+		Params: map[string]Param{
+			"project_id": {Type: "STRING", Value: project},
+			"from_ts":    {Type: "TIMESTAMP", Value: from.UTC().Format(time.RFC3339)},
+			"to_ts":      {Type: "TIMESTAMP", Value: to.UTC().Format(time.RFC3339)},
+		},
+	}
 }
