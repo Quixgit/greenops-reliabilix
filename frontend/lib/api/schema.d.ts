@@ -1948,6 +1948,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/operator/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What each organization used and the estimated cost of serving it
+         * @description Platform operators only. Counts of records and runs in the window and an estimate: the counts times the unit
+         *     costs of the platform settings (group "Cost of serving an organization"). Most expensive first.
+         */
+        get: operations["getOperatorOrgUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/carbon/regions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Regions in use with the data each grid source has and the source the policy picks
+         * @description Platform operators only.
+         */
+        get: operations["listOperatorCarbonRegions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operator/api-usage": {
         parameters: {
             query?: never;
@@ -3473,7 +3514,7 @@ export interface components {
             id: string;
             name: string;
             /** @enum {string} */
-            category: "grid_intensity" | "billing" | "usage" | "kubernetes" | "methodology";
+            category: "grid_intensity" | "billing" | "usage" | "kubernetes" | "methodology" | "inventory";
             /** @enum {string} */
             access: "free" | "paid" | "customer_provided" | "internal";
             /** @enum {string} */
@@ -6641,6 +6682,86 @@ export interface operations {
                         updated_by: string;
                         /** Format: date-time */
                         updated_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorOrgUsage: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        days: number;
+                        unit_costs: {
+                            [key: string]: number;
+                        };
+                        items: {
+                            /** Format: uuid */
+                            tenant_id: string;
+                            name: string;
+                            plan: string;
+                            usage_rows: number;
+                            calculation_rows: number;
+                            sync_runs: number;
+                            deliveries: number;
+                            reports: number;
+                            k8s_samples: number;
+                            members: number;
+                            connections: number;
+                            estimated_cost_usd: number;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorCarbonRegions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            region: string;
+                            override: string;
+                            effective: string;
+                            sources: {
+                                provider: string;
+                                hourly_readings_30d: number;
+                                monthly_figures: number;
+                                /** Format: date-time */
+                                newest: string | null;
+                            }[];
+                        }[];
                     };
                 };
             };

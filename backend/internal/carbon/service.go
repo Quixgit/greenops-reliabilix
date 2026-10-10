@@ -29,6 +29,8 @@ type Deps struct {
 	Units    application.UnitsSource
 	Policies application.PolicySource
 	Projects application.ProjectLister
+	// Monthly supplies monthly national figures (optional).
+	Monthly application.MonthlyProvider
 	// Settings supplies the grid source policy (optional: catalog defaults).
 	Settings settings.Reader
 }
@@ -40,7 +42,7 @@ type Module struct {
 
 func New(d Deps) *Module {
 	svc := &application.Service{Store: repository.Postgres{Pool: d.Pool}, Usage: d.Usage, Units: d.Units, Policies: d.Policies,
-		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings}
+		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings, Monthly: d.Monthly}
 	return &Module{h: chttp.Handlers{Svc: svc}, Svc: svc}
 }
 
@@ -65,6 +67,11 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		return err
 	})
 	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
+	mux.HandleFunc(queue.TaskRefreshMonthly, func(ctx context.Context, _ *asynq.Task) error {
+		n, err := m.Svc.RefreshMonthly(ctx)
+		m.Svc.Log.Info("monthly grid data refreshed", "figures", n, "err", err)
+		return err
+	})
 	mux.HandleFunc(queue.TaskBackfillIntensity, func(ctx context.Context, t *asynq.Task) error {
 		p, err := queue.DecodeAs[queue.BackfillPayload](t)
 		if err != nil {
@@ -77,6 +84,10 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		}
 		n, err := m.Svc.BackfillIntensity(ctx, p.Regions, from, to)
 		m.Svc.Log.Info("grid backfill finished", "regions", len(p.Regions), "readings", n, "err", err)
+		// Loading the past also refreshes the monthly national figures; one source failing does not hide the other's error.
+		if _, mErr := m.Svc.RefreshMonthly(ctx); err == nil {
+			err = mErr
+		}
 		return err
 	})
 }

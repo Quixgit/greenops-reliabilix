@@ -16,6 +16,7 @@ const (
 // Basis says how the intensity of a calculation row was obtained, from the most to the least precise.
 const (
 	BasisDayMean       = "day_mean"         // mean of at least MinDayReadings readings of that day
+	BasisMonthMean     = "month_mean"       // the source's published monthly national average (no hourly readings)
 	BasisPartialDay    = "partial_day_mean" // mean of fewer readings than the policy wants: usable, lower confidence
 	BasisLatestBefore  = "latest_before"    // the last reading before the day, not older than MaxAge
 	BasisLatestOverall = "latest_overall"   // the latest reading that exists, however old: an estimate, not a measurement
@@ -69,6 +70,8 @@ func (p Policy) minReadings() int {
 type IntensityReader interface {
 	// DayStats is the mean and count of one source's average-intensity readings in [from, to).
 	DayStats(ctx context.Context, region, provider string, from, to time.Time) (mean float64, n int, err error)
+	// Monthly is one source's published monthly figure for the month that contains day.
+	Monthly(ctx context.Context, region, provider string, day time.Time) (g float64, ok bool, err error)
 	// Latest is one source's newest reading at or before `before` (nil: overall).
 	Latest(ctx context.Context, region, provider string, before *time.Time) (g float64, at time.Time, ok bool, err error)
 }
@@ -78,6 +81,9 @@ type IntensityReader interface {
 //  2. a source with some readings that day (its mean, flagged partial),
 //  3. a source's last reading before the day's end that is not older than MaxAge,
 //  4. a source's latest reading of all (flagged as an estimate).
+//
+// A source's published monthly national average (Ember) sits between 1 and 2: it describes the right month, which a
+// day with a couple of readings does not describe better.
 //
 // Within each step the sources are tried in policy order. ok=false: no stored reading of any trusted source.
 func ResolveDay(ctx context.Context, r IntensityReader, p Policy, region string, day time.Time) (IntensityRef, bool, error) {
@@ -98,6 +104,15 @@ func ResolveDay(ctx context.Context, r IntensityReader, p Policy, region string,
 			return IntensityRef{G: mean, Source: src, Basis: BasisDayMean}, true, nil
 		case n > 0 && firstPartial == nil:
 			firstPartial = &partial{mean, src}
+		}
+	}
+	for _, src := range order {
+		g, ok, err := r.Monthly(ctx, region, src, day)
+		if err != nil {
+			return IntensityRef{}, false, err
+		}
+		if ok {
+			return IntensityRef{G: g, Source: src, Basis: BasisMonthMean}, true, nil
 		}
 	}
 	if firstPartial != nil {
@@ -143,6 +158,13 @@ type HistoryRow struct {
 	N        int
 }
 
+// MonthlyRow is one source's published figure for a month.
+type MonthlyRow struct {
+	Month    time.Time
+	Provider string
+	G        float64
+}
+
 // HistoryPoint is the day's intensity chosen under the policy, with the sources that were not chosen kept visible.
 type HistoryPoint struct {
 	Day      time.Time `json:"day"`
@@ -163,7 +185,7 @@ type HistoryOther struct {
 
 // ResolveHistory chooses, for each day that has readings, the source the policy trusts: the first in order with at least
 // MinDayReadings, else the first with any reading. Days with no reading do not appear (a gap is shown as a gap).
-func ResolveHistory(rows []HistoryRow, p Policy, region string) []HistoryPoint {
+func ResolveHistory(rows []HistoryRow, monthly []MonthlyRow, p Policy, region string, from, to time.Time) []HistoryPoint {
 	byDay := map[time.Time][]HistoryRow{}
 	var days []time.Time
 	for _, r := range rows {
@@ -219,6 +241,33 @@ func ResolveHistory(rows []HistoryRow, p Policy, region string) []HistoryPoint {
 			}
 		}
 		out = append(out, pt)
+	}
+	// Days with no hourly reading fall back to the published monthly figure of the first trusted source that has one.
+	if len(monthly) > 0 {
+		have := map[time.Time]bool{}
+		for _, pt := range out {
+			have[pt.Day] = true
+		}
+		best := map[time.Time]MonthlyRow{}
+		for _, m := range monthly {
+			r := rank[m.Provider]
+			if r == 0 {
+				continue
+			}
+			k := time.Date(m.Month.Year(), m.Month.Month(), 1, 0, 0, 0, 0, time.UTC)
+			if cur, ok := best[k]; !ok || r < rank[cur.Provider] {
+				best[k] = m
+			}
+		}
+		for d := from.UTC().Truncate(24 * time.Hour); d.Before(to.UTC()); d = d.AddDate(0, 0, 1) {
+			if have[d] {
+				continue
+			}
+			if m, ok := best[time.Date(d.Year(), d.Month(), 1, 0, 0, 0, 0, time.UTC)]; ok {
+				out = append(out, HistoryPoint{Day: d, G: m.G, Min: m.G, Max: m.G, Source: m.Provider, Basis: BasisMonthMean, Others: []HistoryOther{}})
+			}
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].Day.Before(out[j].Day) })
 	}
 	return out
 }

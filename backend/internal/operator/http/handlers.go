@@ -49,6 +49,8 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 	r.With(read).Get("/operator/billing/events", h.billingEvents)
 	r.With(read).Get("/operator/methodology", h.methodologyVersions)
 	r.With(read).Get("/operator/api-usage", h.apiUsage)
+	r.With(read).Get("/operator/carbon/regions", h.carbonRegions)
+	r.With(read).Get("/operator/usage", h.orgUsage)
 	r.With(read).Get("/operator/errors", h.errors)
 	r.With(read).Get("/operator/integrations", h.integrations)
 	r.With(write).Put("/operator/integrations/{id}", h.setIntegration)
@@ -252,6 +254,30 @@ func (h Handlers) subscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, s)
+}
+
+// orgUsage answers what each organization used in the last `days` days (default 30) and the estimated cost of serving it.
+func (h Handlers) orgUsage(w http.ResponseWriter, r *http.Request) {
+	days := 30
+	if v := r.URL.Query().Get("days"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 366 {
+			httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "days must be 1-366")
+			return
+		}
+		days = n
+	}
+	items, costs, err := h.Svc.OrgUsage(r.Context(), days)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "days": days, "unit_costs": costs})
+}
+
+func (h Handlers) carbonRegions(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.RegionSources(r.Context())
+	list(w, r, items, err)
 }
 
 // apiUsage answers the requests made to paid external APIs per day (last 30 days) with the daily cap in force.

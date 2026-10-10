@@ -41,6 +41,7 @@ func main() {
 	for spec, task := range map[string]string{
 		"0 */6 * * *": queue.TaskSyncAll,             // fan-out: one sync job per connection (sync -> carbon -> recommendations chain)
 		"0 2 * * *":   queue.TaskEnsurePartitions,    // monthly partitions ahead of time
+		"40 4 * * *":  queue.TaskRefreshMonthly,      // monthly national figures (Ember) of the regions in use
 		"5 * * * *":   queue.TaskRefreshGrid,         // hourly grid intensity (Electricity Maps)
 		"30 3 * * *":  queue.TaskRecalculateAll,      // last 35 days: picks up newly reported functional units (SCI)
 		"30 4 * * *":  queue.TaskRecommendAll,        // re-evaluate after policy or grid changes

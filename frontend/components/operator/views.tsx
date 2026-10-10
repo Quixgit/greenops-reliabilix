@@ -12,7 +12,7 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PillTabs } from "@/components/ui/tabs";
 import {
-  useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorPlans, useOperatorStats, useOperatorSubscription, useOperatorSystem, useOperatorTenants,
+  useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorOrgUsage, useOperatorPlans, useOperatorStats, useOperatorSubscription, useOperatorSystem, useOperatorTenants,
 } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
 import { changed, settingsView, type OperatorTenant } from "@/lib/api/schemas";
@@ -25,6 +25,36 @@ const select = selectCls;
 function useCanAct() { return useOperatorMe().data?.role === "admin"; }
 
 type OrgSort = "created" | "name" | "members" | "attention";
+
+/** What each organization used in the last 30 days and the estimated cost of serving it (counts times unit costs). */
+function OrgUsageCard() {
+  const q = useOperatorOrgUsage(30);
+  const n = (v: number) => v.toLocaleString();
+  return (
+    <Card interactive={false}>
+      <CardHeader title="Resource use and cost of serving (last 30 days)" />
+      <p className="-mt-2 mb-3 text-sm text-muted">Counts of records and runs per organization, and an estimate of what serving it costs: the counts times the unit costs set under Platform settings → Cost of serving an organization. It is an estimate for pricing and limits, not an accounting figure.</p>
+      {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.items.length === 0 ? <EmptyState icon={Users} text="No organizations yet." /> : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr><th className={th}>Organization</th><th className={th}>Plan</th><th className={th}>Usage rows</th><th className={th}>Calculations</th><th className={th}>Sync runs</th><th className={th}>Deliveries</th><th className={th}>Reports</th><th className={th}>K8s samples</th><th className={th}>Estimated cost</th></tr></thead>
+            <tbody className="divide-y divide-line/70">
+              {q.data!.items.map((u) => (
+                <tr key={u.tenant_id} className="hover:bg-white/60">
+                  <td className="py-2 pr-3 font-medium"><Link href={`/operator/organizations/${u.tenant_id}`} className="text-primary hover:underline">{u.name}</Link></td>
+                  <td className="pr-3"><Badge>{u.plan}</Badge></td>
+                  <td className="pr-3 tabular-nums">{n(u.usage_rows)}</td><td className="pr-3 tabular-nums">{n(u.calculation_rows)}</td><td className="pr-3 tabular-nums">{n(u.sync_runs)}</td>
+                  <td className="pr-3 tabular-nums">{n(u.deliveries)}</td><td className="pr-3 tabular-nums">{n(u.reports)}</td><td className="pr-3 tabular-nums">{n(u.k8s_samples)}</td>
+                  <td className="font-semibold tabular-nums">${u.estimated_cost_usd.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export function OrganizationsView() {
   const tenants = useOperatorTenants();
@@ -73,6 +103,7 @@ export function OrganizationsView() {
           </div>
         )}
       </Card>
+      <OrgUsageCard />
     </div>
   );
 }

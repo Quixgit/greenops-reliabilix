@@ -117,11 +117,36 @@ func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID s
 }
 
 // SaveGridIntensity stores a reading in the global reference table (idempotent; no tenant).
-func (r Postgres) SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure string) error {
+func (r Postgres) SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure, resolution string) error {
 	if measure == "" {
 		measure = domain.MeasureAverage
 	}
-	return db.New(r.Pool).SaveGridIntensity(ctx, db.SaveGridIntensityParams{Provider: provider, RegionID: region, Ts: at, GCo2ePerKwh: gPerKWh, IsForecast: forecast, Measure: measure})
+	if resolution == "" {
+		resolution = "hourly"
+	}
+	return db.New(r.Pool).SaveGridIntensity(ctx, db.SaveGridIntensityParams{Provider: provider, RegionID: region, Ts: at, GCo2ePerKwh: gPerKWh, IsForecast: forecast, Measure: measure, Resolution: resolution})
+}
+
+// Monthly implements domain.IntensityReader.
+func (r Postgres) Monthly(ctx context.Context, region, provider string, day time.Time) (float64, bool, error) {
+	g, err := db.New(r.Pool).IntensityMonthly(ctx, db.IntensityMonthlyParams{RegionID: region, Provider: provider, Day: day})
+	if database.IsNotFound(err) {
+		return 0, false, nil
+	}
+	return g, err == nil, err
+}
+
+// MonthlyHistory returns the published monthly figures of a region that cover [from, to).
+func (r Postgres) MonthlyHistory(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error) {
+	rows, err := db.New(r.Pool).IntensityMonthlyHistory(ctx, db.IntensityMonthlyHistoryParams{RegionID: region, FromTs: from, ToTs: to})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.MonthlyRow, 0, len(rows))
+	for _, x := range rows {
+		out = append(out, domain.MonthlyRow{Month: x.Month, Provider: x.Provider, G: x.G})
+	}
+	return out, nil
 }
 
 // DayStats implements domain.IntensityReader.
@@ -187,4 +212,22 @@ func nilIfEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// RegionsInUse lists the regions that have carbon calculations (region ids only; through a definer function).
+func (r Postgres) RegionsInUse(ctx context.Context) ([]string, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT region_id FROM carbon.regions_in_use()`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
 }

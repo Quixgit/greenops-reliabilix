@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/apiusage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
@@ -25,13 +26,23 @@ type Store interface {
 	ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, version string, calcs []domain.Calculation) error
 	// VersionTotals aggregates the stored rows of one methodology version.
 	VersionTotals(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (domain.Totals, error)
-	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure string) error
+	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure, resolution string) error
+	// RegionsInUse lists the regions that have calculations, for any organization.
+	RegionsInUse(ctx context.Context) ([]string, error)
+	// MonthlyHistory returns the published monthly figures of a region that cover [from, to).
+	MonthlyHistory(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error)
 	domain.IntensityReader
 	// History returns each source's daily readings of a region in [from, to).
 	History(ctx context.Context, region string, from, to time.Time) ([]domain.HistoryRow, error)
 	// Regions lists the regions an organization has carbon in; Origins breaks a window's carbon down by intensity source.
 	Regions(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.RegionCarbon, error)
 	Origins(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.IntensityOrigin, error)
+}
+
+// MonthlyProvider returns a source's published monthly national averages for a cloud region.
+type MonthlyProvider interface {
+	// Monthly returns the figures for [from, to); Provider on each row is the source id.
+	Monthly(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error)
 }
 
 // Ports implemented by other modules and wired in the composition root (no cross-domain imports).
@@ -56,6 +67,8 @@ type Service struct {
 	Policies PolicySource
 	Projects ProjectLister
 	Provider domain.CarbonDataProvider // nil: live lookups fail closed; stored readings still work
+	// Monthly is the source of monthly national figures (optional).
+	Monthly MonthlyProvider
 	// Settings supplies the source policy (carbon.* platform settings). nil: catalog defaults.
 	Settings settings.Reader
 	Queue    queue.Enqueuer
@@ -120,7 +133,7 @@ func (s *Service) intensityNow(ctx context.Context, region string) (float64, boo
 			}
 			s.cache[region] = cachedIntensity{g: in.GPerKWh, exp: time.Now().Add(ttl)}
 			s.mu.Unlock()
-			if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage); err != nil {
+			if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage, "hourly"); err != nil {
 				s.Log.Warn("persist grid intensity", "region", region, "err", err)
 			}
 			return in.GPerKWh, true, nil
@@ -362,7 +375,7 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 	for _, region := range lister.Regions() {
 		in, err := s.Provider.GetIntensity(ctx, region)
 		if err == nil {
-			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage)
+			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage, "hourly")
 		}
 		if err == nil {
 			s.saveForecast(ctx, region)
@@ -387,7 +400,7 @@ func (s *Service) saveForecast(ctx context.Context, region string) {
 		return
 	}
 	for _, p := range f.Points {
-		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true, domain.MeasureAverage); err != nil {
+		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true, domain.MeasureAverage, "hourly"); err != nil {
 			s.Log.Error("save grid forecast", "region", region, "err", err)
 			return
 		}
@@ -484,7 +497,11 @@ func (s *Service) IntensityHistory(ctx context.Context, region string, from, to 
 	if err != nil {
 		return nil, err
 	}
-	return domain.ResolveHistory(rows, s.Policy(ctx), region), nil
+	monthly, err := s.Store.MonthlyHistory(ctx, region, from, to)
+	if err != nil {
+		return nil, err
+	}
+	return domain.ResolveHistory(rows, monthly, s.Policy(ctx), region, from, to), nil
 }
 
 // Regions lists the regions an organization has carbon in over a window.
@@ -536,7 +553,43 @@ func (s *Service) BackfillIntensity(ctx context.Context, regions []string, from,
 			continue
 		}
 		for _, p := range pts {
-			if e := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, false, domain.MeasureAverage); e != nil {
+			if e := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, false, domain.MeasureAverage, "hourly"); e != nil {
+				return stored, e
+			}
+			stored++
+		}
+	}
+	return stored, first
+}
+
+// RefreshMonthly stores the last 36 months of monthly national figures for every region in use. A figure that was
+// published again is replaced (monthly values are revised); hourly readings are never touched. Regions of one country
+// share one provider request (the provider adapter caches per run).
+func (s *Service) RefreshMonthly(ctx context.Context) (stored int, err error) {
+	if s.Monthly == nil {
+		return 0, nil
+	}
+	regions, err := s.Store.RegionsInUse(ctx)
+	if err != nil {
+		return 0, err
+	}
+	to := time.Now().UTC()
+	from := time.Date(to.Year(), to.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -36, 0)
+	var first error
+	for _, region := range regions {
+		rows, e := s.Monthly.Monthly(ctx, region, from, to)
+		if e != nil {
+			if first == nil {
+				first = e
+			}
+			s.Log.Warn("monthly grid data", "region", region, "err", e)
+			if errors.Is(e, domain.ErrNotConfigured) || errors.Is(e, apiusage.ErrBudget) {
+				break // every region would fail the same way
+			}
+			continue
+		}
+		for _, r := range rows {
+			if e := s.Store.SaveGridIntensity(ctx, r.Provider, region, r.Month, r.G, false, domain.MeasureAverage, "monthly"); e != nil {
 				return stored, e
 			}
 			stored++

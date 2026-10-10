@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.20.0
+  version: 0.21.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -3088,6 +3088,91 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/operator/usage:
+    get:
+      operationId: getOperatorOrgUsage
+      summary: What each organization used and the estimated cost of serving it
+      tags:
+      - operator
+      description: |
+        Platform operators only. Counts of records and runs in the window and an estimate: the counts times the unit
+        costs of the platform settings (group "Cost of serving an organization"). Most expensive first.
+      parameters:
+      - {name: days, in: query, schema: {type: integer, minimum: 1, maximum: 366, default: 30}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, days, unit_costs]
+                properties:
+                  days: {type: integer}
+                  unit_costs: {type: object, additionalProperties: {type: number}}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [tenant_id, name, plan, usage_rows, calculation_rows, sync_runs, deliveries, reports, k8s_samples, members, connections, estimated_cost_usd]
+                      properties:
+                        tenant_id: {type: string, format: uuid}
+                        name: {type: string}
+                        plan: {type: string}
+                        usage_rows: {type: integer}
+                        calculation_rows: {type: integer}
+                        sync_runs: {type: integer}
+                        deliveries: {type: integer}
+                        reports: {type: integer}
+                        k8s_samples: {type: integer}
+                        members: {type: integer}
+                        connections: {type: integer}
+                        estimated_cost_usd: {type: number}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/carbon/regions:
+    get:
+      operationId: listOperatorCarbonRegions
+      summary: Regions in use with the data each grid source has and the source the policy picks
+      tags:
+      - operator
+      description: Platform operators only.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [region, override, effective, sources]
+                      properties:
+                        region: {type: string}
+                        override: {type: string}
+                        effective: {type: string}
+                        sources:
+                          type: array
+                          items:
+                            type: object
+                            required: [provider, hourly_readings_30d, monthly_figures, newest]
+                            properties:
+                              provider: {type: string}
+                              hourly_readings_30d: {type: integer}
+                              monthly_figures: {type: integer}
+                              newest: {type: string, format: date-time, nullable: true}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/operator/api-usage:
     get:
       operationId: getOperatorApiUsage
@@ -5810,7 +5895,7 @@ components:
       properties:
         id: {type: string}
         name: {type: string}
-        category: {type: string, enum: [grid_intensity, billing, usage, kubernetes, methodology]}
+        category: {type: string, enum: [grid_intensity, billing, usage, kubernetes, methodology, inventory]}
         access: {type: string, enum: [free, paid, customer_provided, internal]}
         state: {type: string, enum: [ready, attention, not_configured, planned]}
         metrics: {type: array, items: {type: string}}

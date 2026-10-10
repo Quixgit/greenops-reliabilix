@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/ember"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/channels/email"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
@@ -112,6 +113,15 @@ func (p integrationsPort) Test(ctx context.Context, integration string) (string,
 			return "", errors.New("Electricity Maps did not accept the key, or could not be reached")
 		}
 		return fmt.Sprintf("The key is accepted: %d zones are available.", len(zones)), nil
+	case "ember":
+		key := p.store.Value(ctx, "ember", "api_key")
+		if key == "" {
+			return "", errors.New("no API key is configured")
+		}
+		if err := ember.New(key).Check(ctx); err != nil {
+			return "", errors.New("Ember did not accept the key, or could not be reached")
+		}
+		return "The key is accepted: monthly national carbon intensity is available.", nil
 	case "smtp":
 		s, _, ok := smtpFrom(ctx, p.store, p.allowPlain)
 		if !ok {

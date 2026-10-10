@@ -102,3 +102,59 @@ func TestIntensityHistoryFollowsTheSourcePolicy(t *testing.T) {
 		t.Errorf("after the policy change point = %v", p)
 	}
 }
+
+// A source that publishes monthly national averages fills the days that have no hourly reading, labelled as such, and
+// the operator sees what each source has for the regions in use.
+func TestMonthlyNationalFigureFillsDaysWithoutHourlyReadings(t *testing.T) {
+	ctx := context.Background()
+	owner, apiPool := pool(t, "TEST_OWNER_DSN"), pool(t, "TEST_API_DSN")
+	cfg := devConfig(t.TempDir())
+	apiC, err := app.Build(ctx, cfg, quietLog(), apiPool, &taskRec{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(app.NewRouter(cfg, quietLog(), apiC.Verifier, apiC.Resolver, apiPool.Ping, apiC.Modules()...))
+	defer srv.Close()
+	c := api{t: t, srv: srv}
+
+	rid := fmt.Sprint(time.Now().UnixNano())
+	region := "zz-month-" + rid[len(rid)-6:]
+	alice := fmt.Sprintf("dev:mon-%s:-:-:mon-%s@example.com", rid, rid)
+	opSub := "opmon-" + rid
+	opTok := fmt.Sprintf("dev:%s:-:-:opmon-%s@example.com", opSub, rid)
+	c.must("POST", "/api/v1/onboarding", alice, `{"organization_name":"Monthly Test Org"}`, 201)
+	if _, err := owner.Exec(ctx, `INSERT INTO platform.operators (auth_sub, email, role) VALUES ($1,$2,'viewer')`, opSub, "opmon-"+rid+"@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = owner.Exec(ctx, `DELETE FROM carbon.grid_intensity WHERE region_id = $1`, region)
+		_, _ = owner.Exec(ctx, `DELETE FROM platform.operator_access_log WHERE operator_sub = $1`, opSub)
+		_, _ = owner.Exec(ctx, `DELETE FROM platform.operators WHERE auth_sub = $1`, opSub)
+	})
+
+	monthStart := time.Now().UTC().AddDate(0, -1, 0)
+	monthStart = time.Date(monthStart.Year(), monthStart.Month(), 1, 0, 0, 0, 0, time.UTC)
+	if _, err := owner.Exec(ctx, `INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution) VALUES ('ember',$1,$2,180,false,'average','monthly')`, region, monthStart); err != nil {
+		t.Fatal(err)
+	}
+	from, to := monthStart, monthStart.AddDate(0, 0, 3)
+	h := c.must("GET", "/api/v1/carbon/intensity?region="+region+"&from="+from.Format(time.DateOnly)+"&to="+to.Format(time.DateOnly), alice, "", 200)
+	pts := h["points"].([]any)
+	if len(pts) < 3 { // the period end date is inclusive
+		t.Fatalf("points = %v, want a point for every day of the window", pts)
+	}
+	p := pts[0].(map[string]any)
+	if p["source"] != "ember" || p["basis"] != "month_mean" || p["g_per_kwh"].(float64) != 180 {
+		t.Errorf("point = %v", p)
+	}
+
+	// the operator's view: per region what each source has, and the cost-of-serving estimate for every organization
+	c.must("GET", "/api/v1/operator/carbon/regions", opTok, "", 200)
+	u := c.must("GET", "/api/v1/operator/usage?days=30", opTok, "", 200)
+	if len(items(u)) == 0 || u["days"].(float64) != 30 {
+		t.Errorf("usage = %v", u)
+	}
+	if code, _, _ := c.do("GET", "/api/v1/operator/usage?days=0", opTok, ""); code != 400 {
+		t.Errorf("days=0 = %d, want 400", code)
+	}
+}

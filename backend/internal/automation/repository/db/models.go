@@ -113,6 +113,7 @@ type CarbonGridIntensity struct {
 	GCo2ePerKwh float64   `json:"g_co2e_per_kwh"`
 	IsForecast  bool      `json:"is_forecast"`
 	Measure     string    `json:"measure"`
+	Resolution  string    `json:"resolution"`
 }
 
 type CloudaccountsConnection struct {
@@ -218,6 +219,23 @@ type NotificationsDestination struct {
 	Enabled      bool      `json:"enabled"`
 	CreatedBy    string    `json:"created_by"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+type PlatformApiUsage struct {
+	Provider string    `json:"provider"`
+	Day      time.Time `json:"day"`
+	Requests int32     `json:"requests"`
+	Errors   int32     `json:"errors"`
+}
+
+type PlatformBillingEvent struct {
+	Provider       string    `json:"provider"`
+	EventID        string    `json:"event_id"`
+	ReceivedAt     time.Time `json:"received_at"`
+	Kind           string    `json:"kind"`
+	OrganizationID *string   `json:"organization_id"`
+	Plan           *string   `json:"plan"`
+	Detail         string    `json:"detail"`
 }
 
 type PlatformErasureLog struct {
@@ -445,6 +463,17 @@ type TenantsOrganization struct {
 	Plan             string    `json:"plan"`
 	WhiteLabelConfig []byte    `json:"white_label_config"`
 	CreatedAt        time.Time `json:"created_at"`
+}
+
+type TenantsSubscription struct {
+	OrganizationID string     `json:"organization_id"`
+	Plan           string     `json:"plan"`
+	Status         string     `json:"status"`
+	Source         string     `json:"source"`
+	TrialEndsAt    *time.Time `json:"trial_ends_at"`
+	PeriodEnd      *time.Time `json:"period_end"`
+	UpdatedBy      string     `json:"updated_by"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type TenantsUser struct {

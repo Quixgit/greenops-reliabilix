@@ -31,6 +31,7 @@ type RegionLister interface{ Regions() []string }
 // Provider keys stored in carbon.grid_intensity. They equal the ids of the integrations catalog entries.
 const (
 	ProviderElectricityMaps = "electricitymaps"
+	ProviderEmber           = "ember"
 	ProviderUKCI            = "uk_carbon_intensity"
 	ProviderWattTime        = "watttime"
 )

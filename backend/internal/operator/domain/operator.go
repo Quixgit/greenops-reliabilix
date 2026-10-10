@@ -190,6 +190,8 @@ type Repository interface {
 	Subscription(ctx context.Context, tenantID string) (Subscription, error)
 	BillingEvents(ctx context.Context, limit int) ([]BillingEvent, error)
 	APIUsage(ctx context.Context, days int) ([]APIUsage, error)
+	CarbonRegionSources(ctx context.Context) ([]RegionSourceRow, error)
+	OrgUsage(ctx context.Context, days int) ([]OrgUsage, error)
 	AssignOperator(ctx context.Context, actor, email string, role Role) (string, error)
 	WithdrawOperator(ctx context.Context, actor, subject string) (bool, error)
 	// CarbonRegions lists the regions that have carbon calculations for any organization.
@@ -214,6 +216,39 @@ type JobsPort interface {
 	Queues() ([]queue.QueueStat, error)
 	Failed(limit int) ([]queue.FailedTask, error)
 	Schedules() ([]queue.Schedule, error)
+}
+
+// OrgUsage is what an organization used in a window (counts) and the estimated cost of serving it.
+type OrgUsage struct {
+	TenantID        string  `json:"tenant_id"`
+	Name            string  `json:"name"`
+	Plan            string  `json:"plan"`
+	UsageRows       int64   `json:"usage_rows"`
+	CalculationRows int64   `json:"calculation_rows"`
+	SyncRuns        int64   `json:"sync_runs"`
+	Deliveries      int64   `json:"deliveries"`
+	Reports         int64   `json:"reports"`
+	K8sSamples      int64   `json:"k8s_samples"`
+	Members         int     `json:"members"`
+	Connections     int     `json:"connections"`
+	EstimatedCost   float64 `json:"estimated_cost_usd"`
+}
+
+// RegionSourceRow is what one source has for one region in use.
+type RegionSourceRow struct {
+	Region   string     `json:"-"`
+	Provider string     `json:"provider"`
+	Hourly   int        `json:"hourly_readings_30d"`
+	Months   int        `json:"monthly_figures"`
+	Newest   *time.Time `json:"newest"`
+}
+
+// RegionSources is a region in use with the data each source has and the source the policy picks.
+type RegionSources struct {
+	Region    string            `json:"region"`
+	Override  string            `json:"override"`  // "" = automatic
+	Effective string            `json:"effective"` // the source that would be used now; "" = no data at all
+	Sources   []RegionSourceRow `json:"sources"`
 }
 
 // APIUsage is one provider's request count for a day.

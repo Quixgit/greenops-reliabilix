@@ -43,7 +43,7 @@ journalctl --user -u reliabilix-worker -f
 
 ```
 scripts/stand-deploy.sh            # builds the binaries and the frontend with the version in VERSION, restarts the units
-STAND_DB_CONTAINER=<postgres container> STAND_DB=greenops_stand scripts/stand-deploy.sh migrate   # first, when a migration was added
+STAND_DB_CONTAINER=<postgres container> STAND_DB=greenops_stand scripts/stand-deploy.sh migrate 0037 0038   # first: the numbers of the migrations added since the last deploy
 ```
 
 The stand serves the frontend straight from the checkout, so a `next build` changes the files under the running web

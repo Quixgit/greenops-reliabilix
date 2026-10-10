@@ -25,7 +25,7 @@ function Figure({ label, value, unit, note }: { label: string; value: string; un
 }
 
 const BASIS: Record<string, string> = {
-  day_mean: "Mean of the day's readings", partial_day_mean: "Mean of a few readings (lower confidence)",
+  day_mean: "Mean of the day's readings", month_mean: "Monthly national average", partial_day_mean: "Mean of a few readings (lower confidence)",
   latest_before: "Last reading before the day", latest_overall: "Latest reading, an estimate", live_provider: "Fetched live",
 };
 
@@ -51,6 +51,7 @@ function IntensityHistoryCard() {
         <p className="mt-2 text-xs text-muted">
           {t("carbon.days_with_data", { days: d.days_with_data, window: d.window_days })} One source is used per day, in this order: {d.policy.priority.map((p) => SOURCE_LABEL[p] ?? p).join(", ")} (at least {d.policy.min_day_readings} readings a day).
           Sources are shown side by side and never averaged together.
+          {d.points.some((x) => x.source === "ember") && " Monthly national averages are from Ember (CC-BY 4.0)."}
         </p>
       </>)}
     </Card>

@@ -48,6 +48,15 @@ var defaultZones = map[string]string{
 	"me-west1": "IL", "me-central1": "QA", "africa-south1": "ZA",
 }
 
+// DefaultZones returns the built-in cloud region to zone map (a copy).
+func DefaultZones() map[string]string {
+	out := make(map[string]string, len(defaultZones))
+	for k, v := range defaultZones {
+		out[k] = v
+	}
+	return out
+}
+
 var (
 	regionKeyRe = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-\d$`)
 	zoneKeyRe   = regexp.MustCompile(`^[A-Z]{2}(-[A-Z0-9]+)*$`)

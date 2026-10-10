@@ -29,7 +29,7 @@ export type CarbonSummary = z.infer<typeof carbonSummary>;
 // Grid carbon intensity history of one region, one trusted source per day, other sources beside it (never blended).
 export const intensityPoint = z.object({
   day: z.string(), g_per_kwh: z.number(), min: z.number(), max: z.number(), readings: z.number(),
-  source: z.string(), basis: z.enum(["day_mean", "partial_day_mean"]), others: z.array(z.object({ source: z.string(), g_per_kwh: z.number() })),
+  source: z.string(), basis: z.enum(["day_mean", "partial_day_mean", "month_mean"]), others: z.array(z.object({ source: z.string(), g_per_kwh: z.number() })),
 });
 export type IntensityPoint = z.infer<typeof intensityPoint>;
 export const intensityHistory = z.object({
@@ -306,6 +306,19 @@ export const methodologySet = z.object({
   embodied_g_per_kwh: z.number(), checksum: z.string(), active: z.boolean(),
 });
 export const methodologySets = items(methodologySet);
+export const regionSources = z.object({
+  items: z.array(z.object({
+    region: z.string(), override: z.string(), effective: z.string(),
+    sources: z.array(z.object({ provider: z.string(), hourly_readings_30d: z.number(), monthly_figures: z.number(), newest: z.string().nullable() })),
+  })),
+});
+export const orgUsage = z.object({
+  days: z.number(), unit_costs: z.record(z.string(), z.number()),
+  items: z.array(z.object({
+    tenant_id: z.string(), name: z.string(), plan: z.string(), usage_rows: z.number(), calculation_rows: z.number(), sync_runs: z.number(),
+    deliveries: z.number(), reports: z.number(), k8s_samples: z.number(), members: z.number(), connections: z.number(), estimated_cost_usd: z.number(),
+  })),
+});
 export const apiUsage = z.object({
   items: z.array(z.object({ provider: z.string(), day: z.string(), requests: z.number(), errors: z.number() })),
   daily_caps: z.record(z.string(), z.number()),

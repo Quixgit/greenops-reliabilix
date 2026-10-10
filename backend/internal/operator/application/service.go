@@ -4,14 +4,17 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"net/mail"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/plans"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 type Service struct {
@@ -301,4 +304,157 @@ func (s Service) BackfillGridHistory(ctx context.Context, from, to time.Time, dr
 	err = s.Queue.Enqueue(ctx, queue.TaskBackfillIntensity, queue.BackfillPayload{Regions: regions, From: from.Format(time.DateOnly), To: to.Format(time.DateOnly)})
 	p.Queued = err == nil
 	return p, err
+}
+
+// RegionSources lists every region in use with what each grid source has for it, the operator's override (if any) and
+// the source the current policy would use. Priority and overrides come from the platform settings.
+func (s Service) RegionSources(ctx context.Context) ([]domain.RegionSources, error) {
+	rows, err := s.Repo.CarbonRegionSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	priority, overrides := []string{"electricitymaps", "ember"}, map[string]string{}
+	if s.Settings != nil {
+		if items, err := s.Settings.PlatformItems(ctx); err == nil {
+			for _, it := range items {
+				if it.Def == nil {
+					continue
+				}
+				var list []string
+				switch it.Key {
+				case settings.KeyCarbonPriority:
+					if json.Unmarshal(it.Value, &list) == nil && len(list) > 0 {
+						priority = list
+					}
+				case settings.KeyCarbonOverrides:
+					if json.Unmarshal(it.Value, &list) == nil {
+						for _, e := range list {
+							if region, src, ok := strings.Cut(e, "="); ok {
+								overrides[region] = src
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	// Regions in use with no data at all still appear: the table shows what is missing.
+	byRegion := map[string]*domain.RegionSources{}
+	var order []string
+	add := func(region string) *domain.RegionSources {
+		if r, ok := byRegion[region]; ok {
+			return r
+		}
+		r := &domain.RegionSources{Region: region, Override: overrides[region], Sources: []domain.RegionSourceRow{}}
+		byRegion[region] = r
+		order = append(order, region)
+		return r
+	}
+	for _, row := range rows {
+		r := add(row.Region)
+		r.Sources = append(r.Sources, row)
+	}
+	regions, err := s.Repo.CarbonRegions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, region := range regions {
+		add(region)
+	}
+	out := make([]domain.RegionSources, 0, len(order))
+	for _, region := range order {
+		r := byRegion[region]
+		have := map[string]domain.RegionSourceRow{}
+		for _, x := range r.Sources {
+			have[x.Provider] = x
+		}
+		seq := []string{}
+		if r.Override != "" {
+			seq = append(seq, r.Override)
+		}
+		seq = append(seq, priority...)
+		for _, p := range seq { // hourly data first, then monthly figures, like the resolver
+			if x, ok := have[p]; ok && x.Hourly > 0 {
+				r.Effective = p
+				break
+			}
+		}
+		if r.Effective == "" {
+			for _, p := range seq {
+				if x, ok := have[p]; ok && x.Months > 0 {
+					r.Effective = p
+					break
+				}
+			}
+		}
+		out = append(out, *r)
+	}
+	return out, nil
+}
+
+// UnitCosts are the platform's unit costs in USD (settings group "costs"); a missing value counts as zero.
+type UnitCosts struct {
+	Base, UsageRowsPerMillion, CalcRowsPerThousand, SyncRun, DeliveriesPerThousand, Report, K8sSamplesPerMillion float64
+}
+
+// Cost is the estimated cost of serving an organization for the window the usage was counted over.
+func (c UnitCosts) Cost(u domain.OrgUsage) float64 {
+	return c.Base + float64(u.UsageRows)/1e6*c.UsageRowsPerMillion + float64(u.CalculationRows)/1e3*c.CalcRowsPerThousand +
+		float64(u.SyncRuns)*c.SyncRun + float64(u.Deliveries)/1e3*c.DeliveriesPerThousand + float64(u.Reports)*c.Report +
+		float64(u.K8sSamples)/1e6*c.K8sSamplesPerMillion
+}
+
+func (s Service) unitCosts(ctx context.Context) UnitCosts {
+	var c UnitCosts
+	if s.Settings == nil {
+		return c
+	}
+	items, err := s.Settings.PlatformItems(ctx)
+	if err != nil {
+		return c
+	}
+	for _, it := range items {
+		if it.Def == nil {
+			continue
+		}
+		var v float64
+		if json.Unmarshal(it.Value, &v) != nil {
+			continue
+		}
+		switch it.Key {
+		case settings.KeyCostBase:
+			c.Base = v
+		case settings.KeyCostUsageRows:
+			c.UsageRowsPerMillion = v
+		case settings.KeyCostCalcRows:
+			c.CalcRowsPerThousand = v
+		case settings.KeyCostSyncRun:
+			c.SyncRun = v
+		case settings.KeyCostDeliveries:
+			c.DeliveriesPerThousand = v
+		case settings.KeyCostReport:
+			c.Report = v
+		case settings.KeyCostK8sSamples:
+			c.K8sSamplesPerMillion = v
+		}
+	}
+	return c
+}
+
+// OrgUsage lists what each organization used over the last `days` days with the estimated cost of serving it, the most
+// expensive first. The estimate is the counts times unit costs from settings: an estimate, not an accounting figure.
+func (s Service) OrgUsage(ctx context.Context, days int) ([]domain.OrgUsage, UnitCosts, error) {
+	if days < 1 || days > 366 {
+		return nil, UnitCosts{}, domain.ErrInvalid
+	}
+	rows, err := s.Repo.OrgUsage(ctx, days)
+	if err != nil {
+		return nil, UnitCosts{}, err
+	}
+	c := s.unitCosts(ctx)
+	for i := range rows {
+		rows[i].EstimatedCost = c.Cost(rows[i])
+	}
+	sort.Slice(rows, func(a, b int) bool { return rows[a].EstimatedCost > rows[b].EstimatedCost })
+	return rows, c, nil
 }

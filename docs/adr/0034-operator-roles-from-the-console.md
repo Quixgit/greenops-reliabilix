@@ -1,6 +1,6 @@
 # ADR-0034: Operator roles are assigned and withdrawn from the console
 
-Status: accepted · 0.1.0-alpha.31 · amends [ADR-0020](0020-operator-console.md)
+Status: accepted · 0.1.0-alpha.32 · amends [ADR-0020](0020-operator-console.md)
 
 ## Context
 ADR-0020 made "who is an operator" a fact only the migration owner could change (a command-line step), so that a

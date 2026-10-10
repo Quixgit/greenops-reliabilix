@@ -9,6 +9,7 @@ import (
 
 type fakeReader struct {
 	day    map[string][2]float64 // provider -> mean, n (for every day)
+	month  map[string]float64    // provider -> published monthly figure
 	latest map[string]struct {
 		g  float64
 		at time.Time
@@ -18,6 +19,10 @@ type fakeReader struct {
 func (f fakeReader) DayStats(_ context.Context, _, provider string, _, _ time.Time) (float64, int, error) {
 	v := f.day[provider]
 	return v[0], int(v[1]), nil
+}
+func (f fakeReader) Monthly(_ context.Context, _, provider string, _ time.Time) (float64, bool, error) {
+	g, ok := f.month[provider]
+	return g, ok, nil
 }
 func (f fakeReader) Latest(_ context.Context, _, provider string, before *time.Time) (float64, time.Time, bool, error) {
 	l, ok := f.latest[provider]
@@ -92,7 +97,7 @@ func TestHistoryChoosesOneSourcePerDayAndKeepsOthersApart(t *testing.T) {
 		{Day: d0.AddDate(0, 0, 1), Provider: "electricitymaps", Mean: 310, N: 2},
 		{Day: d0.AddDate(0, 0, 2), Provider: "unlisted", Mean: 50, N: 24},
 	}
-	h := ResolveHistory(rows, p, "x")
+	h := ResolveHistory(rows, nil, p, "x", d0, d0.AddDate(0, 0, 3))
 	if len(h) != 2 {
 		t.Fatalf("a day with only an untrusted source must not appear: %+v", h)
 	}
@@ -101,5 +106,30 @@ func TestHistoryChoosesOneSourcePerDayAndKeepsOthersApart(t *testing.T) {
 	}
 	if h[1].Basis != BasisPartialDay || h[1].Readings != 2 {
 		t.Errorf("day 2 = %+v", h[1])
+	}
+}
+
+func TestMonthlyFigureBeatsAThinDayAndIsLabelled(t *testing.T) {
+	p := Policy{Priority: []string{"electricitymaps", "ember"}, MinDayReadings: 6}
+	r := fakeReader{day: map[string][2]float64{"electricitymaps": {300, 2}}, month: map[string]float64{"ember": 180}}
+	got, ok, _ := ResolveDay(context.Background(), r, p, "x", d0)
+	if !ok || got.Source != "ember" || got.Basis != BasisMonthMean || got.G != 180 {
+		t.Errorf("a month figure must beat two readings: %+v", got)
+	}
+	// a day with enough readings still wins over the month figure
+	r.day["electricitymaps"] = [2]float64{300, 20}
+	got, _, _ = ResolveDay(context.Background(), r, p, "x", d0)
+	if got.Source != "electricitymaps" || got.Basis != BasisDayMean {
+		t.Errorf("enough hourly readings must win: %+v", got)
+	}
+}
+
+func TestHistoryFillsDaysWithoutReadingsFromTheMonthlyFigure(t *testing.T) {
+	p := Policy{Priority: []string{"electricitymaps", "ember"}, MinDayReadings: 6}
+	rows := []HistoryRow{{Day: d0, Provider: "electricitymaps", Mean: 300, Lo: 250, Hi: 350, N: 24}}
+	monthly := []MonthlyRow{{Month: d0, Provider: "ember", G: 180}}
+	h := ResolveHistory(rows, monthly, p, "x", d0, d0.AddDate(0, 0, 3))
+	if len(h) != 3 || h[0].Source != "electricitymaps" || h[1].Basis != BasisMonthMean || h[1].Source != "ember" || h[2].G != 180 {
+		t.Fatalf("%+v", h)
 	}
 }

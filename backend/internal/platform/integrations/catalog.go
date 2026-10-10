@@ -262,6 +262,13 @@ func Catalog() []Integration {
 			},
 		},
 		{
+			ID: "ember", Name: "Ember (monthly national grid intensity)", Testable: true,
+			Description: "Free monthly national carbon intensity of electricity (CC-BY), by country. A coarse second source behind Electricity Maps: it fills months and countries where no hourly reading exists and is labelled as a monthly average. Get a free key at ember-energy.org/data/api.",
+			Fields: []Field{
+				{Key: "api_key", Label: "API key", Secret: true, Required: true, Env: "EMBER_API_KEY", Help: "Free; request it on Ember's API page. Stored sealed, shown only as configured.", validate: validSecret(8)},
+			},
+		},
+		{
 			ID: "smtp", Name: "E-mail (SMTP)", Testable: true,
 			Description: "Sends e-mail notifications to organization members. TLS is required.",
 			Fields: []Field{

@@ -46,21 +46,22 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
 GROUP BY day ORDER BY day;
 
 -- name: SaveGridIntensity :exec
-INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure)
-VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(ts), sqlc.arg(g_co2e_per_kwh), sqlc.arg(is_forecast), sqlc.arg(measure))
-ON CONFLICT DO NOTHING;
+INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution)
+VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(ts), sqlc.arg(g_co2e_per_kwh), sqlc.arg(is_forecast), sqlc.arg(measure), sqlc.arg(resolution))
+ON CONFLICT (provider, region_id, ts, is_forecast, measure) DO UPDATE SET g_co2e_per_kwh = EXCLUDED.g_co2e_per_kwh, resolution = EXCLUDED.resolution
+WHERE carbon.grid_intensity.resolution = 'monthly'; -- a published monthly figure may be revised; an hourly reading never is
 
 -- name: IntensityDayStats :one
 -- Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
 -- averaged together: the caller asks one source at a time, in policy order.
 SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
   AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts);
 
 -- name: IntensityLatest :one
 -- Latest stored reading of one source at or before `before` (NULL = the latest overall).
 SELECT g_co2e_per_kwh::float8 AS g, ts FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
   AND (sqlc.narg(before)::timestamptz IS NULL OR ts <= sqlc.narg(before))
 ORDER BY ts DESC LIMIT 1;
 
@@ -69,7 +70,7 @@ ORDER BY ts DESC LIMIT 1;
 SELECT date_trunc('day', ts)::timestamptz AS day, provider, avg(g_co2e_per_kwh)::float8 AS mean,
        min(g_co2e_per_kwh)::float8 AS lo, max(g_co2e_per_kwh)::float8 AS hi, count(*)::int AS n
 FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND measure = 'average' AND NOT is_forecast AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
+WHERE region_id = sqlc.arg(region_id) AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly' AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
 GROUP BY 1, 2 ORDER BY 1, 2;
 
 -- name: TenantRegions :many
@@ -87,3 +88,15 @@ FROM carbon.calculations
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
   AND methodology_version = sqlc.arg(methodology_version) AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
 GROUP BY 1, 2 ORDER BY 3 DESC;
+
+-- name: IntensityMonthly :one
+-- One source's published monthly figure for the month that contains `day` (ts is the first day of the month).
+SELECT g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast AND resolution = 'monthly'
+  AND ts = date_trunc('month', sqlc.arg(day)::timestamptz);
+
+-- name: IntensityMonthlyHistory :many
+SELECT ts AS month, provider, g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND measure = 'average' AND NOT is_forecast AND resolution = 'monthly'
+  AND ts >= date_trunc('month', sqlc.arg(from_ts)::timestamptz) AND ts < sqlc.arg(to_ts)
+ORDER BY ts, provider;

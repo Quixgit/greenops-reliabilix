@@ -203,3 +203,19 @@ func (r Postgres) APIUsage(ctx context.Context, days int) ([]domain.APIUsage, er
 		return
 	})
 }
+
+func (r Postgres) CarbonRegionSources(ctx context.Context) ([]domain.RegionSourceRow, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT region_id, provider, hourly_30d, months, newest FROM carbon.operator_region_sources()`)
+	return collect(rows, err, func(r pgx.Rows) (x domain.RegionSourceRow, err error) {
+		err = r.Scan(&x.Region, &x.Provider, &x.Hourly, &x.Months, &x.Newest)
+		return
+	})
+}
+
+func (r Postgres) OrgUsage(ctx context.Context, days int) ([]domain.OrgUsage, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT tenant_id::text, name, plan, usage_rows, calculation_rows, sync_runs, deliveries, reports, k8s_samples, members, connections FROM platform.operator_org_usage($1)`, days)
+	return collect(rows, err, func(r pgx.Rows) (u domain.OrgUsage, err error) {
+		err = r.Scan(&u.TenantID, &u.Name, &u.Plan, &u.UsageRows, &u.CalculationRows, &u.SyncRuns, &u.Deliveries, &u.Reports, &u.K8sSamples, &u.Members, &u.Connections)
+		return
+	})
+}

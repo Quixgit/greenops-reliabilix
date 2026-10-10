@@ -5,7 +5,7 @@ import { tokens } from "@/design-system/tokens";
 import type { IntensityPoint } from "@/lib/api/schemas";
 import { Chart } from "./chart";
 
-export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", uk_carbon_intensity: "UK Carbon Intensity" };
+export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity" };
 const OTHER_COLORS = ["#8b5cf6", "#f59e0b", "#06b6d4"];
 
 /**
@@ -32,9 +32,10 @@ export function IntensityChart({ points, from, to }: { points: IntensityPoint[];
           const day = (raw as { axisValue: string }[])[0]?.axisValue;
           const p = day ? byDay.get(day) : undefined;
           if (!p) return `<div style="color:#6b7a94;font-size:11px">${day}</div><div style="margin-top:4px;color:#6b7a94">No reading this day</div>`;
-          const note = p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#6b7a94">${p.readings} readings</span>`;
+          const note = p.basis === "month_mean" ? ` <span style="color:#6366f1">monthly national average</span>`
+            : p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#6b7a94">${p.readings} readings</span>`;
           const rows = [`<div style="margin-top:4px"><b>${Math.round(p.g_per_kwh)}</b> gCO₂e/kWh · ${SOURCE_LABEL[p.source] ?? p.source}${note}</div>`,
-            `<div style="color:#6b7a94">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`,
+            ...(p.basis === "month_mean" ? [] : [`<div style="color:#6b7a94">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`]),
             ...p.others.map((o) => `<div style="color:#6b7a94">${SOURCE_LABEL[o.source] ?? o.source}: ${Math.round(o.g_per_kwh)}</div>`)];
           return `<div style="color:#6b7a94;font-size:11px">${day}</div>${rows.join("")}`;
         },

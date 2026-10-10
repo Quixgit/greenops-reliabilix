@@ -195,8 +195,9 @@ func (q *Queries) IntensityBasisBreakdown(ctx context.Context, arg IntensityBasi
 }
 
 const intensityDayStats = `-- name: IntensityDayStats :one
+
 SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
-WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
   AND ts >= $3 AND ts < $4
 `
 
@@ -212,6 +213,7 @@ type IntensityDayStatsRow struct {
 	N int32   `json:"n"`
 }
 
+// a published monthly figure may be revised; an hourly reading never is
 // Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
 // averaged together: the caller asks one source at a time, in policy order.
 func (q *Queries) IntensityDayStats(ctx context.Context, arg IntensityDayStatsParams) (IntensityDayStatsRow, error) {
@@ -230,7 +232,7 @@ const intensityHistory = `-- name: IntensityHistory :many
 SELECT date_trunc('day', ts)::timestamptz AS day, provider, avg(g_co2e_per_kwh)::float8 AS mean,
        min(g_co2e_per_kwh)::float8 AS lo, max(g_co2e_per_kwh)::float8 AS hi, count(*)::int AS n
 FROM carbon.grid_intensity
-WHERE region_id = $1 AND measure = 'average' AND NOT is_forecast AND ts >= $2 AND ts < $3
+WHERE region_id = $1 AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly' AND ts >= $2 AND ts < $3
 GROUP BY 1, 2 ORDER BY 1, 2
 `
 
@@ -279,7 +281,7 @@ func (q *Queries) IntensityHistory(ctx context.Context, arg IntensityHistoryPara
 
 const intensityLatest = `-- name: IntensityLatest :one
 SELECT g_co2e_per_kwh::float8 AS g, ts FROM carbon.grid_intensity
-WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
   AND ($3::timestamptz IS NULL OR ts <= $3)
 ORDER BY ts DESC LIMIT 1
 `
@@ -303,10 +305,70 @@ func (q *Queries) IntensityLatest(ctx context.Context, arg IntensityLatestParams
 	return i, err
 }
 
+const intensityMonthly = `-- name: IntensityMonthly :one
+SELECT g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast AND resolution = 'monthly'
+  AND ts = date_trunc('month', $3::timestamptz)
+`
+
+type IntensityMonthlyParams struct {
+	RegionID string    `json:"region_id"`
+	Provider string    `json:"provider"`
+	Day      time.Time `json:"day"`
+}
+
+// One source's published monthly figure for the month that contains `day` (ts is the first day of the month).
+func (q *Queries) IntensityMonthly(ctx context.Context, arg IntensityMonthlyParams) (float64, error) {
+	row := q.db.QueryRow(ctx, intensityMonthly, arg.RegionID, arg.Provider, arg.Day)
+	var g float64
+	err := row.Scan(&g)
+	return g, err
+}
+
+const intensityMonthlyHistory = `-- name: IntensityMonthlyHistory :many
+SELECT ts AS month, provider, g_co2e_per_kwh::float8 AS g FROM carbon.grid_intensity
+WHERE region_id = $1 AND measure = 'average' AND NOT is_forecast AND resolution = 'monthly'
+  AND ts >= date_trunc('month', $2::timestamptz) AND ts < $3
+ORDER BY ts, provider
+`
+
+type IntensityMonthlyHistoryParams struct {
+	RegionID string    `json:"region_id"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+type IntensityMonthlyHistoryRow struct {
+	Month    time.Time `json:"month"`
+	Provider string    `json:"provider"`
+	G        float64   `json:"g"`
+}
+
+func (q *Queries) IntensityMonthlyHistory(ctx context.Context, arg IntensityMonthlyHistoryParams) ([]IntensityMonthlyHistoryRow, error) {
+	rows, err := q.db.Query(ctx, intensityMonthlyHistory, arg.RegionID, arg.FromTs, arg.ToTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IntensityMonthlyHistoryRow{}
+	for rows.Next() {
+		var i IntensityMonthlyHistoryRow
+		if err := rows.Scan(&i.Month, &i.Provider, &i.G); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const saveGridIntensity = `-- name: SaveGridIntensity :exec
-INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT DO NOTHING
+INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (provider, region_id, ts, is_forecast, measure) DO UPDATE SET g_co2e_per_kwh = EXCLUDED.g_co2e_per_kwh, resolution = EXCLUDED.resolution
+WHERE carbon.grid_intensity.resolution = 'monthly'
 `
 
 type SaveGridIntensityParams struct {
@@ -316,6 +378,7 @@ type SaveGridIntensityParams struct {
 	GCo2ePerKwh float64   `json:"g_co2e_per_kwh"`
 	IsForecast  bool      `json:"is_forecast"`
 	Measure     string    `json:"measure"`
+	Resolution  string    `json:"resolution"`
 }
 
 func (q *Queries) SaveGridIntensity(ctx context.Context, arg SaveGridIntensityParams) error {
@@ -326,6 +389,7 @@ func (q *Queries) SaveGridIntensity(ctx context.Context, arg SaveGridIntensityPa
 		arg.GCo2ePerKwh,
 		arg.IsForecast,
 		arg.Measure,
+		arg.Resolution,
 	)
 	return err
 }

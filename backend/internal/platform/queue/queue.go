@@ -35,6 +35,7 @@ const (
 	TaskEraseDue            = "lifecycle:erase_due"                   // erase organizations whose grace period is over (hourly)
 	TaskEnforceRetention    = "platform:enforce_retention"            // drop usage and carbon partitions past retention (daily)
 	TaskExpireSubscriptions = "licensing:expire"                      // return organizations whose period ended to the Free plan (hourly)
+	TaskRefreshMonthly      = "carbon:refresh_monthly"                // monthly national figures of the regions in use (daily)
 	TaskBackfillIntensity   = "carbon:backfill_intensity"             // operator-started: fetch past grid readings of some regions
 	TaskPurgeOperatorLog    = "platform:purge_operator_log"           // drop operator access records past retention (daily)
 )

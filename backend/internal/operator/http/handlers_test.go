@@ -96,6 +96,12 @@ func (f *fakeRepo) CarbonRegions(context.Context) ([]string, error) {
 func (f *fakeRepo) APIUsage(context.Context, int) ([]domain.APIUsage, error) {
 	return []domain.APIUsage{{Provider: "electricitymaps", Requests: 12}}, nil
 }
+func (f *fakeRepo) CarbonRegionSources(context.Context) ([]domain.RegionSourceRow, error) {
+	return []domain.RegionSourceRow{{Region: "eu-central-1", Provider: "ember", Months: 24}}, nil
+}
+func (f *fakeRepo) OrgUsage(context.Context, int) ([]domain.OrgUsage, error) {
+	return []domain.OrgUsage{{TenantID: t1, Name: "Acme", UsageRows: 2_000_000, SyncRuns: 100, Reports: 10}, {TenantID: d1, Name: "Small", UsageRows: 1000}}, nil
+}
 func (f *fakeRepo) RetryDelivery(_ context.Context, actor, tenant, id string) (bool, error) {
 	f.retried = append(f.retried, actor+"/"+tenant+"/"+id)
 	return f.retryOK, nil
@@ -160,7 +166,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &me) != nil || me.Role != domain.Viewer || me.Subject != "viewer-1" {
 		t.Fatalf("me = %d %s", rec.Code, rec.Body)
 	}
-	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system", "/operator/audit?limit=20", "/operator/data-sources", "/operator/operators", "/operator/plans", "/operator/billing/events", "/operator/methodology", "/operator/api-usage"} {
+	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system", "/operator/audit?limit=20", "/operator/data-sources", "/operator/operators", "/operator/plans", "/operator/billing/events", "/operator/methodology", "/operator/api-usage", "/operator/carbon/regions", "/operator/usage"} {
 		if rec := do(h, "GET", p); rec.Code != 200 {
 			t.Errorf("GET %s = %d", p, rec.Code)
 		}
@@ -177,7 +183,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if len(repo.retried)+len(repo.toggled) != 0 {
 		t.Error("a read-only operator changed something")
 	}
-	if len(repo.log) != 13 { // every successful read is recorded; refused writes are not
+	if len(repo.log) != 15 { // every successful read is recorded; refused writes are not
 		t.Errorf("access log = %v", repo.log)
 	}
 }
@@ -381,5 +387,42 @@ func TestBackfillPlanIsBoundedAndDryRunStartsNothing(t *testing.T) {
 		if c, _ := post(h, b); c != 422 {
 			t.Errorf("%s = %d, want 422", b, c)
 		}
+	}
+}
+
+func TestRegionSourcesPickTheFirstTrustedSourceThatHasData(t *testing.T) {
+	repo := &fakeRepo{}
+	svc := application.Service{Repo: repo}
+	got, err := svc.RegionSources(context.Background())
+	if err != nil || len(got) != 2 { // eu-central-1 from the sources, us-east-1 only as a region in use
+		t.Fatalf("%+v %v", got, err)
+	}
+	for _, r := range got {
+		switch r.Region {
+		case "eu-central-1":
+			if r.Effective != "ember" {
+				t.Errorf("only Ember has data for eu-central-1: %+v", r)
+			}
+		case "us-east-1":
+			if r.Effective != "" || len(r.Sources) != 0 {
+				t.Errorf("a region with no data must say so: %+v", r)
+			}
+		}
+	}
+}
+
+func TestServingCostIsCountsTimesUnitCostsAndSortedByCost(t *testing.T) {
+	c := application.UnitCosts{Base: 5, UsageRowsPerMillion: 2, SyncRun: 0.01, Report: 0.02}
+	u := domain.OrgUsage{UsageRows: 2_000_000, SyncRuns: 100, Reports: 10}
+	if got, want := c.Cost(u), 5+4+1+0.2; got < want-1e-9 || got > want+1e-9 {
+		t.Errorf("cost = %v, want %v", got, want)
+	}
+	svc := application.Service{Repo: &fakeRepo{}}
+	items, _, err := svc.OrgUsage(context.Background(), 30)
+	if err != nil || len(items) != 2 || items[0].Name != "Acme" {
+		t.Errorf("%+v %v", items, err)
+	}
+	if _, _, err := svc.OrgUsage(context.Background(), 0); err == nil {
+		t.Error("days must be validated")
 	}
 }

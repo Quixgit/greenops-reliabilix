@@ -38,7 +38,7 @@ func (f *fakeStore) ReplaceCalculations(_ context.Context, _, _ string, _, _ tim
 	f.saved = append(f.saved, c...)
 	return nil
 }
-func (f *fakeStore) SaveGridIntensity(_ context.Context, _, region string, _ time.Time, g float64, _ bool, _ string) error {
+func (f *fakeStore) SaveGridIntensity(_ context.Context, _, region string, _ time.Time, g float64, _ bool, _, _ string) error {
 	if f.savedGrid == nil {
 		f.savedGrid = map[string]float64{}
 	}
@@ -58,6 +58,13 @@ func (f *fakeStore) DayStats(_ context.Context, region, provider string, _, _ ti
 func (f *fakeStore) Latest(_ context.Context, region, provider string, _ *time.Time) (float64, time.Time, bool, error) {
 	g, ok := f.stored[region]
 	return g, time.Now(), ok && provider == domain.ProviderElectricityMaps, nil
+}
+func (f *fakeStore) RegionsInUse(context.Context) ([]string, error) { return nil, nil }
+func (f *fakeStore) Monthly(context.Context, string, string, time.Time) (float64, bool, error) {
+	return 0, false, nil
+}
+func (f *fakeStore) MonthlyHistory(context.Context, string, time.Time, time.Time) ([]domain.MonthlyRow, error) {
+	return nil, nil
 }
 func (f *fakeStore) History(context.Context, string, time.Time, time.Time) ([]domain.HistoryRow, error) {
 	return nil, nil

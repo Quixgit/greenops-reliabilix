@@ -2,7 +2,7 @@
 
 import { ArrowRight, CheckCircle2, CircleDashed, Database, Hourglass, KeyRound, Server, TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/api/client";
 import { z } from "zod";
@@ -12,7 +12,8 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PillTabs } from "@/components/ui/tabs";
 import { SettingsEditor } from "@/components/settings/settings-editor";
-import { useOperatorDataSources, useOperatorIntegrations, useOperatorMe, useOperatorSystem } from "@/hooks/use-admin";
+import { useOperatorDataSources, useOperatorIntegrations, useOperatorMe, useOperatorRegionSources, useOperatorSystem } from "@/hooks/use-admin";
+import { shortTime } from "@/lib/format-time";
 import type { DataSource, DataSourceAccess, DataSourceState, ManagedIntegration } from "@/lib/api/schemas";
 import { Chip, PageTitle, Tile } from "./parts";
 
@@ -30,7 +31,7 @@ export const STATE: Record<DataSourceState, { label: string; tone: "good" | "war
 };
 /** Integrations that are payment providers: managed on Plans & billing, not among the platform services. */
 export const PAYMENT_IDS = ["stripe", "paddle", "liqpay", "wayforpay", "paymentlink", "invoice"];
-export const CATEGORY: Record<string, string> = { grid_intensity: "Grid carbon intensity", billing: "Cloud billing", usage: "Usage", kubernetes: "Kubernetes", methodology: "Methodology" };
+export const CATEGORY: Record<string, string> = { inventory: "Emissions inventory", grid_intensity: "Grid carbon intensity", billing: "Cloud billing", usage: "Usage", kubernetes: "Kubernetes", methodology: "Methodology" };
 
 /** One line about the settings of a source: whether its key or address is in place. */
 function settingsLine(st: ManagedIntegration | undefined) {
@@ -63,6 +64,60 @@ function SourceCard({ s, st, index }: { s: DataSource; st?: ManagedIntegration; 
           {st ? "Settings" : "Details"}<ArrowRight className="size-3.5" aria-hidden />
         </Link>
       </div>
+    </Card>
+  );
+}
+
+const SRC_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity" };
+const OFFERED = ["electricitymaps", "ember"];
+
+/** Which source serves each region in use: what each source has, the choice in force and a selector to pin one. */
+function RegionSources({ canAct }: { canAct: boolean }) {
+  const qc = useQueryClient();
+  const q = useOperatorRegionSources();
+  const save = useMutation({
+    mutationFn: (overrides: string[]) => api("operator/settings", z.unknown(), undefined, { method: "PATCH", body: JSON.stringify({ values: { "carbon.region_provider_overrides": overrides } }) }),
+    onSuccess: () => {
+      for (const k of ["op-region-sources", "settings", "op-settings"]) void qc.invalidateQueries({ queryKey: [k] });
+    },
+  });
+  const rows = q.data?.items ?? [];
+  const set = (region: string, source: string) => {
+    const next = rows.filter((r) => r.region !== region && r.override).map((r) => `${r.region}=${r.override}`);
+    if (source) next.push(`${region}=${source}`);
+    save.mutate(next);
+  };
+  return (
+    <Card interactive={false}>
+      <h3 className="text-[15px] font-semibold tracking-tight">Source per region</h3>
+      <p className="mt-1 text-sm text-muted">For every region your customers run in: what each source has, and which one is used. “Automatic” follows the priority order above. Pinning a source puts it first for that region only; if it has no data for a day, the next source in the order is used.</p>
+      {q.isLoading ? <Skeleton className="mt-3 h-24" /> : q.isError ? <ErrorState /> : rows.length === 0 ? (
+        <p className="mt-3 text-sm text-muted">No region has carbon calculations yet.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr><th className="py-1.5 pr-3 text-left text-xs font-medium text-muted">Region</th>{OFFERED.map((p) => <th key={p} className="py-1.5 pr-3 text-left text-xs font-medium text-muted">{SRC_LABEL[p]}</th>)}<th className="py-1.5 pr-3 text-left text-xs font-medium text-muted">Used now</th><th className="py-1.5 text-left text-xs font-medium text-muted">Source</th></tr></thead>
+            <tbody className="divide-y divide-line/70">
+              {rows.map((r) => (
+                <tr key={r.region}>
+                  <td className="py-2 pr-3 font-medium">{r.region}</td>
+                  {OFFERED.map((p) => {
+                    const s = r.sources.find((x) => x.provider === p);
+                    return <td key={p} className="pr-3 text-xs text-muted">{s ? <>{s.hourly_readings_30d > 0 ? `${s.hourly_readings_30d} hourly (30 d)` : ""}{s.hourly_readings_30d > 0 && s.monthly_figures > 0 ? " · " : ""}{s.monthly_figures > 0 ? `${s.monthly_figures} months` : ""}{s.newest ? <span className="block">newest {shortTime(s.newest)}</span> : null}</> : "—"}</td>;
+                  })}
+                  <td className="pr-3">{r.effective ? <Badge tone="good">{SRC_LABEL[r.effective] ?? r.effective}</Badge> : <Badge tone="warn">no data</Badge>}</td>
+                  <td>
+                    <select aria-label={`Source for ${r.region}`} value={r.override} disabled={!canAct || save.isPending} onChange={(e) => set(r.region, e.target.value)} className="rounded-lg bg-white/80 px-2 py-1 text-sm ring-1 ring-line">
+                      <option value="">Automatic</option>{OFFERED.map((p) => <option key={p} value={p}>{SRC_LABEL[p]}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {save.isError && <p role="alert" className="mt-2 text-sm text-bad">{save.error.message}</p>}
     </Card>
   );
 }
@@ -134,7 +189,8 @@ export function DataSourcesView() {
               <li>A change applies to the next calculation; re-run a window to apply it to history.</li>
             </ul>
           </Card>
-          <SettingsEditor mode="platform" path="operator/settings" historyPath="operator/settings/history" canEdit={me.data?.role === "admin"} onlyGroup="carbon" />
+          <SettingsEditor mode="platform" path="operator/settings" historyPath="operator/settings/history" canEdit={me.data?.role === "admin"} onlyGroup="carbon" hideKeys={["carbon.region_provider_overrides"]} />
+          <RegionSources canAct={me.data?.role === "admin"} />
           <BackfillCard canAct={me.data?.role === "admin"} />
         </div>
       ) : tab === "sources" ? (<>

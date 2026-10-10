@@ -40,6 +40,8 @@ export const useOperatorSubscription = (id: string) =>
 export const useOperatorBillingEvents = () => useQuery({ queryKey: ["op-billing"], queryFn: () => api("operator/billing/events", s.billingEvents) });
 export const useOperatorMethodology = () => useQuery({ queryKey: ["op-methodology"], queryFn: () => api("operator/methodology", s.methodologySets) });
 export const useOperatorApiUsage = () => useQuery({ queryKey: ["op-api-usage"], queryFn: () => api("operator/api-usage", s.apiUsage) });
+export const useOperatorRegionSources = () => useQuery({ queryKey: ["op-region-sources"], queryFn: () => api("operator/carbon/regions", s.regionSources) });
+export const useOperatorOrgUsage = (days: number) => useQuery({ queryKey: ["op-org-usage", days], queryFn: () => api("operator/usage", s.orgUsage, { days: String(days) }) });
 export const usePlan = () => useQuery({ queryKey: ["plan"], queryFn: () => api("plan", s.planView) });
 export const useOperatorMe = () => useQuery({ queryKey: ["op-me"], queryFn: () => api("operator/me", s.operatorMe), staleTime: 5 * 60_000 });
 export const useOperatorErrors = (status: string, service: string) =>

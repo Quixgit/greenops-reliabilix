@@ -79,10 +79,12 @@ function Control({ item, value, onChange, disabled }: { item: SettingItem; value
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes, onlyGroup }: {
+export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes, onlyGroup, hideKeys }: {
   mode: EditorMode; path: string; historyPath: string; canEdit?: boolean; scopes?: SettingItem["scope"][];
   /** Show one group only, without the search and group tabs: for a card that sits next to the thing it configures. */
   onlyGroup?: string;
+  /** Keys shown elsewhere with a better control: not repeated here. */
+  hideKeys?: string[];
 }) {
   const qc = useQueryClient();
   const key = ["settings", path];
@@ -102,7 +104,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
   });
 
   // On an organization's console page the suspension switch is the Status panel above the editor: not repeated here.
-  const items = useMemo(() => (q.data?.items ?? []).filter((i) => (!scopes || scopes.includes(i.scope)) && (!onlyGroup || i.group === onlyGroup) && !(mode === "operator-tenant" && i.group === "organization")), [q.data, scopes, mode, onlyGroup]);
+  const items = useMemo(() => (q.data?.items ?? []).filter((i) => (!scopes || scopes.includes(i.scope)) && (!onlyGroup || i.group === onlyGroup) && !(hideKeys ?? []).includes(i.key) && !(mode === "operator-tenant" && i.group === "organization")), [q.data, scopes, mode, onlyGroup, hideKeys]);
   const groups = useMemo(() => (q.data?.groups ?? []).filter((g) => items.some((i) => i.group === g.id)), [q.data, items]);
   const dirty = Object.keys(draft).filter((k) => { const it = items.find((i) => i.key === k); return it && !same(draft[k], it.value); });
   const shown = items.filter((i) => (active === "all" || i.group === active)
