@@ -58,3 +58,31 @@ func TestSubscriptionNotInExportNeedsTheCustomer(t *testing.T) {
 		t.Error("a wrong subscription cannot be fixed by retrying")
 	}
 }
+
+func TestParseAzureCostRef(t *testing.T) {
+	const client = "b8b97d8b-fec7-4b74-a232-b0b605ff0959"
+	acc, err := ParseAzureCostRef("azcost://" + testTenant + "@" + client)
+	if err != nil || acc.TenantID != testTenant || acc.ClientID != client {
+		t.Fatalf("%+v %v", acc, err)
+	}
+	for _, ref := range []string{"", "azcost://" + testTenant, "azcost://x@y", "azcost://" + testTenant + "@" + client + "/extra", "azblob://" + testTenant + "@" + client} {
+		if _, err := ParseAzureCostRef(ref); !errors.Is(err, ErrInvalidConnection) {
+			t.Errorf("%q must be rejected: %v", ref, err)
+		}
+	}
+	c := Connection{ProjectID: "p", Provider: Azure, AccountRef: testSub, CredentialRef: "azcost://" + testTenant + "@" + client}
+	if err := c.Validate(); err != nil {
+		t.Errorf("a service principal connection: %v", err)
+	}
+}
+
+func TestClientSecretShape(t *testing.T) {
+	if !ValidAzureClientSecret("test-only-azure-client-secret-not-a-real-credential") {
+		t.Error("an Entra client secret must be accepted")
+	}
+	for _, bad := range []string{"", "short", "has space in it 12345", "line\nbreak12345"} {
+		if ValidAzureClientSecret(bad) {
+			t.Errorf("%q must be rejected", bad)
+		}
+	}
+}

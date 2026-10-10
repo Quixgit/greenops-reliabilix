@@ -11,18 +11,19 @@ import (
 )
 
 const createConnection = `-- name: CreateConnection :one
-INSERT INTO cloudaccounts.connections (tenant_id, project_id, provider, account_ref, credential_ref, external_id)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality
+INSERT INTO cloudaccounts.connections (tenant_id, project_id, provider, account_ref, credential_ref, external_id, sealed_secret)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret
 `
 
 type CreateConnectionParams struct {
-	TenantID      string `json:"tenant_id"`
-	ProjectID     string `json:"project_id"`
-	Provider      string `json:"provider"`
-	AccountRef    string `json:"account_ref"`
-	CredentialRef string `json:"credential_ref"`
-	ExternalID    string `json:"external_id"`
+	TenantID      string  `json:"tenant_id"`
+	ProjectID     string  `json:"project_id"`
+	Provider      string  `json:"provider"`
+	AccountRef    string  `json:"account_ref"`
+	CredentialRef string  `json:"credential_ref"`
+	ExternalID    string  `json:"external_id"`
+	SealedSecret  *string `json:"sealed_secret"`
 }
 
 func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionParams) (CloudaccountsConnection, error) {
@@ -33,6 +34,7 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 		arg.AccountRef,
 		arg.CredentialRef,
 		arg.ExternalID,
+		arg.SealedSecret,
 	)
 	var i CloudaccountsConnection
 	err := row.Scan(
@@ -53,6 +55,7 @@ func (q *Queries) CreateConnection(ctx context.Context, arg CreateConnectionPara
 		&i.ExportName,
 		&i.ExportRegion,
 		&i.LastQuality,
+		&i.SealedSecret,
 	)
 	return i, err
 }
@@ -101,7 +104,7 @@ func (q *Queries) FinishSyncRun(ctx context.Context, arg FinishSyncRunParams) er
 }
 
 const getConnection = `-- name: GetConnection :one
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret
 FROM cloudaccounts.connections WHERE tenant_id = $1 AND id = $2
 `
 
@@ -131,12 +134,13 @@ func (q *Queries) GetConnection(ctx context.Context, arg GetConnectionParams) (C
 		&i.ExportName,
 		&i.ExportRegion,
 		&i.LastQuality,
+		&i.SealedSecret,
 	)
 	return i, err
 }
 
 const listConnections = `-- name: ListConnections :many
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret
 FROM cloudaccounts.connections WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 500
 `
 
@@ -167,6 +171,7 @@ func (q *Queries) ListConnections(ctx context.Context, tenantID string) ([]Cloud
 			&i.ExportName,
 			&i.ExportRegion,
 			&i.LastQuality,
+			&i.SealedSecret,
 		); err != nil {
 			return nil, err
 		}

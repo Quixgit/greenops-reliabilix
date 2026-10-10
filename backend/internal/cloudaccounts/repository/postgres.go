@@ -20,7 +20,21 @@ type Postgres struct{ Pool *pgxpool.Pool }
 func toConn(r db.CloudaccountsConnection) domain.Connection {
 	return domain.Connection{ID: r.ID, TenantID: r.TenantID, ProjectID: r.ProjectID, Provider: domain.ProviderType(r.Provider),
 		AccountRef: r.AccountRef, CredentialRef: r.CredentialRef, ExternalID: r.ExternalID, SyncStatus: domain.SyncStatus(r.SyncStatus),
-		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, Export: exportOf(r)}
+		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, Export: exportOf(r), SealedSecret: deref(r.SealedSecret)}
+}
+
+func optional(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // exportOf rebuilds the export location; the table constraint guarantees all four columns are set or none.
@@ -58,7 +72,7 @@ func (r Postgres) Get(ctx context.Context, tenantID, id string) (c domain.Connec
 func (r Postgres) Create(ctx context.Context, c domain.Connection) (domain.Connection, error) {
 	err := database.WithTenantTx(ctx, r.Pool, c.TenantID, func(tx pgx.Tx) error {
 		row, err := db.New(tx).CreateConnection(ctx, db.CreateConnectionParams{TenantID: c.TenantID, ProjectID: c.ProjectID,
-			Provider: string(c.Provider), AccountRef: c.AccountRef, CredentialRef: c.CredentialRef, ExternalID: c.ExternalID})
+			Provider: string(c.Provider), AccountRef: c.AccountRef, CredentialRef: c.CredentialRef, ExternalID: c.ExternalID, SealedSecret: optional(c.SealedSecret)})
 		if err != nil {
 			return err
 		}

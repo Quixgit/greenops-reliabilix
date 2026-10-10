@@ -76,6 +76,11 @@ type Connection struct {
 	SyncedThrough *time.Time   `json:"synced_through"`
 	// LastQuality is the cost-data reconciliation of the latest successful sync (nil before the first one).
 	LastQuality *Quality `json:"data_quality"`
+	// ClientSecret is the plaintext secret of a create request (Azure service principal). It is sealed before storing and
+	// is never part of a response.
+	ClientSecret string `json:"-"`
+	// SealedSecret is the stored, sealed form. Providers open it with the platform's key; it is never serialized.
+	SealedSecret string `json:"-"`
 	// Export, when set, makes the connection read the customer's FOCUS data export from S3 instead of
 	// Cost Explorer (invoice-level data, exact instance hours). nil = Cost Explorer.
 	Export *ExportConfig `json:"export"`

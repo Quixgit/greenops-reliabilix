@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -22,18 +23,48 @@ const SourceFocusExport = "focus_export"
 // ownershipValue is the value of the container metadata entry whose KEY is the connection's token.
 const ownershipValue = "1"
 
+// Provider reads Azure costs in one of two ways, told apart by the connection's credential_ref:
+//
+//	azcost://<tenant>@<client>   the customer's service principal and sealed secret, Cost Management Query API
+//	azblob://<tenant>@<account>/… a Cost Management export in Blob Storage, read with the platform's own application
 type Provider struct {
-	Blobs Blobs
+	Blobs Blobs // export mode; nil when the platform application is not configured
+	Cost  *CostAPI
+	// OpenSecret returns the plaintext client secret of a service-principal connection.
+	OpenSecret func(domain.Connection) (string, error)
+	HTTP       *http.Client
+	Authority  string // token endpoint base; "" = Microsoft's
 }
 
-// New builds the provider from the platform application's credentials.
-func New(clientID, clientSecret string) (*Provider, error) {
-	if clientID == "" || clientSecret == "" {
-		return nil, errors.New("azure: the platform application id and secret are required")
-	}
+// New builds the provider. The platform application (clientID, clientSecret) is only needed for export mode and may
+// be empty; service-principal connections need nothing from the platform but the key that opens their secret.
+func New(clientID, clientSecret string, openSecret func(domain.Connection) (string, error)) *Provider {
 	h := NoRedirects(&http.Client{Timeout: 3 * time.Minute})
-	tokens := &ClientCredentials{ClientID: clientID, Secret: clientSecret, HTTP: h}
-	return &Provider{Blobs: &RESTBlobs{HTTP: h, Tokens: tokens}}, nil
+	p := &Provider{Cost: &CostAPI{HTTP: h}, OpenSecret: openSecret, HTTP: h}
+	if clientID != "" && clientSecret != "" {
+		p.Blobs = &RESTBlobs{HTTP: h, Tokens: &ClientCredentials{ClientID: clientID, Secret: clientSecret, HTTP: h}}
+	}
+	return p
+}
+
+// errNoApplication: export mode was asked for on a platform without its Entra application.
+var errNoApplication = errors.New("azure: reading an export needs the platform's Microsoft Entra application, which is not configured")
+
+// token returns a Cost Management token for a service-principal connection, with the customer's own secret.
+func (p *Provider) token(ctx context.Context, c domain.Connection) (string, error) {
+	acc, err := domain.ParseAzureCostRef(c.CredentialRef)
+	if err != nil {
+		return "", err
+	}
+	if p.OpenSecret == nil {
+		return "", errors.New("azure: no way to open the connection's secret")
+	}
+	secret, err := p.OpenSecret(c)
+	if err != nil {
+		return "", fmt.Errorf("azure: the stored secret cannot be opened: %w", err)
+	}
+	cc := &ClientCredentials{ClientID: acc.ClientID, Secret: secret, Authority: p.Authority, HTTP: p.HTTP, Scope: "https://management.azure.com/.default"}
+	return cc.Token(ctx, acc.TenantID)
 }
 
 func (*Provider) Provider() domain.ProviderType { return domain.Azure }
@@ -53,6 +84,12 @@ func (p *Provider) proveOwnership(ctx context.Context, e domain.AzureExport, ext
 
 // Validate proves ownership, then checks that the export has delivered at least one data file.
 func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
+	if domain.IsAzureCostRef(c.CredentialRef) {
+		return p.validateCost(ctx, c)
+	}
+	if p.Blobs == nil {
+		return errNoApplication
+	}
 	e, err := domain.ParseAzureExportRef(c.CredentialRef)
 	if err != nil {
 		return err
@@ -79,6 +116,20 @@ func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
 // day, service, category, region and currency (plus measured vCPU hours and storage GB-months).
 func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]focus.RawBatch, error) {
 	c := req.Connection
+	if domain.IsAzureCostRef(c.CredentialRef) {
+		tok, err := p.token(ctx, c)
+		if err != nil {
+			return nil, err
+		}
+		b, err := p.Cost.usage(ctx, tok, c.AccountRef, req.From, req.To)
+		if err != nil {
+			return nil, err
+		}
+		return []focus.RawBatch{b}, nil
+	}
+	if p.Blobs == nil {
+		return nil, errNoApplication
+	}
 	e, err := domain.ParseAzureExportRef(c.CredentialRef)
 	if err != nil {
 		return nil, err
@@ -113,8 +164,29 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 	return []focus.RawBatch{{Provider: "azure", Source: SourceFocusExport, Payload: payload}}, nil
 }
 
-// GetControlTotals implements domain.ControlProvider: an invoice-level export is its own source of truth, so there
-// is no independent total to compare with (the same as the AWS data export).
-func (*Provider) GetControlTotals(context.Context, domain.UsageRequest) ([]focus.ControlTotal, error) {
-	return nil, nil
+// validateCost proves the service principal can read the subscription's costs: it signs in with the stored secret
+// and runs a one-day, ungrouped query (cheap, and exactly the permission the sync needs).
+func (p *Provider) validateCost(ctx context.Context, c domain.Connection) error {
+	tok, err := p.token(ctx, c)
+	if err != nil {
+		return err
+	}
+	day := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -1)
+	_, err = p.Cost.controlTotals(ctx, tok, c.AccountRef, day, day.AddDate(0, 0, 1))
+	return err
+}
+
+// GetControlTotals implements domain.ControlProvider. Through the Query API the day totals come from a second,
+// ungrouped query, so a row dropped or mis-parsed between the detailed query and the database shows up as a
+// difference. An invoice-level export is its own source of truth, so there is nothing to compare it with (nil).
+func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest) ([]focus.ControlTotal, error) {
+	c := req.Connection
+	if !domain.IsAzureCostRef(c.CredentialRef) {
+		return nil, nil
+	}
+	tok, err := p.token(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	return p.Cost.controlTotals(ctx, tok, c.AccountRef, req.From, req.To)
 }

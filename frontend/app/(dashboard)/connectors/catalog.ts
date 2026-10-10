@@ -17,7 +17,7 @@ export interface CatalogItem {
 export const CATALOG: CatalogItem[] = [
   { id: "aws", name: "Amazon Web Services", category: "cloud", provides: "Cost Explorer, FOCUS data export, rightsizing findings", status: "available", provider: "aws" },
   { id: "gcp", name: "Google Cloud", category: "cloud", provides: "Cloud Billing export in BigQuery, measured compute and storage", status: "available", provider: "gcp" },
-  { id: "azure", name: "Microsoft Azure", category: "cloud", provides: "Cost Management export (FOCUS) from Blob Storage, measured VM hours and storage", status: "available", provider: "azure" },
+  { id: "azure", name: "Microsoft Azure", category: "cloud", provides: "Costs of every service through a read-only service principal (Cost Management Reader), or a FOCUS export for measured VM hours", status: "available", provider: "azure" },
   { id: "kubernetes", name: "Kubernetes", category: "infrastructure", provides: "Workloads, utilisation, Kepler energy", status: "planned", phase: "Phase 2" },
   { id: "prometheus", name: "Prometheus", category: "infrastructure", provides: "CPU and memory metrics", status: "planned", phase: "Phase 2" },
   { id: "github-actions", name: "GitHub Actions", category: "ci-cd", provides: "Workflow runs, builds, deployments", status: "planned", phase: "Phase 3" },

@@ -90,9 +90,9 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 			Terms: "Free; CC-BY 4.0.",
 			Note:  "Evaluated, not connected as a grid-intensity source: the public API (beta, no availability guarantee) returns emission totals in tonnes without electricity generation, so no gCO2e/kWh can be derived from it. It may later supply power-sector totals as context next to the intensity figures."},
 		{ID: "azure-billing", Name: "Microsoft Azure (Cost Management export in Blob Storage)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
-			Metrics:  []string{"Cost", "Virtual machine vCPU hours", "Blob storage capacity"},
-			Coverage: "Subscriptions whose FOCUS cost and usage export the customer granted the platform application read access to",
-			Terms:    "Customer data; the platform's Microsoft Entra application only reads the export container.", Note: platformAzureNote(cfg), IntegrationID: "platform_azure"},
+			Metrics:  []string{"Cost of every service (Cost Management API)", "Virtual machine vCPU hours and Blob storage capacity (export only)"},
+			Coverage: "Subscriptions whose service principal (Cost Management Reader) the customer connected, or whose Cost Management export they shared",
+			Terms:    "Customer data; read-only, cost data only. The service principal's secret is stored sealed.", Note: platformAzureNote(cfg), IntegrationID: "platform_azure"},
 	}
 }
 
@@ -105,7 +105,7 @@ func platformGCPNote(cfg config.Config) string {
 
 func platformAzureNote(cfg config.Config) string {
 	if cfg.PlatformAzureClientID == "" || cfg.PlatformAzureClientSecret == "" {
-		return "The platform Microsoft Entra application id or secret is not set; the connector is off."
+		return "Service-principal connections work without anything here. The platform's Microsoft Entra application is only needed to read a customer's Cost Management export from Blob Storage; it is not set."
 	}
 	return ""
 }

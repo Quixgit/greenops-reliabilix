@@ -11,6 +11,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsce"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsceusage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/awsexport"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/azurecost"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/azureexport"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion/normalizers/gcpbilling"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
@@ -22,11 +23,12 @@ type Module struct{ Svc application.Service }
 func New(store application.UsageStore, archive storage.Store, log *slog.Logger) *Module {
 	return &Module{Svc: application.Service{
 		Normalizers: map[string]application.Normalizer{
-			"aws/cost_explorer":       awsce.Normalizer{},
-			"aws/cost_explorer_usage": awsceusage.Normalizer{},
-			"aws/focus_export":        awsexport.Normalizer{},
-			"azure/focus_export":      azureexport.Normalizer{},
-			"gcp/bigquery_export":     gcpbilling.Normalizer{},
+			"aws/cost_explorer":         awsce.Normalizer{},
+			"aws/cost_explorer_usage":   awsceusage.Normalizer{},
+			"aws/focus_export":          awsexport.Normalizer{},
+			"azure/focus_export":        azureexport.Normalizer{},
+			"azure/cost_management_api": azurecost.Normalizer{},
+			"gcp/bigquery_export":       gcpbilling.Normalizer{},
 		},
 		Store: store, Archive: archive, Log: log,
 	}}

@@ -74,10 +74,44 @@ func ParseAzureExportRef(ref string) (AzureExport, error) {
 // Metadata names must be identifiers, so the connection's token loses its hyphen.
 func AzureOwnershipKey(externalID string) string { return strings.ReplaceAll(externalID, "-", "_") }
 
-// validateAzure checks an Azure connection: the subscription and the export location.
+// AzureCostAccess is how the platform reads the subscription's costs through the Cost Management API: the customer's
+// own service principal (a tenant id, an application id and a client secret that is stored sealed). The role it needs
+// is "Cost Management Reader" on the subscription: read-only, cost data only.
+//
+//	credential_ref azcost://<tenant-id>@<client-id>
+//
+// The secret travels once (client_secret on create), is sealed and is never shown again. There is no confused-deputy
+// risk here: possession of the secret is the proof of control, and it only ever opens the customer's own subscription.
+type AzureCostAccess struct{ TenantID, ClientID string }
+
+// IsAzureCostRef tells which of the two Azure connection kinds a reference is.
+func IsAzureCostRef(ref string) bool { return strings.HasPrefix(ref, "azcost://") }
+
+// ParseAzureCostRef parses and validates "azcost://<tenant-id>@<client-id>".
+func ParseAzureCostRef(ref string) (AzureCostAccess, error) {
+	rest, ok := strings.CutPrefix(ref, "azcost://")
+	tenant, client, found := strings.Cut(rest, "@")
+	if !ok || !found || !azureGUIDRe.MatchString(tenant) || !azureGUIDRe.MatchString(client) {
+		return AzureCostAccess{}, fmt.Errorf("%w: credential_ref must look like azcost://<tenant id>@<application (client) id>, both GUIDs", ErrInvalidConnection)
+	}
+	return AzureCostAccess{TenantID: strings.ToLower(tenant), ClientID: strings.ToLower(client)}, nil
+}
+
+// azureSecretRe: what a client secret looks like (printable, no spaces). Entra generates 40 characters.
+var azureSecretRe = regexp.MustCompile(`^[\x21-\x7e]{8,256}$`)
+
+// ValidAzureClientSecret reports whether the value can be a client secret (the platform never checks more than the
+// shape; Entra decides at verification).
+func ValidAzureClientSecret(s string) bool { return azureSecretRe.MatchString(s) }
+
+// validateAzure checks an Azure connection: the subscription and how it is read (service principal or export).
 func (c Connection) validateAzure() error {
 	if !azureGUIDRe.MatchString(c.AccountRef) {
 		return fmt.Errorf("%w: the Azure subscription id must be a GUID", ErrInvalidConnection)
+	}
+	if IsAzureCostRef(c.CredentialRef) {
+		_, err := ParseAzureCostRef(c.CredentialRef)
+		return err
 	}
 	_, err := ParseAzureExportRef(c.CredentialRef)
 	return err

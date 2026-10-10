@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | AWS | cloud | ✅ | `connector/aws` | Cost Explorer, FOCUS data export, rightsizing |
 | Google Cloud | cloud | ✅ | `connector/gcp` | экспорт биллинга в BigQuery, измеренные compute и storage |
-| Microsoft Azure | cloud | ✅ | `connector/azure` | экспорт Cost Management (FOCUS) из Blob Storage, измеренные часы VM и хранилище (ADR-0041) |
+| Microsoft Azure | cloud | ✅ | `connector/azure` | сервисный аккаунт (Cost Management Reader) и Cost Management API: стоимость всех сервисов (ADR-0043); экспорт FOCUS из Blob Storage — измеренные часы VM и хранилище (ADR-0041) |
 | Kubernetes | infrastructure | 🗓️ фаза 2 | — | workloads, утилизация, Kepler |
 | Prometheus | infrastructure | 🗓️ фаза 2 | — | CPU/RAM-метрики |
 | GitHub Actions / GitLab CI | ci-cd | 🗓️ фаза 3 | — | запуски пайплайнов, сборки |

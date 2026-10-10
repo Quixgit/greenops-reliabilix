@@ -5,6 +5,24 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.59] - 2026-10-10
+
+### Added
+- **Azure by service principal** (ADR-0043): the usual way to connect Azure is now the customer's own service principal
+  with the **Cost Management Reader** role on the subscription. They enter the subscription id, the tenant id, the
+  application id and the client secret; no export, storage account or platform application is needed, and the platform
+  reads the costs of every service through the Cost Management Query API (billed and amortized cost per day, service,
+  location and currency, with throttling waited out and an independent day total for reconciliation). Cost-based carbon
+  estimates are used (the API has no quantities); the export mode stays for measured VM hours.
+- The client secret is the one customer secret the platform keeps: sealed (AES-256-GCM, bound to the organization and the
+  connection), write-only in the API, absent from every response and from the data export. Migration 0049
+  (`cloudaccounts.connections.sealed_secret`), API contract 0.30.0 (`client_secret`, `azcost://` reference).
+- Azure is allowed by default for new organizations (the operator can still narrow the list per organization).
+
+### Changed
+- The platform's Microsoft Entra application (operator console) is now optional: it is only needed to read a customer's
+  Blob Storage export.
+
 ## [0.1.0-alpha.58] - 2026-10-10
 
 ### Fixed

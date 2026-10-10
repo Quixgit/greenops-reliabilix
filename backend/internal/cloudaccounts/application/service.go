@@ -39,8 +39,23 @@ type Setup struct {
 	Steps []string `json:"steps,omitempty"`
 }
 
+// Sealer seals a secret a customer supplied (secretbox.Box). Optional: without it connections that need a stored
+// secret are refused rather than stored unprotected.
+type Sealer interface {
+	Configured() bool
+	Seal(plaintext, aad string) (string, error)
+}
+
+// SecretAAD binds a sealed secret to its organization and connection token: copied to another row it cannot be opened.
+func SecretAAD(tenantID, externalID string) string { return tenantID + ":" + externalID }
+
+// ErrSecretsUnavailable: the platform has no sealing key, so a secret cannot be stored.
+var ErrSecretsUnavailable = errors.New("storing a client secret is not available: the platform has no sealing key")
+
 type Service struct {
-	Repo      domain.Repository
+	Repo domain.Repository
+	// Secrets seals customer-supplied secrets (Azure service principal).
+	Secrets   Sealer
 	Providers *domain.Registry
 	Ingestor  Ingestor
 	// Rightsizing is optional: without it rightsizing jobs are no-ops.
@@ -115,6 +130,9 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 		return domain.Connection{}, Setup{}, err
 	}
 	c.ExternalID = ext
+	if err := s.sealSecret(&c); err != nil {
+		return domain.Connection{}, Setup{}, err
+	}
 	created, err := s.Repo.Create(ctx, c)
 	if err != nil {
 		return domain.Connection{}, Setup{}, err
@@ -122,11 +140,36 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 	return created, s.setup(created), nil
 }
 
+// sealSecret turns the client secret of a create request into its sealed form. Only an Azure service-principal
+// connection takes a secret, and it must have one.
+func (s Service) sealSecret(c *domain.Connection) error {
+	needs := c.Provider == domain.Azure && domain.IsAzureCostRef(c.CredentialRef)
+	switch {
+	case !needs && c.ClientSecret != "":
+		return fmt.Errorf("%w: only an Azure service principal takes a client secret", domain.ErrInvalidConnection)
+	case !needs:
+		return nil
+	case !domain.ValidAzureClientSecret(c.ClientSecret):
+		return fmt.Errorf("%w: client_secret is required for an Azure service principal (the secret value, not its id)", domain.ErrInvalidConnection)
+	case s.Secrets == nil || !s.Secrets.Configured():
+		return ErrSecretsUnavailable
+	}
+	sealed, err := s.Secrets.Seal(c.ClientSecret, SecretAAD(c.TenantID, c.ExternalID))
+	if err != nil {
+		return err
+	}
+	c.SealedSecret, c.ClientSecret = sealed, ""
+	return nil
+}
+
 func (s Service) setup(c domain.Connection) Setup {
 	switch c.Provider {
 	case domain.GCP:
 		return s.gcpSetup(c)
 	case domain.Azure:
+		if domain.IsAzureCostRef(c.CredentialRef) {
+			return s.azureServicePrincipalSetup(c)
+		}
 		return s.azureSetup(c)
 	}
 	st := Setup{
@@ -179,6 +222,27 @@ func (s Service) gcpSetup(c domain.Connection) Setup {
 	}
 	st.Steps = append(st.Steps, "Verify the connection. Nothing else is shared: the platform reads only the billing export table of the dataset.")
 	return st
+}
+
+// azureServicePrincipalSetup explains the service-principal mode: nothing to export, one role assignment.
+func (s Service) azureServicePrincipalSetup(c domain.Connection) Setup {
+	acc, err := domain.ParseAzureCostRef(c.CredentialRef)
+	if err != nil { // validated on creation; defensive
+		return Setup{ExternalID: c.ExternalID, RequiredPermissions: []string{}, PermissionsPolicy: map[string]any{}}
+	}
+	return Setup{
+		ExternalID:          c.ExternalID,
+		PlatformAccountID:   acc.ClientID,
+		RequiredPermissions: []string{"Cost Management Reader on subscription " + c.AccountRef + " (read-only, cost data only)"},
+		PermissionsPolicy: map[string]any{
+			"role_assignment": map[string]string{"role": "Cost Management Reader", "assignee": acc.ClientID, "scope": "/subscriptions/" + c.AccountRef},
+		},
+		Steps: []string{
+			fmt.Sprintf("Give the service principal read access to the subscription's costs: az role assignment create --assignee %s --role \"Cost Management Reader\" --scope /subscriptions/%s", acc.ClientID, c.AccountRef),
+			"Role assignments can take a few minutes to take effect. Cost data of the last months is read on the first sync.",
+			"Verify the connection. The platform reads cost data only, with the secret you entered (stored sealed, never shown again); remove the role assignment or the secret in Entra ID at any time to revoke access.",
+		},
+	}
 }
 
 // azureSetup explains how a customer connects their Cost Management export. Nothing here is a secret: the metadata

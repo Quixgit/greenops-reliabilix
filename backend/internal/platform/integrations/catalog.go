@@ -311,7 +311,7 @@ func Catalog() []Integration {
 		},
 		{
 			ID: "platform_azure", Name: "Platform Microsoft Azure application", Startup: true,
-			Description: "The platform's own Microsoft Entra application (multi-tenant) that reads customers' Cost Management exports from Blob Storage. Customers create its service principal in their tenant and grant it Storage Blob Data Reader on their export container. Without an id and a secret the Azure connector is off.",
+			Description: "OPTIONAL. The platform's own Microsoft Entra application (multi-tenant) that reads customers' Cost Management exports from Blob Storage; customers create its service principal in their tenant and grant it Storage Blob Data Reader on the export container. Connections made with the customer's own service principal (Cost Management Reader, the usual way) need nothing here.",
 			Fields: []Field{
 				{Key: "client_id", Label: "Application (client) id", Env: "PLATFORM_AZURE_CLIENT_ID", Placeholder: "00000000-0000-0000-0000-000000000000", Help: "Shown to customers so they can create its service principal and grant it read access.", validate: match(azureGUID, "an application (client) id GUID")},
 				{Key: "client_secret", Label: "Client secret", Secret: true, Env: "PLATFORM_AZURE_CLIENT_SECRET", Help: "Stored sealed, shown only as configured. Rotate it before it expires.", validate: validSecret(8)},

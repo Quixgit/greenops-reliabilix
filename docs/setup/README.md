@@ -119,13 +119,23 @@ and `credential_ref` = `bq://<project>/<dataset>/<table>`):
 
 Queries are capped at 20 GiB scanned each and 500k result lines; they only read the billing export table.
 
-## 5d. Azure: platform application and customer onboarding
+## 5d. Azure: onboarding
 
-The Azure connector is opt-in. It reads the customer's **Cost Management export (FOCUS cost and usage, CSV) from Blob
-Storage** with the platform's own Microsoft Entra application; no customer credential, SAS token or key is stored
-(ADR-0041).
+**The usual way: the customer's service principal (ADR-0043).** Nothing is needed on the platform side except the
+sealing key (`NOTIFICATIONS_SECRET_KEY`, in production). Per customer (shown step by step by `POST /cloud-accounts`
+with `provider: azure`, `account_ref` = the subscription id, `credential_ref` = `azcost://<tenant id>@<application id>`
+and `client_secret`):
+1. In Entra ID they create (or use) an application and a client secret.
+2. They assign it the built-in role **Cost Management Reader** on the subscription:
+   `az role assignment create --assignee <application id> --role "Cost Management Reader" --scope /subscriptions/<id>`.
+3. They enter the subscription id, tenant id, application id and the secret value and verify. The platform reads the
+   costs of every service through the Cost Management API; the secret is stored sealed and never shown again.
 
-Platform side (once):
+**Advanced: a Cost Management export in Blob Storage (ADR-0041)**, for measured virtual machine hours. It reads the
+customer's **FOCUS cost and usage export (CSV)** with the platform's own Microsoft Entra application; no customer
+credential, SAS token or key is stored.
+
+Platform side (once, only for the export mode):
 1. Register a **multi-tenant** application in Microsoft Entra ID (accounts in any organizational directory). No API
    permissions are needed: access comes from the role the customer assigns on their container.
 2. Create a client secret for it and note its expiry (rotate before it lapses).

@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.29.0
+  version: 0.30.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -5150,7 +5150,15 @@ components:
             A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
             GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
             `gcp_billing_export_resource_v1_*`). Azure: `azblob://<tenant id>@<storage account>/<container>/<export directory>`
-            of the Cost Management FOCUS export. Raw keys, SAS tokens and URLs are rejected.
+            of the Cost Management FOCUS export, or `azcost://<tenant id>@<application (client) id>` for the customer's own
+            service principal (role Cost Management Reader), which also needs `client_secret`. Raw keys, SAS tokens and
+            URLs are rejected.
+        client_secret:
+          type: string
+          writeOnly: true
+          description: |
+            Azure service principal only: the client secret value. It is sealed on arrival (AES-256-GCM, bound to the
+            organization and the connection), never returned by any endpoint and never part of the data export.
       required:
       - project_id
       - provider

@@ -49,6 +49,7 @@ type TokenSource interface {
 type ClientCredentials struct {
 	ClientID, Secret string
 	Authority        string // default https://login.microsoftonline.com
+	Scope            string // default https://storage.azure.com/.default
 	HTTP             *http.Client
 	Now              func() time.Time
 
@@ -59,6 +60,13 @@ type ClientCredentials struct {
 type cachedToken struct {
 	value   string
 	expires time.Time
+}
+
+func (c *ClientCredentials) scope() string {
+	if c.Scope != "" {
+		return c.Scope
+	}
+	return "https://storage.azure.com/.default"
 }
 
 func (c *ClientCredentials) now() time.Time {
@@ -80,7 +88,7 @@ func (c *ClientCredentials) Token(ctx context.Context, tenantID string) (string,
 		authority = "https://login.microsoftonline.com"
 	}
 	form := url.Values{"client_id": {c.ClientID}, "client_secret": {c.Secret}, "grant_type": {"client_credentials"},
-		"scope": {"https://storage.azure.com/.default"}}
+		"scope": {c.scope()}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, authority+"/"+url.PathEscape(tenantID)+"/oauth2/v2.0/token", strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err

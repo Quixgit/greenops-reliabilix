@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -469,4 +470,59 @@ func TestLostCarbonEnqueueDoesNotFailAnAlreadySuccessfulSync(t *testing.T) {
 	if len(repo.runs) != 1 || repo.runs[0] != "ok" {
 		t.Errorf("runs = %v", repo.runs)
 	}
+}
+
+type fakeSealer struct{ on bool }
+
+func (f fakeSealer) Configured() bool                       { return f.on }
+func (f fakeSealer) Seal(plain, aad string) (string, error) { return "sealed(" + aad + ")", nil }
+
+func TestAzureServicePrincipalSecretIsSealedAndNeverReturned(t *testing.T) {
+	const secret = "test-only-azure-client-secret-not-a-real-credential"
+	repo := newRepo()
+	s := newSvc(repo, &fakeProvider{}, fakeIngestor{}, &recorder{})
+	s.Providers = domain.NewRegistry(&fakeProvider{}, azureStub{})
+	s.Secrets = fakeSealer{on: true}
+	in := domain.Connection{TenantID: "t", ProjectID: "p", Provider: domain.Azure, AccountRef: azureSub, ClientSecret: secret,
+		CredentialRef: "azcost://" + azureTenant + "@b8b97d8b-fec7-4b74-a232-b0b605ff0959"}
+	c, setup, err := s.Connect(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := repo.conns["c1"]
+	if stored.ClientSecret != "" || !strings.HasPrefix(stored.SealedSecret, "sealed(t:rlx-") || strings.Contains(stored.SealedSecret, secret) {
+		t.Errorf("the secret must be stored sealed and bound to the organization and connection token: %+v", stored)
+	}
+	out, _ := json.Marshal(map[string]any{"connection": c, "setup": setup})
+	if strings.Contains(string(out), secret) || strings.Contains(string(out), "sealed(") {
+		t.Errorf("the response must carry neither the secret nor its sealed form: %s", out)
+	}
+	if !strings.Contains(strings.Join(setup.Steps, "\n"), "Cost Management Reader") {
+		t.Errorf("steps: %v", setup.Steps)
+	}
+
+	// refused: no secret, a secret on another kind, and no sealing key
+	in.ClientSecret = ""
+	if _, _, err := s.Connect(context.Background(), in); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Errorf("a service principal without a secret: %v", err)
+	}
+	aws := awsConn()
+	aws.ClientSecret, aws.ID, aws.ExternalID = secret, "", ""
+	if _, _, err := s.Connect(context.Background(), aws); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Errorf("a secret on an AWS connection: %v", err)
+	}
+	in.ClientSecret = secret
+	s.Secrets = fakeSealer{on: false}
+	if _, _, err := s.Connect(context.Background(), in); !errors.Is(err, ErrSecretsUnavailable) {
+		t.Errorf("no sealing key: %v", err)
+	}
+}
+
+// azureStub is a registered Azure provider (the real one lives in providers/azure).
+type azureStub struct{}
+
+func (azureStub) Provider() domain.ProviderType                     { return domain.Azure }
+func (azureStub) Validate(context.Context, domain.Connection) error { return nil }
+func (azureStub) GetUsage(context.Context, domain.UsageRequest) ([]focus.RawBatch, error) {
+	return nil, nil
 }

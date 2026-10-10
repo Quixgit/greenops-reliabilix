@@ -179,7 +179,7 @@ func definitions() []Def {
 
 		// ---- cloud connectors ----
 		{Key: KeyProvidersAllowed, Group: "connectors", Title: "Allowed providers", Description: "Cloud providers this organization may connect.", Scope: ScopeOperator, Type: List,
-			Default: []string{"aws", "gcp"}, ListEnum: []string{"aws", "gcp", "azure"}, MinItems: 1, MaxItems: 3, Note: "Azure is available when the platform has its Microsoft Entra application configured; listing it before that has no effect."},
+			Default: []string{"aws", "gcp", "azure"}, ListEnum: []string{"aws", "gcp", "azure"}, MinItems: 1, MaxItems: 3, Note: "GCP needs the platform's Google identity. Azure needs nothing from the platform for a service-principal connection."},
 		intDef(KeySyncMinIntervalH, "connectors", "Minimum hours between data pulls", "Each connection is pulled at most this often.", ScopeTenant, 6, 6, 168, "hours",
 			"The platform pulls every 6 hours; a larger value skips runs. Lower values cannot make it faster."),
 

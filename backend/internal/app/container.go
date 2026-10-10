@@ -115,13 +115,11 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 			}
 			providers = append(providers, gcpProvider)
 		}
-		if cfg.PlatformAzureClientID != "" && cfg.PlatformAzureClientSecret != "" { // opt-in: needs the platform's Entra application
-			azureProvider, err := azure.New(cfg.PlatformAzureClientID, cfg.PlatformAzureClientSecret)
-			if err != nil {
-				return nil, err
-			}
-			providers = append(providers, azureProvider)
-		}
+		// Azure needs nothing from the platform for a service-principal connection (the customer's own secret is
+		// opened with the sealing key); only reading an export needs the platform's Entra application.
+		providers = append(providers, azure.New(cfg.PlatformAzureClientID, cfg.PlatformAzureClientSecret, func(c clouddomain.Connection) (string, error) {
+			return box.Open(c.SealedSecret, cloudapp.SecretAAD(c.TenantID, c.ExternalID))
+		}))
 		registry = clouddomain.NewRegistry(providers...)
 	}
 
@@ -144,7 +142,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}, eiaSource{ints: ints, meter: meter}, energyChartsSource{ints: ints, meter: meter}}})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
-		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, PlatformAzureAppID: cfg.PlatformAzureClientID, BackfillDays: cfg.SyncBackfillDays})
+		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, PlatformAzureAppID: cfg.PlatformAzureClientID, Secrets: box, BackfillDays: cfg.SyncBackfillDays})
 	finopsM := finops.New(pool)
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 

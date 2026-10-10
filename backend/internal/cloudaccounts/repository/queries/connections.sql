@@ -1,15 +1,15 @@
 -- name: ListConnections :many
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret
 FROM cloudaccounts.connections WHERE tenant_id = sqlc.arg(tenant_id) ORDER BY created_at DESC LIMIT 500;
 
 -- name: GetConnection :one
-SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality
+SELECT id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret
 FROM cloudaccounts.connections WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
 
 -- name: CreateConnection :one
-INSERT INTO cloudaccounts.connections (tenant_id, project_id, provider, account_ref, credential_ref, external_id)
-VALUES (sqlc.arg(tenant_id), sqlc.arg(project_id), sqlc.arg(provider), sqlc.arg(account_ref), sqlc.arg(credential_ref), sqlc.arg(external_id))
-RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality;
+INSERT INTO cloudaccounts.connections (tenant_id, project_id, provider, account_ref, credential_ref, external_id, sealed_secret)
+VALUES (sqlc.arg(tenant_id), sqlc.arg(project_id), sqlc.arg(provider), sqlc.arg(account_ref), sqlc.arg(credential_ref), sqlc.arg(external_id), sqlc.narg(sealed_secret))
+RETURNING id, tenant_id, project_id, provider, account_ref, credential_ref, external_id, sync_status, last_error, last_sync_at, synced_through, created_at, export_bucket, export_prefix, export_name, export_region, last_quality, sealed_secret;
 
 -- name: SetConnectionExport :execrows
 -- All four columns are set together or cleared together (a table constraint enforces it).

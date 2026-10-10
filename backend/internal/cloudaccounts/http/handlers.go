@@ -33,6 +33,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
+	case errors.Is(err, application.ErrSecretsUnavailable):
+		httpx.WriteProblem(w, r, http.StatusServiceUnavailable, "secret storage unavailable", "The platform has no sealing key configured, so a client secret cannot be stored.")
 	case errors.Is(err, entitlements.ErrLimitReached):
 		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
 	case errors.Is(err, domain.ErrProviderNotAllowed):
@@ -45,7 +47,10 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "provider not supported yet", "")
 	case errors.Is(err, domain.ErrAccessDenied):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "access verification failed",
-			"The platform could not read your billing data. Check the granted access: the AWS role (trust policy ExternalId, read permissions) or the platform service account's read access to the BigQuery dataset.")
+			"The platform could not read your billing data. Check the granted access: the AWS role (trust policy ExternalId, read permissions), the platform service account's read access to the BigQuery dataset, or the Azure service principal's Cost Management Reader role and secret.")
+	case errors.Is(err, domain.ErrSubscriptionNotInExport):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "no rows for the subscription",
+			"The export has no rows for this subscription: check the subscription id and that the export covers it.")
 	case errors.Is(err, domain.ErrBigQueryDisabled):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "BigQuery is not enabled",
 			"Enable the BigQuery API in your Google Cloud project and turn on Cloud Billing export to BigQuery, then verify again.")
@@ -85,6 +90,8 @@ func (h Handlers) create(w http.ResponseWriter, r *http.Request) {
 		Provider      domain.ProviderType `json:"provider"`
 		AccountRef    string              `json:"account_ref"`
 		CredentialRef string              `json:"credential_ref"`
+		// ClientSecret is write-only: sealed on arrival, never returned.
+		ClientSecret string `json:"client_secret"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil {
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
@@ -95,7 +102,7 @@ func (h Handlers) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conn, setup, err := h.Svc.Connect(r.Context(), domain.Connection{TenantID: cl.TenantID, ProjectID: in.ProjectID,
-		Provider: in.Provider, AccountRef: in.AccountRef, CredentialRef: in.CredentialRef})
+		Provider: in.Provider, AccountRef: in.AccountRef, CredentialRef: in.CredentialRef, ClientSecret: in.ClientSecret})
 	if err != nil {
 		fail(w, r, err)
 		return

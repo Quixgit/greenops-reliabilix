@@ -134,6 +134,7 @@ type CloudaccountsConnection struct {
 	ExportName    *string    `json:"export_name"`
 	ExportRegion  *string    `json:"export_region"`
 	LastQuality   []byte     `json:"last_quality"`
+	SealedSecret  *string    `json:"sealed_secret"`
 }
 
 type CloudaccountsSyncRun struct {

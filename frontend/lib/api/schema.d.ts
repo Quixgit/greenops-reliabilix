@@ -3160,9 +3160,16 @@ export interface components {
              * @description A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
              *     GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
              *     `gcp_billing_export_resource_v1_*`). Azure: `azblob://<tenant id>@<storage account>/<container>/<export directory>`
-             *     of the Cost Management FOCUS export. Raw keys, SAS tokens and URLs are rejected.
+             *     of the Cost Management FOCUS export, or `azcost://<tenant id>@<application (client) id>` for the customer's own
+             *     service principal (role Cost Management Reader), which also needs `client_secret`. Raw keys, SAS tokens and
+             *     URLs are rejected.
              */
             credential_ref: string;
+            /**
+             * @description Azure service principal only: the client secret value. It is sealed on arrival (AES-256-GCM, bound to the
+             *     organization and the connection), never returned by any endpoint and never part of the data export.
+             */
+            client_secret?: string;
         } & {
             [key: string]: unknown;
         };
