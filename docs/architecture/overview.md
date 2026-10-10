@@ -18,7 +18,7 @@ scheduler: cloudaccounts:sync_all (6h) ---> one cloudaccounts:sync_aws_account p
         -> carbon:calculate (touched days):  usage_based or cost_based energy x grid intensity -> carbon.calculations,
                                              SCI where functional units are reported
               -> recommendations:calculate:  region_shift into allowed regions only -> recommendations (open)
-scheduler also: ensure_partitions (daily), refresh_grid_intensity (hourly), carbon:recalculate_all (daily, last 35 days),
+scheduler also: notifications:sweep (every minute: retries and lost queue messages), notifications:purge (daily), ensure_partitions (daily), refresh_grid_intensity (hourly), carbon:recalculate_all (daily, last 35 days),
                 recommendations:calculate_all (daily)
 ```
 
@@ -39,9 +39,10 @@ Re-running any step replaces rows keyed by natural keys, so redelivery never dup
 | `finops` | spend summary, budgets with state, anomalies |
 | `recommendations` | region_shift generator, workflow open -> approved -> applied, compliance re-check |
 | `reports` | carbon / SCI / cost reports as CSV, JSON, PDF in object storage |
+| `notifications` | destinations (e-mail, webhook, Slack), database outbox with retries, channels as plug-ins; producers publish through `platform/notify` (ADR-0019) |
 | `dashboard` | read models of the Overview screen (ADR-0012) |
 | `kubernetes`, `automation` | phase 2 / phase 3: layers in place, no logic (Plan.CanExecute already refuses without approval and rollback) |
-| `platform/*` | config, http hardening, auth, RBAC, database (tenant tx), queue, observability, storage, audit, focus, methodology |
+| `platform/*` | config, http hardening, auth, RBAC, database (tenant tx), queue, observability, storage, audit, focus, methodology, notify (producer port), secretbox |
 | `app` | composition root: builds modules, wires ports, builds the router |
 
 Rules (enforced): domains never import each other; `domain/` has no HTTP/SQL/queue/SDK imports; every tenant query runs in
@@ -65,5 +66,5 @@ Rules (enforced): domains never import each other; `domain/` has no HTTP/SQL/que
 - Cost-based estimates need USD; other currencies are skipped (FX normalization is phase 2). Global services have no grid and are skipped.
 - Cost impact of region_shift is `null` (not estimated) unless `finops.region_price_index` is populated.
 - Only region_shift is generated; rightsizing, time_shift and spot need utilization or forecast data and are not implemented.
-- Invitations return a token; there is no email delivery. Azure, GCP, Kepler, WattTime, Stripe, Terraform automation and white-label are later phases.
+- Invitations still return a token (the e-mail channel exists, but invitations are not wired to it yet). Azure, GCP, Kepler, WattTime, Stripe, Terraform automation and white-label are later phases.
 - The Auth0 integration and the AWS provider are tested against fakes and a fake S3, not against live services.

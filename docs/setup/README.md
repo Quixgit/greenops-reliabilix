@@ -143,6 +143,42 @@ Any S3-compatible store: AWS S3, Cloudflare R2 or MinIO.
 
 Check: `doctor` writes, reads and deletes a probe object.
 
+## 7b. Notifications (e-mail, webhook, Slack)
+
+Events (`report.ready`, `report.failed`, `connection.error`) are delivered to destinations that owners and admins
+configure through `POST /notifications/destinations` (ADR-0019).
+
+1. `NOTIFICATIONS_SECRET_KEY=$(openssl rand -base64 32)`. Keep it in the secret manager next to the DB password: it
+   seals destination addresses, and webhook signing secrets are derived from it. Without it the API answers 503
+   when someone adds a destination. Changing it makes existing destinations unreadable: delete and re-add them.
+2. E-mail (optional): `SMTP_HOST`, `SMTP_PORT` (587 = STARTTLS, 465 = implicit TLS), `SMTP_USERNAME`,
+   `SMTP_PASSWORD`, `SMTP_FROM` (`Reliabilix <notifications@your-domain>`). TLS is mandatory. Mail goes only to
+   addresses of members of the organization. Without `SMTP_HOST` the e-mail channel is not offered.
+3. `PUBLIC_BASE_URL=https://app.your-domain` so messages link back to the app.
+4. Webhook and Slack need nothing else. Webhooks must be public https endpoints; deliveries are signed
+   (`X-Reliabilix-Signature: t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<body>")>`, secret shown once on creation).
+   Receivers should reject old timestamps and deduplicate on `X-Reliabilix-Delivery`.
+5. `make doctor` checks the key and that the SMTP server is reachable. Use `POST /notifications/destinations/{id}/test`
+   to send a test message; `GET /notifications/deliveries` shows what happened.
+
+The worker delivers, the scheduler runs `notifications:sweep` every minute (retries and lost queue messages) and
+`notifications:purge` daily. Watch `notification_deliveries_total{channel,outcome}`.
+
+## 7c. Platform operators
+
+Operators see metadata across organizations (ADR-0020). They are rows in `platform.operators`, written with the **owner**
+database role only:
+
+```
+make operator-add SUB='auth0|abc123' EMAIL=you@company.com ROLE=admin   # viewer = read only
+make operator-list
+make operator-remove SUB='auth0|abc123'
+```
+
+`SUB` is the Auth0 `sub` of the person (visible in their token or the Auth0 user page). Enforce MFA for these accounts in
+Auth0. The console is at `/operator`; the API checks the database on every request and records each access
+(`platform.operator_access_log`). In development the seed makes the dev user an operator.
+
 ## 8. Observability (optional)
 
 - Local: `docker compose --profile observability up` starts Prometheus, Tempo, Loki,
@@ -175,6 +211,9 @@ secret, then call the gate endpoint (see `docs/api/README.md`).
 | `PLATFORM_AWS_ACCOUNT_ID` | for AWS sync | trust principal given to customers |
 | `PLATFORM_GCP_PROJECT`, `PLATFORM_GCP_SERVICE_ACCOUNT` | for GCP sync | project where BigQuery jobs run; principal customers share their dataset with (credentials via `GOOGLE_APPLICATION_CREDENTIALS` or workload identity) |
 | `ELECTRICITYMAPS_API_KEY`, `ELECTRICITYMAPS_ZONE_OVERRIDES` | for carbon | grid intensity |
+| `NOTIFICATIONS_SECRET_KEY` | prod, for notifications | 32 random bytes, base64 (`openssl rand -base64 32`); seals destination addresses and derives webhook signing secrets. Losing or changing it makes stored destinations unreadable |
+| `PUBLIC_BASE_URL` | no | https address of the web app, used for links in notifications |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` | for e-mail | e-mail channel (STARTTLS on 587, implicit TLS on 465; TLS is required). Webhook and Slack need no extra setup |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_PATH_STYLE`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` | prod | reports |
 | `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` | no | error tracking, traces |
 | `CORS_ORIGINS`, `HTTP_ADDR`, `METRICS_ADDR` | no | edge |
