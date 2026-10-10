@@ -5,12 +5,14 @@ import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { PolicyPanel } from "@/components/forms/policy-panel";
 import { ProjectForm } from "@/components/forms/project-form";
-import { useProjects } from "@/hooks/use-overview";
+import { useFinopsSummary, useProjects } from "@/hooks/use-overview";
 
-export function ProjectsView({ canCreate }: { canCreate: boolean }) {
+export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; canBudget: boolean }) {
   const q = useProjects();
+  const cost = useFinopsSummary();
   const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="space-y-5">
@@ -34,6 +36,7 @@ export function ProjectsView({ canCreate }: { canCreate: boolean }) {
             </ul>
           )}
       </Card>
+      <BudgetsPanel canEdit={canBudget} currency={cost.data?.currency ?? "USD"} />
     </div>
   );
 }

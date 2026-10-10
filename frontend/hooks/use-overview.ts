@@ -88,6 +88,10 @@ export const useK8sWorkloads = (cluster: string) => {
   const f = useFilters();
   return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
 };
+/** Budgets with the consumption of the current period; a role without billing access gets an error and sees nothing. */
+export const useBudgets = () =>
+  useQuery({ queryKey: ["budgets"], retry: false, queryFn: () => api("finops/budgets", s.budgetList) });
+
 /** The automation page: full jobs with plan, risk and rollback. */
 export const useAutomationPlans = () =>
   useQuery({ queryKey: ["automation-jobs"], queryFn: () => api("automation/jobs", s.automationJobList, { limit: "100" }) });

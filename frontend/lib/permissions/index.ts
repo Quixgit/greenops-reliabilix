@@ -5,6 +5,8 @@ export const canWrite = (r: Role) => r === "owner" || r === "admin";
 
 /** Notification destinations: owners and admins change them, engineers can see what is configured. */
 export const canSeeNotifications = (r: Role) => r === "owner" || r === "admin" || r === "engineer";
+/** Budgets: seen by anyone with billing access, changed by the same roles (owner, admin, billing). */
+export const canBudget = (r: Role) => r === "owner" || r === "admin" || r === "billing";
 /** Automation plans: who may see them, and who may plan, report results and approve (approval is never a machine's). */
 export const canSeeAutomation = (r: Role) => r === "owner" || r === "admin" || r === "engineer";
 export const canAutomate = (r: Role) => r === "owner" || r === "engineer";

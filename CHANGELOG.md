@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.56] - 2026-10-10
+
+### Added
+- **Budgets in the interface** (Projects): the budgets API existed since the first release and had no screen. The page
+  now lists the organization's and every project's budgets with the spend of the current period, the projection for it
+  and the state (on track, at risk, exceeded), and lets owners, admins and the billing role add and delete them (scope:
+  whole organization or one project; amount, currency, monthly / quarterly / yearly). Budgets are measured in their own
+  currency. The section is absent for a role without billing access. English and Russian.
+
 ## [0.1.0-alpha.55] - 2026-10-10
 
 ### Added

@@ -59,6 +59,17 @@ export const finopsSummary = z.object({
 });
 export type FinopsSummary = z.infer<typeof finopsSummary>;
 
+/** A budget with the consumption of its current period (in the budget's own currency). */
+export const budgetStatus = z.object({
+  id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(),
+  period: z.enum(["monthly", "quarterly", "yearly"]), created_at: z.string(),
+  period_start: z.string(), period_end: z.string(), spent: z.number(), used_pct: z.number(), projected: z.number(),
+  state: z.enum(["ok", "at_risk", "exceeded"]),
+});
+export type BudgetStatus = z.infer<typeof budgetStatus>;
+export const budgetList = z.object({ items: z.array(budgetStatus) }).transform((o) => o.items);
+export const budget = z.object({ id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(), period: z.string() });
+
 const items = <T extends z.ZodTypeAny>(t: T) => z.object({ items: z.array(t) }).transform((o) => o.items);
 
 export const trend = items(z.object({ day: z.string(), cost: z.number(), carbon_kg_co2e: z.number() }));
