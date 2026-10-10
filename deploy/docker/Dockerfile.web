@@ -7,12 +7,16 @@ RUN npm ci
 FROM node:22-alpine AS build
 WORKDIR /app
 ARG NEXT_PUBLIC_BUILD_VERSION=dev
+ARG COMMIT=unknown
 ENV NEXT_PUBLIC_BUILD_VERSION=$NEXT_PUBLIC_BUILD_VERSION NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ ./
 RUN npm run build
 
 FROM node:22-alpine
+ARG NEXT_PUBLIC_BUILD_VERSION=dev
+ARG COMMIT=unknown
+LABEL org.opencontainers.image.title="reliabilix-web" org.opencontainers.image.version="${NEXT_PUBLIC_BUILD_VERSION}" org.opencontainers.image.revision="${COMMIT}" org.opencontainers.image.source="https://github.com/Quixgit/greenops-reliabilix"
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=build /app/.next/standalone ./

@@ -22,8 +22,13 @@ Connect one cloud, see cost and carbon together, get an SCI score.
 | ✅ | Carbon engine with SCI, versioned methodology, grid intensity (Electricity Maps) with caching |
 | ✅ | Recommendations (region shift) with approval workflow and residency re-check |
 | ✅ | Reports (CSV / JSON / PDF), budgets, anomalies, CI gate, OpenAPI |
+| ✅ | Notification foundation: producer port, e-mail / webhook / Slack channels, database outbox with retries ([ADR-0019](docs/adr/0019-notifications-port-and-channels.md)) |
+| ✅ | Operator console (cross-tenant metadata, audited) and a database error log for the api, worker and integrations ([ADR-0020](docs/adr/0020-operator-console.md), [ADR-0021](docs/adr/0021-error-log.md)) |
+| ✅ | Settings engine: catalog of validated settings, platform / organization / operator scopes, locks, history; limits, module switches, maintenance and sign-up gates ([ADR-0023](docs/adr/0023-settings-engine.md)) |
+| 🗓️ | Per-organization role/permission matrix editing, branding, per-user preferences, settings import/export |
+| 🗓️ | Licensing and subscriptions: plan catalog, entitlements port, operator-assigned plans, Stripe later ([ADR-0022](docs/adr/0022-licensing-and-subscriptions.md)) |
 | ✅ | Observability, `admin doctor`, setup guide, CI with security scanning |
-| 🚧 | Frontend: Overview, recommendations, reports done; members / API keys / policy screens pending |
+| 🚧 | Frontend: Overview, recommendations, reports done; members / API keys / policy / notification-destination screens pending |
 
 ## Phase 2 — Recommend 🗓️ (backend first)
 
@@ -37,7 +42,7 @@ Broader coverage and smarter advice.
 | 🗓️ | Kubernetes: Kepler → Prometheus → agent → ingestion API |
 | 🗓️ | WattTime as secondary grid-data provider |
 | 🗓️ | More recommendation types: rightsizing, time shifting, spot migration |
-| 🗓️ | Scheduled reports, e-mail delivery, SCI self-certification assistant |
+| 🗓️ | Scheduled reports, invitation e-mails, more channels (Teams, PagerDuty, SMS), more event types (budget, anomaly, new recommendation), SCI self-certification assistant |
 
 ## Phase 3 — Automate 🗓️
 
@@ -48,7 +53,9 @@ Controlled change execution, always behind explicit approval.
 | ✅ | Automation jobs: approved recommendation → risk analysis → reviewed plan → human approval → reported result (the platform never executes changes) |
 | 🗓️ | Terraform and Kubernetes executors with dry-run, behind separately granted credentials |
 | 🗓️ | Reusable CI action (`greenops-ci-gate`) for GitHub Actions / Azure DevOps |
-| 🗓️ | Billing (Stripe), white-label, benchmarking |
+| 🗓️ | Self-service billing (Stripe), white-label, benchmarking |
+
+Product specification and the current gap list: [`docs/product/`](docs/product/README.md).
 
 ## Guiding rules
 

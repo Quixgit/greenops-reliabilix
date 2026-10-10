@@ -31,19 +31,21 @@ A **modular monolith**: three processes (`api`, `worker`, `scheduler`) plus an a
 
 | Principle | How |
 |---|---|
-| Domain isolation | 13 modules with identical layers (`domain` / `application` / `repository` / `http`); modules never import each other (enforced by lint), they talk through ports wired in `internal/app` |
+| Domain isolation | 16 modules with identical layers (`domain` / `application` / `repository` / `http`); modules never import each other (enforced by lint), they talk through ports wired in `internal/app` |
 | Tenant isolation | explicit tenant argument in every query **and** PostgreSQL Row Level Security; runtime DB roles cannot bypass it |
 | Identity | Auth0 (OIDC) proves who you are; tenant and role come from the database, never from the token |
 | Async by default | sync → ingest → carbon → recommendations is a chain of Asynq jobs, no event bus |
+| Configuration | one settings catalog in code; platform, organization and operator scopes with inheritance, locks and history; the admin screens are generated from it ([ADR-0023](docs/adr/0023-settings-engine.md)) |
+| Multi-channel delivery | domains publish to a `notify` port; e-mail, webhook and Slack are plug-in channels behind a database outbox ([ADR-0019](docs/adr/0019-notifications-port-and-channels.md)) |
 | Contract first | `backend/api/openapi.yaml` is checked against the routes by a test; frontend types are generated from it |
 
-Decisions are recorded in [`docs/adr/`](docs/adr/). Security model: [`docs/security/model.md`](docs/security/model.md).
+Decisions are recorded in [`docs/adr/`](docs/adr/). Security model: [`docs/security/model.md`](docs/security/model.md). Product specification: [`docs/product/`](docs/product/README.md).
 
 ```
 backend/    Go: cmd/{api,worker,scheduler,admin}, internal/{platform,<domains>,app}, migrations/, api/openapi.yaml, tests/
 frontend/   Next.js 16 · React 19 · TypeScript · Tailwind · TanStack Query · Zustand · ECharts
 deploy/     docker/, aws/ (IAM templates), observability/ (Prometheus, Grafana, Tempo, Loki), dev/ (seeds)
-docs/       setup/, architecture/, security/, api/, adr/
+docs/       setup/, architecture/, product/, security/, api/, adr/, release/
 ```
 
 ## Quick start

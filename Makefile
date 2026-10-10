@@ -22,6 +22,13 @@ seed:             ; psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -f deploy/dev/seed
 # DEV ONLY synthetic FOCUS usage (one AWS account, 60 days); then `make recalc` runs the real carbon engine on it
 seed-demo:        ; psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -f deploy/dev/seed-demo.sql
 
+# Platform operators (the people who run the platform; ADR-0020). Run with the OWNER database role: the application
+# roles cannot change this table. SUB is the Auth0 `sub` (for example auth0|abc123), ROLE is viewer (read) or admin.
+operator-add:     ; echo "INSERT INTO platform.operators (auth_sub, email, role) VALUES (:'sub', :'email', :'role') ON CONFLICT (auth_sub) DO UPDATE SET role = EXCLUDED.role, email = EXCLUDED.email" | \
+                      psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -v sub='$(SUB)' -v email='$(EMAIL)' -v role='$(or $(ROLE),viewer)'
+operator-remove:  ; echo "DELETE FROM platform.operators WHERE auth_sub = :'sub'" | psql '$(DB_OWNER_DSN)' -v ON_ERROR_STOP=1 -v sub='$(SUB)'
+operator-list:    ; psql '$(DB_OWNER_DSN)' -c "SELECT auth_sub, email, role, created_at FROM platform.operators ORDER BY created_at"
+
 # one-command verification of a running stack (dev tokens; refuses nothing else)
 smoke:            ; ./scripts/smoke.sh
 # checks every external dependency (DB roles/RLS/migrations, Redis, S3, Auth0, Electricity Maps, AWS) and prints what to fix
