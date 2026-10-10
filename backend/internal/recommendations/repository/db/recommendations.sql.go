@@ -119,11 +119,15 @@ func (q *Queries) DailyCarbon(ctx context.Context, arg DailyCarbonParams) ([]Dai
 }
 
 const dailyCost = `-- name: DailyCost :many
-SELECT date_trunc('day', recorded_at)::timestamptz AS day, sum(billed_cost)::float8 AS cost, max(currency)::text AS currency
-FROM usage.usage_records
-WHERE tenant_id = $1 AND project_id = $2
-  AND ($3::text = '' OR service_name = $3::text)
-  AND recorded_at >= $4 AND recorded_at < $5
+SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, sum(u.billed_cost)::float8 AS cost, max(u.currency)::text AS currency
+FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND u.project_id = $2
+  AND ($3::text = '' OR u.service_name = $3::text)
+  AND u.recorded_at >= $4 AND u.recorded_at < $5
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.project_id = $2
+      AND d.recorded_at >= $4 AND d.recorded_at < $5
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY 1 ORDER BY 1
 `
 
@@ -334,7 +338,9 @@ func (q *Queries) InsertVerification(ctx context.Context, arg InsertVerification
 
 const latestIntensities = `-- name: LatestIntensities :many
 SELECT DISTINCT ON (region_id) region_id, g_co2e_per_kwh::float8 AS g_per_kwh, ts
-FROM carbon.grid_intensity WHERE NOT is_forecast ORDER BY region_id, ts DESC
+FROM carbon.grid_intensity
+WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
+ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC
 `
 
 type LatestIntensitiesRow struct {
@@ -343,6 +349,8 @@ type LatestIntensitiesRow struct {
 	Ts       time.Time `json:"ts"`
 }
 
+// One source per region: the most trusted one that has a reading (platform setting carbon.provider_priority), its newest
+// average-intensity reading. Sources are not mixed and marginal readings are not used.
 func (q *Queries) LatestIntensities(ctx context.Context) ([]LatestIntensitiesRow, error) {
 	rows, err := q.db.Query(ctx, latestIntensities)
 	if err != nil {
@@ -547,11 +555,15 @@ func (q *Queries) SetRecommendationStatus(ctx context.Context, arg SetRecommenda
 }
 
 const workloadCost = `-- name: WorkloadCost :many
-SELECT provider, service_name, region_id, sum(billed_cost)::float8 AS cost
-FROM usage.usage_records
-WHERE tenant_id = $1 AND project_id = $2
-  AND recorded_at >= $3 AND recorded_at < $4
-GROUP BY provider, service_name, region_id
+SELECT u.provider, u.service_name, u.region_id, sum(u.billed_cost)::float8 AS cost
+FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND u.project_id = $2
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.project_id = $2
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
+GROUP BY u.provider, u.service_name, u.region_id
 `
 
 type WorkloadCostParams struct {

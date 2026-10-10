@@ -81,10 +81,28 @@ func (r Postgres) Members(ctx context.Context, tenantID string) ([]domain.Member
 	out := []domain.Member{}
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).ListMembers(ctx, tenantID)
-		for _, x := range rows {
-			out = append(out, domain.Member{ID: x.ID, UserID: x.UserID, Subject: x.AuthSub, Email: x.Email, Role: auth.Role(x.Role), CreatedAt: x.CreatedAt})
+		if err != nil {
+			return err
 		}
-		return err
+		custom := map[string]*domain.RoleRef{}
+		cr, err := tx.Query(ctx, `SELECT m.id::text, r.id::text, r.name FROM tenants.memberships m JOIN tenants.custom_roles r ON r.id = m.custom_role_id WHERE m.organization_id = $1`, tenantID)
+		if err != nil {
+			return err
+		}
+		for cr.Next() {
+			var mid string
+			ref := &domain.RoleRef{}
+			if err := cr.Scan(&mid, &ref.ID, &ref.Name); err != nil {
+				cr.Close()
+				return err
+			}
+			custom[mid] = ref
+		}
+		cr.Close()
+		for _, x := range rows {
+			out = append(out, domain.Member{ID: x.ID, UserID: x.UserID, Subject: x.AuthSub, Email: x.Email, Role: auth.Role(x.Role), CustomRole: custom[x.ID], CreatedAt: x.CreatedAt})
+		}
+		return nil
 	})
 	return out, err
 }

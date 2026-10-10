@@ -144,40 +144,168 @@ func (q *Queries) DeleteCalculationsInWindow(ctx context.Context, arg DeleteCalc
 	return err
 }
 
-const intensityAt = `-- name: IntensityAt :one
-SELECT g_co2e_per_kwh FROM carbon.grid_intensity
-WHERE region_id = $1 AND NOT is_forecast AND ts <= $2
+const intensityBasisBreakdown = `-- name: IntensityBasisBreakdown :many
+SELECT COALESCE(intensity_source, '')::text AS source, COALESCE(intensity_basis, '')::text AS basis, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
+FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3 AND period_start >= $4 AND period_start < $5
+GROUP BY 1, 2 ORDER BY 3 DESC
+`
+
+type IntensityBasisBreakdownParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type IntensityBasisBreakdownRow struct {
+	Source       string  `json:"source"`
+	Basis        string  `json:"basis"`
+	CarbonKgCo2e float64 `json:"carbon_kg_co2e"`
+}
+
+// Where the intensities of a window came from: carbon by source and basis. NULL source/basis = calculated before the
+// origin was recorded.
+func (q *Queries) IntensityBasisBreakdown(ctx context.Context, arg IntensityBasisBreakdownParams) ([]IntensityBasisBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, intensityBasisBreakdown,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IntensityBasisBreakdownRow{}
+	for rows.Next() {
+		var i IntensityBasisBreakdownRow
+		if err := rows.Scan(&i.Source, &i.Basis, &i.CarbonKgCo2e); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const intensityDayStats = `-- name: IntensityDayStats :one
+SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast
+  AND ts >= $3 AND ts < $4
+`
+
+type IntensityDayStatsParams struct {
+	RegionID string    `json:"region_id"`
+	Provider string    `json:"provider"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+type IntensityDayStatsRow struct {
+	G float64 `json:"g"`
+	N int32   `json:"n"`
+}
+
+// Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
+// averaged together: the caller asks one source at a time, in policy order.
+func (q *Queries) IntensityDayStats(ctx context.Context, arg IntensityDayStatsParams) (IntensityDayStatsRow, error) {
+	row := q.db.QueryRow(ctx, intensityDayStats,
+		arg.RegionID,
+		arg.Provider,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	var i IntensityDayStatsRow
+	err := row.Scan(&i.G, &i.N)
+	return i, err
+}
+
+const intensityHistory = `-- name: IntensityHistory :many
+SELECT date_trunc('day', ts)::timestamptz AS day, provider, avg(g_co2e_per_kwh)::float8 AS mean,
+       min(g_co2e_per_kwh)::float8 AS lo, max(g_co2e_per_kwh)::float8 AS hi, count(*)::int AS n
+FROM carbon.grid_intensity
+WHERE region_id = $1 AND measure = 'average' AND NOT is_forecast AND ts >= $2 AND ts < $3
+GROUP BY 1, 2 ORDER BY 1, 2
+`
+
+type IntensityHistoryParams struct {
+	RegionID string    `json:"region_id"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+type IntensityHistoryRow struct {
+	Day      time.Time `json:"day"`
+	Provider string    `json:"provider"`
+	Mean     float64   `json:"mean"`
+	Lo       float64   `json:"lo"`
+	Hi       float64   `json:"hi"`
+	N        int32     `json:"n"`
+}
+
+// Daily mean, extremes and reading count per source: the raw material of the history chart.
+func (q *Queries) IntensityHistory(ctx context.Context, arg IntensityHistoryParams) ([]IntensityHistoryRow, error) {
+	rows, err := q.db.Query(ctx, intensityHistory, arg.RegionID, arg.FromTs, arg.ToTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IntensityHistoryRow{}
+	for rows.Next() {
+		var i IntensityHistoryRow
+		if err := rows.Scan(
+			&i.Day,
+			&i.Provider,
+			&i.Mean,
+			&i.Lo,
+			&i.Hi,
+			&i.N,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const intensityLatest = `-- name: IntensityLatest :one
+SELECT g_co2e_per_kwh::float8 AS g, ts FROM carbon.grid_intensity
+WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast
+  AND ($3::timestamptz IS NULL OR ts <= $3)
 ORDER BY ts DESC LIMIT 1
 `
 
-type IntensityAtParams struct {
-	RegionID string    `json:"region_id"`
-	Ts       time.Time `json:"ts"`
+type IntensityLatestParams struct {
+	RegionID string     `json:"region_id"`
+	Provider string     `json:"provider"`
+	Before   *time.Time `json:"before"`
 }
 
-// Latest stored (non-forecast) reading at or before ts for a region.
-func (q *Queries) IntensityAt(ctx context.Context, arg IntensityAtParams) (float64, error) {
-	row := q.db.QueryRow(ctx, intensityAt, arg.RegionID, arg.Ts)
-	var g_co2e_per_kwh float64
-	err := row.Scan(&g_co2e_per_kwh)
-	return g_co2e_per_kwh, err
+type IntensityLatestRow struct {
+	G  float64   `json:"g"`
+	Ts time.Time `json:"ts"`
 }
 
-const latestIntensity = `-- name: LatestIntensity :one
-SELECT g_co2e_per_kwh FROM carbon.grid_intensity
-WHERE region_id = $1 AND NOT is_forecast ORDER BY ts DESC LIMIT 1
-`
-
-func (q *Queries) LatestIntensity(ctx context.Context, regionID string) (float64, error) {
-	row := q.db.QueryRow(ctx, latestIntensity, regionID)
-	var g_co2e_per_kwh float64
-	err := row.Scan(&g_co2e_per_kwh)
-	return g_co2e_per_kwh, err
+// Latest stored reading of one source at or before `before` (NULL = the latest overall).
+func (q *Queries) IntensityLatest(ctx context.Context, arg IntensityLatestParams) (IntensityLatestRow, error) {
+	row := q.db.QueryRow(ctx, intensityLatest, arg.RegionID, arg.Provider, arg.Before)
+	var i IntensityLatestRow
+	err := row.Scan(&i.G, &i.Ts)
+	return i, err
 }
 
 const saveGridIntensity = `-- name: SaveGridIntensity :exec
-INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT DO NOTHING
 `
 
@@ -187,6 +315,7 @@ type SaveGridIntensityParams struct {
 	Ts          time.Time `json:"ts"`
 	GCo2ePerKwh float64   `json:"g_co2e_per_kwh"`
 	IsForecast  bool      `json:"is_forecast"`
+	Measure     string    `json:"measure"`
 }
 
 func (q *Queries) SaveGridIntensity(ctx context.Context, arg SaveGridIntensityParams) error {
@@ -196,6 +325,54 @@ func (q *Queries) SaveGridIntensity(ctx context.Context, arg SaveGridIntensityPa
 		arg.Ts,
 		arg.GCo2ePerKwh,
 		arg.IsForecast,
+		arg.Measure,
 	)
 	return err
+}
+
+const tenantRegions = `-- name: TenantRegions :many
+SELECT region_id, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3 AND period_start >= $4 AND period_start < $5
+GROUP BY region_id ORDER BY 2 DESC
+`
+
+type TenantRegionsParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type TenantRegionsRow struct {
+	RegionID     string  `json:"region_id"`
+	CarbonKgCo2e float64 `json:"carbon_kg_co2e"`
+}
+
+// Regions that have calculations for the organization in the window, largest emitter first.
+func (q *Queries) TenantRegions(ctx context.Context, arg TenantRegionsParams) ([]TenantRegionsRow, error) {
+	rows, err := q.db.Query(ctx, tenantRegions,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TenantRegionsRow{}
+	for rows.Next() {
+		var i TenantRegionsRow
+		if err := rows.Scan(&i.RegionID, &i.CarbonKgCo2e); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

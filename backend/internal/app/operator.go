@@ -11,6 +11,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
 
 // Integration states shown in the operator console. "stub" is a development stand-in that is running instead of
@@ -23,9 +24,62 @@ const (
 
 // buildOperator wires the operator console. The integration list is the one place that says, for the whole
 // platform, which external services are real, which are stubs and which are not set up yet.
-func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store) *operator.Module {
+func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store, q queue.Enqueuer) *operator.Module {
 	return operator.New(operator.Deps{Pool: pool, System: func() domain.System { return systemInfo(cfg, ints) }, Settings: st,
-		Integrations: integrationsPort{store: ints, allowPlain: cfg.IsDev() && cfg.SMTPAllowPlain}})
+		Integrations: integrationsPort{store: ints, allowPlain: cfg.IsDev() && cfg.SMTPAllowPlain},
+		Sources:      func(ctx context.Context) []domain.DataSource { return dataSources(ctx, cfg, ints) },
+		Jobs:         queue.NewInspector(cfg.RedisAddr), Queue: q})
+}
+
+// dataSources is the registry of what the platform reads (ADR-0032). It is a catalog in code, because a source exists
+// only when there is a connector for it; the state is read from the real configuration, and the connection counts are
+// merged in by the operator service from the database. "planned" entries are listed so they are visible, never counted.
+func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Store) []domain.DataSource {
+	emapsKey := ints != nil && ints.Value(ctx, "electricitymaps", "api_key") != ""
+	state := func(ok bool) string {
+		if ok {
+			return "ready"
+		}
+		return "not_configured"
+	}
+	return []domain.DataSource{
+		{ID: "electricitymaps", Name: "Electricity Maps", Category: "grid_intensity", Access: domain.AccessPaid, State: state(emapsKey),
+			Metrics:  []string{"Grid carbon intensity (gCO2e/kWh)"},
+			Coverage: "Zones of the Electricity Maps catalog; cloud regions map to zones in the carbon engine",
+			Terms:    "Commercial API; the available zones and history depend on the plan. Check the licence before redistributing values.",
+			Note:     "Without a key only stored readings are used. Readings are stored with their zone and time.", IntegrationID: "electricitymaps"},
+		{ID: "aws-cost", Name: "AWS (Cost Explorer, FOCUS export)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
+			Metrics:  []string{"Cost", "Usage quantities", "Instance hours", "Storage"},
+			Coverage: "Accounts customers connect with a read-only role (External ID)",
+			Terms:    "Customer data under the customer's own AWS agreement; read-only, no credentials stored.", IntegrationID: "platform_aws"},
+		{ID: "gcp-billing", Name: "Google Cloud (billing export in BigQuery)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
+			Metrics:  []string{"Cost", "Compute usage", "Storage"},
+			Coverage: "Projects whose billing export dataset the customer granted read access to",
+			Terms:    "Customer data; the platform service account only reads the dataset.", Note: platformGCPNote(cfg), IntegrationID: "platform_gcp"},
+		{ID: "k8s-agent", Name: "Kubernetes agent (Kepler via Prometheus)", Category: "kubernetes", Access: domain.AccessCustomer, State: "not_configured",
+			Metrics:  []string{"Workload energy (kWh)", "CPU and memory usage", "Requests"},
+			Coverage: "Clusters where a customer runs the agent with an API key of the role agent",
+			Terms:    "Customer-pushed measurements; attribution inside cloud energy, never added to totals."},
+		{ID: "methodology", Name: "Platform methodology and coefficients", Category: "methodology", Access: domain.AccessInternal, State: "ready",
+			Metrics:  []string{"Power and embodied coefficients", "PUE", "Region to zone mapping"},
+			Coverage: "Versioned in code; every result carries its methodology version",
+			Terms:    "Internal. A citable published dataset is not imported yet."},
+		{ID: "watttime", Name: "WattTime", Category: "grid_intensity", Access: domain.AccessPaid, State: "planned",
+			Metrics: []string{"Marginal operating emissions rate (MOER)"}, Coverage: "—", Terms: "Check access and licence before enabling.",
+			Note: "Planned: the connector is not released. Credentials can already be stored here. Marginal and average intensity are different measures and will be stored and shown separately.", IntegrationID: "watttime"},
+		{ID: "uk-carbon-intensity", Name: "UK Carbon Intensity API", Category: "grid_intensity", Access: domain.AccessFree, State: "planned",
+			Metrics: []string{"Great Britain grid intensity"}, Coverage: "Great Britain", Terms: "Free, no key; check the terms of use.",
+			Note: "Planned: the connector is not released. The address is prepared here.", IntegrationID: "uk_carbon_intensity"},
+		{ID: "azure-cost", Name: "Azure Cost Management", Category: "billing", Access: domain.AccessCustomer, State: "planned",
+			Metrics: []string{"Cost", "Usage"}, Coverage: "—", Terms: "Customer data.", Note: "Planned, phase 2."},
+	}
+}
+
+func platformGCPNote(cfg config.Config) string {
+	if cfg.PlatformGCPProject == "" {
+		return "The platform Google Cloud project is not set; the connector is off."
+	}
+	return ""
 }
 
 func systemInfo(cfg config.Config, ints *integrations.Store) domain.System {
@@ -54,6 +108,6 @@ func systemInfo(cfg config.Config, ints *integrations.Store) domain.System {
 		pick("Tracing (OTLP)", cfg.OTLPEndpoint != "", "", "optional: set OTEL_EXPORTER_OTLP_ENDPOINT"),
 		{Name: "Azure connector", Status: missing, Note: "planned, phase 2"},
 		{Name: "WattTime (grid data)", Status: missing, Note: "planned, phase 2"},
-		{Name: "Stripe (billing)", Status: missing, Note: "planned, phase 3"},
+		pick("Payments (Stripe, Paddle, LiqPay, WayForPay)", has("stripe", "secret_key") || has("paddle", "api_key") || has("liqpay", "private_key") || has("wayforpay", "secret_key"), "", "optional: set a payment provider under Data sources; plans are then assigned by operators only"),
 	}}
 }

@@ -153,3 +153,54 @@ func (s Service) RevokeAPIKey(ctx context.Context, tenantID, id string) error {
 func (s Service) AuditLog(ctx context.Context, tenantID, action string, limit int) ([]domain.AuditEntry, error) {
 	return s.Repo.AuditLog(ctx, tenantID, action, limit)
 }
+
+// MemberPermissions implements auth.PermissionResolver.
+func (s Service) MemberPermissions(ctx context.Context, subject, tenantID string) ([]auth.Permission, error) {
+	return s.Repo.MemberPermissions(ctx, subject, tenantID)
+}
+
+func (s Service) CustomRoles(ctx context.Context, tenantID string) ([]domain.CustomRole, error) {
+	return s.Repo.CustomRoles(ctx, tenantID)
+}
+
+func (s Service) CreateCustomRole(ctx context.Context, tenantID string, actor auth.Claims, name, description string, perms []auth.Permission) (domain.CustomRole, error) {
+	if err := domain.ValidateCustomRole(name, description, perms, actor); err != nil {
+		return domain.CustomRole{}, err
+	}
+	return s.Repo.CreateCustomRole(ctx, tenantID, domain.CustomRole{Name: strings.TrimSpace(name), Description: strings.TrimSpace(description), Permissions: perms}, actor)
+}
+
+func (s Service) UpdateCustomRole(ctx context.Context, tenantID, id string, actor auth.Claims, name, description string, perms []auth.Permission) (domain.CustomRole, error) {
+	if err := domain.ValidateCustomRole(name, description, perms, actor); err != nil {
+		return domain.CustomRole{}, err
+	}
+	// Editing a role is granting what it contains to everyone who holds it: the actor must hold all of it, old and new.
+	cur, err := s.Repo.CustomRole(ctx, tenantID, id)
+	if err != nil {
+		return domain.CustomRole{}, err
+	}
+	for _, p := range cur.Permissions {
+		if !actor.Can(p) {
+			return domain.CustomRole{}, domain.ErrPermissionNotHeld
+		}
+	}
+	return s.Repo.UpdateCustomRole(ctx, tenantID, id, domain.CustomRole{Name: strings.TrimSpace(name), Description: strings.TrimSpace(description), Permissions: perms}, actor)
+}
+
+func (s Service) DeleteCustomRole(ctx context.Context, tenantID, id string, actor auth.Claims) error {
+	return s.Repo.DeleteCustomRole(ctx, tenantID, id, actor)
+}
+
+// AssignCustomRole gives a member a custom role; the actor must hold every permission of that role.
+func (s Service) AssignCustomRole(ctx context.Context, tenantID, memberID, roleID string, actor auth.Claims) (domain.Member, error) {
+	role, err := s.Repo.CustomRole(ctx, tenantID, roleID)
+	if err != nil {
+		return domain.Member{}, err
+	}
+	for _, p := range role.Permissions {
+		if !actor.Can(p) {
+			return domain.Member{}, domain.ErrPermissionNotHeld
+		}
+	}
+	return s.Repo.AssignCustomRole(ctx, tenantID, memberID, roleID, actor)
+}

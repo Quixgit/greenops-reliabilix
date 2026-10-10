@@ -4,6 +4,9 @@ import { useState } from "react";
 import { DataPanel } from "@/components/settings/data-panel";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
+import { PlanPanel } from "@/components/settings/plan-panel";
+import { RolesPanel } from "@/components/settings/roles-panel";
+import { useT } from "@/i18n/provider";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PillTabs } from "@/components/ui/tabs";
@@ -12,11 +15,12 @@ import { canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Ro
 
 /** Role checks here only decide what to show; the Go API enforces every one of them again. */
 export function SettingsView({ user }: { user: { name: string; email: string; role: Role } }) {
+  const t = useT();
   const tabs = [
     { value: "profile", label: "Profile" },
-    ...(canSeeSettings(user.role) ? [{ value: "organization", label: "Organization" }] : []),
+    ...(canSeeSettings(user.role) ? [{ value: "organization", label: "Organization" }, { value: "plan", label: t("settings.tab.plan") }] : []),
     ...(canSeeNotifications(user.role) ? [{ value: "notifications", label: "Notifications" }] : []),
-    ...(canManageTenant(user.role) ? [{ value: "members", label: "Members" }, { value: "keys", label: "API keys" }] : []),
+    ...(canManageTenant(user.role) ? [{ value: "members", label: "Members" }, { value: "roles", label: t("settings.tab.roles") }, { value: "keys", label: "API keys" }] : []),
     ...(canSeeSettings(user.role) ? [{ value: "history", label: "Change history" }] : []),
     ...(user.role === "owner" ? [{ value: "data", label: "Data" }] : []),
   ];
@@ -36,9 +40,11 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
         </Card>
       )}
       {tab === "organization" && <SettingsEditor mode="tenant" path="settings" historyPath="settings/history" canEdit={canWrite(user.role)} />}
+      {tab === "plan" && <PlanPanel canBuy={canManageTenant(user.role)} />}
       {tab === "history" && <SettingsHistory path="settings/history?limit=100" />}
       {tab === "notifications" && <NotificationsPanel canEdit={canWrite(user.role)} />}
       {tab === "members" && <MembersPanel />}
+      {tab === "roles" && <RolesPanel />}
       {tab === "keys" && <ApiKeysPanel />}
       {tab === "data" && <DataPanel />}
     </div>

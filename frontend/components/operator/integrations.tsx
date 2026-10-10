@@ -4,10 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, KeyRound, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader } from "@/components/ui/card";
-import { ErrorState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useOperatorIntegrations, useOperatorMe, useOperatorSystem } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
 import { managedIntegrations, testResult, type IntegrationField, type ManagedIntegration } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
@@ -45,7 +41,8 @@ function FieldRow({ f, draft, onChange, onReset, canEdit }: {
   );
 }
 
-function IntegrationCard({ st, canEdit }: { st: ManagedIntegration; canEdit: boolean }) {
+/** The settings of one integration: fields, save, test. Used on the page of the source or service it belongs to. */
+export function IntegrationForm({ st, canEdit }: { st: ManagedIntegration; canEdit: boolean }) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [resets, setResets] = useState<Set<string>>(new Set());
@@ -72,9 +69,7 @@ function IntegrationCard({ st, canEdit }: { st: ManagedIntegration; canEdit: boo
   });
   const dirty = Object.values(draft).some((v) => v.trim() !== "") || resets.size > 0;
   return (
-    <Card>
-      <CardHeader title={<span className="flex items-center gap-2">{st.name}<Badge tone={st.ready ? "good" : "warn"}>{st.ready ? "Ready" : "Needs setup"}</Badge>{st.startup && <Badge tone="neutral">Applied at restart</Badge>}</span>} />
-      <p className="-mt-2 mb-4 text-sm text-muted">{st.description}</p>
+    <div>
       <div className="space-y-4">
         {st.fields.map((f) => (
           <FieldRow key={f.key} f={f} canEdit={canEdit} draft={draft[f.key]}
@@ -93,37 +88,6 @@ function IntegrationCard({ st, canEdit }: { st: ManagedIntegration; canEdit: boo
         {st.testable && canEdit && <button disabled={test.isPending || dirty} onClick={() => test.mutate()} title={dirty ? "Save first: the test uses the saved values" : undefined}
           className="rounded-lg px-3.5 py-1.5 text-sm font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-50">Test connection</button>}
       </div>
-    </Card>
-  );
-}
-
-export function IntegrationsView() {
-  const q = useOperatorIntegrations();
-  const sys = useOperatorSystem();
-  const me = useOperatorMe();
-  const canEdit = me.data?.role === "admin";
-  const fixed = (sys.data?.integrations ?? []).filter((i) => !["Electricity Maps (grid carbon)", "E-mail (SMTP)", "Object storage (reports)", "AWS connector", "GCP connector", "Sentry (errors)", "Tracing (OTLP)"].includes(i.name));
-  return (
-    <div className="max-w-4xl space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Integrations</h1>
-        <p className="mt-1 text-sm text-muted">Keys and addresses of the external services. A value set here wins over the deployment environment; secrets are stored sealed and are never shown again.</p>
-      </div>
-      {q.isLoading ? <Skeleton className="h-64" /> : q.isError ? <ErrorState /> : q.data!.map((st) => <IntegrationCard key={st.id} st={st} canEdit={canEdit} />)}
-      {fixed.length > 0 && (
-        <Card>
-          <CardHeader title="Fixed by the deployment" />
-          <p className="-mt-2 mb-3 text-sm text-muted">These are fixed by the deployment or are not available yet.</p>
-          <ul className="divide-y divide-line/70 text-sm">
-            {fixed.map((i) => (
-              <li key={i.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <span>{i.name}{i.note && <span className="ml-2 text-xs text-muted">{i.note}</span>}</span>
-                <Badge tone={i.status === "ready" ? "good" : i.status === "stub" ? "stub" : "warn"}>{i.status === "ready" ? "Ready" : i.status === "stub" ? "Stand-in" : "Not set"}</Badge>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
     </div>
   );
 }

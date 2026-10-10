@@ -16,6 +16,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/repository"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/secretbox"
 )
 
@@ -40,7 +41,7 @@ func TestOperatorConsole(t *testing.T) {
 	viewerSub, adminSub := "opview-"+rid, "opadmin-"+rid
 	t.Cleanup(func() {
 		_, _ = owner.Exec(ctx, `DELETE FROM platform.operator_access_log WHERE operator_sub IN ($1,$2)`, viewerSub, adminSub)
-		_, _ = owner.Exec(ctx, `DELETE FROM platform.operators WHERE auth_sub IN ($1,$2)`, viewerSub, adminSub)
+		_, _ = owner.Exec(ctx, `DELETE FROM platform.operators WHERE auth_sub IN ($1,$2) OR email = $3`, viewerSub, adminSub, "alice-"+rid+"@example.com")
 	})
 
 	// A tenant with a webhook destination whose delivery failed.
@@ -132,8 +133,76 @@ func TestOperatorConsole(t *testing.T) {
 		t.Error("stats must include the failed delivery")
 	}
 	c.must("GET", "/api/v1/operator/connections/unhealthy", viewerOp, "", 200)
+	// The operators' own log is readable and shows the reads above; the registry never invents counts.
+	opLog := items(c.must("GET", "/api/v1/operator/audit?limit=50", viewerOp, "", 200))
+	if first, _ := opLog[0].(map[string]any); len(opLog) == 0 || str(first, "operator_sub") == "" {
+		t.Errorf("operator audit = %v", opLog)
+	}
+	srcs := items(c.must("GET", "/api/v1/operator/data-sources", viewerOp, "", 200))
+	if len(srcs) < 5 {
+		t.Errorf("data sources = %v", srcs)
+	}
+	for _, v := range srcs {
+		sr, _ := v.(map[string]any)
+		if sr["state"] == "planned" && sr["connections"] != nil {
+			t.Errorf("a planned source must not carry counts: %v", sr)
+		}
+	}
+	ops := items(c.must("GET", "/api/v1/operator/operators", viewerOp, "", 200))
+	if len(ops) < 2 {
+		t.Errorf("operators = %v", ops)
+	}
+	if code, _, _ := c.do("GET", "/api/v1/operator/jobs", viewerOp, ""); code != 200 && code != 503 {
+		t.Errorf("jobs = %d, want 200 (queue reachable) or 503", code)
+	}
+	if pl := items(c.must("GET", "/api/v1/operator/plans", viewerOp, "", 200)); len(pl) < 4 {
+		t.Errorf("plans = %v", pl)
+	}
+	// a plan is a preset of limits and modules, assigned with a reason, and it is in the tenant's own audit log
+	if code, _, _ := c.do("PUT", "/api/v1/operator/tenants/"+tenant+"/plan", viewerOp, `{"plan":"team","reason":"viewer must not"}`); code != 403 {
+		t.Errorf("viewer assigning a plan = %d, want 403", code)
+	}
+	if code, _, _ := c.do("PUT", "/api/v1/operator/tenants/"+tenant+"/plan", adminOp, `{"plan":"team","reason":""}`); code != 422 {
+		t.Errorf("plan without a reason = %d, want 422", code)
+	}
+	c.must("PUT", "/api/v1/operator/tenants/"+tenant+"/plan", adminOp, `{"plan":"free","reason":"integration test"}`, 200)
+	var gotPlan string
+	if err := owner.QueryRow(ctx, `SELECT plan FROM tenants.organizations WHERE id = $1`, tenant).Scan(&gotPlan); err != nil || gotPlan != "free" {
+		t.Errorf("plan = %q, %v", gotPlan, err)
+	}
+	var reason string
+	if err := owner.QueryRow(ctx, `SELECT metadata->>'reason' FROM audit.audit_logs WHERE tenant_id = $1 AND action = 'operator.plan_changed'`, tenant).Scan(&reason); err != nil || reason != "integration test" {
+		t.Errorf("plan audit reason = %q, %v", reason, err)
+	}
+	if code, _, _ := c.do("POST", "/api/v1/projects", alice, `{"name":"p1","functional_unit":"request"}`); code != 201 {
+		t.Errorf("a first project under the free plan = %d, want 201", code)
+	}
+	// roles: assign and withdraw from the console, with the guard rails (own role, last admin, unknown person)
+	aliceMail := "alice-" + rid + "@example.com"
+	if code, _, _ := c.do("PUT", "/api/v1/operator/operators", viewerOp, `{"email":"`+aliceMail+`","role":"viewer"}`); code != 403 {
+		t.Errorf("viewer assigning an operator = %d, want 403", code)
+	}
+	if code, _, _ := c.do("PUT", "/api/v1/operator/operators", adminOp, `{"email":"nobody-`+rid+`@example.com","role":"viewer"}`); code != 409 {
+		t.Errorf("a person who never signed in = %d, want 409", code)
+	}
+	if code, _, _ := c.do("PUT", "/api/v1/operator/operators", adminOp, `{"email":"a@example.com","role":"viewer"}`); code != 409 {
+		t.Errorf("changing your own role = %d, want 409", code)
+	}
+	c.must("PUT", "/api/v1/operator/operators", adminOp, `{"email":"`+aliceMail+`","role":"viewer"}`, 200)
+	var aliceSub, aliceRole string
+	if err := owner.QueryRow(ctx, `SELECT auth_sub, role FROM platform.operators WHERE email = $1`, aliceMail).Scan(&aliceSub, &aliceRole); err != nil || aliceRole != "viewer" {
+		t.Fatalf("alice operator row = %q %q %v", aliceSub, aliceRole, err)
+	}
+	c.must("PUT", "/api/v1/operator/operators", adminOp, `{"email":"`+aliceMail+`","role":"admin"}`, 200)
+	if code, _, _ := c.do("POST", "/api/v1/operator/operators/withdraw", adminOp, `{"subject":"`+adminSub+`"}`); code != 409 {
+		t.Errorf("withdrawing yourself = %d, want 409", code)
+	}
+	c.must("POST", "/api/v1/operator/operators/withdraw", adminOp, `{"subject":"`+aliceSub+`"}`, 200)
+	if code, _, _ := c.do("POST", "/api/v1/operator/operators/withdraw", adminOp, `{"subject":"`+aliceSub+`"}`); code != 404 {
+		t.Errorf("withdrawing twice = %d, want 404", code)
+	}
 	sys := c.must("GET", "/api/v1/operator/system", viewerOp, "", 200)
-	if sys["expected_migration"] != float64(26) || len(sys["integrations"].([]any)) < 8 {
+	if sys["expected_migration"] != float64(database.ExpectedMigration) || len(sys["integrations"].([]any)) < 8 {
 		t.Fatalf("system = %v", sys)
 	}
 	statuses := map[string]string{}
@@ -141,7 +210,7 @@ func TestOperatorConsole(t *testing.T) {
 		m := i.(map[string]any)
 		statuses[str(m, "name")] = str(m, "status")
 	}
-	if statuses["E-mail (SMTP)"] != "stub" || statuses["Stripe (billing)"] != "missing" || statuses["Electricity Maps (grid carbon)"] != "stub" {
+	if statuses["E-mail (SMTP)"] != "stub" || statuses["Payments (Stripe, Paddle, LiqPay, WayForPay)"] != "missing" || statuses["Electricity Maps (grid carbon)"] != "stub" {
 		t.Errorf("stubs must be labelled as such: %v", statuses)
 	}
 
@@ -188,10 +257,49 @@ func TestOperatorConsole(t *testing.T) {
 
 	// every request, reads included, is in the operator access log
 	var n int
-	if err := owner.QueryRow(ctx, `SELECT count(*) FROM platform.operator_access_log WHERE operator_sub = $1`, viewerSub).Scan(&n); err != nil || n != 7 { // the 7 successful reads; refused writes never reach the log
+	if err := owner.QueryRow(ctx, `SELECT count(*) FROM platform.operator_access_log WHERE operator_sub = $1`, viewerSub).Scan(&n); err != nil || n != 12 { // the 12 successful reads (audit, data sources, operators, jobs, plans included); refused writes never reach the log
 		t.Errorf("viewer access log rows = %d, %v", n, err)
 	}
 	if _, err := apiPool.Exec(ctx, `DELETE FROM platform.operator_access_log`); err == nil {
 		t.Error("the access log must be unreachable for the API role")
+	}
+}
+
+// A suspended organization is left out of the scheduler fan-out and comes back when access is restored.
+func TestSuspendedOrganizationIsSkippedByJobFanOut(t *testing.T) {
+	ctx := context.Background()
+	owner := pool(t, "TEST_OWNER_DSN")
+	var tenant string
+	if err := owner.QueryRow(ctx, `INSERT INTO tenants.organizations (name) VALUES ('Fanout Suspend Test') RETURNING id::text`).Scan(&tenant); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = owner.Exec(ctx, `DELETE FROM projects.projects WHERE tenant_id = $1`, tenant)
+		_, _ = owner.Exec(ctx, `DELETE FROM settings.tenant_values WHERE tenant_id = $1`, tenant)
+		_, _ = owner.Exec(ctx, `DELETE FROM tenants.organizations WHERE id = $1`, tenant)
+	})
+	if _, err := owner.Exec(ctx, `INSERT INTO projects.projects (tenant_id, name, functional_unit) VALUES ($1, 'p', 'request')`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	count := func() (n int) {
+		if err := owner.QueryRow(ctx, `SELECT count(*) FROM projects.list_projects_for_jobs() WHERE tenant_id = $1`, tenant).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if count() != 1 {
+		t.Fatal("an active organization must be in the fan-out")
+	}
+	if _, err := owner.Exec(ctx, `INSERT INTO settings.tenant_values (tenant_id, key, value, source, updated_by) VALUES ($1, 'organization.suspended', 'true', 'operator', 'test')`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if count() != 0 {
+		t.Error("a suspended organization must not be in the fan-out")
+	}
+	if _, err := owner.Exec(ctx, `UPDATE settings.tenant_values SET value = 'false' WHERE tenant_id = $1`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	if count() != 1 {
+		t.Error("a restored organization must be back in the fan-out")
 	}
 }

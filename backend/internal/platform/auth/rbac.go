@@ -3,6 +3,8 @@
 // to which tenant and with which role, so a role change takes effect immediately.
 package auth
 
+import "sort"
+
 // Role is a tenant-scoped role. RoleCI exists only for API keys.
 type Role string
 
@@ -14,6 +16,8 @@ const (
 	RoleBilling  Role = "billing"
 	RoleCI       Role = "ci"
 	RoleAgent    Role = "agent" // API keys of the Kubernetes agent: may push workload energy and nothing else
+	// RoleCustom is what a member with an organization-defined role resolves to; the permissions come with the claims.
+	RoleCustom Role = "custom"
 )
 
 // Permission is a fine-grained capability checked by handlers.
@@ -85,4 +89,61 @@ var matrix = map[Role]map[Permission]struct{}{
 func (r Role) Can(p Permission) bool {
 	_, ok := matrix[r][p]
 	return ok
+}
+
+// PermissionInfo describes one permission for the roles editor.
+type PermissionInfo struct {
+	Key   Permission `json:"key"`
+	Group string     `json:"group"`
+	// Assignable: may be put in a custom role. Organization administration, data export/erasure and machine-only
+	// capabilities stay with the built-in roles so that a custom role can never be a way to gain them.
+	Assignable bool `json:"assignable"`
+}
+
+// Permissions is the catalog of every permission, grouped for display.
+func Permissions() []PermissionInfo {
+	g := func(group string, assignable bool, ps ...Permission) []PermissionInfo {
+		out := make([]PermissionInfo, 0, len(ps))
+		for _, p := range ps {
+			out = append(out, PermissionInfo{Key: p, Group: group, Assignable: assignable})
+		}
+		return out
+	}
+	var out []PermissionInfo
+	for _, part := range [][]PermissionInfo{
+		g("projects", true, PermProjectRead, PermProjectWrite),
+		g("cloud", true, PermCloudRead, PermCloudWrite),
+		g("usage_carbon", true, PermUsageRead, PermCarbonRead, PermCarbonCompute),
+		g("recommendations", true, PermRecommendRead, PermRecommendApply),
+		g("automation", true, PermAutomationRead, PermAutomationWrite, PermAutomationApprove),
+		g("reports", true, PermReportRead, PermReportWrite),
+		g("finops", true, PermBillingRead, PermBudgetWrite),
+		g("alerts_notifications", true, PermAlertWrite, PermNotificationRead, PermNotificationWrite),
+		g("settings_audit", true, PermSettingsRead, PermSettingsWrite, PermAuditRead),
+		g("ci", true, PermCIEvaluate),
+		g("administration", false, PermTenantAdmin, PermTenantData, PermKubernetesIngest),
+	} {
+		out = append(out, part...)
+	}
+	return out
+}
+
+// CustomAssignable reports whether p may be part of a custom role.
+func CustomAssignable(p Permission) bool {
+	for _, i := range Permissions() {
+		if i.Key == p {
+			return i.Assignable
+		}
+	}
+	return false
+}
+
+// PermissionsOf lists what a built-in role grants, sorted.
+func PermissionsOf(r Role) []Permission {
+	out := make([]Permission, 0, len(matrix[r]))
+	for p := range matrix[r] {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }

@@ -34,6 +34,8 @@ const (
 	TaskEvaluateAlerts      = "alerts:evaluate_all"                   // reconcile budget and connection alerts (hourly)
 	TaskEraseDue            = "lifecycle:erase_due"                   // erase organizations whose grace period is over (hourly)
 	TaskEnforceRetention    = "platform:enforce_retention"            // drop usage and carbon partitions past retention (daily)
+	TaskExpireSubscriptions = "licensing:expire"                      // return organizations whose period ended to the Free plan (hourly)
+	TaskBackfillIntensity   = "carbon:backfill_intensity"             // operator-started: fetch past grid readings of some regions
 	TaskPurgeOperatorLog    = "platform:purge_operator_log"           // drop operator access records past retention (daily)
 )
 
@@ -59,6 +61,13 @@ type WindowPayload struct {
 	To        string `json:"to"`
 	// MethodologyVersion selects a coefficient set for a carbon calculation; empty = the active one.
 	MethodologyVersion string `json:"methodology_version,omitempty"`
+}
+
+// BackfillPayload asks for past grid readings of regions over [From, To) (YYYY-MM-DD).
+type BackfillPayload struct {
+	Regions []string `json:"regions"`
+	From    string   `json:"from"`
+	To      string   `json:"to"`
 }
 
 // Client enqueues jobs.

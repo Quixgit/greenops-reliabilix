@@ -251,3 +251,31 @@ func TestConcurrentCallersShareOneLoad(t *testing.T) {
 		t.Errorf("provider was called %d times for 8 concurrent callers, want 1", n)
 	}
 }
+
+// History is requested in chunks of at most nine days, implausible points are dropped and a plan refusal says so.
+func TestGetHistoryChunksAndFilters(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		start, _ := time.Parse(time.RFC3339, r.URL.Query().Get("start"))
+		fmt.Fprintf(w, `{"history":[{"carbonIntensity":300,"datetime":%q},{"carbonIntensity":99999,"datetime":%q}]}`,
+			start.Add(time.Hour).Format(time.RFC3339), start.Add(2*time.Hour).Format(time.RFC3339))
+	}))
+	defer srv.Close()
+	c := New("k", nil)
+	c.BaseURL = srv.URL
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	got, err := c.GetHistory(context.Background(), "eu-central-1", from, from.AddDate(0, 0, 20))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 3 || len(got) != 3 { // 20 days = 9 + 9 + 2; the implausible 99999 is dropped each time
+		t.Errorf("calls=%d points=%d", calls, len(got))
+	}
+	denied := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusForbidden) }))
+	defer denied.Close()
+	c.BaseURL = denied.URL
+	if _, err := c.GetHistory(context.Background(), "eu-central-1", from, from.AddDate(0, 0, 2)); err == nil || !strings.Contains(err.Error(), "plan") {
+		t.Errorf("a plan refusal must be explained: %v", err)
+	}
+}

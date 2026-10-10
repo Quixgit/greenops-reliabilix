@@ -29,3 +29,6 @@ cross-tenant powers; and RLS exists precisely so that nothing can read across te
 - Operators should sign in with MFA (enforce it in Auth0); this ADR does not replace that.
 - Not built: viewing the access log in the UI, impersonation (deliberately never), per-operator permissions finer than
   viewer/admin, suspending an organization.
+
+
+> Update (alpha.25): operator roles can be assigned and withdrawn from the console through two guarded database functions; see [ADR-0034](0034-operator-roles-from-the-console.md).

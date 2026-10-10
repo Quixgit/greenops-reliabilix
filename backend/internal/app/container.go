@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -22,7 +23,9 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/ingestion"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/kubernetes"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/licensing"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/lifecycle"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/apiusage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/errlog"
@@ -86,8 +89,12 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 			return nil, err
 		}
 	}
+	// Cost control: every request to a paid API is counted and capped per day (platform setting).
+	meter := &apiusage.Meter{Pool: pool}
 	var grid carbondomain.CarbonDataProvider = &electricitymaps.Dynamic{
 		DevFallback: cfg.IsDev(),
+		Allow:       func(ctx context.Context) error { return meter.Allow(ctx, "electricitymaps") },
+		Done:        func(ctx context.Context, failed bool) { meter.Record(ctx, "electricitymaps", failed) },
 		Source: func(ctx context.Context) (string, string) {
 			return ints.Value(ctx, "electricitymaps", "api_key"), ints.Value(ctx, "electricitymaps", "zone_overrides")
 		},
@@ -111,6 +118,9 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 
 	settingsM := settingsmod.New(pool, log)
 	cfgr := settingsM.Svc // settings.Reader for every domain
+	meter.Cap = func(ctx context.Context, provider string) int {
+		return int(cfgr.Int(ctx, "", settings.KeyMaxRequestsPerDay(provider)))
+	}
 	limits := limitsGate{pool: pool, cfg: cfgr}
 	tenantsM := tenants.New(tenants.Deps{Pool: pool, Settings: cfgr, Limits: limits})
 	notifyM, err := buildNotifications(cfg, log, pool, q, tenantsM.Svc, o.errors, cfgr, limits, ints, box)
@@ -122,7 +132,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	ingestionM := ingestion.New(usageM.Svc, store, log)
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
-		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}})
+		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr})
 	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, BackfillDays: cfg.SyncBackfillDays})
@@ -132,14 +142,15 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc}, Carbon: alertCarbon{carbon: carbonM.Svc}, ProjectsCarbon: alertProjectCarbon{projects: projectsM.Svc, carbon: carbonM.Svc}, Settings: cfgr,
 		Tenants: alertTenants{projects: projectsM.Svc}, Notify: notifyM.Svc, Log: log})
 	lifecycleM := lifecycle.New(lifecycle.Deps{Pool: pool, Store: store, Settings: cfgr, Log: log})
+	licensingM := licensing.New(licensing.Deps{Pool: pool, Settings: cfgr, Log: log, Billing: buildBilling(ints), ReturnURL: strings.TrimRight(cfg.PublicBaseURL, "/") + "/settings"})
 
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
-		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, alertsM,
+		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, licensingM, alertsM,
 	}
 	c.Settings = cfgr
-	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM, alertsM}
+	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
 
 	switch {
 	case cfg.IsDev():

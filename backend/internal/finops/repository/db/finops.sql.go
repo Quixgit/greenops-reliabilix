@@ -12,10 +12,14 @@ import (
 
 const anomalies = `-- name: Anomalies :many
 WITH d AS (
-  SELECT date_trunc('day', recorded_at)::date AS day, sum(billed_cost)::float8 AS cost
-  FROM usage.usage_records
-  WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
-    AND recorded_at >= $3 AND recorded_at < $4
+  SELECT date_trunc('day', u.recorded_at)::date AS day, sum(u.billed_cost)::float8 AS cost
+  FROM usage.usage_records u
+  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+    AND u.recorded_at >= $3 AND u.recorded_at < $4
+    AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
   GROUP BY 1
 ), s AS (
   SELECT day, cost,
@@ -40,7 +44,8 @@ type AnomaliesRow struct {
 	Stddev float64   `json:"stddev"`
 }
 
-// Days whose cost exceeds the trailing mean by > 3 standard deviations (needs >= 7 prior days).
+// Days whose cost exceeds the trailing mean by > 3 standard deviations (needs >= 7 prior days). One currency only:
+// the dominant one of the window (a sum over mixed currencies would be meaningless).
 func (q *Queries) Anomalies(ctx context.Context, arg AnomaliesParams) ([]AnomaliesRow, error) {
 	rows, err := q.db.Query(ctx, anomalies,
 		arg.TenantID,
@@ -72,11 +77,15 @@ func (q *Queries) Anomalies(ctx context.Context, arg AnomaliesParams) ([]Anomali
 }
 
 const costByService = `-- name: CostByService :many
-SELECT service_name, currency::text AS currency, sum(billed_cost)::float8 AS cost
-FROM usage.usage_records
-WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
-  AND recorded_at >= $3 AND recorded_at < $4
-GROUP BY service_name, currency ORDER BY cost DESC LIMIT 100
+SELECT u.service_name, u.currency::text AS currency, sum(u.billed_cost)::float8 AS cost
+FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
+GROUP BY u.service_name, u.currency ORDER BY cost DESC LIMIT 100
 `
 
 type CostByServiceParams struct {
@@ -92,7 +101,8 @@ type CostByServiceRow struct {
 	Cost        float64 `json:"cost"`
 }
 
-// Dominant-currency handling happens in Go; here: cost per service and currency.
+// Cost per service in the DOMINANT currency of the window (largest total absolute cost). Amounts in different
+// currencies are never added together; FX normalization does not exist yet.
 func (q *Queries) CostByService(ctx context.Context, arg CostByServiceParams) ([]CostByServiceRow, error) {
 	rows, err := q.db.Query(ctx, costByService,
 		arg.TenantID,

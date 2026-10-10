@@ -29,4 +29,7 @@ result in the changelog; do not change the stage on your own.
   console, sealed secrets) in the same change as the code that uses it; read it through the store, never from `os.Getenv`
   at the call site (ADR-0029).
 - Settings: add a `Def` to `platform/settings/catalog.go` only together with the code that honours it.
+- Languages ([ADR-0036](docs/adr/0036-multi-language-platform.md)): a user-visible string gets a key in both frontend catalogs
+  (`frontend/i18n/messages/*.json`, English is the source) and server-produced text a key in `internal/platform/i18n/locales`.
+  The server returns stable codes; domain data is never translated.
 - No `Co-Authored-By` lines in commit messages (user's global rule).

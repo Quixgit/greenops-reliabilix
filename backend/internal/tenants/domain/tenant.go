@@ -23,12 +23,55 @@ type Organization struct {
 }
 
 type Member struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	Subject   string    `json:"-"`
-	Email     string    `json:"email"`
-	Role      auth.Role `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
+	ID      string `json:"id"`
+	UserID  string `json:"user_id"`
+	Subject string `json:"-"`
+	Email   string `json:"email"`
+	// Role is the built-in role. When CustomRole is set the member's permissions are the custom role's, and Role is
+	// what they fall back to if that role is deleted.
+	Role       auth.Role `json:"role"`
+	CustomRole *RoleRef  `json:"custom_role"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// RoleRef names a custom role.
+type RoleRef struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// CustomRole is an organization-defined set of permissions.
+type CustomRole struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Permissions []auth.Permission `json:"permissions"`
+	Members     int               `json:"members"`
+	CreatedBy   string            `json:"created_by"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+}
+
+var ErrPermissionNotHeld = errors.New("you can only grant permissions you hold yourself")
+
+// ValidateCustomRole checks a role definition and that the actor holds every permission in it (a role is never a way
+// to hand out more than the person creating or assigning it has).
+func ValidateCustomRole(name, description string, perms []auth.Permission, actor auth.Claims) error {
+	name = strings.TrimSpace(name)
+	if len(name) < 2 || len(name) > 60 || len(description) > 200 || len(perms) == 0 || len(perms) > 60 {
+		return ErrInvalidInput
+	}
+	seen := map[auth.Permission]bool{}
+	for _, p := range perms {
+		if seen[p] || !auth.CustomAssignable(p) {
+			return ErrInvalidInput
+		}
+		seen[p] = true
+		if !actor.Can(p) {
+			return ErrPermissionNotHeld
+		}
+	}
+	return nil
 }
 
 type Invitation struct {
@@ -142,6 +185,15 @@ type Repository interface {
 	Organization(ctx context.Context, tenantID string) (Organization, error)
 	Members(ctx context.Context, tenantID string) ([]Member, error)
 	ChangeRole(ctx context.Context, tenantID, memberID string, newRole auth.Role, actor auth.Claims) (Member, error)
+	// Custom roles.
+	CustomRoles(ctx context.Context, tenantID string) ([]CustomRole, error)
+	CreateCustomRole(ctx context.Context, tenantID string, r CustomRole, actor auth.Claims) (CustomRole, error)
+	UpdateCustomRole(ctx context.Context, tenantID, id string, r CustomRole, actor auth.Claims) (CustomRole, error)
+	DeleteCustomRole(ctx context.Context, tenantID, id string, actor auth.Claims) error
+	CustomRole(ctx context.Context, tenantID, id string) (CustomRole, error)
+	// AssignCustomRole gives a member a custom role (their built-in role becomes the viewer fallback).
+	AssignCustomRole(ctx context.Context, tenantID, memberID, roleID string, actor auth.Claims) (Member, error)
+	MemberPermissions(ctx context.Context, subject, tenantID string) ([]auth.Permission, error)
 	RemoveMember(ctx context.Context, tenantID, memberID string, actor auth.Claims) error
 	CreateInvitation(ctx context.Context, tenantID string, inv Invitation, tokenHash string) (Invitation, error)
 	Invitations(ctx context.Context, tenantID string) ([]Invitation, error)

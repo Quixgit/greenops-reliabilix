@@ -3,6 +3,7 @@ package electricitymaps
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
 )
@@ -13,6 +14,9 @@ import (
 type Dynamic struct {
 	// Source returns the current key and zone overrides ("" key = not configured).
 	Source func(ctx context.Context) (apiKey, overrides string)
+	// Allow and Done are passed to every client built (request cap and metering).
+	Allow func(ctx context.Context) error
+	Done  func(ctx context.Context, failed bool)
 	// DevFallback serves a fixed intensity while no key is configured (development only).
 	DevFallback bool
 
@@ -34,6 +38,7 @@ func (d *Dynamic) current(ctx context.Context) (*Client, error) {
 			return nil, err
 		}
 		d.client, d.version = New(key, overrides), v
+		d.client.Allow, d.client.Done = d.Allow, d.Done
 	}
 	return d.client, nil
 }
@@ -67,4 +72,13 @@ func (d *Dynamic) Regions() []string {
 		return nil
 	}
 	return c.Regions()
+}
+
+// GetHistory delegates to the current client; it fails closed when no key is configured (no invented history).
+func (d *Dynamic) GetHistory(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error) {
+	c, err := d.current(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetHistory(ctx, region, from, to)
 }

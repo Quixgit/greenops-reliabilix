@@ -13,6 +13,7 @@ export const useDeliveries = () =>
     refetchInterval: (q) => (q.state.data?.some((d) => d.status === "pending") ? 4000 : false), // follow a test message until it is delivered
   });
 export const useMembers = () => useQuery({ queryKey: ["members"], queryFn: () => api("members", s.members) });
+export const useRoles = () => useQuery({ queryKey: ["roles"], queryFn: () => api("roles", s.rolesView) });
 export const useInvitations = () => useQuery({ queryKey: ["invitations"], queryFn: () => api("invitations", s.invitations) });
 export const useApiKeys = () => useQuery({ queryKey: ["api-keys"], queryFn: () => api("api-keys", s.apiKeys) });
 
@@ -27,6 +28,19 @@ export const useOperatorDeliveries = (status: string) =>
   });
 export const useOperatorConnections = () => useQuery({ queryKey: ["op-connections"], queryFn: () => api("operator/connections/unhealthy", s.operatorConnections) });
 export const useOperatorSystem = () => useQuery({ queryKey: ["op-system"], queryFn: () => api("operator/system", s.operatorSystem) });
+export const useOperatorAudit = (limit: number) =>
+  useQuery({ queryKey: ["op-audit", limit], queryFn: () => api("operator/audit", s.operatorAudit, { limit: String(limit) }) });
+export const useOperatorDataSources = () => useQuery({ queryKey: ["op-data-sources"], queryFn: () => api("operator/data-sources", s.dataSources) });
+export const useOperatorJobs = () =>
+  useQuery({ queryKey: ["op-jobs"], queryFn: () => api("operator/jobs", s.operatorJobs), refetchInterval: 15_000 });
+export const useOperatorRecords = () => useQuery({ queryKey: ["op-operators"], queryFn: () => api("operator/operators", s.operatorRecords) });
+export const useOperatorPlans = () => useQuery({ queryKey: ["op-plans"], queryFn: () => api("operator/plans", s.operatorPlans) });
+export const useOperatorSubscription = (id: string) =>
+  useQuery({ queryKey: ["op-subscription", id], queryFn: () => api(`operator/tenants/${id}/subscription`, s.operatorSubscription) });
+export const useOperatorBillingEvents = () => useQuery({ queryKey: ["op-billing"], queryFn: () => api("operator/billing/events", s.billingEvents) });
+export const useOperatorMethodology = () => useQuery({ queryKey: ["op-methodology"], queryFn: () => api("operator/methodology", s.methodologySets) });
+export const useOperatorApiUsage = () => useQuery({ queryKey: ["op-api-usage"], queryFn: () => api("operator/api-usage", s.apiUsage) });
+export const usePlan = () => useQuery({ queryKey: ["plan"], queryFn: () => api("plan", s.planView) });
 export const useOperatorMe = () => useQuery({ queryKey: ["op-me"], queryFn: () => api("operator/me", s.operatorMe), staleTime: 5 * 60_000 });
 export const useOperatorErrors = (status: string, service: string) =>
   useQuery({

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
@@ -15,6 +16,7 @@ import (
 	chttp "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/repository"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 // Deps are supplied by the composition root. Provider may be nil: live lookups then fail closed.
@@ -27,6 +29,8 @@ type Deps struct {
 	Units    application.UnitsSource
 	Policies application.PolicySource
 	Projects application.ProjectLister
+	// Settings supplies the grid source policy (optional: catalog defaults).
+	Settings settings.Reader
 }
 
 type Module struct {
@@ -36,7 +40,7 @@ type Module struct {
 
 func New(d Deps) *Module {
 	svc := &application.Service{Store: repository.Postgres{Pool: d.Pool}, Usage: d.Usage, Units: d.Units, Policies: d.Policies,
-		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log}
+		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings}
 	return &Module{h: chttp.Handlers{Svc: svc}, Svc: svc}
 }
 
@@ -61,4 +65,18 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		return err
 	})
 	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
+	mux.HandleFunc(queue.TaskBackfillIntensity, func(ctx context.Context, t *asynq.Task) error {
+		p, err := queue.DecodeAs[queue.BackfillPayload](t)
+		if err != nil {
+			return err
+		}
+		from, e1 := time.Parse(time.DateOnly, p.From)
+		to, e2 := time.Parse(time.DateOnly, p.To)
+		if e1 != nil || e2 != nil || !to.After(from) {
+			return errors.Join(asynq.SkipRetry, errors.New("carbon: bad backfill window"))
+		}
+		n, err := m.Svc.BackfillIntensity(ctx, p.Regions, from, to)
+		m.Svc.Log.Info("grid backfill finished", "regions", len(p.Regions), "readings", n, "err", err)
+		return err
+	})
 }

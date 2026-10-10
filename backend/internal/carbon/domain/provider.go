@@ -12,6 +12,7 @@ type Intensity struct {
 	GPerKWh    float64
 	At         time.Time
 	IsForecast bool
+	Measure    string // MeasureAverage (default when empty) or MeasureMarginal
 }
 
 // Forecast is a series of future intensities.
@@ -27,11 +28,20 @@ var ErrNotConfigured = errors.New("carbon data provider is not configured")
 // RegionLister is implemented by providers that can enumerate the regions they cover.
 type RegionLister interface{ Regions() []string }
 
-// ProviderElectricityMaps is the provider key stored in carbon.grid_intensity.
-const ProviderElectricityMaps = "electricitymaps"
+// Provider keys stored in carbon.grid_intensity. They equal the ids of the integrations catalog entries.
+const (
+	ProviderElectricityMaps = "electricitymaps"
+	ProviderUKCI            = "uk_carbon_intensity"
+	ProviderWattTime        = "watttime"
+)
 
 // CarbonDataProvider is implemented by Electricity Maps (now) and WattTime (phase 2).
 type CarbonDataProvider interface {
 	GetIntensity(ctx context.Context, region string) (Intensity, error)
 	GetForecast(ctx context.Context, region string) (Forecast, error)
+}
+
+// HistoryProvider is implemented by providers that can return past hourly readings (a plan feature of the provider).
+type HistoryProvider interface {
+	GetHistory(ctx context.Context, region string, from, to time.Time) ([]Intensity, error)
 }

@@ -18,6 +18,17 @@ type Claims struct {
 	TenantID      string
 	Role          Role
 	KeyID         string // set for API-key callers
+	// Permissions is the permission set of a member with a custom role. nil: the built-in Role decides.
+	Permissions map[Permission]struct{}
+}
+
+// Can reports whether the caller holds a permission: a custom role's set when there is one, else the built-in role's.
+func (c Claims) Can(p Permission) bool {
+	if c.Permissions != nil {
+		_, ok := c.Permissions[p]
+		return ok
+	}
+	return c.Role.Can(p)
 }
 
 // Verifier validates a bearer token and returns its identity (subject, email).
@@ -29,6 +40,12 @@ type Verifier interface {
 // wantedTenant (the X-Tenant-ID header) selects among several memberships and must belong to the subject.
 type Resolver interface {
 	Resolve(ctx context.Context, subject, wantedTenant string) (tenantID string, role Role, err error)
+}
+
+// PermissionResolver is implemented by a Resolver that also knows custom roles: it returns the permissions of a member
+// whose Resolve answered RoleCustom.
+type PermissionResolver interface {
+	MemberPermissions(ctx context.Context, subject, tenantID string) ([]Permission, error)
 }
 
 var (
@@ -86,6 +103,19 @@ func Authenticate(v Verifier, res Resolver) httpx.Middleware {
 					return
 				}
 				c.TenantID, c.Role = t, role
+				if role == RoleCustom {
+					c.Permissions = map[Permission]struct{}{} // fail closed: no set loaded, no permission
+					if pr, ok := res.(PermissionResolver); ok {
+						ps, err := pr.MemberPermissions(r.Context(), c.Subject, t)
+						if err != nil {
+							httpx.Internal(w, r, err)
+							return
+						}
+						for _, p := range ps {
+							c.Permissions[p] = struct{}{}
+						}
+					}
+				}
 			}
 			httpx.SetTenant(r, c.TenantID) // lets the error log attribute a 5xx to the organization
 			next.ServeHTTP(w, r.WithContext(WithClaims(r.Context(), c)))
@@ -122,7 +152,7 @@ func Require(p Permission) httpx.Middleware {
 				httpx.WriteProblem(w, r, http.StatusUnauthorized, "unauthorized", "")
 				return
 			}
-			if !c.Role.Can(p) {
+			if !c.Can(p) {
 				httpx.WriteProblem(w, r, http.StatusForbidden, "forbidden", "")
 				return
 			}

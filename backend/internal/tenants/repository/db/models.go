@@ -81,6 +81,8 @@ type CarbonCalculation struct {
 	SciScore           *float64  `json:"sci_score"`
 	MethodologyVersion string    `json:"methodology_version"`
 	CalculatedAt       time.Time `json:"calculated_at"`
+	IntensitySource    *string   `json:"intensity_source"`
+	IntensityBasis     *string   `json:"intensity_basis"`
 }
 
 type CarbonCalculationsDefault struct {
@@ -110,6 +112,7 @@ type CarbonGridIntensity struct {
 	Ts          time.Time `json:"ts"`
 	GCo2ePerKwh float64   `json:"g_co2e_per_kwh"`
 	IsForecast  bool      `json:"is_forecast"`
+	Measure     string    `json:"measure"`
 }
 
 type CloudaccountsConnection struct {
@@ -178,6 +181,10 @@ type KubernetesWorkloadEnergy struct {
 	Source             string    `json:"source"`
 	MethodologyVersion string    `json:"methodology_version"`
 	IngestedAt         time.Time `json:"ingested_at"`
+	CpuCoreSeconds     *float64  `json:"cpu_core_seconds"`
+	MemoryAvgBytes     *float64  `json:"memory_avg_bytes"`
+	CpuRequestCores    *float64  `json:"cpu_request_cores"`
+	MemoryRequestBytes *float64  `json:"memory_request_bytes"`
 }
 
 type NotificationsDelivery struct {
@@ -393,6 +400,17 @@ type TenantsApiKey struct {
 	RevokedAt      *time.Time `json:"revoked_at"`
 }
 
+type TenantsCustomRole struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organization_id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Permissions    []string  `json:"permissions"`
+	CreatedBy      string    `json:"created_by"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
 type TenantsDeletionRequest struct {
 	TenantID     string    `json:"tenant_id"`
 	RequestedBy  string    `json:"requested_by"`
@@ -418,6 +436,7 @@ type TenantsMembership struct {
 	UserID         string    `json:"user_id"`
 	Role           string    `json:"role"`
 	CreatedAt      time.Time `json:"created_at"`
+	CustomRoleID   *string   `json:"custom_role_id"`
 }
 
 type TenantsOrganization struct {

@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.10.0
+  version: 0.20.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -527,6 +527,121 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/roles:
+    get:
+      operationId: listRoles
+      summary: Permission catalog, built-in roles and the organization's custom roles
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [permissions, builtin, custom]
+                properties:
+                  permissions:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, group, assignable]
+                      properties:
+                        key: {type: string}
+                        group: {type: string}
+                        assignable: {type: boolean}
+                  builtin:
+                    type: array
+                    items:
+                      type: object
+                      required: [role, permissions]
+                      properties:
+                        role: {type: string}
+                        permissions: {type: array, items: {type: string}}
+                  custom:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomRole'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createRole
+      summary: Create a custom role
+      tags:
+      - tenants
+      description: |
+        Requires permission `tenant:admin`. A custom role cannot contain administration, data export or machine-only
+        permissions, and only permissions the caller holds (422 / 403).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRoleInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRole'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/roles/{id}:
+    put:
+      operationId: updateRole
+      summary: Change a custom role
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin` and holding every permission of the role, old and new.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomRoleInput'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomRole'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    delete:
+      operationId: deleteRole
+      summary: Delete a custom role (its members return to their built-in role)
+      tags:
+      - tenants
+      description: Requires permission `tenant:admin`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
           $ref: '#/components/responses/Problem'
   /api/v1/members/{id}:
     patch:
@@ -1377,6 +1492,105 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/plan:
+    get:
+      operationId: getPlan
+      summary: The organization's plan, subscription state, limits with usage and payment providers
+      tags:
+      - licensing
+      description: Requires permission `project:read`. `status` is `none` when no subscription is recorded.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/plan/checkout:
+    post:
+      operationId: startCheckout
+      summary: Start a payment for a plan at a payment provider
+      tags:
+      - licensing
+      description: |
+        Requires permission `tenant:admin`. Answers a `url` to send the person to, or a `message` for providers
+        without a hosted page (invoice). The plan becomes active when the provider confirms the payment by webhook.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, plan]
+              properties:
+                provider: {type: string, enum: [stripe, paddle, liqpay, wayforpay, invoice]}
+                plan: {type: string}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: {type: string}
+                  message: {type: string}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '502':
+          $ref: '#/components/responses/Problem'
+  /api/v1/billing/webhooks/{provider}:
+    post:
+      operationId: billingWebhook
+      summary: Payment provider notification
+      tags:
+      - licensing
+      description: |
+        Public: called by the payment provider, verified by its signature (or, for providers without one, by asking the
+        provider's API). Idempotent per event. 200 for everything understood, 400 for an unverifiable notification, 503
+        when the provider is not set up.
+      security: []
+      parameters:
+      - {name: provider, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Understood (applied, repeated or ignored)
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /api/v1/locales:
+    get:
+      operationId: getLocales
+      summary: Languages on offer and the default language
+      tags:
+      - platform
+      description: |
+        Public (no session). Comes from the platform settings `i18n.enabled_locales` and `i18n.default_locale`, limited
+        to languages the build has a catalog for.
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [default, enabled, supported]
+                properties:
+                  default: {type: string}
+                  enabled: {type: array, items: {type: string}}
+                  supported: {type: array, items: {type: string}}
   /api/v1/carbon/summary:
     get:
       operationId: getCarbonSummary
@@ -1395,6 +1609,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CarbonSummary'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/carbon/intensity:
+    get:
+      operationId: getCarbonIntensityHistory
+      summary: Day-by-day grid carbon intensity of a region, from stored readings
+      tags:
+      - carbon
+      description: |
+        Requires permission `carbon:read`. For each day with readings, the source chosen under the platform source
+        policy (the first trusted source with enough readings that day; sources are never averaged together), its
+        min and max, and the means of the other sources shown beside it. Days without a reading are absent.
+        The region defaults to the organization's largest emitter in the window.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - {name: region, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntensityHistory'
         '400':
           $ref: '#/components/responses/Problem'
         '401':
@@ -2522,6 +2765,432 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/operator/audit:
+    get:
+      operationId: listOperatorAudit
+      summary: The operators' own access log
+      tags:
+      - operator
+      description: |
+        Platform operators only. The newest lines of the append-only log of what operators looked at or changed.
+      parameters:
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorAuditEntry'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/data-sources:
+    get:
+      operationId: listOperatorDataSources
+      summary: Registry of the data sources the platform reads
+      tags:
+      - operator
+      description: |
+        Platform operators only. State comes from the real configuration; connection counts only from real customer
+        connections (counts, no tenant data). A `planned` source is listed but never carries a number.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorDataSource'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/jobs:
+    get:
+      operationId: getOperatorJobs
+      summary: Queues, periodic schedules and failed background tasks
+      tags:
+      - operator
+      description: |
+        Platform operators only. Read-only telemetry of the job queue; task payloads (they carry tenant ids) are never
+        returned. 503 when the queue cannot be read.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorJobs'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/operators:
+    put:
+      operationId: assignOperator
+      summary: Make a person an operator, or change their role
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The person is identified by e-mail and must have signed in to the
+        platform. The caller cannot change their own role and the platform keeps at least one admin (409).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, role]
+              properties:
+                email: {type: string, format: email}
+                role: {type: string, enum: [viewer, admin]}
+      responses:
+        '200':
+          description: The operators after the change
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorRecord'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+    get:
+      operationId: listOperators
+      summary: Platform operators with their role and recent activity
+      tags:
+      - operator
+      description: |
+        Platform operators only. Who is an operator is a database fact that only the migration owner can change; this
+        list is read-only.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorRecord'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/plans:
+    get:
+      operationId: listOperatorPlans
+      summary: Plan catalog with the number of organizations on each plan
+      tags:
+      - operator
+      description: |
+        Platform operators only. A plan is a preset of the limit and module settings; assigning it writes those values
+        for one organization.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorPlan'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/plan:
+    put:
+      operationId: assignOperatorPlan
+      summary: Assign a plan to an organization
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. Writes the plan's limits and module switches as locked operator
+        values and records the plan and the reason in the organization's audit log.
+      parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plan, reason]
+              properties:
+                plan: {type: string}
+                reason: {type: string, minLength: 3, maxLength: 300}
+                status: {type: string, enum: [active, trialing, past_due, canceled], default: active}
+                period_end: {type: string, format: date, description: When the paid period ends; the scheduler returns the organization to Free after it}
+                trial_ends_at: {type: string, format: date, description: Required for a trial}
+      responses:
+        '200':
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plan]
+                properties:
+                  plan: {type: string}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/carbon/backfill:
+    post:
+      operationId: backfillGridHistory
+      summary: Fetch past grid carbon intensity for the regions in use
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. Asks the grid data provider for past hourly readings of every
+        region that has carbon calculations, in 9-day requests, and stores them (an existing reading is never
+        overwritten). `dry_run` reports the plan and the number of provider requests without asking. At most 400 days
+        and 2000 requests per run. Past data is a plan feature of the provider.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: {type: string, format: date}
+                to: {type: string, format: date}
+                dry_run: {type: boolean}
+      responses:
+        '200':
+          description: The plan; `queued` is true when the job was started
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [regions, days, estimated_requests, queued]
+                properties:
+                  regions: {type: array, items: {type: string}}
+                  days: {type: integer}
+                  estimated_requests: {type: integer}
+                  queued: {type: boolean}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/operators/withdraw:
+    post:
+      operationId: withdrawOperator
+      summary: Withdraw operator access
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The caller cannot withdraw themselves and the last admin cannot
+        be withdrawn (409). The change is written to the operators' access log.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject]
+              properties:
+                subject: {type: string}
+      responses:
+        '200':
+          description: The operators after the change
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorRecord'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/subscription:
+    get:
+      operationId: getOperatorSubscription
+      summary: An organization's subscription state
+      tags:
+      - operator
+      description: Platform operators only. `status` is `none` when no subscription is recorded.
+      parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plan, status, source, trial_ends_at, period_end, updated_by, updated_at]
+                properties:
+                  plan: {type: string}
+                  status: {type: string}
+                  source: {type: string}
+                  trial_ends_at: {type: string, format: date-time, nullable: true}
+                  period_end: {type: string, format: date-time, nullable: true}
+                  updated_by: {type: string}
+                  updated_at: {type: string, format: date-time, nullable: true}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/api-usage:
+    get:
+      operationId: getOperatorApiUsage
+      summary: Requests made to paid external APIs per day (last 30 days) and the daily caps
+      tags:
+      - operator
+      description: Platform operators only. Counts only. A cap of 0 means unlimited.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, daily_caps]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [provider, day, requests, errors]
+                      properties:
+                        provider: {type: string}
+                        day: {type: string, format: date-time}
+                        requests: {type: integer}
+                        errors: {type: integer}
+                  daily_caps:
+                    type: object
+                    additionalProperties: {type: integer}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/methodology:
+    get:
+      operationId: listOperatorMethodology
+      summary: Every carbon coefficient set with provenance, coefficients and checksum
+      tags:
+      - operator
+      description: Platform operators only. A set is immutable; a new set is a new version.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [version, status, provenance, notes, caveats, pue, energy_kwh_per_unit, cost_based_kwh_per_usd, embodied_g_per_kwh, checksum, active]
+                      properties:
+                        version: {type: string}
+                        status: {type: string}
+                        provenance: {type: string}
+                        notes: {type: string}
+                        caveats: {type: array, items: {type: string}}
+                        pue: {type: number}
+                        energy_kwh_per_unit: {type: object, additionalProperties: {type: number}}
+                        cost_based_kwh_per_usd: {type: object, additionalProperties: {type: number}}
+                        embodied_g_per_kwh: {type: number}
+                        checksum: {type: string}
+                        active: {type: boolean}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/billing/events:
+    get:
+      operationId: listOperatorBillingEvents
+      summary: Latest payment notifications and invoice requests
+      tags:
+      - operator
+      description: Platform operators only. Identifiers and statuses; never payment data.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [at, provider, kind, organization_id, organization_name, plan, detail]
+                      properties:
+                        at: {type: string, format: date-time}
+                        provider: {type: string}
+                        kind: {type: string, enum: [applied, requested]}
+                        organization_id: {type: string, nullable: true}
+                        organization_name: {type: string}
+                        plan: {type: string}
+                        detail: {type: string}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/operator/system:
     get:
       operationId: getOperatorSystem
@@ -3344,6 +4013,7 @@ components:
       additionalProperties: true
     RoleInput:
       type: object
+      description: Either a built-in `role` or a `custom_role_id` (exactly one). A built-in role withdraws any custom role.
       properties:
         role:
           type: string
@@ -3353,8 +4023,28 @@ components:
           - engineer
           - viewer
           - billing
-      required:
-      - role
+        custom_role_id:
+          type: string
+          format: uuid
+    CustomRole:
+      type: object
+      required: [id, name, description, permissions, members, created_by, created_at, updated_at]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        description: {type: string}
+        permissions: {type: array, items: {type: string}}
+        members: {type: integer}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CustomRoleInput:
+      type: object
+      required: [name, permissions]
+      properties:
+        name: {type: string, minLength: 2, maxLength: 60}
+        description: {type: string, maxLength: 200}
+        permissions: {type: array, items: {type: string}}
       additionalProperties: true
     Invitation:
       type: object
@@ -3867,6 +4557,21 @@ components:
     CarbonTotals:
       type: object
       properties:
+        intensity_origins:
+          type: array
+          description: Where the grid intensities behind the carbon came from. Empty source and basis = calculated before the origin was recorded.
+          items:
+            type: object
+            required: [source, basis, carbon_kg_co2e, share_pct]
+            properties:
+              source: {type: string}
+              basis: {type: string}
+              carbon_kg_co2e: {type: number}
+              share_pct: {type: number}
+        intensity_measured_share_pct:
+          type: number
+          nullable: true
+          description: Share of the carbon whose intensity is the mean of readings of the day itself.
         energy_kwh:
           type: number
         carbon_kg_co2e:
@@ -3877,6 +4582,86 @@ components:
         carbon_intensity_g_per_kwh:
           type: number
       additionalProperties: true
+    PlanView:
+      type: object
+      required: [plan, name, status, source, limits, modules, providers]
+      properties:
+        plan: {type: string}
+        name: {type: string}
+        status: {type: string, enum: [none, active, trialing, past_due, canceled]}
+        source: {type: string}
+        trial_ends_at: {type: string, format: date-time, nullable: true}
+        period_end: {type: string, format: date-time, nullable: true}
+        limits:
+          type: array
+          items:
+            type: object
+            required: [resource, key, limit, used]
+            properties:
+              resource: {type: string}
+              key: {type: string}
+              limit: {type: integer, description: 0 means unlimited}
+              used: {type: integer}
+        modules:
+          type: array
+          items:
+            type: object
+            required: [key, enabled]
+            properties:
+              key: {type: string}
+              enabled: {type: boolean}
+        providers:
+          type: array
+          items:
+            type: object
+            required: [id, name, plans]
+            properties:
+              id: {type: string}
+              name: {type: string}
+              plans: {type: array, items: {type: string}}
+    IntensityHistory:
+      type: object
+      required: [region, regions, points, policy, window_days, days_with_data]
+      properties:
+        region: {type: string}
+        regions:
+          type: array
+          items:
+            type: object
+            required: [region, carbon_kg_co2e]
+            properties:
+              region: {type: string}
+              carbon_kg_co2e: {type: number}
+        points:
+          type: array
+          items:
+            type: object
+            required: [day, g_per_kwh, min, max, readings, source, basis, others]
+            properties:
+              day: {type: string, format: date-time}
+              g_per_kwh: {type: number}
+              min: {type: number}
+              max: {type: number}
+              readings: {type: integer}
+              source: {type: string}
+              basis: {type: string, enum: [day_mean, partial_day_mean]}
+              others:
+                type: array
+                items:
+                  type: object
+                  required: [source, g_per_kwh]
+                  properties:
+                    source: {type: string}
+                    g_per_kwh: {type: number}
+        policy:
+          type: object
+          required: [priority, min_day_readings, max_age_hours]
+          properties:
+            priority: {type: array, items: {type: string}}
+            min_day_readings: {type: integer}
+            max_age_hours: {type: integer}
+        window_days: {type: integer}
+        days_with_data: {type: integer}
     CarbonSummary:
       type: object
       properties:
@@ -5009,6 +5794,101 @@ components:
         sync_status: {type: string}
         last_error: {type: string, nullable: true}
         last_sync_at: {type: string, format: date-time, nullable: true}
+    OperatorAuditEntry:
+      type: object
+      required: [id, at, operator_sub, operator_email, role, action]
+      properties:
+        id: {type: integer, format: int64}
+        at: {type: string, format: date-time}
+        operator_sub: {type: string}
+        operator_email: {type: string}
+        role: {type: string}
+        action: {type: string}
+    OperatorDataSource:
+      type: object
+      required: [id, name, category, access, state, metrics, coverage, terms, note, integration_id, connections, organizations, in_error, last_sync_at]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        category: {type: string, enum: [grid_intensity, billing, usage, kubernetes, methodology]}
+        access: {type: string, enum: [free, paid, customer_provided, internal]}
+        state: {type: string, enum: [ready, attention, not_configured, planned]}
+        metrics: {type: array, items: {type: string}}
+        coverage: {type: string}
+        terms: {type: string}
+        note: {type: string}
+        integration_id: {type: string}
+        connections: {type: integer, nullable: true}
+        organizations: {type: integer, nullable: true}
+        in_error: {type: integer, nullable: true}
+        last_sync_at: {type: string, format: date-time, nullable: true}
+    OperatorRecord:
+      type: object
+      required: [subject, email, role, created_at, last_seen_at, actions_30d]
+      properties:
+        subject: {type: string}
+        email: {type: string}
+        role: {type: string, enum: [viewer, admin]}
+        created_at: {type: string, format: date-time}
+        last_seen_at: {type: string, format: date-time, nullable: true}
+        actions_30d: {type: integer}
+    OperatorJobs:
+      type: object
+      required: [queues, failed, schedules]
+      properties:
+        queues:
+          type: array
+          items:
+            type: object
+            required: [name, size, pending, active, scheduled, retry, archived, completed, processed_today, failed_today, latency_seconds, paused]
+            properties:
+              name: {type: string}
+              size: {type: integer}
+              pending: {type: integer}
+              active: {type: integer}
+              scheduled: {type: integer}
+              retry: {type: integer}
+              archived: {type: integer}
+              completed: {type: integer}
+              processed_today: {type: integer}
+              failed_today: {type: integer}
+              latency_seconds: {type: number}
+              paused: {type: boolean}
+        failed:
+          type: array
+          items:
+            type: object
+            required: [id, queue, type, state, last_error, retried, max_retry, last_failed_at, next_attempt_at]
+            properties:
+              id: {type: string}
+              queue: {type: string}
+              type: {type: string}
+              state: {type: string}
+              last_error: {type: string}
+              retried: {type: integer}
+              max_retry: {type: integer}
+              last_failed_at: {type: string, format: date-time, nullable: true}
+              next_attempt_at: {type: string, format: date-time, nullable: true}
+        schedules:
+          type: array
+          items:
+            type: object
+            required: [spec, type, next, prev]
+            properties:
+              spec: {type: string}
+              type: {type: string}
+              next: {type: string, format: date-time}
+              prev: {type: string, format: date-time, nullable: true}
+    OperatorPlan:
+      type: object
+      required: [id, name, description, limits, modules, organizations]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        limits: {type: object, additionalProperties: {type: integer}}
+        modules: {type: object, additionalProperties: {type: boolean}}
+        organizations: {type: integer}
     OperatorSystem:
       type: object
       required: [version, env, expected_migration, integrations]

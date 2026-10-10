@@ -1,7 +1,6 @@
-import { IntegrationsView } from "@/components/operator/integrations";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Integrations · Operator console" };
-
+// Integrations moved into Data sources: every source and service has its settings on its own page.
 export default function Page() {
-  return <IntegrationsView />;
+  redirect("/operator/data-sources");
 }

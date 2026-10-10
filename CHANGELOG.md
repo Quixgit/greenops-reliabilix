@@ -5,7 +5,171 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
-## [0.1.0-alpha.17] - 2026-10-10
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- **Cost control for paid APIs**: every request to the grid data provider is counted per day (and failures), and a daily
+  cap (platform setting `carbon.max_requests_per_day`, default 2000, 0 = unlimited) stops further requests until the
+  next UTC day; stored readings are used meanwhile. The source page shows today against the cap and the last 7 and 30
+  days. `GET /operator/api-usage`. API contract 0.20.0. Migration 0036.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Changed
+- Payment provider settings moved to where they are looked for: **Plans & billing → Payment providers** (each opens its own
+  settings page). They are no longer listed among the platform services under Data sources.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- **Subscriptions and payments** ([ADR-0038](docs/adr/0038-payments-and-subscriptions.md)): a subscription per organization
+  (plan, status active / trial / past due / ended, trial end, paid-until date); the scheduler returns an organization to Free
+  when its period has ended. Operators set status and dates when assigning a plan.
+- **Payment providers**, set up with keys in the console (Data sources → Platform services): **Stripe**, **Paddle**
+  (merchant of record), **LiqPay** and **WayForPay** (Ukraine, UAH), **payment link** (Payoneer, Wise, PayPal.me …) and
+  **invoice**. Apple Pay and Google Pay are offered on the providers' payment pages. Notifications are verified by signature,
+  applied once, and visible to the operator on Plans & billing. `POST /plan/checkout`, `POST /billing/webhooks/{provider}`.
+- Customer **Settings → Plan**: plan and status, usage against limits with bars, modules, change plan at a provider that is
+  set up. `GET /plan`.
+- Operator **Methodology & SCI** page: every coefficient set with provenance, coefficients, caveats and checksum.
+  `GET /operator/methodology`. API contract 0.19.0. Migration 0035.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- **Custom roles per organization** ([ADR-0037](docs/adr/0037-custom-roles.md)): define a role as a named set of
+  permissions (Settings → Roles), give it to a member in Members (one select holds built-in and custom roles), withdraw it by
+  choosing another role, delete it (members return to their built-in role). Guard rails: administration, data export and
+  machine permissions can never be in a custom role; you can only grant permissions you hold; owners are not given custom
+  roles; every change is audited. `GET/POST /roles`, `PUT/DELETE /roles/{id}`, `PATCH /members/{id}` with
+  `custom_role_id`. API contract 0.18.0. Migration 0034.
+- The public `GET /locales` honours the platform language settings (the languages on offer and the default).
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- **Multi-language platform** ([ADR-0036](docs/adr/0036-multi-language-platform.md)): English and Russian. Language
+  switcher in both headers (cookie, falling back to the browser's language), `<html lang>`, catalogs with parity tests,
+  plural forms, numbers, money and dates written by language. API problems carry a stable `code` and a translated `title`
+  (`Accept-Language`). Settings `i18n.default_locale` and `i18n.enabled_locales`. The menus, headers and Carbon & Energy
+  headings are translated; other page bodies are translated as their keys are added (English fallback).
+- **Load past grid data** (Data sources → Which source is used): fetches past hourly readings of the regions in use from the
+  provider (a provider plan option), in 9-day requests, with the number of requests shown before anything is asked and hard
+  limits (400 days, 2000 requests). Days calculated before readings existed can then use measured intensity after a
+  recalculation. `POST /operator/carbon/backfill`, job `carbon:backfill_intensity`. API contract 0.17.0. Migration 0033.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- **Grid intensity from several sources** ([ADR-0035](docs/adr/0035-multi-source-grid-intensity.md)): a platform source policy
+  (priority, a source per region, readings needed per day, oldest reading used) edited in the console next to the
+  sources ("Which source is used"). For each region and day the first trusted source with enough readings wins; sources
+  are never averaged together and marginal readings are never mixed with average ones.
+- Every calculation row records the **source and basis** of its intensity (day mean, partial day, last reading before,
+  latest overall, live). Rows calculated earlier stay unknown. Migration 0032.
+- Client **Carbon & Energy**: grid intensity history per region (chosen source, daily range, other sources beside it, gaps
+  left as gaps) and a card saying where the figures' intensities came from with the share that is a same-day mean.
+  `GET /carbon/intensity`; the carbon summary carries `intensity_origins`. API contract 0.16.0.
+
+### Changed
+- Dashboard region intensities and recommendation inputs read the most trusted source (not "the latest of any provider").
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Operator roles can be assigned and withdrawn from **Access & security** ([ADR-0034](docs/adr/0034-operator-roles-from-the-console.md)):
+  add a person who has signed in by e-mail, change a role, withdraw access. The database refuses to change your own role
+  and to leave the platform without an admin; every change is in the audit log. `PUT /operator/operators`,
+  `POST /operator/operators/withdraw`. API contract 0.15.0. Migration 0031.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Fixed
+- **Mixed currencies.** Cost totals, the dashboard cost trend, cost by service, cost anomalies and the cost basis of
+  recommendations summed amounts of different currencies together. They now use the dominant currency of the window
+  (largest total absolute cost); other currencies are left out, never added. A test pins it.
+- **Grid intensity of a day.** A day of usage was calculated with the last reading stored before the end of the day.
+  It now uses the mean of that day's readings, and falls back to the latest reading only when the day has none.
+  Re-run a calculation to apply it to stored history.
+
+### Changed
+- Operator console: **Integrations is merged into Data sources.** Every source and every platform service has its own page
+  with its terms, state and settings together (`/operator/data-sources/<id>`); the old page redirects. System no longer
+  repeats the integration list, an organization's suspension switch is not repeated in its settings list, and the
+  source page links to Connections instead of repeating its list.
+- Left menu scrollbar (client workspace and console): thin, inset from the edge, a little wider under the pointer.
+
+### Added
+- Suspended organizations are skipped by the scheduler fan-out (no synchronization or calculation jobs). Migration 0030.
+- A hand-computed reference test of the carbon arithmetic (energy, PUE, intensity, SCI shares).
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Plan catalog and assignment ([ADR-0033](docs/adr/0033-plan-catalog-and-assignment.md)): Free, Team, Business and
+  Enterprise as presets of limits and module switches; **Plans & billing** page with the comparison and the number of
+  organizations per plan; assign a plan on an organization's page with a required reason (locked values in the
+  settings history, plan and reason in the organization's audit log). `GET /operator/plans`,
+  `PUT /operator/tenants/{id}/plan`. API contract 0.13.0. Migration 0029.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Suspend and restore an organization from its console page. Suspension is the locked operator setting
+  `organization.suspended` with a message that people see: they keep read access and exports, every change is refused
+  with 403 until an operator restores access. The change is in the settings history and the organization's audit log.
+  Background synchronization of a suspended organization is not stopped yet (see the gap list).
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Integrations for sources that are planned: **WattTime** (user name and password) and **UK Carbon Intensity API**
+  (address, no key). They are marked "Prepared · not used yet": the values are stored sealed and no platform code reads
+  them until the connector is released; the data source registry links to them.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Changed
+- Operator console uses the same frame as the client workspace: the dark left panel with the same logo, links and
+  version, the white header and a white content area. The pastel theme of alpha.18 is removed.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Operator console **Jobs & scheduler**: queues (waiting, running, scheduled, retrying, gave up, done and failed today,
+  oldest wait), tasks that failed with their last error, and the periodic schedules the scheduler reported. Read-only;
+  payloads are never returned. `GET /operator/jobs`.
+- Operator console **Access & security**: the operators with role, date added and recent activity (read-only on purpose).
+  `GET /operator/operators`. API contract 0.12.0. Migration 0028.
+
+## [0.1.0-alpha.31] - 2026-10-10
+
+### Added
+- Operator console rebuilt ([ADR-0032](docs/adr/0032-operator-console-structure.md)): a calm pastel theme, a grouped menu
+  (Overview, Customers, Data, Operations, Governance), page search from the header, a mobile drawer and animated tiles
+  that respect reduced motion.
+- **Overview**: counts, a "needs attention" list built from the real errors, failing connections, failed deliveries,
+  missing integrations and failing data sources, and the latest operator activity.
+- **Data sources**: registry of everything the platform reads (access type, metrics, coverage, terms, state). State comes
+  from the real configuration and connection counts from real customer connections; planned sources are listed and carry
+  no numbers. `GET /operator/data-sources`.
+- **Audit log**: the operators' own access log, newest first, with a "changes only" view. `GET /operator/audit`.
+- Menu entries for sections that are not built yet (plans and billing, aggregation and policies, methodology and SCI,
+  jobs and scheduler, access and security) open a page that says what exists today and what is next.
+- API contract 0.11.0. Migration 0027 (two read-only SECURITY DEFINER functions).
+
+- `scripts/stand-deploy.sh`: builds and restarts the stand in one step, and applies the newest migration to the stand
+  database (`docs/setup/stand.md`).
+
+### Fixed
+- Stand: pages answered with a chunk-loading error when the frontend was rebuilt under a running server; the deploy script
+  restarts the web unit after every build.
+
+### Changed
+- Organizations moved to `/operator/organizations` and can be sorted and narrowed to those with problems; `/operator` is
+  now the Overview.
+
+## [0.1.0-alpha.31] - 2026-10-10
 
 ### Added
 - Kubernetes right-sizing recommendations from measured usage ([ADR-0031](docs/adr/0031-kubernetes-rightsizing.md)): smaller

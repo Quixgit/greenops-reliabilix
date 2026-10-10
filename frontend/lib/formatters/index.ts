@@ -1,4 +1,12 @@
-export const nf = (max = 1) => new Intl.NumberFormat("en-US", { maximumFractionDigits: max });
+// The language of the interface decides how numbers, money and dates are written (set once by the i18n provider).
+let formatLocale = "en-US";
+const INTL_TAG: Record<string, string> = { en: "en-US", ru: "ru-RU" };
+export function setFormatLocale(locale: string): void {
+  formatLocale = INTL_TAG[locale] ?? locale;
+}
+export const getFormatLocale = () => formatLocale;
+
+export const nf = (max = 1) => new Intl.NumberFormat(formatLocale, { maximumFractionDigits: max });
 
 /** kg CO2e -> "42.6 t" above 1000 kg, else "320 kg". */
 export function formatCarbon(kg: number): string {
@@ -6,7 +14,7 @@ export function formatCarbon(kg: number): string {
 }
 
 export function formatCost(v: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
+  return new Intl.NumberFormat(formatLocale, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
 }
 
 /** Percent change from previous to current; null when it cannot be computed honestly. */

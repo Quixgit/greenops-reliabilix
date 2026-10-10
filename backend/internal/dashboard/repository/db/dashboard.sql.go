@@ -103,12 +103,13 @@ func (q *Queries) DashboardProviders(ctx context.Context, arg DashboardProviders
 
 const dashboardRegions = `-- name: DashboardRegions :many
 WITH latest AS (
-  SELECT DISTINCT ON (region_id) region_id, g_co2e_per_kwh AS g, ts FROM carbon.grid_intensity
-  WHERE provider = 'electricitymaps' AND NOT is_forecast ORDER BY region_id, ts DESC
+  SELECT DISTINCT ON (region_id) region_id, provider, g_co2e_per_kwh AS g, ts FROM carbon.grid_intensity
+  WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
+  ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC
 ), prev AS (
   SELECT DISTINCT ON (gi.region_id) gi.region_id, gi.g_co2e_per_kwh AS g FROM carbon.grid_intensity gi
-  JOIN latest l ON l.region_id = gi.region_id AND gi.ts <= l.ts - interval '24 hours'
-  WHERE gi.provider = 'electricitymaps' AND NOT gi.is_forecast ORDER BY gi.region_id, gi.ts DESC
+  JOIN latest l ON l.region_id = gi.region_id AND gi.provider = l.provider AND gi.ts <= l.ts - interval '24 hours'
+  WHERE NOT gi.is_forecast AND gi.measure = 'average' ORDER BY gi.region_id, gi.ts DESC
 )
 SELECT l.region_id, l.g::float8 AS g_per_kwh, l.ts AS at, p.g AS prev_g_per_kwh
 FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g
@@ -121,7 +122,8 @@ type DashboardRegionsRow struct {
 	PrevGPerKwh *float64  `json:"prev_g_per_kwh"`
 }
 
-// Reference data (no tenant): latest reading per region and the one >= 24h older, for the change column.
+// Reference data (no tenant): per region, the newest average-intensity reading of the most trusted source (platform
+// setting carbon.provider_priority), and that same source's reading from >= 24h earlier for the change column.
 func (q *Queries) DashboardRegions(ctx context.Context) ([]DashboardRegionsRow, error) {
 	rows, err := q.db.Query(ctx, dashboardRegions)
 	if err != nil {
@@ -206,10 +208,14 @@ func (q *Queries) DashboardServiceCarbon(ctx context.Context, arg DashboardServi
 }
 
 const dashboardServiceCost = `-- name: DashboardServiceCost :many
-SELECT service_name, service_category, sum(billed_cost)::float8 AS cost FROM usage.usage_records
-WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
-  AND recorded_at >= $3 AND recorded_at < $4
-  AND ($5::text = '' OR service_category = $5::text)
+SELECT u.service_name, u.service_category, sum(u.billed_cost)::float8 AS cost FROM usage.usage_records u
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+  AND ($5::text = '' OR u.service_category = $5::text)
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY 1, 2
 `
 
@@ -257,7 +263,11 @@ const dashboardTrend = `-- name: DashboardTrend :many
 WITH cost_d AS (
   SELECT date_trunc('day', u.recorded_at) AS d, sum(u.billed_cost) AS cost FROM usage.usage_records u
   WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
-    AND u.recorded_at >= $3 AND u.recorded_at < $4 GROUP BY 1
+    AND u.recorded_at >= $3 AND u.recorded_at < $4
+    AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1) GROUP BY 1
 ), carbon_d AS (
   SELECT date_trunc('day', x.period_start) AS d, sum(x.carbon_kg_co2e) AS co2e FROM carbon.calculations x
   WHERE x.tenant_id = $1 AND ($2::uuid IS NULL OR x.project_id = $2)

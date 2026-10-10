@@ -13,7 +13,7 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { SecretOnce } from "@/components/ui/secret-once";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useInvitations, useMembers } from "@/hooks/use-admin";
+import { useInvitations, useMembers, useRoles } from "@/hooks/use-admin";
 import { api, apiVoid } from "@/lib/api/client";
 import { invitationCreated, member } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
@@ -51,7 +51,15 @@ export function MembersPanel() {
   const members = useMembers();
   const invites = useInvitations();
   const refresh = () => void qc.invalidateQueries({ queryKey: ["members"] });
-  const role = useMutation({ mutationFn: (v: { id: string; role: string }) => api(`members/${v.id}`, member, undefined, { method: "PATCH", body: JSON.stringify({ role: v.role }) }), onSuccess: refresh });
+  const roles = useRoles();
+  // The value is "role:<built-in>" or "custom:<id>": one select holds both kinds.
+  const role = useMutation({
+    mutationFn: (v: { id: string; value: string }) => {
+      const [kind, key] = v.value.split(":");
+      return api(`members/${v.id}`, member, undefined, { method: "PATCH", body: JSON.stringify(kind === "custom" ? { custom_role_id: key } : { role: key }) });
+    },
+    onSuccess: () => { refresh(); void qc.invalidateQueries({ queryKey: ["roles"] }); },
+  });
   const remove = useMutation({ mutationFn: (id: string) => apiVoid(`members/${id}`, { method: "DELETE" }), onSuccess: refresh });
   const err = role.error ?? remove.error;
   const pending = invites.data?.filter((i) => !i.accepted_at) ?? [];
@@ -66,8 +74,9 @@ export function MembersPanel() {
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
                 <span className="min-w-0 truncate font-medium">{m.email || m.user_id}</span>
                 <span className="flex items-center gap-2">
-                  <select aria-label={`Role of ${m.email}`} value={m.role} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, role: e.target.value })} className="rounded-lg bg-white/80 px-2 py-1 text-xs ring-1 ring-line">
-                    {MEMBER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                  <select aria-label={`Role of ${m.email}`} value={m.custom_role ? `custom:${m.custom_role.id}` : `role:${m.role}`} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, value: e.target.value })} className="rounded-lg bg-white/80 px-2 py-1 text-xs ring-1 ring-line">
+                    <optgroup label="Built-in">{MEMBER_ROLES.map((r) => <option key={r} value={`role:${r}`}>{r}</option>)}</optgroup>
+                    {roles.data && roles.data.custom.length > 0 && <optgroup label="Custom">{roles.data.custom.map((r) => <option key={r.id} value={`custom:${r.id}`}>{r.name}</option>)}</optgroup>}
                   </select>
                   <ConfirmButton label="Remove" disabled={remove.isPending} onConfirm={() => remove.mutate(m.id)} />
                 </span>

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 // Store persists calculations and reads aggregates (implemented by repository.Postgres).
@@ -23,8 +25,13 @@ type Store interface {
 	ReplaceCalculations(ctx context.Context, tenantID, projectID string, from, to time.Time, version string, calcs []domain.Calculation) error
 	// VersionTotals aggregates the stored rows of one methodology version.
 	VersionTotals(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (domain.Totals, error)
-	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool) error
-	IntensityAt(ctx context.Context, region string, ts time.Time) (float64, bool, error)
+	SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure string) error
+	domain.IntensityReader
+	// History returns each source's daily readings of a region in [from, to).
+	History(ctx context.Context, region string, from, to time.Time) ([]domain.HistoryRow, error)
+	// Regions lists the regions an organization has carbon in; Origins breaks a window's carbon down by intensity source.
+	Regions(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.RegionCarbon, error)
+	Origins(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.IntensityOrigin, error)
 }
 
 // Ports implemented by other modules and wired in the composition root (no cross-domain imports).
@@ -49,6 +56,8 @@ type Service struct {
 	Policies PolicySource
 	Projects ProjectLister
 	Provider domain.CarbonDataProvider // nil: live lookups fail closed; stored readings still work
+	// Settings supplies the source policy (carbon.* platform settings). nil: catalog defaults.
+	Settings settings.Reader
 	Queue    queue.Enqueuer
 	Log      *slog.Logger
 	TTL      time.Duration // live intensity cache (default 1h)
@@ -65,7 +74,28 @@ type cachedIntensity struct {
 // StoredIntensityAt returns the stored (never provider-fetched) grid reading at or before a time: other modules use it to
 // attach the carbon of a past hour without triggering a provider call.
 func (s *Service) StoredIntensityAt(ctx context.Context, region string, at time.Time) (float64, bool, error) {
-	return s.Store.IntensityAt(ctx, region, at)
+	ref, ok, err := domain.ResolveInstant(ctx, s.Store, s.Policy(ctx), region, at)
+	return ref.G, ok, err
+}
+
+// Policy is the source policy in force: which source to trust for a region and how much data it needs.
+func (s *Service) Policy(ctx context.Context) domain.Policy {
+	var r settings.Reader = settings.Defaults{}
+	if s.Settings != nil {
+		r = s.Settings
+	}
+	overrides := map[string]string{}
+	for _, e := range r.Strings(ctx, "", settings.KeyCarbonOverrides) {
+		if region, src, ok := strings.Cut(e, "="); ok {
+			overrides[region] = src
+		}
+	}
+	return domain.Policy{
+		Priority:       r.Strings(ctx, "", settings.KeyCarbonPriority),
+		Overrides:      overrides,
+		MinDayReadings: int(r.Int(ctx, "", settings.KeyCarbonMinReadings)),
+		MaxAge:         time.Duration(r.Int(ctx, "", settings.KeyCarbonMaxAgeHours)) * time.Hour,
+	}
 }
 
 // intensityNow returns the current intensity of a region: cached live reading, else the provider (and the
@@ -90,7 +120,7 @@ func (s *Service) intensityNow(ctx context.Context, region string) (float64, boo
 			}
 			s.cache[region] = cachedIntensity{g: in.GPerKWh, exp: time.Now().Add(ttl)}
 			s.mu.Unlock()
-			if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false); err != nil {
+			if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage); err != nil {
 				s.Log.Warn("persist grid intensity", "region", region, "err", err)
 			}
 			return in.GPerKWh, true, nil
@@ -100,7 +130,8 @@ func (s *Service) intensityNow(ctx context.Context, region string) (float64, boo
 			s.Log.Warn("grid provider failed; using stored readings", "region", region, "err", err)
 		}
 	}
-	return s.Store.IntensityAt(ctx, region, time.Now())
+	ref, ok, err := domain.ResolveInstant(ctx, s.Store, s.Policy(ctx), region, time.Now())
+	return ref.G, ok, err
 }
 
 // Calculate converts one measurement in a region to energy and CO2e (live grid intensity).
@@ -159,27 +190,33 @@ func (s *Service) CalculateWindowVersion(ctx context.Context, tenantID, projectI
 		}
 		units[r.Day] = u
 	}
+	policy := s.Policy(ctx)
 	memo := map[string]struct {
-		g  float64
-		ok bool
+		ref domain.IntensityRef
+		ok  bool
 	}{}
-	lookup := func(ctx context.Context, region string, at time.Time) (float64, bool, error) {
+	lookup := func(ctx context.Context, region string, at time.Time) (domain.IntensityRef, bool, error) {
 		k := region + "@" + at.Format(time.DateOnly)
 		if m, ok := memo[k]; ok {
-			return m.g, m.ok, nil
+			return m.ref, m.ok, nil
 		}
-		g, ok, err := s.Store.IntensityAt(ctx, region, at)
+		// at is the end of the usage day: it ran under the mean of its own readings of the first trusted source that
+		// has enough of them (domain.ResolveDay), never under a blend of sources.
+		ref, ok, err := domain.ResolveDay(ctx, s.Store, policy, region, at.Add(-24*time.Hour))
 		if err == nil && !ok {
-			g, ok, err = s.intensityNow(ctx, region) // nothing stored yet: ask the provider once
+			var g float64
+			if g, ok, err = s.intensityNow(ctx, region); ok { // nothing stored yet: ask the provider once
+				ref = domain.IntensityRef{G: g, Source: domain.ProviderElectricityMaps, Basis: domain.BasisLive}
+			}
 		}
 		if err != nil {
-			return 0, false, err
+			return domain.IntensityRef{}, false, err
 		}
 		memo[k] = struct {
-			g  float64
-			ok bool
-		}{g, ok}
-		return g, ok, nil
+			ref domain.IntensityRef
+			ok  bool
+		}{ref, ok}
+		return ref, ok, nil
 	}
 	calcs, skipped, err := domain.ComputeWith(factors, ctx, rows, lookup, units)
 	if err != nil {
@@ -325,7 +362,7 @@ func (s *Service) RefreshGrid(ctx context.Context) error {
 	for _, region := range lister.Regions() {
 		in, err := s.Provider.GetIntensity(ctx, region)
 		if err == nil {
-			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false)
+			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage)
 		}
 		if err == nil {
 			s.saveForecast(ctx, region)
@@ -350,7 +387,7 @@ func (s *Service) saveForecast(ctx context.Context, region string) {
 		return
 	}
 	for _, p := range f.Points {
-		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true); err != nil {
+		if err := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, true, domain.MeasureAverage); err != nil {
 			s.Log.Error("save grid forecast", "region", region, "err", err)
 			return
 		}
@@ -438,4 +475,72 @@ func (s *Service) Evaluate(ctx context.Context, tenantID string, req GateRequest
 	v, reasons := domain.Gate(carbonKg, cost, th)
 	return GateResponse{Verdict: v, CarbonKgMonth: carbonKg, CostDeltaMonth: cost, Reasons: reasons, ThresholdsApplied: th.Any(),
 		MethodologyVersion: domain.MethodologyVersion, EmbodiedCarbonIncluded: domain.Current.EmbodiedIncluded(), Caveats: domain.Current.Caveats}, nil
+}
+
+// IntensityHistory returns the day-by-day grid intensity of a region from stored readings. A day with no reading is
+// absent, never filled in.
+func (s *Service) IntensityHistory(ctx context.Context, region string, from, to time.Time) ([]domain.HistoryPoint, error) {
+	rows, err := s.Store.History(ctx, region, from, to)
+	if err != nil {
+		return nil, err
+	}
+	return domain.ResolveHistory(rows, s.Policy(ctx), region), nil
+}
+
+// Regions lists the regions an organization has carbon in over a window.
+func (s *Service) Regions(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.RegionCarbon, error) {
+	return s.Store.Regions(ctx, tenantID, project, from, to, methodology.Version)
+}
+
+// Origins says where the intensities behind a window's carbon came from.
+func (s *Service) Origins(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.IntensityOrigin, error) {
+	return s.Store.Origins(ctx, tenantID, project, from, to, methodology.Version)
+}
+
+// Backfill limits: the provider bills and throttles by request, so a run is bounded before it starts.
+const (
+	BackfillMaxDays     = 400
+	BackfillMaxRequests = 2000
+	backfillChunkDays   = 9
+)
+
+// BackfillEstimate is how many provider requests a backfill of regions over days needs.
+func BackfillEstimate(regions, days int) int {
+	chunks := (days + backfillChunkDays - 1) / backfillChunkDays
+	return regions * chunks
+}
+
+// BackfillIntensity fetches the past hourly readings of the regions from the provider and stores them (idempotent: a
+// stored reading is never overwritten). It does nothing without a provider that offers history. One region failing
+// does not stop the others; the first error is returned after all were tried.
+func (s *Service) BackfillIntensity(ctx context.Context, regions []string, from, to time.Time) (stored int, err error) {
+	hp, ok := s.Provider.(domain.HistoryProvider)
+	if !ok {
+		return 0, errors.New("carbon: the grid provider cannot return past data")
+	}
+	if days := int(to.Sub(from).Hours() / 24); days < 1 || days > BackfillMaxDays || BackfillEstimate(len(regions), days) > BackfillMaxRequests {
+		return 0, fmt.Errorf("carbon: backfill of %d regions over %d days is outside the limits", len(regions), days)
+	}
+	var first error
+	for _, region := range regions {
+		pts, e := hp.GetHistory(ctx, region, from, to)
+		if e != nil {
+			observability.CarbonAPIErrors.Inc()
+			s.Log.Error("grid backfill", "region", region, "err", e)
+			if first == nil {
+				first = e
+			}
+			if errors.Is(e, domain.ErrNotConfigured) {
+				break // no key: every region would fail the same way
+			}
+			continue
+		}
+		for _, p := range pts {
+			if e := s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, p.At, p.GPerKWh, false, domain.MeasureAverage); e != nil {
+				return stored, e
+			}
+			stored++
+		}
+	}
+	return stored, first
 }

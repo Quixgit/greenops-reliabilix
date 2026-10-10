@@ -51,6 +51,10 @@ export const useCarbonTrend = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["carbon-trend", f], queryFn: () => api("carbon/trend", s.carbonTrend, f) });
 };
+export const useIntensityHistory = (region: string | undefined) => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["intensity-history", f, region], queryFn: () => api("carbon/intensity", s.intensityHistory, { ...f, region }) });
+};
 export const useMethodologyVersions = () =>
   useQuery({ queryKey: ["methodology-versions"], queryFn: () => api("carbon/methodology/versions", s.methodologyVersions), staleTime: 10 * 60_000 });
 export const useConnection = (id: string) => useQuery({ queryKey: ["connection", id], queryFn: () => api(`cloud-accounts/${id}`, s.connectionDetail) });

@@ -411,7 +411,7 @@ func (q *Queries) RevokeAPIKey(ctx context.Context, arg RevokeAPIKeyParams) (int
 }
 
 const updateMemberRole = `-- name: UpdateMemberRole :exec
-UPDATE tenants.memberships SET role = $1 WHERE organization_id = $2 AND id = $3
+UPDATE tenants.memberships SET role = $1, custom_role_id = NULL WHERE organization_id = $2 AND id = $3
 `
 
 type UpdateMemberRoleParams struct {

@@ -21,6 +21,7 @@ type fakeStore struct {
 	savedGrid map[string]float64
 	totals    map[string]domain.Totals // by methodology version
 	replaced  []string                 // versions passed to ReplaceCalculations
+	dayAvg    map[string]float64       // mean reading of the usage day, per region
 }
 
 func (f *fakeStore) Summary(context.Context, string, *string, time.Time, time.Time) (domain.Summary, error) {
@@ -37,16 +38,35 @@ func (f *fakeStore) ReplaceCalculations(_ context.Context, _, _ string, _, _ tim
 	f.saved = append(f.saved, c...)
 	return nil
 }
-func (f *fakeStore) SaveGridIntensity(_ context.Context, _, region string, _ time.Time, g float64, _ bool) error {
+func (f *fakeStore) SaveGridIntensity(_ context.Context, _, region string, _ time.Time, g float64, _ bool, _ string) error {
 	if f.savedGrid == nil {
 		f.savedGrid = map[string]float64{}
 	}
 	f.savedGrid[region] = g
 	return nil
 }
-func (f *fakeStore) IntensityAt(_ context.Context, region string, _ time.Time) (float64, bool, error) {
+
+// DayStats: the readings of the day (dayAvg), counted as a full day of 24.
+func (f *fakeStore) DayStats(_ context.Context, region, provider string, _, _ time.Time) (float64, int, error) {
+	if g, ok := f.dayAvg[region]; ok && provider == domain.ProviderElectricityMaps {
+		return g, 24, nil
+	}
+	return 0, 0, nil
+}
+
+// Latest: the stored reading (stored), whatever the time.
+func (f *fakeStore) Latest(_ context.Context, region, provider string, _ *time.Time) (float64, time.Time, bool, error) {
 	g, ok := f.stored[region]
-	return g, ok, nil
+	return g, time.Now(), ok && provider == domain.ProviderElectricityMaps, nil
+}
+func (f *fakeStore) History(context.Context, string, time.Time, time.Time) ([]domain.HistoryRow, error) {
+	return nil, nil
+}
+func (f *fakeStore) Regions(context.Context, string, *string, time.Time, time.Time, string) ([]domain.RegionCarbon, error) {
+	return nil, nil
+}
+func (f *fakeStore) Origins(context.Context, string, *string, time.Time, time.Time, string) ([]domain.IntensityOrigin, error) {
+	return nil, nil
 }
 
 type usageSrc struct{ rows []domain.UsageDay }
@@ -188,5 +208,18 @@ func TestEvaluateGate(t *testing.T) {
 	}
 	if _, err := svc.Evaluate(context.Background(), "t", GateRequest{ProjectID: "p", Changes: []Change{{Kind: domain.KindVCPUHours, Amount: 1, Region: "mars"}}}); !errors.Is(err, ErrNoGridData) {
 		t.Errorf("unknown region must fail closed, got %v", err)
+	}
+}
+
+// A day of usage ran under the mean of that day's readings, not under the last reading stored before midnight.
+func TestCalculateWindowUsesTheMeanIntensityOfTheDay(t *testing.T) {
+	st := &fakeStore{stored: map[string]float64{"eu-central-1": 900}, dayAvg: map[string]float64{"eu-central-1": 300}}
+	svc, _ := newSvc(st, []domain.UsageDay{ec2Day()}, unitsSrc{}, &grid{g: 999}, domain.Thresholds{})
+	res, err := svc.CalculateWindow(context.Background(), "t", "p", day, day.AddDate(0, 0, 1))
+	if err != nil || res.Calculated != 1 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	if got := st.saved[0].IntensityGPerKWh; got != 300 {
+		t.Errorf("intensity = %v, want the day mean 300 (not the last reading 900)", got)
 	}
 }

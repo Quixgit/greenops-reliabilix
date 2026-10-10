@@ -4,6 +4,8 @@ import { Bell, CalendarDays, Layers, LogOut, Menu, Search, Settings as SettingsI
 import Link from "next/link";
 import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot, DropdownTrigger } from "@/components/ui/dropdown";
 import { useProjects } from "@/hooks/use-overview";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { useT } from "@/i18n/provider";
 import { PERIODS, useUi, type PeriodKey } from "@/lib/store";
 import type { Role } from "@/lib/permissions";
 
@@ -11,20 +13,21 @@ const ALL = "__all__";
 
 export function Header({ user, unread = 0 }: { user: { name: string; email: string; role: Role }; unread?: number }) {
   const { projectId, setProject, period, setPeriod, setNavOpen } = useUi();
+  const t = useT();
   const projects = useProjects();
   const selected = projects.data?.find((p) => p.id === projectId);
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-white/90 px-4 backdrop-blur-xl lg:px-6">
-      <button className="rounded-lg p-2 hover:bg-slate-100 lg:hidden" aria-label="Open menu" onClick={() => setNavOpen(true)}><Menu className="size-5" /></button>
+      <button className="rounded-lg p-2 hover:bg-slate-100 lg:hidden" aria-label={t("header.menu")} onClick={() => setNavOpen(true)}><Menu className="size-5" /></button>
 
       <div className="flex items-center gap-2">
         <DropdownRoot>
-          <DropdownTrigger><Layers className="size-4 text-slate-500" /><span className="max-w-40 truncate">{selected?.name ?? "All Projects"}</span></DropdownTrigger>
+          <DropdownTrigger><Layers className="size-4 text-slate-500" /><span className="max-w-40 truncate">{selected?.name ?? t("header.all_projects")}</span></DropdownTrigger>
           <DropdownPanel>
             <DropdownRadioGroup value={projectId ?? ALL} onValueChange={(v) => setProject(v === ALL ? null : v)}>
-              <DropdownRadioItem value={ALL}>All Projects</DropdownRadioItem>
+              <DropdownRadioItem value={ALL}>{t("header.all_projects")}</DropdownRadioItem>
               {projects.data?.map((p) => <DropdownRadioItem key={p.id} value={p.id}>{p.name}</DropdownRadioItem>)}
             </DropdownRadioGroup>
           </DropdownPanel>
@@ -40,6 +43,7 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <LanguageSwitcher />
         {/* Stub: global search arrives in a later release. It looks like the final field but is read-only. */}
         <label className="group relative hidden md:block">
           <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -70,8 +74,8 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
             <span className="hidden text-left leading-tight sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-xs capitalize text-muted">{user.role}</span></span>
           </DropdownTrigger>
           <DropdownPanel align="end">
-            <DropdownItem asChild><Link href="/settings"><SettingsIcon className="size-4" />Settings</Link></DropdownItem>
-            <DropdownItem asChild><a href="/auth/logout"><LogOut className="size-4" />Sign out</a></DropdownItem>
+            <DropdownItem asChild><Link href="/settings"><SettingsIcon className="size-4" />{t("header.settings")}</Link></DropdownItem>
+            <DropdownItem asChild><a href="/auth/logout"><LogOut className="size-4" />{t("header.sign_out")}</a></DropdownItem>
           </DropdownPanel>
         </DropdownRoot>
       </div>

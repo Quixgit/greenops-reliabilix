@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { content } from "@/content/schema";
+import { useT } from "@/i18n/provider";
 import { useUi } from "@/lib/store";
 import { BUILD_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,9 @@ function Waves() {
 export function Sidebar({ isOperator = false }: { isOperator?: boolean }) {
   const path = usePathname();
   const { navOpen, setNavOpen } = useUi();
+  const t = useT();
   const items = [...NAV, ...(isOperator ? [{ href: "/operator", label: "Operator console", icon: ShieldCheck }] : [])];
+  const slug = (href: string) => (href === "/operator" ? "operator" : href.slice(1).replace(/\W+/g, "_"));
   return (
     <>
       {navOpen && <button aria-label="Close menu" className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} />}
@@ -49,13 +52,13 @@ export function Sidebar({ isOperator = false }: { isOperator?: boolean }) {
           <Logo className="size-10" />
           <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs text-slate-400">GreenOps Platform</span></span>
         </Link>
-        <nav aria-label="Main" className="flex flex-1 flex-col gap-1 px-3 pt-1">
+        <nav aria-label="Main" className="thin-scroll flex min-h-0 flex-1 flex-col gap-1 px-2 pl-3 pt-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active = path === href || path.startsWith(`${href}/`);
             return (
               <Link key={href} href={href} onClick={() => setNavOpen(false)} aria-current={active ? "page" : undefined}
                 className={cn("nav-link flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-medium", active ? "bg-navy-active text-white" : "text-slate-300")}>
-                <Icon className="nav-icon size-[19px]" strokeWidth={1.8} />{label}
+                <Icon className="nav-icon size-[19px]" strokeWidth={1.8} />{t(`nav.${slug(href)}`, undefined, label)}
               </Link>
             );
           })}

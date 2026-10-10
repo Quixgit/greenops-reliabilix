@@ -30,6 +30,10 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(admin).Get("/members", h.members)
 	r.With(admin).Patch("/members/{id}", h.changeRole)
 	r.With(admin).Delete("/members/{id}", h.removeMember)
+	r.With(admin).Get("/roles", h.roles)
+	r.With(admin).Post("/roles", h.createRole)
+	r.With(admin).Put("/roles/{id}", h.updateRole)
+	r.With(admin).Delete("/roles/{id}", h.deleteRole)
 	r.With(admin).Get("/invitations", h.invitations)
 	r.With(admin).Post("/invitations", h.invite)
 	r.With(admin).Get("/api-keys", h.apiKeys)
@@ -44,6 +48,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.NotFound(w, r)
 	case errors.Is(err, domain.ErrInvalidInput):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "")
+	case errors.Is(err, domain.ErrPermissionNotHeld):
+		httpx.WriteProblem(w, r, http.StatusForbidden, "forbidden", err.Error())
 	case errors.Is(err, domain.ErrForbiddenChange):
 		httpx.WriteProblem(w, r, http.StatusForbidden, "forbidden", err.Error())
 	case errors.Is(err, domain.ErrLastOwner):
@@ -122,19 +128,105 @@ func (h Handlers) changeRole(w http.ResponseWriter, r *http.Request) {
 		httpx.NotFound(w, r)
 		return
 	}
+	// Either a built-in role or a custom role id; giving a built-in role also withdraws any custom role.
 	var in struct {
-		Role auth.Role `json:"role"`
+		Role         auth.Role `json:"role"`
+		CustomRoleID string    `json:"custom_role_id"`
 	}
-	if err := httpx.DecodeJSON(r, &in); err != nil {
-		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+	if err := httpx.DecodeJSON(r, &in); err != nil || (in.Role == "") == (in.CustomRoleID == "") {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "give either role or custom_role_id")
 		return
 	}
-	m, err := h.Svc.ChangeRole(r.Context(), c.TenantID, id, in.Role, c)
+	var m domain.Member
+	var err error
+	if in.CustomRoleID != "" {
+		if !httpx.ParseUUID(in.CustomRoleID) {
+			httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+			return
+		}
+		m, err = h.Svc.AssignCustomRole(r.Context(), c.TenantID, id, in.CustomRoleID, c)
+	} else {
+		m, err = h.Svc.ChangeRole(r.Context(), c.TenantID, id, in.Role, c)
+	}
 	if err != nil {
 		fail(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, m)
+}
+
+// roles answers the catalog of permissions, what each built-in role grants and the organization's custom roles.
+func (h Handlers) roles(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	custom, err := h.Svc.CustomRoles(r.Context(), c.TenantID)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	type builtin struct {
+		Role        auth.Role         `json:"role"`
+		Permissions []auth.Permission `json:"permissions"`
+	}
+	var bs []builtin
+	for _, role := range []auth.Role{auth.RoleOwner, auth.RoleAdmin, auth.RoleEngineer, auth.RoleBilling, auth.RoleViewer} {
+		bs = append(bs, builtin{Role: role, Permissions: auth.PermissionsOf(role)})
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"permissions": auth.Permissions(), "builtin": bs, "custom": custom})
+}
+
+type roleBody struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Permissions []auth.Permission `json:"permissions"`
+}
+
+func (h Handlers) createRole(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	var in roleBody
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+		return
+	}
+	x, err := h.Svc.CreateCustomRole(r.Context(), c.TenantID, c, in.Name, in.Description, in.Permissions)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, x)
+}
+
+func (h Handlers) updateRole(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := httpx.PathUUID(r, "id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	var in roleBody
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+		return
+	}
+	x, err := h.Svc.UpdateCustomRole(r.Context(), c.TenantID, id, c, in.Name, in.Description, in.Permissions)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, x)
+}
+
+func (h Handlers) deleteRole(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := httpx.PathUUID(r, "id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err := h.Svc.DeleteCustomRole(r.Context(), c.TenantID, id, c); err != nil {
+		fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handlers) removeMember(w http.ResponseWriter, r *http.Request) {

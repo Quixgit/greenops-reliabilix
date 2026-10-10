@@ -363,6 +363,29 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 	c.must("PATCH", "/api/v1/members/"+aliceMember, alice, `{"role":"admin"}`, 409) // last owner
 	c.must("DELETE", "/api/v1/members/"+aliceMember, alice, "", 409)
 	c.must("PATCH", "/api/v1/members/"+bobMember, alice, `{"role":"root"}`, 422)
+
+	// ---- custom roles: an organization-defined set of permissions, assigned and withdrawn per member ----
+	c.must("POST", "/api/v1/roles", alice, `{"name":"Sneaky","permissions":["project:read","tenant:admin"]}`, 422) // administration is never in a custom role
+	c.must("POST", "/api/v1/roles", bob, `{"name":"Mine","permissions":["project:read"]}`, 403)
+	role := c.must("POST", "/api/v1/roles", alice, `{"name":"Carbon analyst","description":"reads carbon only","permissions":["project:read","carbon:read"]}`, 201)
+	roleID := str(role, "id")
+	c.must("POST", "/api/v1/roles", alice, `{"name":"carbon ANALYST","permissions":["project:read"]}`, 422) // names are unique, case-insensitively
+	c.must("PATCH", "/api/v1/members/"+bobMember, alice, fmt.Sprintf(`{"custom_role_id":"%s"}`, roleID), 200)
+	c.must("GET", "/api/v1/carbon/summary", bob, "", 200)                                           // granted by the role
+	c.must("GET", "/api/v1/reports", bob, "", 403)                                                  // a built-in viewer could read reports; this role could not
+	c.must("POST", "/api/v1/roles", bob, `{"name":"Escalate","permissions":["project:read"]}`, 403) // no tenant:admin
+	for _, m := range items(c.must("GET", "/api/v1/members", alice, "", 200)) {
+		mm := m.(map[string]any)
+		if str(mm, "id") == bobMember && (sub(mm, "custom_role") == nil || str(sub(mm, "custom_role"), "name") != "Carbon analyst") {
+			t.Errorf("member does not show the custom role: %v", mm)
+		}
+	}
+	c.must("PATCH", "/api/v1/members/"+bobMember, alice, `{"role":"viewer"}`, 200) // a built-in role withdraws the custom one
+	c.must("GET", "/api/v1/reports", bob, "", 200)
+	c.must("PATCH", "/api/v1/members/"+bobMember, alice, fmt.Sprintf(`{"custom_role_id":"%s"}`, roleID), 200)
+	c.must("DELETE", "/api/v1/roles/"+roleID, alice, "", 204) // deleting the role returns its members to the built-in role
+	c.must("GET", "/api/v1/reports", bob, "", 200)
+	c.must("PATCH", "/api/v1/members/"+aliceMember, alice, fmt.Sprintf(`{"custom_role_id":"%s"}`, roleID), 404)
 	c.must("PATCH", "/api/v1/members/"+bobMember, alice, `{"role":"admin"}`, 200)
 	c.must("PATCH", "/api/v1/members/"+aliceMember, bob, `{"role":"viewer"}`, 403) // an admin cannot demote an owner
 	c.must("PATCH", "/api/v1/members/"+bobMember, alice, `{"role":"billing"}`, 200)

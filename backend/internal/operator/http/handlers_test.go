@@ -27,6 +27,7 @@ func (f *fakeRepo) SetErrorStatus(_ context.Context, actor, id, status string) (
 }
 
 type fakeRepo struct {
+	plans      []string
 	errFilters []string
 	errSet     []string
 	roles      map[string]domain.Role
@@ -61,6 +62,39 @@ func (f *fakeRepo) DeliveryStats(context.Context, int) ([]domain.DeliveryStat, e
 }
 func (f *fakeRepo) UnhealthyConnections(context.Context, int) ([]domain.Connection, error) {
 	return []domain.Connection{}, nil
+}
+func (f *fakeRepo) Audit(context.Context, int) ([]domain.AuditEntry, error) {
+	return []domain.AuditEntry{{ID: 1, OperatorSub: "viewer-1", Action: "GET /operator/me"}}, nil
+}
+func (f *fakeRepo) ProviderUsage(context.Context) ([]domain.ProviderUsage, error) {
+	return []domain.ProviderUsage{{Provider: "aws", Connections: 3, Organizations: 2, InError: 1}}, nil
+}
+func (f *fakeRepo) Operators(context.Context) ([]domain.OperatorRecord, error) {
+	return []domain.OperatorRecord{{Subject: "admin-1", Role: domain.Admin}}, nil
+}
+func (f *fakeRepo) SetSubscription(_ context.Context, actor, tenant, plan, status string, _, _ *time.Time, reason string) (bool, error) {
+	f.plans = append(f.plans, actor+"/"+tenant+"/"+plan+"/"+status+"/"+reason)
+	return true, nil
+}
+func (f *fakeRepo) Subscription(context.Context, string) (domain.Subscription, error) {
+	return domain.Subscription{Status: "none"}, nil
+}
+func (f *fakeRepo) BillingEvents(context.Context, int) ([]domain.BillingEvent, error) {
+	return []domain.BillingEvent{}, nil
+}
+func (f *fakeRepo) AssignOperator(_ context.Context, actor, email string, role domain.Role) (string, error) {
+	f.plans = append(f.plans, "assign:"+actor+"/"+email+"/"+string(role))
+	return "sub", nil
+}
+func (f *fakeRepo) WithdrawOperator(_ context.Context, actor, sub string) (bool, error) {
+	f.plans = append(f.plans, "withdraw:"+actor+"/"+sub)
+	return true, nil
+}
+func (f *fakeRepo) CarbonRegions(context.Context) ([]string, error) {
+	return []string{"eu-central-1", "us-east-1"}, nil
+}
+func (f *fakeRepo) APIUsage(context.Context, int) ([]domain.APIUsage, error) {
+	return []domain.APIUsage{{Provider: "electricitymaps", Requests: 12}}, nil
 }
 func (f *fakeRepo) RetryDelivery(_ context.Context, actor, tenant, id string) (bool, error) {
 	f.retried = append(f.retried, actor+"/"+tenant+"/"+id)
@@ -102,7 +136,7 @@ func TestNonOperatorsAreRefusedEverywhere(t *testing.T) {
 	for _, sub := range []string{"", "someone-else", "apikey:abc"} {
 		repo, h := setup(sub)
 		for _, route := range []struct{ m, p string }{
-			{"GET", "/operator/me"}, {"GET", "/operator/tenants"}, {"GET", "/operator/system"}, {"GET", "/operator/notifications/deliveries"},
+			{"GET", "/operator/me"}, {"GET", "/operator/tenants"}, {"GET", "/operator/system"}, {"GET", "/operator/notifications/deliveries"}, {"GET", "/operator/audit"}, {"GET", "/operator/data-sources"}, {"GET", "/operator/jobs"}, {"GET", "/operator/operators"},
 			{"POST", "/operator/tenants/" + t1 + "/deliveries/" + d1 + "/retry"},
 		} {
 			want := http.StatusForbidden
@@ -126,7 +160,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &me) != nil || me.Role != domain.Viewer || me.Subject != "viewer-1" {
 		t.Fatalf("me = %d %s", rec.Code, rec.Body)
 	}
-	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system"} {
+	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system", "/operator/audit?limit=20", "/operator/data-sources", "/operator/operators", "/operator/plans", "/operator/billing/events", "/operator/methodology", "/operator/api-usage"} {
 		if rec := do(h, "GET", p); rec.Code != 200 {
 			t.Errorf("GET %s = %d", p, rec.Code)
 		}
@@ -143,7 +177,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if len(repo.retried)+len(repo.toggled) != 0 {
 		t.Error("a read-only operator changed something")
 	}
-	if len(repo.log) != 6 { // every successful read is recorded; refused writes are not
+	if len(repo.log) != 13 { // every successful read is recorded; refused writes are not
 		t.Errorf("access log = %v", repo.log)
 	}
 }
@@ -234,5 +268,118 @@ func TestErrorLogEndpoints(t *testing.T) {
 	}
 	if rec := do(h2, "POST", "/operator/errors/nope/resolve"); rec.Code != 404 {
 		t.Errorf("bad id = %d, want 404", rec.Code)
+	}
+}
+
+func TestDataSourcesAreMergedWithRealConnectionCounts(t *testing.T) {
+	repo, _ := setup("viewer-1")
+	svc := application.Service{Repo: repo, Sources: func(context.Context) []domain.DataSource {
+		return []domain.DataSource{
+			{ID: "aws-cost", Name: "AWS Cost Explorer", State: "not_configured"},
+			{ID: "gcp-billing", Name: "GCP billing export", State: "not_configured"},
+			{ID: "wattime", Name: "WattTime", State: "planned"},
+		}
+	}}
+	got, err := svc.DataSources(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aws := got[0]; aws.Connections == nil || *aws.Connections != 3 || aws.State != "attention" {
+		t.Errorf("aws source = %+v, want 3 connections and state attention (one connection fails)", aws)
+	}
+	if gcp := got[1]; gcp.Connections == nil || *gcp.Connections != 0 || gcp.State != "not_configured" {
+		t.Errorf("gcp source = %+v, want zero connections, nothing invented", gcp)
+	}
+	if w := got[2]; w.Connections != nil || w.State != "planned" {
+		t.Errorf("planned source must not carry counts: %+v", w)
+	}
+}
+
+func TestAuditLimitIsValidated(t *testing.T) {
+	_, h := setup("viewer-1")
+	for _, q := range []string{"0", "501", "x"} {
+		if rec := do(h, "GET", "/operator/audit?limit="+q); rec.Code != 400 {
+			t.Errorf("limit=%s = %d, want 400", q, rec.Code)
+		}
+	}
+}
+
+func TestJobsIs404WithoutAQueueAndServesTelemetryWhenWired(t *testing.T) {
+	_, h := setup("viewer-1")
+	if rec := do(h, "GET", "/operator/jobs"); rec.Code != 404 {
+		t.Errorf("no queue wired = %d, want 404", rec.Code)
+	}
+}
+
+func TestAssigningAPlanNeedsAdminAKnownPlanAndAReason(t *testing.T) {
+	put := func(h http.Handler, body string) int {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), "PUT", "/operator/tenants/"+t1+"/plan", strings.NewReader(body)))
+		return rec.Code
+	}
+	repo, h := setup("viewer-1")
+	if c := put(h, `{"plan":"team","reason":"upgrade"}`); c != 403 {
+		t.Errorf("viewer = %d, want 403", c)
+	}
+	repo, h = setup("admin-1")
+	for _, body := range []string{`{"plan":"nope","reason":"upgrade"}`, `{"plan":"team","reason":""}`, `{"plan":"team"}`} {
+		if c := put(h, body); c != 422 {
+			t.Errorf("%s = %d, want 422", body, c)
+		}
+	}
+	if len(repo.plans) != 0 {
+		t.Errorf("a refused request changed something: %v", repo.plans)
+	}
+}
+
+func TestOperatorRolesAreAdminOnlyAndValidated(t *testing.T) {
+	send := func(h http.Handler, method, path, body string) int {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader(body)))
+		return rec.Code
+	}
+	repo, h := setup("viewer-1")
+	if c := send(h, "PUT", "/operator/operators", `{"email":"a@example.com","role":"admin"}`); c != 403 {
+		t.Errorf("viewer assigning = %d, want 403", c)
+	}
+	if c := send(h, "POST", "/operator/operators/withdraw", `{"subject":"x"}`); c != 403 {
+		t.Errorf("viewer withdrawing = %d, want 403", c)
+	}
+	repo, h = setup("admin-1")
+	for _, body := range []string{`{"email":"not-an-address","role":"admin"}`, `{"email":"a@example.com","role":"root"}`, `{"role":"viewer"}`} {
+		if c := send(h, "PUT", "/operator/operators", body); c != 422 {
+			t.Errorf("%s = %d, want 422", body, c)
+		}
+	}
+	if len(repo.plans) != 0 {
+		t.Errorf("a refused request changed something: %v", repo.plans)
+	}
+	if c := send(h, "PUT", "/operator/operators", `{"email":"new@example.com","role":"viewer"}`); c != 200 {
+		t.Errorf("valid assignment = %d, want 200", c)
+	}
+	if len(repo.plans) != 1 || repo.plans[0] != "assign:admin-1/new@example.com/viewer" {
+		t.Errorf("assignment = %v", repo.plans)
+	}
+}
+
+func TestBackfillPlanIsBoundedAndDryRunStartsNothing(t *testing.T) {
+	post := func(h http.Handler, body string) (int, string) {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), "POST", "/operator/carbon/backfill", strings.NewReader(body)))
+		return rec.Code, rec.Body.String()
+	}
+	_, h := setup("viewer-1")
+	if c, _ := post(h, `{"from":"2026-01-01","to":"2026-02-01","dry_run":true}`); c != 403 {
+		t.Errorf("viewer = %d, want 403", c)
+	}
+	_, h = setup("admin-1")
+	c, body := post(h, `{"from":"2026-01-01","to":"2026-02-01","dry_run":true}`)
+	if c != 200 || !strings.Contains(body, `"estimated_requests":8`) || !strings.Contains(body, `"queued":false`) { // 2 regions x ceil(31/9)=4
+		t.Errorf("dry run = %d %s", c, body)
+	}
+	for _, b := range []string{`{"from":"2026-02-01","to":"2026-01-01"}`, `{"from":"2024-01-01","to":"2026-01-01"}`, `{"from":"x","to":"y"}`} {
+		if c, _ := post(h, b); c != 422 {
+			t.Errorf("%s = %d, want 422", b, c)
+		}
 	}
 }

@@ -26,6 +26,19 @@ const (
 	KeyReportFormats       = "reports.allowed_formats"
 	KeySyncMinIntervalH    = "sync.min_interval_hours"
 
+	KeyDefaultLocale  = "i18n.default_locale"
+	KeyEnabledLocales = "i18n.enabled_locales"
+
+	KeyCarbonMaxRequests = "carbon.max_requests_per_day"
+
+	KeyCarbonPriority    = "carbon.provider_priority"
+	KeyCarbonOverrides   = "carbon.region_provider_overrides"
+	KeyCarbonMinReadings = "carbon.min_day_readings"
+	KeyCarbonMaxAgeHours = "carbon.max_reading_age_hours"
+
+	KeyOrgSuspended        = "organization.suspended"
+	KeyOrgSuspendedMessage = "organization.suspended_message"
+
 	KeyLimitProjects     = "limits.projects"
 	KeyLimitConnections  = "limits.cloud_connections"
 	KeyLimitMembers      = "limits.members"
@@ -42,6 +55,9 @@ const (
 
 var groups = []Group{
 	{"platform", "Platform", "Availability and onboarding of the whole deployment."},
+	{"organization", "Organization status", "Suspend an organization or restore it. Every change is recorded in the change history."},
+	{"i18n", "Languages", "Which languages the platform offers and which one is used when a person has not chosen."},
+	{"carbon", "Grid data sources", "Which source supplies the grid carbon intensity, and how much data a source needs before it is used."},
 	{"modules", "Modules", "Which product areas an organization can use."},
 	{"limits", "Limits", "Quotas per organization. 0 means unlimited."},
 	{"security", "Security", "Invitations and machine access."},
@@ -92,6 +108,29 @@ func definitions() []Def {
 		intDef(KeyLimitMembers, "limits", "Members", "Maximum number of members, counting invitations that are still open.", ScopeOperator, 0, 0, 100000, "", ""),
 		intDef(KeyLimitDestinations, "limits", "Notification destinations", "Maximum number of notification destinations.", ScopeOperator, 20, 0, 200, "", "0 means the platform maximum of 200."),
 
+		// ---- organization status (operator) ----
+		boolDef(KeyOrgSuspended, "organization", "Suspended", "While on, people in this organization can read and export their data but cannot change anything.", ScopeOperator, false,
+			"Data is kept. Turn it off to restore access immediately. Set the message below first: it is the reason people see."),
+		{Key: KeyOrgSuspendedMessage, Group: "organization", Title: "Message shown while suspended", Description: "Shown to people whose change was rejected because the organization is suspended.",
+			Scope: ScopeOperator, Type: String, Default: "This organization is suspended. Contact support to restore access.", MaxLen: 300},
+
+		// ---- languages (platform) ----
+		{Key: KeyDefaultLocale, Group: "i18n", Title: "Default language", Description: "Used for people who have not chosen a language and whose browser does not ask for an offered one; also for e-mails and reports without a recipient preference.",
+			Scope: ScopePlatform, Type: Enum, Default: "en", Enum: []string{"en", "ru"}},
+		{Key: KeyEnabledLocales, Group: "i18n", Title: "Offered languages", Description: "Languages people can choose in the language switcher.",
+			Scope: ScopePlatform, Type: List, Default: []string{"en", "ru"}, ListEnum: []string{"en", "ru"}, MinItems: 1, MaxItems: 2,
+			Note: "A language needs a complete translation catalog in the build; the list can only contain languages that exist."},
+
+		// ---- grid data sources (platform) ----
+		{Key: KeyCarbonPriority, Group: "carbon", Title: "Source priority", Description: "Sources of grid carbon intensity, most trusted first. For a day, the first source with enough readings is used; sources are never averaged together.",
+			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps"}, ListEnum: []string{"electricitymaps", "uk_carbon_intensity"}, MinItems: 1, MaxItems: 5,
+			Note: "Only sources that have a released connector can supply data. Marginal intensity (WattTime) is a different measure and is not part of this list."},
+		{Key: KeyCarbonOverrides, Group: "carbon", Title: "Source per region", Description: "Use a specific source for a region, before the priority list. One entry per line as region=source, for example eu-west-2=uk_carbon_intensity.",
+			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|uk_carbon_intensity)$`},
+		intDef(KeyCarbonMaxRequests, "carbon", "Requests per day to the grid data provider", "Cost control: once this many requests were made today to the provider (all processes together), no more are made until the next UTC day, and stored readings are used. 0 is unlimited.", ScopePlatform, 2000, 0, 1000000, "requests", "The hourly refresh needs about one request per region in use; loading past data needs one per region per 9 days."),
+		intDef(KeyCarbonMinReadings, "carbon", "Readings a source needs per day", "A source's mean counts as the day's intensity only with at least this many readings that day; fewer is used only when no source has enough and is marked partial.", ScopePlatform, 6, 1, 24, "readings", "Readings are hourly."),
+		intDef(KeyCarbonMaxAgeHours, "carbon", "Oldest reading used for a day without data", "For a day with no readings, the last reading before it is used if it is not older than this; an older one is used only as a marked estimate.", ScopePlatform, 72, 1, 720, "hours", ""),
+
 		// ---- security (organization) ----
 		intDef(KeyInviteExpiryDays, "security", "Invitation lifetime", "How long an invitation can be accepted.", ScopeTenant, 7, 1, 30, "days", "Applies to invitations created after the change."),
 		{Key: KeyInviteAllowedDomain, Group: "security", Title: "Invitation e-mail domains", Description: "Only addresses in these domains can be invited. Empty allows every domain.",
@@ -140,4 +179,10 @@ func Default() *Catalog {
 		panic(catErr)
 	}
 	return catalog
+}
+
+// KeyMaxRequestsPerDay is the setting that caps a paid provider's daily requests (only the grid provider has one so far).
+func KeyMaxRequestsPerDay(provider string) string {
+	_ = provider
+	return KeyCarbonMaxRequests
 }

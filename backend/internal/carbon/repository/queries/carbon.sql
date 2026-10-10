@@ -1,13 +1,13 @@
 -- name: UpsertCalculation :batchexec
 INSERT INTO carbon.calculations (tenant_id, project_id, provider, region_id, service_name, service_category, method, period_start, period_end,
-    energy_kwh, intensity_g_per_kwh, embodied_g, carbon_kg_co2e, functional_units, sci_score, methodology_version)
+    energy_kwh, intensity_g_per_kwh, embodied_g, carbon_kg_co2e, functional_units, sci_score, methodology_version, intensity_source, intensity_basis)
 VALUES (sqlc.arg(tenant_id), sqlc.arg(project_id), sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(service_name), sqlc.arg(service_category), sqlc.arg(method),
     sqlc.arg(period_start), sqlc.arg(period_end), sqlc.arg(energy_kwh), sqlc.arg(intensity_g_per_kwh), sqlc.arg(embodied_g), sqlc.arg(carbon_kg_co2e),
-    sqlc.narg(functional_units), sqlc.narg(sci_score), sqlc.arg(methodology_version))
+    sqlc.narg(functional_units), sqlc.narg(sci_score), sqlc.arg(methodology_version), sqlc.narg(intensity_source), sqlc.narg(intensity_basis))
 ON CONFLICT (tenant_id, project_id, provider, service_name, region_id, method, methodology_version, period_start)
 DO UPDATE SET energy_kwh = EXCLUDED.energy_kwh, intensity_g_per_kwh = EXCLUDED.intensity_g_per_kwh, embodied_g = EXCLUDED.embodied_g,
               carbon_kg_co2e = EXCLUDED.carbon_kg_co2e, functional_units = EXCLUDED.functional_units, sci_score = EXCLUDED.sci_score,
-              period_end = EXCLUDED.period_end, calculated_at = now();
+              period_end = EXCLUDED.period_end, intensity_source = EXCLUDED.intensity_source, intensity_basis = EXCLUDED.intensity_basis, calculated_at = now();
 
 -- name: DeleteCalculationsInWindow :exec
 -- Rows of one methodology version in [from, to): the window is recomputed as a whole, so rows that the
@@ -46,16 +46,44 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
 GROUP BY day ORDER BY day;
 
 -- name: SaveGridIntensity :exec
-INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast)
-VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(ts), sqlc.arg(g_co2e_per_kwh), sqlc.arg(is_forecast))
+INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure)
+VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(ts), sqlc.arg(g_co2e_per_kwh), sqlc.arg(is_forecast), sqlc.arg(measure))
 ON CONFLICT DO NOTHING;
 
--- name: IntensityAt :one
--- Latest stored (non-forecast) reading at or before ts for a region.
-SELECT g_co2e_per_kwh FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND NOT is_forecast AND ts <= sqlc.arg(ts)
+-- name: IntensityDayStats :one
+-- Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
+-- averaged together: the caller asks one source at a time, in policy order.
+SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast
+  AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts);
+
+-- name: IntensityLatest :one
+-- Latest stored reading of one source at or before `before` (NULL = the latest overall).
+SELECT g_co2e_per_kwh::float8 AS g, ts FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast
+  AND (sqlc.narg(before)::timestamptz IS NULL OR ts <= sqlc.narg(before))
 ORDER BY ts DESC LIMIT 1;
 
--- name: LatestIntensity :one
-SELECT g_co2e_per_kwh FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND NOT is_forecast ORDER BY ts DESC LIMIT 1;
+-- name: IntensityHistory :many
+-- Daily mean, extremes and reading count per source: the raw material of the history chart.
+SELECT date_trunc('day', ts)::timestamptz AS day, provider, avg(g_co2e_per_kwh)::float8 AS mean,
+       min(g_co2e_per_kwh)::float8 AS lo, max(g_co2e_per_kwh)::float8 AS hi, count(*)::int AS n
+FROM carbon.grid_intensity
+WHERE region_id = sqlc.arg(region_id) AND measure = 'average' AND NOT is_forecast AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
+GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- name: TenantRegions :many
+-- Regions that have calculations for the organization in the window, largest emitter first.
+SELECT region_id, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version) AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY region_id ORDER BY 2 DESC;
+
+-- name: IntensityBasisBreakdown :many
+-- Where the intensities of a window came from: carbon by source and basis. NULL source/basis = calculated before the
+-- origin was recorded.
+SELECT COALESCE(intensity_source, '')::text AS source, COALESCE(intensity_basis, '')::text AS basis, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version) AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY 1, 2 ORDER BY 3 DESC;

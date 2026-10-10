@@ -26,6 +26,7 @@ type Calculation struct {
 	FunctionalUnits                                  *float64 // SCI "R" of the day, when reported
 	SCIScore                                         *float64 // this row's share of the day's SCI (g per unit)
 	MethodologyVersion                               string
+	IntensitySource, IntensityBasis                  string // where IntensityGPerKWh came from (see Basis*)
 }
 
 // Skip reasons: rows the engine refuses to estimate instead of guessing.
@@ -39,8 +40,9 @@ const (
 	SkipSuperseded = "superseded_by_measured_usage"
 )
 
-// IntensityLookup returns the grid intensity (gCO2e/kWh) for a region at a time; ok=false when unknown.
-type IntensityLookup func(ctx context.Context, region string, at time.Time) (g float64, ok bool, err error)
+// IntensityLookup returns the grid intensity (gCO2e/kWh) a day of usage ran under, with its source and basis. at is
+// the END of the usage day. ok=false when unknown.
+type IntensityLookup func(ctx context.Context, region string, at time.Time) (ref IntensityRef, ok bool, err error)
 
 // Compute turns daily usage into calculations. unitsByDay holds SCI's R per day (missing/0 = unknown, so
 // SCI stays NULL). It is pure apart from the IntensityLookup callback, which makes it fully testable.
@@ -84,7 +86,7 @@ func ComputeWith(f methodology.Factors, ctx context.Context, rows []UsageDay, lo
 			method = CostBased
 		}
 		end := u.Day.Add(24 * time.Hour)
-		g, ok, err := lookup(ctx, u.RegionID, end)
+		ref, ok, err := lookup(ctx, u.RegionID, end)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -92,12 +94,13 @@ func ComputeWith(f methodology.Factors, ctx context.Context, rows []UsageDay, lo
 			skipped[SkipNoGridData]++
 			continue
 		}
+		g := ref.G
 		embodied := kwh * f.EmbodiedGPerKWh
 		grams := kwh*g + embodied
 		c := Calculation{
 			Provider: u.Provider, ServiceName: u.ServiceName, ServiceCategory: u.ServiceCategory, RegionID: u.RegionID, Method: method,
 			PeriodStart: u.Day, PeriodEnd: end, EnergyKWh: kwh, IntensityGPerKWh: g, EmbodiedG: embodied, CO2eKg: grams / 1000,
-			MethodologyVersion: f.Version,
+			MethodologyVersion: f.Version, IntensitySource: ref.Source, IntensityBasis: ref.Basis,
 		}
 		if r := unitsByDay[u.Day]; r > 0 {
 			sci := grams / r // SCI = ((E*I)+M)/R, this row's share of the day

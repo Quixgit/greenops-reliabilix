@@ -36,6 +36,9 @@ type Integration struct {
 	// Startup integrations are read when a service starts (a client is built once from them): a change applies at the
 	// next restart, which the console says.
 	Startup bool `json:"startup"`
+	// Prepared integrations have their settings ready so only the credential has to be added, but no platform code
+	// reads them yet. The console says so; nothing is claimed to work.
+	Prepared bool `json:"prepared"`
 }
 
 var (
@@ -109,6 +112,49 @@ func match(re *regexp.Regexp, what string) func(string) error {
 	}
 }
 
+var paytypesRe = regexp.MustCompile(`^(card|apay|gpay|liqpay|privat24|qr|invoice)(,(card|apay|gpay|liqpay|privat24|qr|invoice))*$`)
+
+func validPaytypes(v string) error {
+	if !paytypesRe.MatchString(v) {
+		return fmt.Errorf("%w: comma-separated from card, apay, gpay, liqpay, privat24, qr, invoice", ErrField)
+	}
+	return nil
+}
+
+func validNote(v string) error {
+	if len(v) > 500 || strings.ContainsAny(v, "\r\n") {
+		return fmt.Errorf("%w: up to 500 characters on one line", ErrField)
+	}
+	return nil
+}
+
+var (
+	refRe    = regexp.MustCompile(`^[A-Za-z0-9_.:-]{3,120}$`)
+	amountRe = regexp.MustCompile(`^[0-9]{1,7}(\.[0-9]{1,2})?$`)
+)
+
+// validRef accepts a provider's identifier (a price id, a public key).
+func validRef(v string) error {
+	if !refRe.MatchString(v) {
+		return fmt.Errorf("%w: letters, digits and . _ : - (3-120 characters)", ErrField)
+	}
+	return nil
+}
+
+func validAmount(v string) error {
+	if !amountRe.MatchString(v) || v == "0" {
+		return fmt.Errorf("%w: an amount such as 1999 or 1999.50", ErrField)
+	}
+	return nil
+}
+
+func validContact(v string) error {
+	if _, err := mail.ParseAddress(v); err != nil || len(v) > 254 {
+		return fmt.Errorf("%w: an e-mail address", ErrField)
+	}
+	return nil
+}
+
 func validURL(v string) error {
 	if len(v) > 300 || !(strings.HasPrefix(v, "https://") || strings.HasPrefix(v, "http://")) || strings.ContainsAny(v, " \t\r\n") {
 		return fmt.Errorf("%w: a full URL starting with https://", ErrField)
@@ -133,6 +179,86 @@ func Catalog() []Integration {
 			Fields: []Field{
 				{Key: "api_key", Label: "API key", Secret: true, Required: true, Env: "ELECTRICITYMAPS_API_KEY", Help: "From the Electricity Maps dashboard. Stored sealed, shown only as configured.", validate: validSecret(8)},
 				{Key: "zone_overrides", Label: "Zone overrides", Env: "ELECTRICITYMAPS_ZONE_OVERRIDES", Placeholder: "eu-central-1=DE,us-east-1=US-MIDA-PJM", Help: "Replace or add region to zone mappings. Optional.", validate: validZoneOverrides},
+			},
+		},
+		{
+			ID: "watttime", Name: "WattTime", Prepared: true,
+			Description: "Marginal operating emissions (MOER) as a second grid-data source. Prepared: the credentials are stored sealed, and the connector switches on without another configuration step once it is released.",
+			Fields: []Field{
+				{Key: "username", Label: "User name", Required: true, Env: "WATTTIME_USERNAME", Help: "The WattTime account user name.", validate: validUser},
+				{Key: "password", Label: "Password", Secret: true, Required: true, Env: "WATTTIME_PASSWORD", Help: "Stored sealed, shown only as configured.", validate: validSecret(1)},
+			},
+		},
+		{
+			ID: "uk_carbon_intensity", Name: "UK Carbon Intensity API", Prepared: true,
+			Description: "Free grid carbon intensity for Great Britain. It needs no key; the address can be changed for a mirror or a test double. Prepared: not read by the platform yet.",
+			Fields: []Field{
+				{Key: "base_url", Label: "API address", Env: "UKCI_BASE_URL", Default: "https://api.carbonintensity.org.uk", Placeholder: "https://api.carbonintensity.org.uk", validate: validURL},
+			},
+		},
+		{
+			ID: "stripe", Name: "Stripe (payments)",
+			Description: "Card payments and subscriptions worldwide, with Apple Pay and Google Pay (turn them on in the Stripe dashboard and register this site's domain for Apple Pay). Customers pay on Stripe's hosted checkout; the platform keeps only the subscription state. Point Stripe's webhook at /api/v1/billing/webhooks/stripe (events customer.subscription.created, updated, deleted).",
+			Fields: []Field{
+				{Key: "secret_key", Label: "Secret key", Secret: true, Required: true, Env: "STRIPE_SECRET_KEY", Placeholder: "sk_live_…", Help: "A restricted key with write access to Checkout Sessions is enough.", validate: validSecret(8)},
+				{Key: "webhook_secret", Label: "Webhook signing secret", Secret: true, Required: true, Env: "STRIPE_WEBHOOK_SECRET", Placeholder: "whsec_…", validate: validSecret(8)},
+				{Key: "price_team", Label: "Price id: Team", Env: "STRIPE_PRICE_TEAM", Placeholder: "price_…", Help: "A recurring price. A plan without a price cannot be bought here.", validate: validRef},
+				{Key: "price_business", Label: "Price id: Business", Env: "STRIPE_PRICE_BUSINESS", Placeholder: "price_…", validate: validRef},
+			},
+		},
+		{
+			ID: "paddle", Name: "Paddle (payments)",
+			Description: "A merchant of record: Paddle also collects and pays sales tax and VAT for the customer's country, which is convenient for selling subscriptions abroad. Apple Pay and Google Pay are offered on its checkout when enabled in Paddle. Point Paddle's notification destination at /api/v1/billing/webhooks/paddle (subscription events).",
+			Fields: []Field{
+				{Key: "api_key", Label: "API key", Secret: true, Required: true, Env: "PADDLE_API_KEY", validate: validSecret(8)},
+				{Key: "webhook_secret", Label: "Notification secret key", Secret: true, Required: true, Env: "PADDLE_WEBHOOK_SECRET", validate: validSecret(8)},
+				{Key: "price_team", Label: "Price id: Team", Env: "PADDLE_PRICE_TEAM", Placeholder: "pri_…", validate: validRef},
+				{Key: "price_business", Label: "Price id: Business", Env: "PADDLE_PRICE_BUSINESS", Placeholder: "pri_…", validate: validRef},
+				{Key: "sandbox", Label: "Sandbox", Env: "PADDLE_SANDBOX", Default: "false", Help: "true to use Paddle's sandbox while testing.", validate: validBool},
+			},
+		},
+		{
+			ID: "liqpay", Name: "LiqPay (payments, Ukraine)",
+			Description: "PrivatBank's payment service: cards, Apple Pay, Google Pay and Privat24 in hryvnia, with monthly subscriptions. Set the callback address to /api/v1/billing/webhooks/liqpay on this deployment.",
+			Fields: []Field{
+				{Key: "public_key", Label: "Public key", Required: true, Env: "LIQPAY_PUBLIC_KEY", Placeholder: "sandbox_i… or i…", validate: validRef},
+				{Key: "private_key", Label: "Private key", Secret: true, Required: true, Env: "LIQPAY_PRIVATE_KEY", validate: validSecret(8)},
+				{Key: "amount_team", Label: "Monthly amount: Team, UAH", Env: "LIQPAY_AMOUNT_TEAM", Placeholder: "1999", Help: "A plan without an amount cannot be bought here.", validate: validAmount},
+				{Key: "amount_business", Label: "Monthly amount: Business, UAH", Env: "LIQPAY_AMOUNT_BUSINESS", Placeholder: "5999", validate: validAmount},
+				{Key: "callback_url", Label: "Callback address", Env: "LIQPAY_CALLBACK_URL", Placeholder: "https://api.example.com/api/v1/billing/webhooks/liqpay", Help: "The public address LiqPay calls after a payment.", validate: validURL},
+				{Key: "paytypes", Label: "Payment methods", Env: "LIQPAY_PAYTYPES", Default: "card,apay,gpay", Placeholder: "card,apay,gpay,privat24", Help: "Comma-separated: card, apay (Apple Pay), gpay (Google Pay), privat24, qr. The wallets must also be enabled in the LiqPay business account.", validate: validPaytypes},
+				{Key: "period_days", Label: "Days a payment buys", Env: "LIQPAY_PERIOD_DAYS", Default: "30", validate: validPort},
+			},
+		},
+		{
+			ID: "wayforpay", Name: "WayForPay (payments, Ukraine)",
+			Description: "Cards, Apple Pay, Google Pay and instalments in hryvnia on a hosted invoice page (the methods enabled in the WayForPay account). One payment buys a period of the plan. Set the service address to /api/v1/billing/webhooks/wayforpay on this deployment.",
+			Fields: []Field{
+				{Key: "merchant_account", Label: "Merchant account", Required: true, Env: "WAYFORPAY_MERCHANT_ACCOUNT", validate: validRef},
+				{Key: "secret_key", Label: "Merchant secret key", Secret: true, Required: true, Env: "WAYFORPAY_SECRET_KEY", validate: validSecret(8)},
+				{Key: "merchant_domain", Label: "Merchant domain", Required: true, Env: "WAYFORPAY_MERCHANT_DOMAIN", Placeholder: "app.example.com", Help: "The domain registered with WayForPay.", validate: validHost},
+				{Key: "amount_team", Label: "Amount per period: Team, UAH", Env: "WAYFORPAY_AMOUNT_TEAM", Placeholder: "1999", Help: "A plan without an amount cannot be bought here.", validate: validAmount},
+				{Key: "amount_business", Label: "Amount per period: Business, UAH", Env: "WAYFORPAY_AMOUNT_BUSINESS", Placeholder: "5999", validate: validAmount},
+				{Key: "callback_url", Label: "Service address", Env: "WAYFORPAY_CALLBACK_URL", Placeholder: "https://api.example.com/api/v1/billing/webhooks/wayforpay", validate: validURL},
+				{Key: "period_days", Label: "Days a payment buys", Env: "WAYFORPAY_PERIOD_DAYS", Default: "30", validate: validPort},
+			},
+		},
+		{
+			ID: "paymentlink", Name: "Payment link (Payoneer, Wise, PayPal…)",
+			Description: "Sell through a payment link you created at any service: a Payoneer payment request, a Wise or PayPal.me link, a bank's hosted page. There is no callback: the customer is sent to the link, the request appears under billing events, and you assign the plan with its period on the organization's page once the money arrived.",
+			Fields: []Field{
+				{Key: "label", Label: "Name shown to customers", Env: "PAYMENTLINK_LABEL", Placeholder: "Payoneer", validate: validUser},
+				{Key: "url_team", Label: "Link: Team", Env: "PAYMENTLINK_URL_TEAM", Placeholder: "https://link.payoneer.com/…", validate: validURL},
+				{Key: "url_business", Label: "Link: Business", Env: "PAYMENTLINK_URL_BUSINESS", Placeholder: "https://link.payoneer.com/…", validate: validURL},
+				{Key: "url_enterprise", Label: "Link: Enterprise", Env: "PAYMENTLINK_URL_ENTERPRISE", validate: validURL},
+				{Key: "instructions", Label: "What the customer sees after choosing", Env: "PAYMENTLINK_INSTRUCTIONS", Placeholder: "Pay with the link; write your organization name in the comment. The plan is activated within one business day.", validate: validNote},
+			},
+		},
+		{
+			ID: "invoice", Name: "Invoice (bank transfer)",
+			Description: "For companies that pay by bank transfer. No payment page: a customer asks for a plan, you send the invoice and, once it is paid, assign the plan with its period on the organization's page.",
+			Fields: []Field{
+				{Key: "contact", Label: "Billing contact", Required: true, Env: "BILLING_CONTACT", Placeholder: "billing@example.com", Help: "Shown to customers asking for an invoice.", validate: validContact},
 			},
 		},
 		{

@@ -19,8 +19,25 @@ export const methodologyInfo = z.object({
 });
 export type MethodologyInfo = z.infer<typeof methodologyInfo>;
 
-export const carbonSummary = totals.extend({ has_data: z.boolean(), previous: totals, comparable: z.boolean(), methodology: methodologyInfo });
+export const intensityOrigin = z.object({ source: z.string(), basis: z.string(), carbon_kg_co2e: z.number(), share_pct: z.number() });
+export const carbonSummary = totals.extend({
+  has_data: z.boolean(), previous: totals, comparable: z.boolean(), methodology: methodologyInfo,
+  intensity_origins: z.array(intensityOrigin).default([]), intensity_measured_share_pct: z.number().nullable().default(null),
+});
 export type CarbonSummary = z.infer<typeof carbonSummary>;
+
+// Grid carbon intensity history of one region, one trusted source per day, other sources beside it (never blended).
+export const intensityPoint = z.object({
+  day: z.string(), g_per_kwh: z.number(), min: z.number(), max: z.number(), readings: z.number(),
+  source: z.string(), basis: z.enum(["day_mean", "partial_day_mean"]), others: z.array(z.object({ source: z.string(), g_per_kwh: z.number() })),
+});
+export type IntensityPoint = z.infer<typeof intensityPoint>;
+export const intensityHistory = z.object({
+  region: z.string(), regions: z.array(z.object({ region: z.string(), carbon_kg_co2e: z.number() })), points: z.array(intensityPoint),
+  policy: z.object({ priority: z.array(z.string()), min_day_readings: z.number(), max_age_hours: z.number() }),
+  window_days: z.number(), days_with_data: z.number(),
+});
+export type IntensityHistory = z.infer<typeof intensityHistory>;
 
 export const finopsSummary = z.object({
   has_data: z.boolean(),
@@ -160,9 +177,36 @@ export type Delivery = z.infer<typeof delivery>;
 export const deliveries = items(delivery);
 export const testQueued = z.object({ delivery_id: z.string() });
 
-export const member = z.object({ id: z.string(), user_id: z.string(), email: z.string(), role: z.string(), created_at: z.string() });
+export const member = z.object({
+  id: z.string(), user_id: z.string(), email: z.string(), role: z.string(), created_at: z.string(),
+  custom_role: z.object({ id: z.string(), name: z.string() }).nullable().optional(),
+});
 export type Member = z.infer<typeof member>;
 export const members = items(member);
+// Roles: the permission catalog, what each built-in role grants and the organization's custom roles.
+export const customRole = z.object({
+  id: z.string(), name: z.string(), description: z.string(), permissions: z.array(z.string()), members: z.number(),
+  created_by: z.string(), created_at: z.string(), updated_at: z.string(),
+});
+export type CustomRole = z.infer<typeof customRole>;
+export const rolesView = z.object({
+  permissions: z.array(z.object({ key: z.string(), group: z.string(), assignable: z.boolean() })),
+  builtin: z.array(z.object({ role: z.string(), permissions: z.array(z.string()) })),
+  custom: z.array(customRole),
+});
+export type RolesView = z.infer<typeof rolesView>;
+
+// The organization's plan: subscription state, limits with usage, modules and the payment providers that are set up.
+export const planView = z.object({
+  plan: z.string(), name: z.string(), status: z.enum(["none", "active", "trialing", "past_due", "canceled"]), source: z.string(),
+  trial_ends_at: z.string().nullable(), period_end: z.string().nullable(),
+  limits: z.array(z.object({ resource: z.string(), key: z.string(), limit: z.number(), used: z.number() })),
+  modules: z.array(z.object({ key: z.string(), enabled: z.boolean() })),
+  providers: z.array(z.object({ id: z.string(), name: z.string(), plans: z.array(z.string()) })),
+});
+export type PlanView = z.infer<typeof planView>;
+export const checkoutResult = z.object({ url: z.string().optional(), message: z.string().optional() });
+
 export const invitation = z.object({
   id: z.string(), email: z.string(), role: z.string(), created_by: z.string(), created_at: z.string(), expires_at: z.string(), accepted_at: z.string().nullable(),
 });
@@ -204,6 +248,69 @@ export const operatorSystem = z.object({
 });
 export type OperatorSystem = z.infer<typeof operatorSystem>;
 
+// Operators' own access log and the data source registry (ADR-0032). Counts are null for sources without connections.
+export const operatorAuditEntry = z.object({
+  id: z.number(), at: z.string(), operator_sub: z.string(), operator_email: z.string(), role: z.string(), action: z.string(),
+});
+export type OperatorAuditEntry = z.infer<typeof operatorAuditEntry>;
+export const operatorAudit = items(operatorAuditEntry);
+export const dataSourceState = z.enum(["ready", "attention", "not_configured", "planned"]);
+export type DataSourceState = z.infer<typeof dataSourceState>;
+export const dataSourceAccess = z.enum(["free", "paid", "customer_provided", "internal"]);
+export type DataSourceAccess = z.infer<typeof dataSourceAccess>;
+export const dataSource = z.object({
+  id: z.string(), name: z.string(), category: z.string(), access: dataSourceAccess, state: dataSourceState,
+  metrics: z.array(z.string()), coverage: z.string(), terms: z.string(), note: z.string(), integration_id: z.string(),
+  connections: z.number().nullable(), organizations: z.number().nullable(), in_error: z.number().nullable(), last_sync_at: z.string().nullable(),
+});
+export type DataSource = z.infer<typeof dataSource>;
+export const dataSources = items(dataSource);
+
+export const operatorRecord = z.object({
+  subject: z.string(), email: z.string(), role: z.enum(["viewer", "admin"]), created_at: z.string(), last_seen_at: z.string().nullable(), actions_30d: z.number(),
+});
+export type OperatorRecord = z.infer<typeof operatorRecord>;
+export const operatorRecords = items(operatorRecord);
+export const operatorJobs = z.object({
+  queues: z.array(z.object({
+    name: z.string(), size: z.number(), pending: z.number(), active: z.number(), scheduled: z.number(), retry: z.number(), archived: z.number(),
+    completed: z.number(), processed_today: z.number(), failed_today: z.number(), latency_seconds: z.number(), paused: z.boolean(),
+  })),
+  failed: z.array(z.object({
+    id: z.string(), queue: z.string(), type: z.string(), state: z.string(), last_error: z.string(), retried: z.number(), max_retry: z.number(),
+    last_failed_at: z.string().nullable(), next_attempt_at: z.string().nullable(),
+  })),
+  schedules: z.array(z.object({ spec: z.string(), type: z.string(), next: z.string(), prev: z.string().nullable() })),
+});
+export type OperatorJobs = z.infer<typeof operatorJobs>;
+
+export const operatorPlan = z.object({
+  id: z.string(), name: z.string(), description: z.string(), limits: z.record(z.string(), z.number()), modules: z.record(z.string(), z.boolean()),
+  organizations: z.number(),
+});
+export type OperatorPlan = z.infer<typeof operatorPlan>;
+export const operatorPlans = items(operatorPlan);
+export const operatorSubscription = z.object({
+  plan: z.string(), status: z.string(), source: z.string(), trial_ends_at: z.string().nullable(), period_end: z.string().nullable(),
+  updated_by: z.string(), updated_at: z.string().nullable(),
+});
+export type OperatorSubscription = z.infer<typeof operatorSubscription>;
+export const billingEvent = z.object({
+  at: z.string(), provider: z.string(), kind: z.enum(["applied", "requested"]), organization_id: z.string().nullable(),
+  organization_name: z.string(), plan: z.string(), detail: z.string(),
+});
+export const billingEvents = items(billingEvent);
+export const methodologySet = z.object({
+  version: z.string(), status: z.string(), provenance: z.string(), notes: z.string(), caveats: z.array(z.string()), pue: z.number(),
+  energy_kwh_per_unit: z.record(z.string(), z.number()), cost_based_kwh_per_usd: z.record(z.string(), z.number()),
+  embodied_g_per_kwh: z.number(), checksum: z.string(), active: z.boolean(),
+});
+export const methodologySets = items(methodologySet);
+export const apiUsage = z.object({
+  items: z.array(z.object({ provider: z.string(), day: z.string(), requests: z.number(), errors: z.number() })),
+  daily_caps: z.record(z.string(), z.number()),
+});
+
 export const errorStatus = z.enum(["open", "resolved", "ignored"]);
 export type ErrorStatus = z.infer<typeof errorStatus>;
 export const operatorError = z.object({
@@ -235,7 +342,7 @@ export const integrationField = z.object({
   value: z.string().optional(), hint: z.string().optional(), updated_at: z.string().optional(), updated_by: z.string().optional(),
 });
 export const managedIntegration = z.object({
-  id: z.string(), name: z.string(), description: z.string(), testable: z.boolean(), startup: z.boolean().default(false), ready: z.boolean(), fields: z.array(integrationField),
+  id: z.string(), name: z.string(), description: z.string(), testable: z.boolean(), startup: z.boolean().default(false), prepared: z.boolean().default(false), ready: z.boolean(), fields: z.array(integrationField),
 });
 export type ManagedIntegration = z.infer<typeof managedIntegration>;
 export type IntegrationField = z.infer<typeof integrationField>;

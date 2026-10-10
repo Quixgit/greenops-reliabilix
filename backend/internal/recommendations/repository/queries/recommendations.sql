@@ -32,15 +32,23 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id) AND 
 GROUP BY provider, service_name, region_id;
 
 -- name: WorkloadCost :many
-SELECT provider, service_name, region_id, sum(billed_cost)::float8 AS cost
-FROM usage.usage_records
-WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
-  AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts)
-GROUP BY provider, service_name, region_id;
+SELECT u.provider, u.service_name, u.region_id, sum(u.billed_cost)::float8 AS cost
+FROM usage.usage_records u
+WHERE u.tenant_id = sqlc.arg(tenant_id) AND u.project_id = sqlc.arg(project_id)
+  AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
+GROUP BY u.provider, u.service_name, u.region_id;
 
 -- name: LatestIntensities :many
+-- One source per region: the most trusted one that has a reading (platform setting carbon.provider_priority), its newest
+-- average-intensity reading. Sources are not mixed and marginal readings are not used.
 SELECT DISTINCT ON (region_id) region_id, g_co2e_per_kwh::float8 AS g_per_kwh, ts
-FROM carbon.grid_intensity WHERE NOT is_forecast ORDER BY region_id, ts DESC;
+FROM carbon.grid_intensity
+WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
+ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC;
 
 -- name: PriceIndex :many
 SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = sqlc.arg(provider);
@@ -60,11 +68,15 @@ WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.project_id = sqlc.arg(project_id) 
 ORDER BY r.applied_at;
 
 -- name: DailyCost :many
-SELECT date_trunc('day', recorded_at)::timestamptz AS day, sum(billed_cost)::float8 AS cost, max(currency)::text AS currency
-FROM usage.usage_records
-WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
-  AND (sqlc.arg(service)::text = '' OR service_name = sqlc.arg(service)::text)
-  AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts)
+SELECT date_trunc('day', u.recorded_at)::timestamptz AS day, sum(u.billed_cost)::float8 AS cost, max(u.currency)::text AS currency
+FROM usage.usage_records u
+WHERE u.tenant_id = sqlc.arg(tenant_id) AND u.project_id = sqlc.arg(project_id)
+  AND (sqlc.arg(service)::text = '' OR u.service_name = sqlc.arg(service)::text)
+  AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+  AND u.currency = (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND d.project_id = sqlc.arg(project_id)
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)
 GROUP BY 1 ORDER BY 1;
 
 -- name: DailyCarbon :many

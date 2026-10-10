@@ -46,7 +46,7 @@ func Fail(w http.ResponseWriter, r *http.Request, err error) {
 
 func (h Handlers) view(w http.ResponseWriter, r *http.Request, status int) {
 	c, _ := auth.FromContext(r.Context())
-	items, err := h.Svc.TenantItems(r.Context(), c.TenantID, c.Role.Can(auth.PermSettingsWrite))
+	items, err := h.Svc.TenantItems(r.Context(), c.TenantID, c.Can(auth.PermSettingsWrite))
 	if err != nil {
 		Fail(w, r, err)
 		return

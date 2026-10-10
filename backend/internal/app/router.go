@@ -41,6 +41,14 @@ func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, res auth.Re
 		w.WriteHeader(http.StatusOK)
 	})
 	r.Route("/api/v1", func(r chi.Router) {
+		// Public routes: no identity (the sign-in page needs them before anyone is signed in).
+		r.Group(func(r chi.Router) {
+			for _, m := range modules {
+				if pm, ok := m.(interface{ PublicRoutes(chi.Router) }); ok {
+					pm.PublicRoutes(r)
+				}
+			}
+		})
 		// Identity-only routes: a valid token is enough (onboarding, accepting an invitation).
 		r.Group(func(r chi.Router) {
 			r.Use(auth.AuthenticateIdentity(v))

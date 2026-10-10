@@ -59,7 +59,9 @@ func TestComputeWithUsesTheGivenFactorsAndStampsTheirVersion(t *testing.T) {
 	f := methodology.Current
 	f.Version = "TEST-DOUBLE"
 	f.CostBasedKWhPerUSD = map[string]float64{"compute": f.CostBasedKWhPerUSD["compute"] * 2, "other": 1}
-	lookup := func(context.Context, string, time.Time) (float64, bool, error) { return 400, true, nil }
+	lookup := func(context.Context, string, time.Time) (domain.IntensityRef, bool, error) {
+		return domain.IntensityRef{G: 400, Source: "test", Basis: domain.BasisDayMean}, true, nil
+	}
 	base, _, err := domain.Compute(context.Background(), []domain.UsageDay{ec2Day()}, lookup, nil)
 	if err != nil {
 		t.Fatal(err)

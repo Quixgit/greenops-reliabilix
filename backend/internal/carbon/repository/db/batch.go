@@ -19,14 +19,14 @@ var (
 
 const upsertCalculation = `-- name: UpsertCalculation :batchexec
 INSERT INTO carbon.calculations (tenant_id, project_id, provider, region_id, service_name, service_category, method, period_start, period_end,
-    energy_kwh, intensity_g_per_kwh, embodied_g, carbon_kg_co2e, functional_units, sci_score, methodology_version)
+    energy_kwh, intensity_g_per_kwh, embodied_g, carbon_kg_co2e, functional_units, sci_score, methodology_version, intensity_source, intensity_basis)
 VALUES ($1, $2, $3, $4, $5, $6, $7,
     $8, $9, $10, $11, $12, $13,
-    $14, $15, $16)
+    $14, $15, $16, $17, $18)
 ON CONFLICT (tenant_id, project_id, provider, service_name, region_id, method, methodology_version, period_start)
 DO UPDATE SET energy_kwh = EXCLUDED.energy_kwh, intensity_g_per_kwh = EXCLUDED.intensity_g_per_kwh, embodied_g = EXCLUDED.embodied_g,
               carbon_kg_co2e = EXCLUDED.carbon_kg_co2e, functional_units = EXCLUDED.functional_units, sci_score = EXCLUDED.sci_score,
-              period_end = EXCLUDED.period_end, calculated_at = now()
+              period_end = EXCLUDED.period_end, intensity_source = EXCLUDED.intensity_source, intensity_basis = EXCLUDED.intensity_basis, calculated_at = now()
 `
 
 type UpsertCalculationBatchResults struct {
@@ -52,6 +52,8 @@ type UpsertCalculationParams struct {
 	FunctionalUnits    *float64  `json:"functional_units"`
 	SciScore           *float64  `json:"sci_score"`
 	MethodologyVersion string    `json:"methodology_version"`
+	IntensitySource    *string   `json:"intensity_source"`
+	IntensityBasis     *string   `json:"intensity_basis"`
 }
 
 func (q *Queries) UpsertCalculation(ctx context.Context, arg []UpsertCalculationParams) *UpsertCalculationBatchResults {
@@ -74,6 +76,8 @@ func (q *Queries) UpsertCalculation(ctx context.Context, arg []UpsertCalculation
 			a.FunctionalUnits,
 			a.SciScore,
 			a.MethodologyVersion,
+			a.IntensitySource,
+			a.IntensityBasis,
 		}
 		batch.Queue(upsertCalculation, vals...)
 	}

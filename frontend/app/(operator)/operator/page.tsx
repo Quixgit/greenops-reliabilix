@@ -1,7 +1,7 @@
-import { OrganizationsView } from "@/components/operator/views";
+import { OverviewView } from "@/components/operator/overview";
 
-export const metadata = { title: "Organizations · Operator console" };
+export const metadata = { title: "Overview · Operator console" };
 
 export default function Page() {
-  return <OrganizationsView />;
+  return <OverviewView />;
 }

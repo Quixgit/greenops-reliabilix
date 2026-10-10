@@ -5,8 +5,12 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
@@ -115,4 +119,87 @@ func (r Postgres) Errors(ctx context.Context, status, service string, limit int)
 func (r Postgres) SetErrorStatus(ctx context.Context, actor, id, status string) (done bool, err error) {
 	err = r.Pool.QueryRow(ctx, `SELECT platform.operator_error_set_status($1, $2::uuid, $3)`, actor, id, status).Scan(&done)
 	return
+}
+
+func (r Postgres) Audit(ctx context.Context, limit int) ([]domain.AuditEntry, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT id, at, operator_sub, operator_email, role, action FROM platform.operator_audit($1)`, limit)
+	return collect(rows, err, func(r pgx.Rows) (e domain.AuditEntry, err error) {
+		err = r.Scan(&e.ID, &e.At, &e.OperatorSub, &e.OperatorEmail, &e.Role, &e.Action)
+		return
+	})
+}
+
+func (r Postgres) ProviderUsage(ctx context.Context) ([]domain.ProviderUsage, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT provider, connections, organizations, in_error, last_sync_at FROM cloudaccounts.operator_provider_usage()`)
+	return collect(rows, err, func(r pgx.Rows) (u domain.ProviderUsage, err error) {
+		err = r.Scan(&u.Provider, &u.Connections, &u.Organizations, &u.InError, &u.LastSyncAt)
+		return
+	})
+}
+
+func (r Postgres) Operators(ctx context.Context) ([]domain.OperatorRecord, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT auth_sub, email, role, created_at, last_seen_at, actions_30d FROM platform.operator_list()`)
+	return collect(rows, err, func(r pgx.Rows) (o domain.OperatorRecord, err error) {
+		err = r.Scan(&o.Subject, &o.Email, &o.Role, &o.CreatedAt, &o.LastSeenAt, &o.Reads30d)
+		return
+	})
+}
+
+func (r Postgres) SetSubscription(ctx context.Context, actor, tenantID, plan, status string, trialEnd, periodEnd *time.Time, reason string) (done bool, err error) {
+	err = r.Pool.QueryRow(ctx, `SELECT platform.operator_set_subscription($1, $2::uuid, $3, $4, $5, $6, $7)`, actor, tenantID, plan, status, trialEnd, periodEnd, reason).Scan(&done)
+	return done, rule(err)
+}
+
+func (r Postgres) Subscription(ctx context.Context, tenantID string) (domain.Subscription, error) {
+	s := domain.Subscription{Status: "none", Source: "manual"}
+	var updated time.Time
+	err := r.Pool.QueryRow(ctx, `SELECT plan, status, source, trial_ends_at, period_end, updated_by, updated_at FROM platform.operator_subscription($1::uuid)`, tenantID).
+		Scan(&s.Plan, &s.Status, &s.Source, &s.TrialEndsAt, &s.PeriodEnd, &s.UpdatedBy, &updated)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return s, nil
+	}
+	if err == nil {
+		s.UpdatedAt = &updated
+	}
+	return s, err
+}
+
+func (r Postgres) BillingEvents(ctx context.Context, limit int) ([]domain.BillingEvent, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT at, provider, kind, organization_id::text, organization_name, plan, detail FROM platform.operator_billing_events($1)`, limit)
+	return collect(rows, err, func(r pgx.Rows) (e domain.BillingEvent, err error) {
+		err = r.Scan(&e.At, &e.Provider, &e.Kind, &e.OrganizationID, &e.OrganizationName, &e.Plan, &e.Detail)
+		return
+	})
+}
+
+// rule turns a function's own refusal (SQLSTATE P0001 with a message written for people) into domain.ErrRule.
+func rule(err error) error {
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) && pg.Code == "P0001" {
+		return fmt.Errorf("%w: %s", domain.ErrRule, pg.Message)
+	}
+	return err
+}
+
+func (r Postgres) AssignOperator(ctx context.Context, actor, email string, role domain.Role) (sub string, err error) {
+	err = r.Pool.QueryRow(ctx, `SELECT platform.operator_assign($1, $2, $3)`, actor, email, string(role)).Scan(&sub)
+	return sub, rule(err)
+}
+
+func (r Postgres) WithdrawOperator(ctx context.Context, actor, subject string) (done bool, err error) {
+	err = r.Pool.QueryRow(ctx, `SELECT platform.operator_withdraw($1, $2)`, actor, subject).Scan(&done)
+	return done, rule(err)
+}
+
+func (r Postgres) CarbonRegions(ctx context.Context) ([]string, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT region_id FROM carbon.operator_regions()`)
+	return collect(rows, err, func(r pgx.Rows) (v string, err error) { err = r.Scan(&v); return })
+}
+
+func (r Postgres) APIUsage(ctx context.Context, days int) ([]domain.APIUsage, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT provider, day::timestamptz, requests, errors FROM platform.operator_api_usage($1)`, days)
+	return collect(rows, err, func(r pgx.Rows) (u domain.APIUsage, err error) {
+		err = r.Scan(&u.Provider, &u.Day, &u.Requests, &u.Errors)
+		return
+	})
 }

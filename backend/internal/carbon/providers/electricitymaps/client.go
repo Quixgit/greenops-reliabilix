@@ -80,6 +80,10 @@ type Client struct {
 
 	// Responses are cached so dashboards and jobs do not hit the provider API on every request.
 	// Keys come from the fixed region -> zone map, so the cache cannot grow without bound.
+	// Allow is asked before every HTTP request (cost control: a daily cap); Done is told how each one ended. Both optional.
+	Allow func(ctx context.Context) error
+	Done  func(ctx context.Context, failed bool)
+
 	mu       sync.Mutex
 	cache    map[string]cacheEntry
 	inflight map[string]*call
@@ -264,6 +268,46 @@ func (c *Client) fetchForecast(ctx context.Context, region, zone string) (domain
 	return f, nil
 }
 
+// historyChunk is the longest range one past-range request may cover at hourly granularity.
+const historyChunk = 9 * 24 * time.Hour
+
+// GetHistory returns the hourly readings of a region in [from, to), requested in chunks. Past data is a plan feature of
+// the provider: a refusal comes back as an error that says so. Implausible points are dropped, never repaired.
+func (c *Client) GetHistory(ctx context.Context, region string, from, to time.Time) ([]domain.Intensity, error) {
+	zone, ok := c.zones[region]
+	if !ok {
+		return nil, fmt.Errorf("electricitymaps: no zone for region %q", region)
+	}
+	var out []domain.Intensity
+	for start := from; start.Before(to); start = start.Add(historyChunk) {
+		end := start.Add(historyChunk)
+		if end.After(to) {
+			end = to
+		}
+		var body struct {
+			History []struct {
+				CarbonIntensity float64   `json:"carbonIntensity"`
+				Datetime        time.Time `json:"datetime"`
+			} `json:"history"`
+		}
+		path := "/carbon-intensity/past-range?zone=" + url.QueryEscape(zone) + "&start=" + url.QueryEscape(start.UTC().Format(time.RFC3339)) + "&end=" + url.QueryEscape(end.UTC().Format(time.RFC3339))
+		if err := c.get(ctx, path, &body); err != nil {
+			var se statusError
+			if errors.As(err, &se) && (se.status == http.StatusForbidden || se.status == http.StatusUnauthorized) {
+				return nil, fmt.Errorf("electricitymaps: past data is not available on this key or plan (status %d)", se.status)
+			}
+			return nil, err
+		}
+		for _, p := range body.History {
+			if c.checkReading(p.CarbonIntensity, p.Datetime, false) != nil || p.Datetime.Before(from) || !p.Datetime.Before(to) {
+				continue
+			}
+			out = append(out, domain.Intensity{Region: region, GPerKWh: p.CarbonIntensity, At: p.Datetime, Measure: domain.MeasureAverage})
+		}
+	}
+	return out, nil
+}
+
 // checkReading rejects values that cannot be real. current=true also refuses a reading that is too old to describe now.
 func (c *Client) checkReading(g float64, at time.Time, current bool) error {
 	switch {
@@ -328,6 +372,16 @@ func backoff(attempt int, wait time.Duration) time.Duration {
 }
 
 func (c *Client) getOnce(ctx context.Context, path string, dst any) (retry bool, err error) {
+	if c.Allow != nil {
+		if err := c.Allow(ctx); err != nil {
+			return false, fmt.Errorf("electricitymaps: %w", err) // final: retrying would only ask again
+		}
+	}
+	defer func() {
+		if c.Done != nil {
+			c.Done(ctx, err != nil)
+		}
+	}()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
 	if err != nil {
 		return false, err

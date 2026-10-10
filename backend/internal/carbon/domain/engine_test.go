@@ -10,9 +10,9 @@ import (
 var d1 = time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 
 func fixedIntensity(m map[string]float64) IntensityLookup {
-	return func(_ context.Context, region string, _ time.Time) (float64, bool, error) {
+	return func(_ context.Context, region string, _ time.Time) (IntensityRef, bool, error) {
 		g, ok := m[region]
-		return g, ok, nil
+		return IntensityRef{G: g, Source: "test", Basis: BasisDayMean}, ok, nil
 	}
 }
 
@@ -96,7 +96,9 @@ func TestMeasuredUsageSupersedesCostBasedRowOfTheSameWorkload(t *testing.T) {
 		// another region on the same day has no measurement: it keeps its cost-based estimate
 		{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "us-east-1", Currency: "USD", Day: day, BilledCost: 10},
 	}
-	lookup := func(context.Context, string, time.Time) (float64, bool, error) { return 300, true, nil }
+	lookup := func(context.Context, string, time.Time) (IntensityRef, bool, error) {
+		return IntensityRef{G: 300, Source: "test", Basis: BasisDayMean}, true, nil
+	}
 	out, skipped, err := Compute(context.Background(), rows, lookup, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -116,5 +118,49 @@ func TestMeasuredUsageSupersedesCostBasedRowOfTheSameWorkload(t *testing.T) {
 	}
 	if methods["us-east-1"][CostBased] != 1 {
 		t.Errorf("us-east-1 must stay cost based: %v", methods["us-east-1"])
+	}
+}
+
+// Hand-computed reference: 100 vCPU-hours = 100 x 0.0021 kWh x PUE 1.135 = 0.23835 kWh; at 400 g/kWh that is 95.34 g.
+// Two rows of one day share the day's R, so their SCI shares add up to the day's SCI (total grams / R).
+func TestGoldenNumbers(t *testing.T) {
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	unit := "vCPU-Hrs"
+	rows := []UsageDay{
+		{Provider: "aws", ServiceName: "EC2", RegionID: "eu-central-1", Currency: "USD", ConsumedUnit: &unit, HasQuantity: true, Quantity: 100, Day: day},
+		{Provider: "aws", ServiceName: "Lambda", RegionID: "eu-central-1", Currency: "USD", ConsumedUnit: &unit, HasQuantity: true, Quantity: 300, Day: day},
+	}
+	lookup := func(context.Context, string, time.Time) (IntensityRef, bool, error) {
+		return IntensityRef{G: 400, Source: "test", Basis: BasisDayMean}, true, nil
+	}
+	out, skipped, err := Compute(context.Background(), rows, lookup, map[time.Time]float64{day: 1000})
+	if err != nil || len(skipped) != 0 || len(out) != 2 {
+		t.Fatalf("%v %v %v", out, skipped, err)
+	}
+	if got := out[0].EnergyKWh; math.Abs(got-0.23835) > 1e-9 {
+		t.Errorf("energy = %v, want 0.23835 kWh", got)
+	}
+	if got := out[0].CO2eKg; math.Abs(got-0.09534) > 1e-9 {
+		t.Errorf("carbon = %v, want 0.09534 kg", got)
+	}
+	var sum, grams float64
+	for _, c := range out {
+		sum += *c.SCIScore
+		grams += c.CO2eKg * 1000
+	}
+	if want := grams / 1000; math.Abs(sum-want) > 1e-9 { // R = 1000 units
+		t.Errorf("row SCI shares add up to %v, the day's SCI is %v", sum, want)
+	}
+}
+
+// The source and basis of the intensity travel with every row, so a figure can be explained afterwards.
+func TestRowsCarryTheOriginOfTheirIntensity(t *testing.T) {
+	day := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	lookup := func(context.Context, string, time.Time) (IntensityRef, bool, error) {
+		return IntensityRef{G: 250, Source: "electricitymaps", Basis: BasisPartialDay}, true, nil
+	}
+	out, _, err := Compute(context.Background(), []UsageDay{{Provider: "aws", ServiceName: "EC2", ServiceCategory: "compute", RegionID: "eu-central-1", Currency: "USD", BilledCost: 10, Day: day}}, lookup, nil)
+	if err != nil || len(out) != 1 || out[0].IntensitySource != "electricitymaps" || out[0].IntensityBasis != BasisPartialDay {
+		t.Fatalf("%+v %v", out, err)
 	}
 }

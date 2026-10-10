@@ -38,3 +38,14 @@ journalctl --user -u reliabilix-worker -f
 ```
 
 `loginctl enable-linger $USER` (done by the script) keeps the services running after logout and starts them at boot.
+
+## Deploy a new version
+
+```
+scripts/stand-deploy.sh            # builds the binaries and the frontend with the version in VERSION, restarts the units
+STAND_DB_CONTAINER=<postgres container> STAND_DB=greenops_stand scripts/stand-deploy.sh migrate   # first, when a migration was added
+```
+
+The stand serves the frontend straight from the checkout, so a `next build` changes the files under the running web
+process. Always restart the web unit right after a build (the script does); a server that was started before the build
+answers pages it had not rendered yet with `ChunkLoadError`.

@@ -9,6 +9,8 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -17,6 +19,8 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
@@ -32,6 +36,19 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 	r.With(read).Get("/operator/notifications/deliveries", h.deliveries)
 	r.With(read).Get("/operator/connections/unhealthy", h.unhealthy)
 	r.With(read).Get("/operator/system", h.system)
+	r.With(read).Get("/operator/audit", h.audit)
+	r.With(read).Get("/operator/data-sources", h.dataSources)
+	r.With(read).Get("/operator/jobs", h.jobs)
+	r.With(read).Get("/operator/operators", h.operators)
+	r.With(read).Get("/operator/plans", h.plans)
+	r.With(write).Post("/operator/carbon/backfill", h.backfill)
+	r.With(write).Put("/operator/operators", h.assignOperator)
+	r.With(write).Post("/operator/operators/withdraw", h.withdrawOperator)
+	r.With(write).Put("/operator/tenants/{tenant_id}/plan", h.assignPlan)
+	r.With(read).Get("/operator/tenants/{tenant_id}/subscription", h.subscription)
+	r.With(read).Get("/operator/billing/events", h.billingEvents)
+	r.With(read).Get("/operator/methodology", h.methodologyVersions)
+	r.With(read).Get("/operator/api-usage", h.apiUsage)
 	r.With(read).Get("/operator/errors", h.errors)
 	r.With(read).Get("/operator/integrations", h.integrations)
 	r.With(write).Put("/operator/integrations/{id}", h.setIntegration)
@@ -88,6 +105,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.NotFound(w, r)
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
+	case errors.Is(err, domain.ErrRule):
+		httpx.WriteProblem(w, r, http.StatusConflict, "not allowed", strings.TrimPrefix(err.Error(), domain.ErrRule.Error()+": "))
 	case errors.Is(err, domain.ErrInvalid):
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "")
 	default:
@@ -147,6 +166,244 @@ func (h Handlers) unhealthy(w http.ResponseWriter, r *http.Request) {
 
 func (h Handlers) system(w http.ResponseWriter, _ *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, h.Svc.SystemInfo())
+}
+
+func (h Handlers) audit(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "limit must be 1-500")
+			return
+		}
+		limit = n
+	}
+	items, err := h.Svc.Audit(r.Context(), limit)
+	list(w, r, items, err)
+}
+
+func (h Handlers) dataSources(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.DataSources(r.Context())
+	list(w, r, items, err)
+}
+
+func (h Handlers) plans(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.Plans(r.Context())
+	list(w, r, items, err)
+}
+
+// assignPlan takes {"plan", "reason", "status"?, "period_end"?, "trial_ends_at"?} (dates as YYYY-MM-DD or RFC 3339).
+func (h Handlers) assignPlan(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := httpx.PathUUID(r, "tenant_id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	var in struct {
+		Plan        string `json:"plan"`
+		Reason      string `json:"reason"`
+		Status      string `json:"status"`
+		PeriodEnd   string `json:"period_end"`
+		TrialEndsAt string `json:"trial_ends_at"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"plan": "<id>", "reason": "<why>", "status"?, "period_end"?, "trial_ends_at"?}`)
+		return
+	}
+	parse := func(v string) (*time.Time, bool) {
+		if v == "" {
+			return nil, true
+		}
+		for _, layout := range []string{time.RFC3339, time.DateOnly} {
+			if t, err := time.Parse(layout, v); err == nil {
+				t = t.UTC()
+				return &t, true
+			}
+		}
+		return nil, false
+	}
+	period, ok1 := parse(in.PeriodEnd)
+	trial, ok2 := parse(in.TrialEndsAt)
+	if !ok1 || !ok2 {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "Dates are YYYY-MM-DD.")
+		return
+	}
+	err := h.Svc.AssignPlan(r.Context(), operatorOf(r), tenant, application.PlanChange{Plan: in.Plan, Status: in.Status, TrialEnd: trial, PeriodEnd: period, Reason: in.Reason})
+	if err != nil {
+		if errors.Is(err, domain.ErrInvalid) || errors.Is(err, domain.ErrRule) {
+			httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "Choose a plan of the catalog, a valid status (a trial needs an end date) and give a reason of 3 to 300 characters.")
+			return
+		}
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"plan": in.Plan})
+}
+
+func (h Handlers) subscription(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := httpx.PathUUID(r, "tenant_id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	s, err := h.Svc.Subscription(r.Context(), tenant)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, s)
+}
+
+// apiUsage answers the requests made to paid external APIs per day (last 30 days) with the daily cap in force.
+func (h Handlers) apiUsage(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.Repo.APIUsage(r.Context(), 30)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	caps := map[string]int64{}
+	if h.Svc.Settings != nil {
+		if its, err := h.Svc.Settings.PlatformItems(r.Context()); err == nil {
+			for _, it := range its {
+				if it.Def != nil && it.Key == settings.KeyCarbonMaxRequests {
+					var n int64
+					_ = json.Unmarshal(it.Value, &n)
+					caps["electricitymaps"] = n
+				}
+			}
+		}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "daily_caps": caps})
+}
+
+// methodologyVersions lists every coefficient set with its provenance, caveats, coefficients and checksum (a set is
+// immutable; a test pins each checksum).
+func (h Handlers) methodologyVersions(w http.ResponseWriter, r *http.Request) {
+	type set struct {
+		Version         string             `json:"version"`
+		Status          string             `json:"status"`
+		Provenance      string             `json:"provenance"`
+		Notes           string             `json:"notes"`
+		Caveats         []string           `json:"caveats"`
+		PUE             float64            `json:"pue"`
+		EnergyPerUnit   map[string]float64 `json:"energy_kwh_per_unit"`
+		CostBasedKWhUSD map[string]float64 `json:"cost_based_kwh_per_usd"`
+		EmbodiedGPerKWh float64            `json:"embodied_g_per_kwh"`
+		Checksum        string             `json:"checksum"`
+		Active          bool               `json:"active"`
+	}
+	out := []set{}
+	for _, f := range methodology.Versions() {
+		out = append(out, set{Version: f.Version, Status: f.Status, Provenance: f.Provenance, Notes: f.Notes, Caveats: f.Caveats, PUE: f.PUE,
+			EnergyPerUnit: f.EnergyPerUnit, CostBasedKWhUSD: f.CostBasedKWhPerUSD, EmbodiedGPerKWh: f.EmbodiedGPerKWh,
+			Checksum: methodology.Checksum(f.Version), Active: f.Version == methodology.Version})
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func (h Handlers) billingEvents(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.BillingEvents(r.Context())
+	list(w, r, items, err)
+}
+
+// assignOperator takes {"email": "...", "role": "viewer"|"admin"}: a person who has signed in becomes an operator, or
+// their role changes.
+func (h Handlers) assignOperator(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email string      `json:"email"`
+		Role  domain.Role `json:"role"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"email": "...", "role": "viewer|admin"}`)
+		return
+	}
+	if err := h.Svc.AssignOperator(r.Context(), operatorOf(r), in.Email, in.Role); err != nil {
+		if errors.Is(err, domain.ErrInvalid) {
+			httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "Give a valid e-mail address and the role viewer or admin.")
+			return
+		}
+		fail(w, r, err)
+		return
+	}
+	h.operators(w, r)
+}
+
+// withdrawOperator takes {"subject": "..."}.
+func (h Handlers) withdrawOperator(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Subject string `json:"subject"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"subject": "..."}`)
+		return
+	}
+	if err := h.Svc.WithdrawOperator(r.Context(), operatorOf(r), in.Subject); err != nil {
+		if errors.Is(err, domain.ErrInvalid) {
+			httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", "An operator subject is required.")
+			return
+		}
+		fail(w, r, err)
+		return
+	}
+	h.operators(w, r)
+}
+
+// backfill takes {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD", "dry_run": bool}.
+func (h Handlers) backfill(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		From   string `json:"from"`
+		To     string `json:"to"`
+		DryRun bool   `json:"dry_run"`
+	}
+	from, to := time.Time{}, time.Time{}
+	err := httpx.DecodeJSON(r, &in)
+	if err == nil {
+		var e1, e2 error
+		from, e1 = time.Parse(time.DateOnly, in.From)
+		to, e2 = time.Parse(time.DateOnly, in.To)
+		if e1 != nil || e2 != nil {
+			err = domain.ErrInvalid
+		}
+	}
+	if err != nil {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"from": "YYYY-MM-DD", "to": "YYYY-MM-DD", "dry_run": true|false}`)
+		return
+	}
+	plan, err := h.Svc.BackfillGridHistory(r.Context(), from, to, in.DryRun)
+	if errors.Is(err, domain.ErrInvalid) {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "outside the limits", "Choose 1 to 400 days up to tomorrow and at most 2000 provider requests (regions x 9-day chunks).")
+		return
+	}
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, plan)
+}
+
+func (h Handlers) operators(w http.ResponseWriter, r *http.Request) {
+	items, err := h.Svc.Operators(r.Context())
+	list(w, r, items, err)
+}
+
+// jobs answers queues, schedules and failed tasks in one response: the Jobs page needs all three together.
+func (h Handlers) jobs(w http.ResponseWriter, r *http.Request) {
+	if h.Svc.Jobs == nil {
+		httpx.NotFound(w, r)
+		return
+	}
+	queues, err := h.Svc.Jobs.Queues()
+	if err == nil {
+		var failed []queue.FailedTask
+		var schedules []queue.Schedule
+		if failed, err = h.Svc.Jobs.Failed(50); err == nil {
+			if schedules, err = h.Svc.Jobs.Schedules(); err == nil {
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{"queues": queues, "failed": failed, "schedules": schedules})
+				return
+			}
+		}
+	}
+	httpx.WriteProblem(w, r, http.StatusServiceUnavailable, "queue unavailable", "The job queue could not be read.")
 }
 
 func ids(w http.ResponseWriter, r *http.Request) (tenant, id string, ok bool) {

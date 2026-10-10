@@ -3,59 +3,62 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, Cloud, Users } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PillTabs } from "@/components/ui/tabs";
 import {
-  useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorStats, useOperatorSystem, useOperatorTenants,
+  useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorPlans, useOperatorStats, useOperatorSubscription, useOperatorSystem, useOperatorTenants,
 } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
-import { changed } from "@/lib/api/schemas";
+import { changed, settingsView, type OperatorTenant } from "@/lib/api/schemas";
+import { useQuery } from "@tanstack/react-query";
 import { shortTime } from "@/lib/format-time";
-import { cn } from "@/lib/utils";
+import { PageTitle, selectCls, th } from "./parts";
 
-const th = "py-1.5 pr-3 text-left text-xs font-medium text-muted";
-const select = "rounded-lg bg-white/80 px-2.5 py-1.5 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
-
-function Stat({ label, value, tone }: { label: string; value: string | number; tone?: "bad" | "warn" }) {
-  return (
-    <Card className="p-4">
-      <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={cn("mt-1 text-2xl font-bold tracking-tight", tone === "bad" && "text-bad", tone === "warn" && "text-amber-600")}>{value}</p>
-    </Card>
-  );
-}
+const select = selectCls;
 
 function useCanAct() { return useOperatorMe().data?.role === "admin"; }
 
+type OrgSort = "created" | "name" | "members" | "attention";
+
 export function OrganizationsView() {
   const tenants = useOperatorTenants();
-  const errors = useOperatorErrors("open", "all");
-  const stats = useOperatorStats(24);
-  const unhealthy = useOperatorConnections();
-  const failed24 = stats.data?.filter((s) => s.status === "failed").reduce((n, s) => n + s.count, 0);
+  const [sort, setSort] = useState<OrgSort>("created");
+  const [onlyAttention, setOnlyAttention] = useState(false);
+  const rows = useMemo(() => {
+    const needs = (t: OperatorTenant) => t.connections_in_error + t.failed_deliveries_7d;
+    const list = (tenants.data ?? []).filter((t) => !onlyAttention || needs(t) > 0);
+    const by: Record<OrgSort, (a: OperatorTenant, b: OperatorTenant) => number> = {
+      created: (a, b) => b.created_at.localeCompare(a.created_at),
+      name: (a, b) => a.name.localeCompare(b.name),
+      members: (a, b) => b.members - a.members,
+      attention: (a, b) => needs(b) - needs(a),
+    };
+    return [...list].sort(by[sort]);
+  }, [tenants.data, sort, onlyAttention]);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">Organizations</h1>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Organizations" value={tenants.data?.length ?? "…"} />
-        <Stat label="Open errors" value={errors.data?.length ?? "…"} tone={errors.data?.length ? "bad" : undefined} />
-        <Stat label="Failed notifications (24 h)" value={failed24 ?? "…"} tone={failed24 ? "warn" : undefined} />
-        <Stat label="Connections needing attention" value={unhealthy.data?.length ?? "…"} tone={unhealthy.data?.length ? "warn" : undefined} />
-      </div>
-      <Card>
-        <CardHeader title="All organizations" />
-        {tenants.isLoading ? <Skeleton className="h-32" /> : tenants.isError ? <ErrorState /> : tenants.data!.length === 0 ? <EmptyState icon={Users} text="No organizations yet." /> : (
+      <PageTitle title="Organizations" sub="Counts and statuses only. Open an organization for its limits, module switches and change history." />
+      <Card interactive={false}>
+        <CardHeader title={`All organizations${tenants.data ? ` (${rows.length})` : ""}`} action={
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted"><input type="checkbox" checked={onlyAttention} onChange={(e) => setOnlyAttention(e.target.checked)} className="accent-[var(--color-primary)]" />Needs attention</label>
+            <select aria-label="Sort" value={sort} onChange={(e) => setSort(e.target.value as OrgSort)} className={selectCls}>
+              <option value="created">Newest first</option><option value="name">Name</option><option value="members">Most members</option><option value="attention">Most problems</option>
+            </select>
+          </div>} />
+        {tenants.isLoading ? <Skeleton className="h-32" /> : tenants.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Users} text={onlyAttention ? "No organization has problems right now." : "No organizations yet."} /> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr><th className={th}>Name</th><th className={th}>Plan</th><th className={th}>Members</th><th className={th}>Projects</th><th className={th}>Connections</th><th className={th}>Destinations</th><th className={th}>Failed (7 d)</th><th className={th}>Created</th></tr></thead>
               <tbody className="divide-y divide-line/70">
-                {tenants.data!.map((t) => (
-                  <tr key={t.id}>
+                {rows.map((t) => (
+                  <tr key={t.id} className="transition-colors hover:bg-white/60">
                     <td className="py-2 pr-3 font-medium" title={t.id}><Link href={`/operator/organizations/${t.id}`} className="text-primary hover:underline">{t.name}</Link></td>
                     <td className="pr-3"><Badge>{t.plan}</Badge></td>
                     <td className="pr-3">{t.members}</td><td className="pr-3">{t.projects}</td>
@@ -70,7 +73,6 @@ export function OrganizationsView() {
           </div>
         )}
       </Card>
-      <p className="text-xs text-muted">Only counts and statuses are shown here. Usage data, reports, payloads and destination addresses of organizations are never available to operators.</p>
     </div>
   );
 }
@@ -142,7 +144,7 @@ export function NotificationsOpsView() {
   const err = retry.error ?? pause.error;
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+      <PageTitle title="Notifications" sub="Delivery of e-mail, webhook and Slack messages across organizations." />
       <Card>
         <CardHeader title="Last 24 hours" />
         {stats.isLoading ? <Skeleton className="h-12" /> : stats.isError ? <ErrorState /> : stats.data!.length === 0 ? <p className="text-sm text-muted">No deliveries in this window.</p> : (
@@ -187,7 +189,7 @@ export function ConnectionsOpsView() {
   const q = useOperatorConnections();
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">Connections needing attention</h1>
+      <PageTitle title="Connections" sub="Customer cloud accounts whose last synchronization failed." />
       <Card>
         {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={Cloud} text="Every cloud connection is healthy or still pending." /> : (
           <ul className="divide-y divide-line/70 text-sm">
@@ -208,7 +210,7 @@ export function SystemView() {
   const q = useOperatorSystem();
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">System</h1>
+      <PageTitle title="System" sub="Which build is running and which database schema it expects." />
       {q.isLoading ? <Skeleton className="h-48" /> : q.isError ? <ErrorState /> : (
         <>
           <Card>
@@ -220,16 +222,8 @@ export function SystemView() {
             </dl>
           </Card>
           <Card>
-            <CardHeader title="Integrations" />
-            <p className="mb-3 text-xs text-muted"><b>stub</b> means a development stand-in is running instead of the real service; <b>missing</b> means the feature is unavailable until it is set up.</p>
-            <ul className="divide-y divide-line/70 text-sm">
-              {q.data!.integrations.map((i) => (
-                <li key={i.name} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                  <span className="font-medium">{i.name}</span>
-                  <span className="flex items-center gap-3"><span className="text-xs text-muted">{i.note}</span><Badge tone={statusTone(i.status)}>{i.status}</Badge></span>
-                </li>
-              ))}
-            </ul>
+            <CardHeader title="Services" />
+            <p className="text-sm text-muted">Keys, addresses and the state of every external service (identity, mail, storage, grid data, billing exports) are managed on their own pages. <Link href="/operator/data-sources?tab=services" className="font-medium text-primary hover:underline">Open data sources and platform services →</Link></p>
           </Card>
         </>
       )}
@@ -242,12 +236,100 @@ export function PlatformSettingsView() {
   const [tab, setTab] = useState<"settings" | "history">("settings");
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">Platform settings</h1>
+      <PageTitle title="Platform settings" sub="Limits, module switches, security, retention. Every change is written to the history." />
       <PillTabs value={tab} onChange={(v) => setTab(v as "settings" | "history")} label="Platform settings sections" tabs={[{ value: "settings", label: "Settings" }, { value: "history", label: "Change history" }]} />
       {tab === "settings"
         ? <SettingsEditor mode="platform" path="operator/settings" historyPath="operator/settings/history" canEdit={me.data?.role === "admin"} />
         : <SettingsHistory path="operator/settings/history?limit=200" />}
     </div>
+  );
+}
+
+/** Suspend or restore one organization. It is a locked, audited setting; the API gate refuses changes while it is on. */
+function StatusPanel({ id, canAct }: { id: string; canAct: boolean }) {
+  const qc = useQueryClient();
+  const path = `operator/tenants/${id}/settings`;
+  const view = useQuery({ queryKey: ["op-org-settings", id], queryFn: () => api(path, settingsView) });
+  const [message, setMessage] = useState("");
+  const item = (k: string) => view.data?.items.find((i) => i.key === k);
+  const suspended = item("organization.suspended")?.value === true;
+  const current = String(item("organization.suspended_message")?.value ?? "");
+  const set = useMutation({
+    mutationFn: (values: Record<string, unknown>) => api(path, settingsView, undefined, { method: "PATCH", body: JSON.stringify({ values }) }),
+    onSuccess: (data) => { qc.setQueryData(["op-org-settings", id], data); void qc.invalidateQueries({ queryKey: ["settings"] }); },
+  });
+  return (
+    <Card interactive={false}>
+      <CardHeader title="Status" action={<Badge tone={suspended ? "bad" : "good"}>{suspended ? "Suspended" : "Active"}</Badge>} />
+      <p className="text-sm text-muted">
+        {suspended ? "People in this organization can read and export their data but cannot change anything." : "Suspending keeps all data. People can still read and export it; every change is refused until you restore access."}
+      </p>
+      {canAct && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {suspended ? (
+            <button type="button" disabled={set.isPending} onClick={() => set.mutate({ "organization.suspended": false })} className="rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60">Restore access</button>
+          ) : (<>
+            <input value={message} onChange={(e) => setMessage(e.target.value)} maxLength={300} aria-label="Message shown to the organization" placeholder={current || "Reason shown to the organization"} className={`${selectCls} w-full sm:w-96`} />
+            <ConfirmButton label="Suspend organization" confirmLabel="Suspend now" disabled={set.isPending}
+              onConfirm={() => set.mutate({ "organization.suspended": true, ...(message.trim() ? { "organization.suspended_message": message.trim() } : {}) })} />
+          </>)}
+        </div>
+      )}
+      {set.isError && <p role="alert" className="mt-2 text-sm text-bad">{set.error.message}</p>}
+    </Card>
+  );
+}
+
+/** Assign a plan: writes the plan's limits and modules for this organization, with a reason in its audit log. */
+function PlanPanel({ id, current, canAct }: { id: string; current: string; canAct: boolean }) {
+  const qc = useQueryClient();
+  const plans = useOperatorPlans();
+  const sub = useOperatorSubscription(id);
+  const [plan, setPlan] = useState("");
+  const [reason, setReason] = useState("");
+  const [status, setStatus] = useState("active");
+  const [until, setUntil] = useState("");
+  const assign = useMutation({
+    mutationFn: () => api(`operator/tenants/${id}/plan`, changed, undefined, {
+      method: "PUT",
+      body: JSON.stringify({ plan, reason, status, ...(status === "trialing" ? { trial_ends_at: until } : until ? { period_end: until } : {}) }),
+    }),
+    onSuccess: () => {
+      setReason("");
+      for (const k of ["op-tenants", "op-plans", "op-org-settings", "settings", "op-subscription", "plan"]) void qc.invalidateQueries({ queryKey: [k] });
+    },
+  });
+  const chosen = plans.data?.find((p) => p.id === (plan || current));
+  return (
+    <Card interactive={false}>
+      <CardHeader title="Plan" action={<Badge>{current}</Badge>} />
+      {canAct ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <select aria-label="Plan" value={plan || current} onChange={(e) => setPlan(e.target.value)} className={selectCls}>
+            {plans.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)} className={selectCls}>
+            <option value="active">active</option><option value="trialing">trial</option><option value="past_due">past due</option><option value="canceled">canceled</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-muted">{status === "trialing" ? "Trial ends" : "Paid until"}
+            <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} className={selectCls} aria-label="Date" /></label>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Reason (required, kept in the audit log)" aria-label="Reason" className={`${selectCls} w-full sm:w-96`} />
+          <button type="button" disabled={assign.isPending || reason.trim().length < 3 || !plan || (status === "trialing" && !until)} onClick={() => assign.mutate()}
+            className="brand-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{assign.isPending ? "Assigning…" : "Assign plan"}</button>
+        </div>
+      ) : <p className="text-sm text-muted">Only an operator with the admin role can assign a plan.</p>}
+      {sub.data && sub.data.status !== "none" && (
+        <p className="mt-2 text-xs text-muted">
+          Subscription: {sub.data.status}{sub.data.period_end ? `, until ${shortTime(sub.data.period_end)}` : ""} · source {sub.data.source} · set by {sub.data.updated_by.slice(0, 24)}.
+          After the end date the scheduler returns the organization to Free.
+        </p>
+      )}
+      {chosen && plan && plan !== current && (
+        <p className="mt-2 text-xs text-muted">Will fix: {Object.entries(chosen.limits).map(([k, v]) => `${k.replace("limits.", "").replace(/_/g, " ")} ${v === 0 ? "unlimited" : v}`).join(", ")}; modules off: {Object.entries(chosen.modules).filter(([, v]) => !v).map(([k]) => k.replace("modules.", "")).join(", ") || "none"}.</p>
+      )}
+      {assign.isError && <p role="alert" className="mt-2 text-sm text-bad">{assign.error.message}</p>}
+      {assign.isSuccess && <p role="status" className="mt-2 text-sm text-emerald-700">Plan assigned.</p>}
+    </Card>
   );
 }
 
@@ -259,14 +341,18 @@ export function OrganizationView({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       <div>
-        <Link href="/operator" className="text-sm text-primary hover:underline">← Organizations</Link>
+        <Link href="/operator/organizations" className="text-sm text-primary hover:underline">← Organizations</Link>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{org?.name ?? "Organization"}</h1>
         {org && (
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-            <Badge>{org.plan}</Badge>{org.members} members · {org.projects} projects · {org.connections} connections · {org.destinations} destinations
+            {org.members} members · {org.projects} projects · {org.connections} connections · {org.destinations} destinations
             {org.connections_in_error > 0 && <Badge tone="bad">{org.connections_in_error} connection error</Badge>}
           </p>
         )}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PlanPanel id={id} current={org?.plan ?? "free"} canAct={me.data?.role === "admin"} />
+        <StatusPanel id={id} canAct={me.data?.role === "admin"} />
       </div>
       <PillTabs value={tab} onChange={(v) => setTab(v as "settings" | "history")} label="Organization sections" tabs={[{ value: "settings", label: "Settings and limits" }, { value: "history", label: "Change history" }]} />
       {tab === "settings"

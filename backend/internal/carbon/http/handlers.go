@@ -4,6 +4,7 @@ package http
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -17,9 +18,12 @@ import (
 
 type Handlers struct{ Svc *application.Service }
 
+var regionID = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,38}$`)
+
 func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/summary", h.summary)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/trend", h.trend)
+	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/intensity", h.intensity)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology", h.methodology)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology/versions", h.versions)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/compare", h.compare)
@@ -61,6 +65,12 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		httpx.Internal(w, r, err)
 		return
 	}
+	rawOrigins, err := h.Svc.Origins(r.Context(), c.TenantID, project, from, to)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	origins, measured := toOrigins(rawOrigins)
 	httpx.WriteJSON(w, http.StatusOK, struct {
 		totalsJSON
 		HasData            bool       `json:"has_data"`
@@ -69,8 +79,102 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		MethodologyVersion string     `json:"methodology_version"`
 		// Methodology travels with the figures: a number must never look more complete than it is.
 		Methodology methodologyJSON `json:"methodology"`
+		// IntensityOrigins says where the grid intensities behind the carbon came from (source and basis).
+		IntensityOrigins []originJSON `json:"intensity_origins"`
+		// MeasuredSharePct is the share of the carbon whose intensity is the mean of readings of the day itself.
+		MeasuredSharePct *float64 `json:"intensity_measured_share_pct"`
 	}{toTotals(s.Current), s.HasData(), toTotals(s.Previous),
-		domain.Comparable(s.Current.Days, s.Previous.Days, int(to.Sub(from).Hours()/24+0.5)), domain.MethodologyVersion, describeMethodology()})
+		domain.Comparable(s.Current.Days, s.Previous.Days, int(to.Sub(from).Hours()/24+0.5)), domain.MethodologyVersion, describeMethodology(),
+		origins, measured})
+}
+
+type originJSON struct {
+	Source   string  `json:"source"` // "" = calculated before the origin was recorded
+	Basis    string  `json:"basis"`
+	CarbonKg float64 `json:"carbon_kg_co2e"`
+	SharePct float64 `json:"share_pct"`
+}
+
+// toOrigins turns the breakdown into shares of the window's total and the share that is a same-day mean.
+func toOrigins(in []domain.IntensityOrigin) (out []originJSON, measured *float64) {
+	var total, day float64
+	for _, o := range in {
+		total += o.CarbonKg
+		if o.Basis == domain.BasisDayMean {
+			day += o.CarbonKg
+		}
+	}
+	out = []originJSON{}
+	for _, o := range in {
+		share := 0.0
+		if total > 0 {
+			share = o.CarbonKg / total * 100
+		}
+		out = append(out, originJSON{Source: o.Source, Basis: o.Basis, CarbonKg: o.CarbonKg, SharePct: share})
+	}
+	if total > 0 {
+		m := day / total * 100
+		measured = &m
+	}
+	return out, measured
+}
+
+type intensityJSON struct {
+	Region  string                `json:"region"`
+	Regions []regionJSON          `json:"regions"`
+	Points  []domain.HistoryPoint `json:"points"`
+	// Policy is the source policy the points were chosen under.
+	Policy struct {
+		Priority       []string `json:"priority"`
+		MinDayReadings int      `json:"min_day_readings"`
+		MaxAgeHours    int      `json:"max_age_hours"`
+	} `json:"policy"`
+	WindowDays   int `json:"window_days"`
+	DaysWithData int `json:"days_with_data"`
+}
+
+type regionJSON struct {
+	Region   string  `json:"region"`
+	CarbonKg float64 `json:"carbon_kg_co2e"`
+}
+
+// intensity answers the history of the grid carbon intensity of one region (default: the organization's largest
+// emitter), from stored readings, under the source policy. Gaps stay gaps.
+func (h Handlers) intensity(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	from, to, project, ok := query(w, r)
+	if !ok {
+		return
+	}
+	regions, err := h.Svc.Regions(r.Context(), c.TenantID, project, from, to)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	out := intensityJSON{Regions: []regionJSON{}, Points: []domain.HistoryPoint{}}
+	for _, x := range regions {
+		out.Regions = append(out.Regions, regionJSON{Region: x.Region, CarbonKg: x.CarbonKg})
+	}
+	region := r.URL.Query().Get("region")
+	if region == "" && len(regions) > 0 {
+		region = regions[0].Region
+	}
+	if !regionID.MatchString(region) && region != "" {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "region must be a cloud region id")
+		return
+	}
+	out.Region = region
+	pol := h.Svc.Policy(r.Context())
+	out.Policy.Priority, out.Policy.MinDayReadings, out.Policy.MaxAgeHours = pol.Priority, pol.MinDayReadings, int(pol.MaxAge.Hours())
+	out.WindowDays = int(to.Sub(from).Hours()/24 + 0.5)
+	if region != "" {
+		if out.Points, err = h.Svc.IntensityHistory(r.Context(), region, from, to); err != nil {
+			httpx.Internal(w, r, err)
+			return
+		}
+		out.DaysWithData = len(out.Points)
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
 // methodologyJSON is what a client needs to qualify the figures it shows.

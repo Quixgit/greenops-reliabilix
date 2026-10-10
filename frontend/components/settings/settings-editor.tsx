@@ -79,8 +79,10 @@ function Control({ item, value, onChange, disabled }: { item: SettingItem; value
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes }: {
+export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes, onlyGroup }: {
   mode: EditorMode; path: string; historyPath: string; canEdit?: boolean; scopes?: SettingItem["scope"][];
+  /** Show one group only, without the search and group tabs: for a card that sits next to the thing it configures. */
+  onlyGroup?: string;
 }) {
   const qc = useQueryClient();
   const key = ["settings", path];
@@ -99,7 +101,8 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
     onSuccess: (view: SettingsView, keys) => { qc.setQueryData(key, view); setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k]) => !keys.includes(k)))); setSaved(true); void qc.invalidateQueries({ queryKey: ["settings-history"] }); },
   });
 
-  const items = useMemo(() => (q.data?.items ?? []).filter((i) => !scopes || scopes.includes(i.scope)), [q.data, scopes]);
+  // On an organization's console page the suspension switch is the Status panel above the editor: not repeated here.
+  const items = useMemo(() => (q.data?.items ?? []).filter((i) => (!scopes || scopes.includes(i.scope)) && (!onlyGroup || i.group === onlyGroup) && !(mode === "operator-tenant" && i.group === "organization")), [q.data, scopes, mode, onlyGroup]);
   const groups = useMemo(() => (q.data?.groups ?? []).filter((g) => items.some((i) => i.group === g.id)), [q.data, items]);
   const dirty = Object.keys(draft).filter((k) => { const it = items.find((i) => i.key === k); return it && !same(draft[k], it.value); });
   const shown = items.filter((i) => (active === "all" || i.group === active)
@@ -118,8 +121,8 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
   return (
     <div className="space-y-4">
       {mode === "operator-tenant" && <p role="note" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">Values saved here are <b>fixed for this organization</b>: it can no longer change them until you unlock them. The change is written to its audit log.</p>}
-      {mode === "platform" && <p role="note" className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900 ring-1 ring-violet-200">Platform-wide values. For organization settings this is the <b>default every organization inherits</b>; organizations that chose their own value keep it.</p>}
-      <div className="flex flex-wrap items-center gap-2">
+      {mode === "platform" && !onlyGroup && <p role="note" className="rounded-xl bg-violet-50 p-3 text-sm text-violet-900 ring-1 ring-violet-200">Platform-wide values. For organization settings this is the <b>default every organization inherits</b>; organizations that chose their own value keep it.</p>}
+      {!onlyGroup && <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted" aria-hidden />
           <input aria-label="Search settings" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search settings…" className={cn(inputCls, "w-64 pl-9")} />
@@ -130,7 +133,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
               className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-primary/10 text-primary" : "text-muted hover:text-ink")}>{g.title}</button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {groups.filter((g) => shown.some((i) => i.group === g.id)).map((g) => (
         <Card key={g.id}>

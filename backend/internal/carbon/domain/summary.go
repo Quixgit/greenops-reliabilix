@@ -73,3 +73,17 @@ func Gate(carbonKg, costDelta float64, t Thresholds) (Verdict, []string) {
 	check(costDelta, t.CostBlock, Block, "cost increase exceeds the blocking threshold")
 	return v, reasons
 }
+
+// RegionCarbon is the carbon an organization has in one region over a window.
+type RegionCarbon struct {
+	Region   string
+	CarbonKg float64
+}
+
+// IntensityOrigin is the share of a window's carbon whose intensity came from one source with one basis.
+// Empty Source and Basis mean the rows were calculated before the origin was recorded.
+type IntensityOrigin struct {
+	Source   string
+	Basis    string
+	CarbonKg float64
+}

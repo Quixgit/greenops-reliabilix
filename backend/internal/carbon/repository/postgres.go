@@ -95,7 +95,8 @@ func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID s
 				params = append(params, db.UpsertCalculationParams{TenantID: tenantID, ProjectID: projectID, Provider: c.Provider, RegionID: c.RegionID,
 					ServiceName: c.ServiceName, ServiceCategory: c.ServiceCategory, Method: string(c.Method), PeriodStart: c.PeriodStart, PeriodEnd: c.PeriodEnd,
 					EnergyKwh: c.EnergyKWh, IntensityGPerKwh: c.IntensityGPerKWh, EmbodiedG: c.EmbodiedG, CarbonKgCo2e: c.CO2eKg,
-					FunctionalUnits: c.FunctionalUnits, SciScore: c.SCIScore, MethodologyVersion: c.MethodologyVersion})
+					FunctionalUnits: c.FunctionalUnits, SciScore: c.SCIScore, MethodologyVersion: c.MethodologyVersion,
+					IntensitySource: nilIfEmpty(c.IntensitySource), IntensityBasis: nilIfEmpty(c.IntensityBasis)})
 			}
 			br := q.UpsertCalculation(ctx, params)
 			var first error
@@ -116,23 +117,74 @@ func (r Postgres) ReplaceCalculations(ctx context.Context, tenantID, projectID s
 }
 
 // SaveGridIntensity stores a reading in the global reference table (idempotent; no tenant).
-func (r Postgres) SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool) error {
-	return db.New(r.Pool).SaveGridIntensity(ctx, db.SaveGridIntensityParams{Provider: provider, RegionID: region, Ts: at, GCo2ePerKwh: gPerKWh, IsForecast: forecast})
+func (r Postgres) SaveGridIntensity(ctx context.Context, provider, region string, at time.Time, gPerKWh float64, forecast bool, measure string) error {
+	if measure == "" {
+		measure = domain.MeasureAverage
+	}
+	return db.New(r.Pool).SaveGridIntensity(ctx, db.SaveGridIntensityParams{Provider: provider, RegionID: region, Ts: at, GCo2ePerKwh: gPerKWh, IsForecast: forecast, Measure: measure})
 }
 
-// IntensityAt returns the latest stored reading at or before ts, falling back to the latest overall.
-func (r Postgres) IntensityAt(ctx context.Context, region string, ts time.Time) (float64, bool, error) {
-	q := db.New(r.Pool)
-	g, err := q.IntensityAt(ctx, db.IntensityAtParams{RegionID: region, Ts: ts})
-	if err == nil {
-		return g, true, nil
+// DayStats implements domain.IntensityReader.
+func (r Postgres) DayStats(ctx context.Context, region, provider string, from, to time.Time) (float64, int, error) {
+	row, err := db.New(r.Pool).IntensityDayStats(ctx, db.IntensityDayStatsParams{RegionID: region, Provider: provider, FromTs: from, ToTs: to})
+	if err != nil {
+		return 0, 0, err
 	}
-	if !database.IsNotFound(err) {
-		return 0, false, err
-	}
-	g, err = q.LatestIntensity(ctx, region)
+	return row.G, int(row.N), nil
+}
+
+// Latest implements domain.IntensityReader.
+func (r Postgres) Latest(ctx context.Context, region, provider string, before *time.Time) (float64, time.Time, bool, error) {
+	row, err := db.New(r.Pool).IntensityLatest(ctx, db.IntensityLatestParams{RegionID: region, Provider: provider, Before: before})
 	if database.IsNotFound(err) {
-		return 0, false, nil
+		return 0, time.Time{}, false, nil
 	}
-	return g, err == nil, err
+	if err != nil {
+		return 0, time.Time{}, false, err
+	}
+	return row.G, row.Ts, true, nil
+}
+
+// History returns each source's daily readings of a region in [from, to).
+func (r Postgres) History(ctx context.Context, region string, from, to time.Time) ([]domain.HistoryRow, error) {
+	rows, err := db.New(r.Pool).IntensityHistory(ctx, db.IntensityHistoryParams{RegionID: region, FromTs: from, ToTs: to})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.HistoryRow, 0, len(rows))
+	for _, x := range rows {
+		out = append(out, domain.HistoryRow{Day: x.Day, Provider: x.Provider, Mean: x.Mean, Lo: x.Lo, Hi: x.Hi, N: int(x.N)})
+	}
+	return out, nil
+}
+
+// Regions lists the regions the organization has carbon in, largest first.
+func (r Postgres) Regions(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (out []domain.RegionCarbon, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := db.New(tx).TenantRegions(ctx, db.TenantRegionsParams{TenantID: tenantID, ProjectID: project, MethodologyVersion: version, FromTs: from, ToTs: to})
+		for _, x := range rows {
+			out = append(out, domain.RegionCarbon{Region: x.RegionID, CarbonKg: x.CarbonKgCo2e})
+		}
+		return err
+	})
+	return
+}
+
+// Origins breaks the carbon of a window down by where its intensities came from.
+func (r Postgres) Origins(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (out []domain.IntensityOrigin, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := db.New(tx).IntensityBasisBreakdown(ctx, db.IntensityBasisBreakdownParams{TenantID: tenantID, ProjectID: project, MethodologyVersion: version, FromTs: from, ToTs: to})
+		for _, x := range rows {
+			out = append(out, domain.IntensityOrigin{Source: x.Source, Basis: x.Basis, CarbonKg: x.CarbonKgCo2e})
+		}
+		return err
+	})
+	return
+}
+
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

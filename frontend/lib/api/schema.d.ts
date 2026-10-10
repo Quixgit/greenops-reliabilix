@@ -351,6 +351,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Permission catalog, built-in roles and the organization's custom roles
+         * @description Requires permission `tenant:admin`.
+         */
+        get: operations["listRoles"];
+        put?: never;
+        /**
+         * Create a custom role
+         * @description Requires permission `tenant:admin`. A custom role cannot contain administration, data export or machine-only
+         *     permissions, and only permissions the caller holds (422 / 403).
+         */
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Change a custom role
+         * @description Requires permission `tenant:admin` and holding every permission of the role, old and new.
+         */
+        put: operations["updateRole"];
+        post?: never;
+        /**
+         * Delete a custom role (its members return to their built-in role)
+         * @description Requires permission `tenant:admin`.
+         */
+        delete: operations["deleteRole"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/members/{id}": {
         parameters: {
             query?: never;
@@ -817,6 +866,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organization's plan, subscription state, limits with usage and payment providers
+         * @description Requires permission `project:read`. `status` is `none` when no subscription is recorded.
+         */
+        get: operations["getPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plan/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a payment for a plan at a payment provider
+         * @description Requires permission `tenant:admin`. Answers a `url` to send the person to, or a `message` for providers
+         *     without a hosted page (invoice). The plan becomes active when the provider confirms the payment by webhook.
+         */
+        post: operations["startCheckout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/webhooks/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Payment provider notification
+         * @description Public: called by the payment provider, verified by its signature (or, for providers without one, by asking the
+         *     provider's API). Idempotent per event. 200 for everything understood, 400 for an unverifiable notification, 503
+         *     when the provider is not set up.
+         */
+        post: operations["billingWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/locales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Languages on offer and the default language
+         * @description Public (no session). Comes from the platform settings `i18n.enabled_locales` and `i18n.default_locale`, limited
+         *     to languages the build has a catalog for.
+         */
+        get: operations["getLocales"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/carbon/summary": {
         parameters: {
             query?: never;
@@ -829,6 +962,29 @@ export interface paths {
          * @description Requires permission `carbon:read`.
          */
         get: operations["getCarbonSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/carbon/intensity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Day-by-day grid carbon intensity of a region, from stored readings
+         * @description Requires permission `carbon:read`. For each day with readings, the source chosen under the platform source
+         *     policy (the first trusted source with enough readings that day; sources are never averaged together), its
+         *     min and max, and the means of the other sources shown beside it. Days without a reading are absent.
+         *     The region defaults to the organization's largest emitter in the window.
+         */
+        get: operations["getCarbonIntensityHistory"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1598,6 +1754,260 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/operator/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The operators' own access log
+         * @description Platform operators only. The newest lines of the append-only log of what operators looked at or changed.
+         */
+        get: operations["listOperatorAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/data-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registry of the data sources the platform reads
+         * @description Platform operators only. State comes from the real configuration; connection counts only from real customer
+         *     connections (counts, no tenant data). A `planned` source is listed but never carries a number.
+         */
+        get: operations["listOperatorDataSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Queues, periodic schedules and failed background tasks
+         * @description Platform operators only. Read-only telemetry of the job queue; task payloads (they carry tenant ids) are never
+         *     returned. 503 when the queue cannot be read.
+         */
+        get: operations["getOperatorJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/operators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform operators with their role and recent activity
+         * @description Platform operators only. Who is an operator is a database fact that only the migration owner can change; this
+         *     list is read-only.
+         */
+        get: operations["listOperators"];
+        /**
+         * Make a person an operator, or change their role
+         * @description Platform operators with the `admin` role only. The person is identified by e-mail and must have signed in to the
+         *     platform. The caller cannot change their own role and the platform keeps at least one admin (409).
+         */
+        put: operations["assignOperator"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan catalog with the number of organizations on each plan
+         * @description Platform operators only. A plan is a preset of the limit and module settings; assigning it writes those values
+         *     for one organization.
+         */
+        get: operations["listOperatorPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign a plan to an organization
+         * @description Platform operators with the `admin` role only. Writes the plan's limits and module switches as locked operator
+         *     values and records the plan and the reason in the organization's audit log.
+         */
+        put: operations["assignOperatorPlan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/carbon/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fetch past grid carbon intensity for the regions in use
+         * @description Platform operators with the `admin` role only. Asks the grid data provider for past hourly readings of every
+         *     region that has carbon calculations, in 9-day requests, and stores them (an existing reading is never
+         *     overwritten). `dry_run` reports the plan and the number of provider requests without asking. At most 400 days
+         *     and 2000 requests per run. Past data is a plan feature of the provider.
+         */
+        post: operations["backfillGridHistory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/operators/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw operator access
+         * @description Platform operators with the `admin` role only. The caller cannot withdraw themselves and the last admin cannot
+         *     be withdrawn (409). The change is written to the operators' access log.
+         */
+        post: operations["withdrawOperator"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An organization's subscription state
+         * @description Platform operators only. `status` is `none` when no subscription is recorded.
+         */
+        get: operations["getOperatorSubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/api-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Requests made to paid external APIs per day (last 30 days) and the daily caps
+         * @description Platform operators only. Counts only. A cap of 0 means unlimited.
+         */
+        get: operations["getOperatorApiUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/methodology": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every carbon coefficient set with provenance, coefficients and checksum
+         * @description Platform operators only. A set is immutable; a new set is a new version.
+         */
+        get: operations["listOperatorMethodology"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/billing/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Latest payment notifications and invoice requests
+         * @description Platform operators only. Identifiers and statuses; never payment data.
+         */
+        get: operations["listOperatorBillingEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operator/system": {
         parameters: {
             query?: never;
@@ -2065,9 +2475,30 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @description Either a built-in `role` or a `custom_role_id` (exactly one). A built-in role withdraws any custom role. */
         RoleInput: {
             /** @enum {string} */
-            role: "owner" | "admin" | "engineer" | "viewer" | "billing";
+            role?: "owner" | "admin" | "engineer" | "viewer" | "billing";
+            /** Format: uuid */
+            custom_role_id?: string;
+        };
+        CustomRole: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string;
+            permissions: string[];
+            members: number;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CustomRoleInput: {
+            name: string;
+            description?: string;
+            permissions: string[];
         } & {
             [key: string]: unknown;
         };
@@ -2343,12 +2774,77 @@ export interface components {
             [key: string]: unknown;
         };
         CarbonTotals: {
+            /** @description Where the grid intensities behind the carbon came from. Empty source and basis = calculated before the origin was recorded. */
+            intensity_origins?: {
+                source: string;
+                basis: string;
+                carbon_kg_co2e: number;
+                share_pct: number;
+            }[];
+            /** @description Share of the carbon whose intensity is the mean of readings of the day itself. */
+            intensity_measured_share_pct?: number | null;
             energy_kwh?: number;
             carbon_kg_co2e?: number;
             sci_score?: number | null;
             carbon_intensity_g_per_kwh?: number;
         } & {
             [key: string]: unknown;
+        };
+        PlanView: {
+            plan: string;
+            name: string;
+            /** @enum {string} */
+            status: "none" | "active" | "trialing" | "past_due" | "canceled";
+            source: string;
+            /** Format: date-time */
+            trial_ends_at?: string | null;
+            /** Format: date-time */
+            period_end?: string | null;
+            limits: {
+                resource: string;
+                key: string;
+                /** @description 0 means unlimited */
+                limit: number;
+                used: number;
+            }[];
+            modules: {
+                key: string;
+                enabled: boolean;
+            }[];
+            providers: {
+                id: string;
+                name: string;
+                plans: string[];
+            }[];
+        };
+        IntensityHistory: {
+            region: string;
+            regions: {
+                region: string;
+                carbon_kg_co2e: number;
+            }[];
+            points: {
+                /** Format: date-time */
+                day: string;
+                g_per_kwh: number;
+                min: number;
+                max: number;
+                readings: number;
+                source: string;
+                /** @enum {string} */
+                basis: "day_mean" | "partial_day_mean";
+                others: {
+                    source: string;
+                    g_per_kwh: number;
+                }[];
+            }[];
+            policy: {
+                priority: string[];
+                min_day_readings: number;
+                max_age_hours: number;
+            };
+            window_days: number;
+            days_with_data: number;
         };
         CarbonSummary: {
             /** @description How the figures were produced. Clients must show the caveats next to the numbers. */
@@ -2963,6 +3459,96 @@ export interface components {
             /** Format: date-time */
             last_sync_at: string | null;
         };
+        OperatorAuditEntry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            operator_sub: string;
+            operator_email: string;
+            role: string;
+            action: string;
+        };
+        OperatorDataSource: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            category: "grid_intensity" | "billing" | "usage" | "kubernetes" | "methodology";
+            /** @enum {string} */
+            access: "free" | "paid" | "customer_provided" | "internal";
+            /** @enum {string} */
+            state: "ready" | "attention" | "not_configured" | "planned";
+            metrics: string[];
+            coverage: string;
+            terms: string;
+            note: string;
+            integration_id: string;
+            connections: number | null;
+            organizations: number | null;
+            in_error: number | null;
+            /** Format: date-time */
+            last_sync_at: string | null;
+        };
+        OperatorRecord: {
+            subject: string;
+            email: string;
+            /** @enum {string} */
+            role: "viewer" | "admin";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_seen_at: string | null;
+            actions_30d: number;
+        };
+        OperatorJobs: {
+            queues: {
+                name: string;
+                size: number;
+                pending: number;
+                active: number;
+                scheduled: number;
+                retry: number;
+                archived: number;
+                completed: number;
+                processed_today: number;
+                failed_today: number;
+                latency_seconds: number;
+                paused: boolean;
+            }[];
+            failed: {
+                id: string;
+                queue: string;
+                type: string;
+                state: string;
+                last_error: string;
+                retried: number;
+                max_retry: number;
+                /** Format: date-time */
+                last_failed_at: string | null;
+                /** Format: date-time */
+                next_attempt_at: string | null;
+            }[];
+            schedules: {
+                spec: string;
+                type: string;
+                /** Format: date-time */
+                next: string;
+                /** Format: date-time */
+                prev: string | null;
+            }[];
+        };
+        OperatorPlan: {
+            id: string;
+            name: string;
+            description: string;
+            limits: {
+                [key: string]: number;
+            };
+            modules: {
+                [key: string]: boolean;
+            };
+            organizations: number;
+        };
         OperatorSystem: {
             version: string;
             env: string;
@@ -3567,6 +4153,119 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    listRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        permissions: {
+                            key: string;
+                            group: string;
+                            assignable: boolean;
+                        }[];
+                        builtin: {
+                            role: string;
+                            permissions: string[];
+                        }[];
+                        custom: components["schemas"]["CustomRole"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomRoleInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRole"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomRoleInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomRole"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     removeMember: {
@@ -4405,6 +5104,110 @@ export interface operations {
             403: components["responses"]["Problem"];
         };
     };
+    getPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    startCheckout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    provider: "stripe" | "paddle" | "liqpay" | "wayforpay" | "invoice";
+                    plan: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        url?: string;
+                        message?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            502: components["responses"]["Problem"];
+        };
+    };
+    billingWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Understood (applied, repeated or ignored) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    getLocales: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        default: string;
+                        enabled: string[];
+                        supported: string[];
+                    };
+                };
+            };
+        };
+    };
     getCarbonSummary: {
         parameters: {
             query?: {
@@ -4427,6 +5230,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CarbonSummary"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getCarbonIntensityHistory: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                region?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntensityHistory"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -5494,6 +6327,427 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["OperatorConnection"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorAudit: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorAuditEntry"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorDataSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorDataSource"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperatorJobs"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listOperators: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorRecord"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    assignOperator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    /** @enum {string} */
+                    role: "viewer" | "admin";
+                };
+            };
+        };
+        responses: {
+            /** @description The operators after the change */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorRecord"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listOperatorPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorPlan"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    assignOperatorPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    plan: string;
+                    reason: string;
+                    /**
+                     * @default active
+                     * @enum {string}
+                     */
+                    status?: "active" | "trialing" | "past_due" | "canceled";
+                    /**
+                     * Format: date
+                     * @description When the paid period ends; the scheduler returns the organization to Free after it
+                     */
+                    period_end?: string;
+                    /**
+                     * Format: date
+                     * @description Required for a trial
+                     */
+                    trial_ends_at?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Assigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        plan: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    backfillGridHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    from: string;
+                    /** Format: date */
+                    to: string;
+                    dry_run?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description The plan; `queued` is true when the job was started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        regions: string[];
+                        days: number;
+                        estimated_requests: number;
+                        queued: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    withdrawOperator: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    subject: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The operators after the change */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OperatorRecord"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    getOperatorSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        plan: string;
+                        status: string;
+                        source: string;
+                        /** Format: date-time */
+                        trial_ends_at: string | null;
+                        /** Format: date-time */
+                        period_end: string | null;
+                        updated_by: string;
+                        /** Format: date-time */
+                        updated_at: string | null;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getOperatorApiUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            provider: string;
+                            /** Format: date-time */
+                            day: string;
+                            requests: number;
+                            errors: number;
+                        }[];
+                        daily_caps: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorMethodology: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            version: string;
+                            status: string;
+                            provenance: string;
+                            notes: string;
+                            caveats: string[];
+                            pue: number;
+                            energy_kwh_per_unit: {
+                                [key: string]: number;
+                            };
+                            cost_based_kwh_per_usd: {
+                                [key: string]: number;
+                            };
+                            embodied_g_per_kwh: number;
+                            checksum: string;
+                            active: boolean;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorBillingEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: date-time */
+                            at: string;
+                            provider: string;
+                            /** @enum {string} */
+                            kind: "applied" | "requested";
+                            organization_id: string | null;
+                            organization_name: string;
+                            plan: string;
+                            detail: string;
+                        }[];
                     };
                 };
             };

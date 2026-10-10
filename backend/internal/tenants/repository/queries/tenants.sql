@@ -21,7 +21,7 @@ WHERE m.organization_id = sqlc.arg(tenant_id) AND m.id = sqlc.arg(id) FOR UPDATE
 SELECT count(*) FROM tenants.memberships WHERE organization_id = sqlc.arg(tenant_id) AND role = 'owner';
 
 -- name: UpdateMemberRole :exec
-UPDATE tenants.memberships SET role = sqlc.arg(role) WHERE organization_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
+UPDATE tenants.memberships SET role = sqlc.arg(role), custom_role_id = NULL WHERE organization_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
 
 -- name: DeleteMember :exec
 DELETE FROM tenants.memberships WHERE organization_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
