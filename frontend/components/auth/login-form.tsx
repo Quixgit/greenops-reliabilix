@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
 import { useState } from "react";
 import { loginUrl, validEmail } from "@/lib/auth/login";
 import { cn } from "@/lib/utils";
@@ -23,16 +23,18 @@ function GitHubMark() {
   );
 }
 
-const field = "block w-full rounded-md border border-line bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
-const social = "flex w-full items-center justify-center gap-2.5 rounded-md border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-slate-50";
+const input = "block h-11 w-full rounded-lg border border-slate-200 bg-white/90 px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 disabled:bg-slate-50";
+const primary = "h-11 w-full rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-600 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-500 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60";
+const social = "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/25";
 
 /**
- * Sign-in options. Passwords and second factors are only ever typed on the identity provider's own page: this form
- * hands over the e-mail (and the chosen provider) and the provider asks for the rest, including the MFA code.
+ * One calm form. In the test environment a user name and a password; with the identity provider an e-mail, with Google
+ * and GitHub next to it. Passwords and second factors are only ever typed on the provider's own page.
  */
 export function LoginForm({ mode, returnTo, devLogin = false, error: loginError }: { mode: "auth0" | "dev"; returnTo: string; devLogin?: boolean; error?: string }) {
   const [view, setView] = useState<"signin" | "forgot">("signin");
   const [email, setEmail] = useState("");
+  const [show, setShow] = useState(false);
   const [touched, setTouched] = useState(false);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -61,27 +63,24 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
   if (view === "forgot") {
     return (
       <div className="space-y-5">
-        <button type="button" onClick={() => { setView("signin"); setSent(false); setError(""); }} className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-          <ArrowLeft className="size-4" />Back to sign in
+        <button type="button" onClick={() => { setView("signin"); setSent(false); setError(""); }} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900">
+          <ArrowLeft className="size-4" />Back
         </button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reset your password</h1>
-          <p className="mt-1.5 text-sm text-muted">Enter the e-mail address of your account and we will send you a link to choose a new password.</p>
+          <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">Reset your password</h1>
+          <p className="mt-1.5 text-sm text-slate-500">We will send a link to choose a new one.</p>
         </div>
         {sent ? (
-          <p role="status" className="rounded-md bg-emerald-50 p-3.5 text-sm text-emerald-800 ring-1 ring-emerald-200">
-            If an account exists for <b>{email.trim()}</b>, a reset link is on its way. It can take a few minutes; check your spam folder too.
+          <p role="status" className="rounded-lg bg-emerald-50 p-3.5 text-sm text-emerald-900 ring-1 ring-emerald-200">
+            If an account exists for <b>{email.trim()}</b>, a reset link is on its way. It can take a few minutes.
           </p>
         ) : (
           <form onSubmit={recover} noValidate className="space-y-3">
-            <label className="block text-sm font-medium" htmlFor="rec-email">Work e-mail</label>
-            <input id="rec-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={field} placeholder="you@company.com" disabled={!auth0} />
-            {touched && !emailOk && <p role="alert" className="text-xs text-bad">Enter a valid e-mail address.</p>}
-            {error && <p role="alert" className="text-xs text-bad">{error}</p>}
-            {!auth0 && <p className="text-xs text-muted">Password recovery needs the production identity provider and is switched off in this development environment.</p>}
-            <button type="submit" disabled={busy || !auth0} className="brand-gradient w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60">
-              {busy ? "Sending…" : "Send reset link"}
-            </button>
+            <input aria-label="E-mail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} placeholder="you@company.com" disabled={!auth0} />
+            {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
+            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+            {!auth0 && <p className="text-xs text-slate-500">Password recovery needs the identity provider and is off in this test environment.</p>}
+            <button type="submit" disabled={busy || !auth0} className={primary}>{busy ? "Sending…" : "Send reset link"}</button>
           </form>
         )}
       </div>
@@ -91,66 +90,67 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-        <p className="mt-1.5 text-sm text-muted">Sign in to see your cloud cost and carbon footprint.</p>
+        <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Sign in</h1>
+        <p className="mt-1 text-sm text-slate-500">to Reliabilix GreenOps</p>
       </div>
 
-      {mode === "dev" && devLogin && (
-        <form method="post" action="/api/dev/login" className="space-y-3 rounded-md bg-slate-50 p-3.5 text-sm ring-1 ring-slate-200">
-          <p className="text-slate-700"><b>Test environment.</b> Sign in with the access details you were given. Google, GitHub and password recovery are available once the identity provider is connected.</p>
+      {mode === "dev" && devLogin ? (
+        <form method="post" action="/api/dev/login" className="space-y-3.5">
           <input type="hidden" name="returnTo" value={returnTo} />
-          <label className="block"><span className="text-xs font-medium text-slate-700">User name</span>
-            <input name="username" autoComplete="username" required className={field} /></label>
-          <label className="block"><span className="text-xs font-medium text-slate-700">Password</span>
-            <input name="password" type="password" autoComplete="current-password" required className={field} /></label>
-          {loginError && <p role="alert" className="text-xs text-bad">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
-          <button type="submit" className="brand-gradient w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95">Sign in</button>
+          <div className="space-y-1.5">
+            <label htmlFor="username" className="text-xs font-medium text-slate-600">User name</label>
+            <input id="username" name="username" autoComplete="username" required autoFocus className={input} />
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-xs font-medium text-slate-600">Password</label>
+            <div className="relative">
+              <input id="password" name="password" type={show ? "text" : "password"} autoComplete="current-password" required className={cn(input, "pr-11")} />
+              <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:text-slate-700">
+                {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </div>
+          {loginError && <p role="alert" className="text-xs text-red-600">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
+          <button type="submit" className={primary}>Sign in</button>
+          <p className="pt-1 text-center text-xs text-slate-500">Test environment</p>
         </form>
+      ) : mode === "dev" ? (
+        <a href="/overview" className={cn(primary, "flex items-center justify-center")}>Continue as the development user</a>
+      ) : (
+        <>
+          <div className="flex gap-3">
+            <a href={loginUrl({ connection: "google-oauth2", returnTo })} className={social}><GoogleMark />Google</a>
+            <a href={loginUrl({ connection: "github", returnTo })} className={social}><GitHubMark />GitHub</a>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />or<span className="h-px flex-1 bg-slate-200" /></div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setTouched(true);
+              if (emailOk) window.location.assign(loginUrl({ email, returnTo }));
+            }}
+            noValidate className="space-y-3.5"
+          >
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs font-medium text-slate-600">Work e-mail</label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com" className={cn(input, "pl-10")} aria-invalid={touched && !emailOk} />
+              </div>
+              {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
+            </div>
+            <button type="submit" className={primary}>Continue</button>
+            <div className="text-center">
+              <button type="button" onClick={() => setView("forgot")} className="text-sm font-medium text-emerald-700 hover:underline">Forgot your password?</button>
+            </div>
+          </form>
+          <p className="text-center text-xs leading-relaxed text-slate-500">
+            Your password and, if turned on, your two-step code are entered on our identity provider's secure page.
+          </p>
+        </>
       )}
-
-      {mode === "dev" && !devLogin && (
-        <div className="space-y-3 rounded-md bg-slate-50 p-3.5 text-sm ring-1 ring-slate-200">
-          <p className="text-slate-700"><b>Development environment.</b> Sign-in with Google, GitHub or a password is available once the identity provider is configured.</p>
-          <a href="/overview" className="brand-gradient block rounded-lg px-4 py-2 text-center font-semibold text-white">Continue as the development user</a>
-        </div>
-      )}
-
-      <div className="space-y-2.5">
-        <a href={auth0 ? loginUrl({ connection: "google-oauth2", returnTo }) : undefined} aria-disabled={!auth0}
-          className={cn(social, !auth0 && "pointer-events-none opacity-50")}><GoogleMark />Continue with Google</a>
-        <a href={auth0 ? loginUrl({ connection: "github", returnTo }) : undefined} aria-disabled={!auth0}
-          className={cn(social, !auth0 && "pointer-events-none opacity-50")}><GitHubMark />Continue with GitHub</a>
-      </div>
-
-      <div className="flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-line" />or with your e-mail<span className="h-px flex-1 bg-line" /></div>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setTouched(true);
-          if (emailOk && auth0) window.location.assign(loginUrl({ email, returnTo }));
-        }}
-        noValidate className="space-y-3"
-      >
-        <label className="block text-sm font-medium" htmlFor="email">Work e-mail</label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com"
-            className={cn(field, "pl-9")} disabled={!auth0} aria-invalid={touched && !emailOk} />
-        </div>
-        {touched && !emailOk && <p role="alert" className="text-xs text-bad">Enter a valid e-mail address.</p>}
-        <button type="submit" disabled={!auth0} className="brand-gradient w-full rounded-md px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60">
-          Continue
-        </button>
-        <div className="flex items-center justify-between text-sm">
-          <button type="button" onClick={() => setView("forgot")} className="font-medium text-primary hover:underline">Forgot your password?</button>
-        </div>
-      </form>
-
-      <p className="rounded-md bg-slate-50 p-3 text-xs leading-relaxed text-muted ring-1 ring-line">
-        You enter your password — and, if two-step verification is turned on for your account, the code from your authenticator
-        app — on the secure sign-in page of our identity provider. Reliabilix never sees your password.
-      </p>
     </div>
   );
 }

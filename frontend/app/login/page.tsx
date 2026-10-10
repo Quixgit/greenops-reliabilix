@@ -17,21 +17,23 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (!(dev && q.preview !== undefined) && (await getUser())) redirect(safeReturnTo(q.returnTo));
   const returnTo = safeReturnTo(q.returnTo);
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0a1420] p-5 sm:p-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-5 sm:p-8">
       <LoginBackdrop />
-      <div className="ind-in relative z-10 w-full max-w-[420px]">
-        <div className="mb-6 flex items-center justify-center gap-3">
-          <Logo className="size-11" />
-          <span className="leading-tight">
-            <span className="block text-[22px] font-bold tracking-tight text-white">Reliabilix</span>
-            <span className="block font-mono text-[11px] uppercase tracking-[0.2em] text-cyan-200/80">GreenOps Platform</span>
-          </span>
-        </div>
-        <div className="ind-card rounded-lg p-7 sm:p-9">
+      <div className="sign-in-rise relative z-10 w-full max-w-[400px]">
+        <div className="sign-in-card rounded-2xl p-7 sm:p-9">
+          <div className="mb-7 flex items-center gap-3">
+            <Logo className="size-10" />
+            <span className="leading-tight">
+              <span className="block text-lg font-bold tracking-tight text-slate-900">Reliabilix</span>
+              <span className="block text-xs font-medium text-emerald-700">GreenOps Platform</span>
+            </span>
+          </div>
           <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} devLogin={devLoginEnabled()} error={q.error} />
         </div>
-        <p className="mt-5 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">Cost · Carbon · Control</p>
       </div>
+      <p className="absolute inset-x-0 bottom-4 z-10 px-4 text-center text-[11px] text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">
+        Photos: Pierre Blaché and Zed Can77 (CC0, Wikimedia Commons)
+      </p>
     </main>
   );
 }

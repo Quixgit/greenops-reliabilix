@@ -11,7 +11,7 @@ export async function proxy(request: NextRequest) {
     // The product's own sign-in page instead of the browser prompt: everything but the page, its form handler and
     // static files needs the signed session cookie.
     const { pathname } = request.nextUrl;
-    const open = pathname === "/login" || pathname.startsWith("/api/dev/") || pathname === "/auth/logout";
+    const open = pathname === "/login" || pathname.startsWith("/login-") || pathname.startsWith("/api/dev/") || pathname === "/auth/logout"; // /login-*.jpg: the photographs of the page
     if (open || (await sessionOk(request.cookies.get(DEV_COOKIE)?.value))) return NextResponse.next();
     if (pathname.startsWith("/api/")) return NextResponse.json({ title: "unauthorized", status: 401 }, { status: 401 });
     const url = request.nextUrl.clone();

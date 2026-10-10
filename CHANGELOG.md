@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.13] - 2026-10-10
+
+### Changed
+- Sign-in page rebuilt: one calm form (user name and password in the test environment; Google, GitHub and e-mail with
+  the identity provider) on real photographs: a defocused city of towers dissolving into a green forest, with a slow
+  zoom and drifting mist. Photographs are CC0 and credited in `docs/credits.md`.
+
 ## [0.1.0-alpha.12] - 2026-10-10
 
 ### Changed
