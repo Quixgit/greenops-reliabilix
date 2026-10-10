@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,6 +61,7 @@ func runDoctor(ctx context.Context, cfg config.Config, cfgErr error, log *slog.L
 	all = append(all, checkElectricityMaps(ctx, cfg)...)
 	all = append(all, checkAWS(ctx, cfg)...)
 	all = append(all, checkGCP(ctx, cfg)...)
+	all = append(all, checkNotifications(ctx, cfg)...)
 	all = append(all, checkObservability(cfg)...)
 
 	labels := map[level]string{lvlOK: "OK  ", lvlInfo: "INFO", lvlWarn: "WARN", lvlFail: "FAIL"}
@@ -316,6 +319,40 @@ func checkGCP(ctx context.Context, cfg config.Config) []finding {
 			"set it to the service account's email: customers are told to grant it read access to their billing dataset"))
 	} else {
 		out = append(out, ok("gcp-principal", "customers are asked to share their billing dataset with "+cfg.PlatformGCPServiceAccount))
+	}
+	return out
+}
+
+// checkNotifications verifies what delivery needs: the key that seals destination addresses, a sender for e-mail and
+// the public address used in links. It only dials the SMTP server (TCP), it never sends a message.
+func checkNotifications(ctx context.Context, cfg config.Config) []finding {
+	var out []finding
+	switch {
+	case cfg.NotificationsKey != "":
+		out = append(out, ok("notifications", "NOTIFICATIONS_SECRET_KEY is set: destinations can be created"))
+	case cfg.IsDev():
+		out = append(out, info("notifications", "no key: development uses a fixed key (never use it with real data)"))
+	default:
+		out = append(out, warn("notifications", "NOTIFICATIONS_SECRET_KEY is not set: the API refuses to create notification destinations",
+			"generate one with `openssl rand -base64 32` and keep it in the secret manager; losing it makes stored destinations unreadable"))
+	}
+	switch {
+	case cfg.SMTPHost == "" && cfg.IsDev():
+		out = append(out, info("smtp", "no SMTP_HOST: e-mail notifications are only logged (development)"))
+	case cfg.SMTPHost == "":
+		out = append(out, warn("smtp", "SMTP_HOST is not set: the e-mail channel is unavailable (webhook and Slack still work)", "set SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD and SMTP_FROM"))
+	default:
+		d := net.Dialer{Timeout: 5 * time.Second}
+		conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(cfg.SMTPHost, strconv.Itoa(cfg.SMTPPort)))
+		if err != nil {
+			out = append(out, fail("smtp", "cannot connect to "+cfg.SMTPHost+": "+sanitize(err), "check SMTP_HOST, SMTP_PORT and the firewall"))
+		} else {
+			_ = conn.Close()
+			out = append(out, ok("smtp", fmt.Sprintf("%s:%d is reachable (sender %s)", cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPFrom)))
+		}
+	}
+	if cfg.PublicBaseURL == "" {
+		out = append(out, info("public-url", "PUBLIC_BASE_URL is not set: notifications carry no links back to the app"))
 	}
 	return out
 }

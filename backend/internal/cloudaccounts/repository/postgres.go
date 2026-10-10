@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -119,20 +120,20 @@ func (r Postgres) StartRun(ctx context.Context, tenantID, connectionID string) (
 	return
 }
 
-func (r Postgres) FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string) error {
+func (r Postgres) FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string, q *domain.Quality) error {
 	status := "failed"
 	if ok {
 		status = "succeeded"
 	}
 	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
-		return db.New(tx).FinishSyncRun(ctx, db.FinishSyncRunParams{TenantID: tenantID, ID: runID, Status: status, Records: int32(records), Error: errMsg}) //nolint:gosec // record counts are far below int32 range
+		return db.New(tx).FinishSyncRun(ctx, db.FinishSyncRunParams{TenantID: tenantID, ID: runID, Status: status, Records: int32(records), Error: errMsg, Quality: qualityJSON(q)}) //nolint:gosec // record counts are far below int32 range
 	})
 }
 
 // MarkSynced records a successful sync and writes the user-visible "cloud_sync.completed" audit entry.
-func (r Postgres) MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int) error {
+func (r Postgres) MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int, q *domain.Quality) error {
 	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
-		if err := db.New(tx).MarkConnectionSynced(ctx, db.MarkConnectionSyncedParams{TenantID: tenantID, ID: id, SyncedThrough: &through}); err != nil {
+		if err := db.New(tx).MarkConnectionSynced(ctx, db.MarkConnectionSyncedParams{TenantID: tenantID, ID: id, SyncedThrough: &through, LastQuality: qualityJSON(q)}); err != nil {
 			return err
 		}
 		return audit.Record(audit.WithTenant(ctx, tenantID), tx, "cloud_sync.completed", "connection:"+id, map[string]any{"records": records})
@@ -144,7 +145,7 @@ func (r Postgres) ListRuns(ctx context.Context, tenantID, connectionID string) (
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).ListSyncRuns(ctx, db.ListSyncRunsParams{TenantID: tenantID, ConnectionID: connectionID})
 		for _, x := range rows {
-			out = append(out, domain.SyncRun{ID: x.ID, StartedAt: x.StartedAt, FinishedAt: x.FinishedAt, Status: x.Status, Records: int(x.Records), Error: x.Error})
+			out = append(out, domain.SyncRun{ID: x.ID, StartedAt: x.StartedAt, FinishedAt: x.FinishedAt, Status: x.Status, Records: int(x.Records), Error: x.Error, Quality: qualityOf(x.Quality)})
 		}
 		return err
 	})
@@ -173,4 +174,26 @@ func (r Postgres) Audit(ctx context.Context, tenantID, action, connectionID stri
 	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		return audit.Record(ctx, tx, action, "connection:"+connectionID, meta)
 	})
+}
+
+func qualityJSON(q *domain.Quality) json.RawMessage {
+	if q == nil {
+		return nil
+	}
+	b, err := json.Marshal(q)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func qualityOf(b json.RawMessage) *domain.Quality {
+	if len(b) == 0 {
+		return nil
+	}
+	var q domain.Quality
+	if json.Unmarshal(b, &q) != nil {
+		return nil
+	}
+	return &q
 }

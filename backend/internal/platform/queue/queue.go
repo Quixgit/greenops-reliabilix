@@ -13,20 +13,25 @@ import (
 
 // Task types. Convention: <domain>:<action>.
 const (
-	TaskSyncAWSAccount     = "cloudaccounts:sync_aws_account"
-	TaskRecommendAll       = "recommendations:calculate_all"
-	TaskSyncAll            = "cloudaccounts:sync_all"
-	TaskRightsizingAll     = "cloudaccounts:rightsizing_all" // fan-out: one rightsizing job per connection
-	TaskSyncRightsizing    = "cloudaccounts:sync_rightsizing"
-	TaskCalculateCarbon    = "carbon:calculate"
-	TaskEnsurePartitions   = "platform:ensure_partitions"
-	TaskRefreshGrid        = "carbon:refresh_grid_intensity"
-	TaskRecalculateAll     = "carbon:recalculate_all"
-	TaskSyncAzure          = "cloudaccounts:sync_azure_subscription" // phase 2
-	TaskSyncGCP            = "cloudaccounts:sync_gcp_billing"        // phase 2
-	TaskSyncKubernetes     = "kubernetes:sync"                       // phase 2
-	TaskGenerateReport     = "reports:generate"                      // phase 2
-	TaskCalcRecommendation = "recommendations:calculate"             // phase 2
+	TaskSyncAWSAccount      = "cloudaccounts:sync_aws_account"
+	TaskRecommendAll        = "recommendations:calculate_all"
+	TaskSyncAll             = "cloudaccounts:sync_all"
+	TaskRightsizingAll      = "cloudaccounts:rightsizing_all" // fan-out: one rightsizing job per connection
+	TaskSyncRightsizing     = "cloudaccounts:sync_rightsizing"
+	TaskCalculateCarbon     = "carbon:calculate"
+	TaskEnsurePartitions    = "platform:ensure_partitions"
+	TaskRefreshGrid         = "carbon:refresh_grid_intensity"
+	TaskRecalculateAll      = "carbon:recalculate_all"
+	TaskSyncAzure           = "cloudaccounts:sync_azure_subscription" // phase 2
+	TaskSyncGCP             = "cloudaccounts:sync_gcp_billing"        // phase 2
+	TaskSyncKubernetes      = "kubernetes:sync"                       // phase 2
+	TaskGenerateReport      = "reports:generate"                      // phase 2
+	TaskCalcRecommendation  = "recommendations:calculate"             // phase 2
+	TaskDeliverNotification = "notifications:deliver"                 // one outbox delivery (fast path; the sweep is the safety net)
+	TaskSweepNotifications  = "notifications:sweep"                   // re-queue due or stuck deliveries (every minute)
+	TaskPurgeNotifications  = "notifications:purge"                   // drop old finished deliveries (daily)
+	TaskPurgeErrors         = "platform:purge_errors"                 // drop old resolved/ignored error groups (daily)
+	TaskPurgeOperatorLog    = "platform:purge_operator_log"           // drop operator access records past retention (daily)
 )
 
 // Enqueuer is what domains depend on to chain jobs (sync -> calculate -> recommend). Implemented by

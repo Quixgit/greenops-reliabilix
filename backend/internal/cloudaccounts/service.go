@@ -4,6 +4,8 @@ package cloudaccounts
 import (
 	"context"
 	"errors"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +16,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
 	chttp "github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/repository"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
 
@@ -25,6 +28,9 @@ type Deps struct {
 	Providers            *domain.Registry
 	Ingestor             application.Ingestor
 	Rightsizing          domain.RightsizingSink // optional
+	Notify               notify.Notifier        // optional: announces connections that need attention
+	Settings             settings.Reader        // optional
+	Limits               entitlements.Gate      // optional
 	PlatformAWSAccountID string
 	// PlatformGCPServiceAccount is shown to GCP customers as the principal to grant dataset read access to.
 	PlatformGCPServiceAccount string
@@ -37,7 +43,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Queue: d.Queue,
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Notify: d.Notify, Settings: d.Settings, Limits: d.Limits, Queue: d.Queue,
 		Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, PlatformGCPServiceAccount: d.PlatformGCPServiceAccount, BackfillDays: d.BackfillDays}
 	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc}
 }

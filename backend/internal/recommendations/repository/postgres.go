@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/audit"
@@ -17,6 +18,14 @@ import (
 )
 
 type Postgres struct{ Pool *pgxpool.Pool }
+
+func toVerification(x db.RecommendationsImpactVerification) domain.Verification {
+	v := domain.Verification{Outcome: domain.Outcome(x.Outcome), Method: x.Method, BaselineFrom: x.BaselineFrom, BaselineTo: x.BaselineTo,
+		AfterFrom: x.AfterFrom, AfterTo: x.AfterTo, BaselineDays: int(x.BaselineDays), AfterDays: int(x.AfterDays),
+		MeasuredCarbonKgMonth: x.MeasuredCarbonKgMonth, MeasuredCostMonth: x.MeasuredCostMonth, ExpectedCarbonKgMonth: x.ExpectedCarbonKgMonth,
+		ExpectedCostMonth: x.ExpectedCostMonth, RealizationPct: x.RealizationPct, Note: x.Note, VerifiedAt: x.VerifiedAt}
+	return v
+}
 
 func toDomain(x db.RecommendationsRecommendation) (domain.Recommendation, error) {
 	var cc domain.ComplianceCheck
@@ -80,9 +89,36 @@ func (r Postgres) List(ctx context.Context, tenantID, status string, project *st
 			}
 			out = append(out, d)
 		}
-		return nil
+		return attachVerifications(ctx, tx, tenantID, out)
 	})
 	return out, err
+}
+
+// attachVerifications loads the measured results of the given recommendations in one query.
+func attachVerifications(ctx context.Context, tx pgx.Tx, tenantID string, recs []domain.Recommendation) error {
+	ids := make([]string, 0, len(recs))
+	for _, r := range recs {
+		if r.Status == domain.Verified {
+			ids = append(ids, r.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := db.New(tx).ListVerifications(ctx, db.ListVerificationsParams{TenantID: tenantID, Ids: ids})
+	if err != nil {
+		return err
+	}
+	byRec := make(map[string]domain.Verification, len(rows))
+	for _, x := range rows {
+		byRec[x.RecommendationID] = toVerification(x)
+	}
+	for i := range recs {
+		if v, ok := byRec[recs[i].ID]; ok {
+			recs[i].Verification = &v
+		}
+	}
+	return nil
 }
 
 func (r Postgres) Get(ctx context.Context, tenantID, id string) (rec domain.Recommendation, err error) {
@@ -94,8 +130,15 @@ func (r Postgres) Get(ctx context.Context, tenantID, id string) (rec domain.Reco
 		if err != nil {
 			return err
 		}
-		rec, err = toDomain(x)
-		return err
+		if rec, err = toDomain(x); err != nil {
+			return err
+		}
+		one := []domain.Recommendation{rec}
+		if err := attachVerifications(ctx, tx, tenantID, one); err != nil {
+			return err
+		}
+		rec = one[0]
+		return nil
 	})
 	return
 }
@@ -182,4 +225,83 @@ func (r Postgres) AllowedRegions(ctx context.Context, tenantID, projectID string
 		return err
 	})
 	return
+}
+
+func (r Postgres) AppliedAwaitingVerification(ctx context.Context, tenantID, projectID string) (out []domain.Recommendation, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := db.New(tx).AppliedAwaitingVerification(ctx, db.AppliedAwaitingVerificationParams{TenantID: tenantID, ProjectID: projectID})
+		if err != nil {
+			return err
+		}
+		for _, x := range rows {
+			d, err := toDomain(x)
+			if err != nil {
+				return err
+			}
+			out = append(out, d)
+		}
+		return nil
+	})
+	return
+}
+
+// DailySeries joins the per-day cost and per-day carbon of a project (optionally one service) on the day.
+func (r Postgres) DailySeries(ctx context.Context, tenantID, projectID, service string, from, to time.Time) (pts []domain.DayPoint, currency string, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		costs, err := q.DailyCost(ctx, db.DailyCostParams{TenantID: tenantID, ProjectID: projectID, Service: service, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		carbon, err := q.DailyCarbon(ctx, db.DailyCarbonParams{TenantID: tenantID, ProjectID: projectID, MethodologyVersion: methodology.Version,
+			Service: service, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		byDay := map[time.Time]*domain.DayPoint{}
+		get := func(d time.Time) *domain.DayPoint {
+			d = d.UTC().Truncate(24 * time.Hour)
+			if p, ok := byDay[d]; ok {
+				return p
+			}
+			p := &domain.DayPoint{Day: d}
+			byDay[d] = p
+			return p
+		}
+		for _, c := range costs {
+			get(c.Day).Cost = c.Cost
+			if currency == "" {
+				currency = c.Currency
+			}
+		}
+		for _, c := range carbon {
+			get(c.Day).CarbonKg = c.CarbonKg
+		}
+		for _, p := range byDay {
+			pts = append(pts, *p)
+		}
+		return nil
+	})
+	return
+}
+
+// SaveVerification stores the measurement and moves applied -> verified in one transaction. A concurrent
+// verification of the same recommendation is a no-op (unique row; status only changes from applied).
+func (r Postgres) SaveVerification(ctx context.Context, tenantID, id string, v domain.Verification, currency string) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		cur := pgtype.Text{String: currency, Valid: currency != ""}
+		if err := q.InsertVerification(ctx, db.InsertVerificationParams{TenantID: tenantID, ID: id, Outcome: string(v.Outcome), Method: v.Method,
+			BaselineFrom: v.BaselineFrom, BaselineTo: v.BaselineTo, AfterFrom: v.AfterFrom, AfterTo: v.AfterTo,
+			BaselineDays: int32(v.BaselineDays), AfterDays: int32(v.AfterDays), //nolint:gosec // bounded by the window length
+			MeasuredCarbonKgMonth: v.MeasuredCarbonKgMonth, MeasuredCostMonth: v.MeasuredCostMonth, ExpectedCarbonKgMonth: v.ExpectedCarbonKgMonth,
+			ExpectedCostMonth: v.ExpectedCostMonth, RealizationPct: v.RealizationPct, Currency: cur, Note: v.Note, VerifiedAt: v.VerifiedAt}); err != nil {
+			return err
+		}
+		n, err := q.MarkVerified(ctx, db.MarkVerifiedParams{TenantID: tenantID, ID: id})
+		if err != nil || n == 0 {
+			return err
+		}
+		return audit.Record(audit.WithTenant(ctx, tenantID), tx, "recommendation.verified", "recommendation:"+id, map[string]any{"outcome": v.Outcome})
+	})
 }

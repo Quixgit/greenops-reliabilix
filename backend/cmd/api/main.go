@@ -12,13 +12,17 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/app"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/errlog"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/version"
 )
 
 func main() {
 	log := observability.Logger("api")
+	log.Info("starting", version.Attrs()...)
+	observability.RegisterBuildInfo()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -52,7 +56,11 @@ func main() {
 	q := queue.NewClient(cfg.RedisAddr)
 	defer func() { _ = q.Close() }()
 
-	c, err := app.Build(ctx, cfg, log, pool, q)
+	errs := errlog.NewPG(pool, log, "api") // operator error log (ADR-0021)
+	defer errs.Close()
+	httpx.ErrorHook = app.HTTPErrorHook(errs, "api")
+
+	c, err := app.Build(ctx, cfg, log, pool, q, app.WithErrors(errs))
 	if err != nil {
 		log.Error("wiring", "err", err)
 		os.Exit(1)

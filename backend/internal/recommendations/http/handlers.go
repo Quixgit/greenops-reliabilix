@@ -35,7 +35,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, domain.ErrComplianceChanged):
 		httpx.WriteProblem(w, r, http.StatusConflict, "compliance changed", "The project's data-residency policy no longer allows the recommended region.")
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 
@@ -43,7 +43,7 @@ func (h Handlers) list(w http.ResponseWriter, r *http.Request) {
 	c, _ := auth.FromContext(r.Context())
 	status := r.URL.Query().Get("status")
 	switch status {
-	case "", "open", "approved", "applied", "dismissed":
+	case "", "open", "approved", "applied", "verified", "dismissed":
 	default:
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid status", "")
 		return

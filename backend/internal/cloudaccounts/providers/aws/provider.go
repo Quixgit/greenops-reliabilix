@@ -9,6 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
@@ -91,7 +94,8 @@ func New(ctx context.Context) (*Provider, error) {
 
 func (*Provider) Provider() domain.ProviderType { return domain.AWS }
 
-// classify maps AWS authorization failures to domain.ErrAccessDenied (not retryable).
+// classify maps AWS authorization failures to domain.ErrAccessDenied (not retryable). Throttling, expired
+// credentials and service errors stay ordinary errors: the job is retried with backoff.
 func classify(err error) error {
 	var ae smithy.APIError
 	if errors.As(err, &ae) {
@@ -177,10 +181,16 @@ func (p *Provider) logger() *slog.Logger {
 	return slog.Default()
 }
 
-// fetchAll follows Cost Explorer pagination. The page cap stops a runaway token loop from billing forever.
+// maxCEPages stops a runaway token loop from billing forever. Reaching it is an ERROR, never a quiet end of the
+// data: a truncated result would advance the sync cursor past costs that were never read.
+const maxCEPages = 200
+
+var errTooManyPages = errors.New("aws: Cost Explorer returned too many pages; the window is too large for one request")
+
+// fetchAll follows Cost Explorer pagination.
 func fetchAll(ctx context.Context, ce CEAPI, in *costexplorer.GetCostAndUsageInput) ([]types.ResultByTime, error) {
 	var results []types.ResultByTime
-	for page := 0; page < 200; page++ {
+	for page := 0; page < maxCEPages; page++ {
 		out, err := ce.GetCostAndUsage(ctx, in)
 		if err != nil {
 			return nil, classify(err)
@@ -191,7 +201,44 @@ func fetchAll(ctx context.Context, ce CEAPI, in *costexplorer.GetCostAndUsageInp
 		}
 		in.NextPageToken = out.NextPageToken
 	}
-	return results, nil
+	return nil, errTooManyPages
+}
+
+// GetControlTotals implements domain.ControlProvider: the day totals as Cost Explorer itself reports them
+// (no grouping), final days only, to be compared with what was ingested. Connections that read a FOCUS export
+// are not checked this way (the export is the invoice-level source).
+func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest) ([]focus.ControlTotal, error) {
+	if req.Connection.Export != nil {
+		return nil, nil
+	}
+	ce, err := p.Assume(ctx, req.Connection.CredentialRef, req.Connection.ExternalID)
+	if err != nil {
+		return nil, classify(err)
+	}
+	results, err := fetchAll(ctx, ce, &costexplorer.GetCostAndUsageInput{
+		TimePeriod:  &types.DateInterval{Start: awssdk.String(req.From.Format(time.DateOnly)), End: awssdk.String(req.To.Format(time.DateOnly))},
+		Granularity: types.GranularityDaily,
+		Metrics:     []string{"UnblendedCost"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	var out []focus.ControlTotal
+	for _, r := range results {
+		if r.Estimated || r.TimePeriod == nil || r.TimePeriod.Start == nil {
+			continue // the ingestion skips estimated days too: they become final one sync later
+		}
+		m, ok := r.Total["UnblendedCost"]
+		if !ok || m.Amount == nil || m.Unit == nil {
+			continue
+		}
+		amount, err := strconv.ParseFloat(*m.Amount, 64)
+		if err != nil || math.IsNaN(amount) || math.IsInf(amount, 0) {
+			return nil, fmt.Errorf("aws: unreadable control total %q", *m.Amount)
+		}
+		out = append(out, focus.ControlTotal{Day: *r.TimePeriod.Start, Currency: strings.ToUpper(*m.Unit), Billed: amount})
+	}
+	return out, nil
 }
 
 // usageBatch fetches daily UsageQuantity for EC2 running hours (by instance type) and S3 storage.

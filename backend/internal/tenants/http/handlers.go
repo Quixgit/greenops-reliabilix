@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/application"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/domain"
@@ -49,10 +50,14 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.WriteProblem(w, r, http.StatusConflict, "last owner", err.Error())
 	case errors.Is(err, domain.ErrInvalidInvitation):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid or expired invitation", "")
+	case errors.Is(err, entitlements.ErrLimitReached):
+		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
+	case errors.As(err, new(domain.PolicyError)):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "not allowed by your organization's settings", err.Error())
 	case errors.Is(err, domain.ErrEmailRequired):
 		httpx.WriteProblem(w, r, http.StatusForbidden, "verified email required", "email_not_verified")
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 

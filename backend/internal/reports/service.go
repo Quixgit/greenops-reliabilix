@@ -3,11 +3,13 @@ package reports
 
 import (
 	"context"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/reports/application"
@@ -19,6 +21,10 @@ type Deps struct {
 	Pool  *pgxpool.Pool
 	Store storage.Store
 	Queue queue.Enqueuer
+	// Notify announces finished and failed reports; optional.
+	Notify notify.Notifier
+	// Settings supplies the allowed formats; optional.
+	Settings settings.Reader
 }
 
 type Module struct {
@@ -27,7 +33,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Store: d.Store, Queue: d.Queue}
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Store: d.Store, Queue: d.Queue, Notify: d.Notify, Settings: d.Settings}
 	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc}
 }
 

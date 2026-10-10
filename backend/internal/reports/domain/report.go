@@ -37,6 +37,8 @@ var (
 	ErrInvalidReport = errors.New("invalid report request")
 	ErrNotFound      = errors.New("not found")
 	ErrNotReady      = errors.New("report is not ready")
+	// ErrFormatNotAllowed: the organization's settings do not allow this format.
+	ErrFormatNotAllowed = errors.New("this report format is not enabled for your organization")
 )
 
 // Report is the metadata row; the file itself lives in object storage.

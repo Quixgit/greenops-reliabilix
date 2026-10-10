@@ -23,6 +23,7 @@ const (
 	Open      Status = "open"
 	Approved  Status = "approved"
 	Applied   Status = "applied"
+	Verified  Status = "verified" // applied and measured: see Verification
 	Dismissed Status = "dismissed"
 )
 
@@ -56,8 +57,10 @@ type Recommendation struct {
 	AppliedAt          *time.Time      `json:"applied_at"`
 	CreatedAt          time.Time       `json:"created_at"`
 	// Details are structured facts for automation (resource id, instance types ...). Strings only.
-	Details     map[string]string `json:"details"`
-	Fingerprint string            `json:"-"`
+	Details map[string]string `json:"details"`
+	// Verification is the measured result after the change was applied; nil until it was measured.
+	Verification *Verification `json:"verification,omitempty"`
+	Fingerprint  string        `json:"-"`
 }
 
 var (
@@ -77,6 +80,7 @@ func (r Recommendation) ComplianceOK() bool {
 var allowed = map[Status][]Status{
 	Open:     {Approved, Dismissed},
 	Approved: {Applied, Dismissed},
+	Applied:  {Verified},
 }
 
 // Transition moves the recommendation along open -> approved -> applied. Nothing reaches "applied"
@@ -103,6 +107,12 @@ type Repository interface {
 	Get(ctx context.Context, tenantID, id string) (Recommendation, error)
 	// Transition locks the row, validates through check, applies the state change and audits it, atomically.
 	Transition(ctx context.Context, tenantID, id string, to Status, actor string, check func(*Recommendation) error) (Recommendation, error)
+	// Impact verification (ADR-0025): applied recommendations whose after window is complete, the daily series of the
+	// recommendation's scope (project and service, all regions) and the atomic save of the result.
+	AppliedAwaitingVerification(ctx context.Context, tenantID, projectID string) ([]Recommendation, error)
+	// DailySeries also returns the cost currency of the window ("" when there is no cost data).
+	DailySeries(ctx context.Context, tenantID, projectID, service string, from, to time.Time) ([]DayPoint, string, error)
+	SaveVerification(ctx context.Context, tenantID, id string, v Verification, currency string) error
 	// Inputs of the generators (read-only views of carbon, finops and project policy).
 	Workloads(ctx context.Context, tenantID, projectID string, from, to time.Time) (ws []Workload, dataDays int, err error)
 	Intensities(ctx context.Context) (map[string]float64, error)

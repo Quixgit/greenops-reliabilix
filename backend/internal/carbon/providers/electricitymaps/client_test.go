@@ -2,9 +2,12 @@ package electricitymaps
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -20,6 +23,7 @@ func TestGetIntensity(t *testing.T) {
 	defer s.Close()
 	c := New("k", nil)
 	c.BaseURL, c.HTTP = s.URL, s.Client()
+	c.now = func() time.Time { return time.Date(2026, 10, 5, 12, 20, 0, 0, time.UTC) } // the reading is 20 minutes old
 	got, err := c.GetIntensity(context.Background(), "eu-central-1")
 	if err != nil || got.GPerKWh != 312.5 {
 		t.Fatalf("got %+v, %v", got, err)
@@ -88,7 +92,7 @@ func TestResponsesAreCachedAndExpire(t *testing.T) {
 	defer srv.Close()
 	c := New("k", nil)
 	c.BaseURL = srv.URL
-	now := time.Now()
+	now := time.Date(2026, 1, 1, 0, 10, 0, 0, time.UTC)
 	c.now = func() time.Time { return now }
 
 	for i := 0; i < 3; i++ {
@@ -100,7 +104,7 @@ func TestResponsesAreCachedAndExpire(t *testing.T) {
 		t.Fatalf("calls = %d, want 1 (cached)", calls)
 	}
 	now = now.Add(intensityTTL + time.Second)
-	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil || calls != 2 {
+	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil || calls != 2 { //nolint:staticcheck
 		t.Fatalf("calls = %d err = %v, want a refetch after expiry", calls, err)
 	}
 }
@@ -114,13 +118,14 @@ func TestFailuresAreNotCached(t *testing.T) {
 	defer srv.Close()
 	c := New("k", nil)
 	c.BaseURL = srv.URL
+	c.sleep = func(time.Duration) {}
 	for i := 0; i < 2; i++ {
 		if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err == nil {
 			t.Fatal("want an error")
 		}
 	}
-	if calls != 2 {
-		t.Fatalf("calls = %d, want 2 (errors must be retried)", calls)
+	if calls != 2*maxAttempts {
+		t.Fatalf("calls = %d, want %d: each call retries a bad gateway %d times and a failure is never cached", calls, 2*maxAttempts, maxAttempts)
 	}
 }
 
@@ -133,5 +138,116 @@ func TestGoogleCloudRegionsAreMapped(t *testing.T) {
 	}
 	if c.ZoneMap()["eu-central-1"] != "DE" {
 		t.Error("AWS regions must keep working next to Google Cloud regions")
+	}
+}
+
+func okBody(g float64, at time.Time) []byte {
+	return []byte(fmt.Sprintf(`{"carbonIntensity":%v,"datetime":%q}`, g, at.Format(time.RFC3339)))
+}
+
+func TestTransientErrorsAreRetriedButAuthErrorsAreNot(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		if calls < 3 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		_, _ = w.Write(okBody(200, time.Now()))
+	}))
+	c := New("k", nil)
+	c.BaseURL, c.sleep = srv.URL, func(time.Duration) {}
+	if g, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil || g.GPerKWh != 200 || calls != 3 {
+		t.Fatalf("429 twice then OK: %+v err=%v calls=%d", g, err, calls)
+	}
+	srv.Close()
+
+	calls = 0
+	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { calls++; w.WriteHeader(http.StatusUnauthorized) }))
+	defer auth.Close()
+	c2 := New("bad", nil)
+	c2.BaseURL, c2.sleep = auth.URL, func(time.Duration) {}
+	if _, err := c2.GetIntensity(context.Background(), "eu-central-1"); err == nil || calls != 1 {
+		t.Errorf("a 401 is final (calls=%d, err=%v): retrying only burns quota", calls, err)
+	}
+}
+
+func TestErrorsNeverContainTheURLOrKey(t *testing.T) {
+	c := New("super-secret-key", nil)
+	c.BaseURL, c.sleep = "http://127.0.0.1:1/?token=abc", func(time.Duration) {}
+	_, err := c.GetIntensity(context.Background(), "eu-central-1")
+	if err == nil || strings.Contains(err.Error(), "127.0.0.1") || strings.Contains(err.Error(), "super-secret") || strings.Contains(err.Error(), "token=") {
+		t.Errorf("error leaks request details: %v", err)
+	}
+}
+
+func TestImplausibleReadingsAreRefused(t *testing.T) {
+	now := time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
+	for name, body := range map[string][]byte{
+		"zero (an unpopulated response)": okBody(0, now),
+		"negative":                       okBody(-5, now),
+		"absurdly high":                  okBody(99999, now),
+		"too old to describe now":        okBody(300, now.Add(-7*time.Hour)),
+		"no timestamp":                   []byte(`{"carbonIntensity":300}`),
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) }))
+		c := New("k", nil)
+		c.BaseURL, c.now = srv.URL, func() time.Time { return now }
+		if g, err := c.GetIntensity(context.Background(), "eu-central-1"); err == nil {
+			t.Errorf("%s: accepted %+v", name, g)
+		}
+		srv.Close()
+	}
+}
+
+// When the provider is down, a recent reading keeps the dashboard and jobs working; an old one does not pretend.
+func TestStaleReadingServesDuringAnOutageButOnlyBriefly(t *testing.T) {
+	down := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if down {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write(okBody(250, time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)))
+	}))
+	defer srv.Close()
+	now := time.Date(2026, 10, 5, 12, 5, 0, 0, time.UTC)
+	c := New("k", nil)
+	c.BaseURL, c.sleep, c.now = srv.URL, func(time.Duration) {}, func() time.Time { return now }
+	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil {
+		t.Fatal(err)
+	}
+	down = true
+	now = now.Add(intensityTTL + time.Minute) // expired, provider down
+	if g, err := c.GetIntensity(context.Background(), "eu-central-1"); err != nil || g.GPerKWh != 250 {
+		t.Errorf("an hour-old reading should serve during an outage: %+v %v", g, err)
+	}
+	now = now.Add(staleAfterError)
+	if _, err := c.GetIntensity(context.Background(), "eu-central-1"); err == nil {
+		t.Error("a reading older than the stale limit must not be served")
+	}
+}
+
+func TestConcurrentCallersShareOneLoad(t *testing.T) {
+	var calls atomic.Int32
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		<-release
+		_, _ = w.Write(okBody(111, time.Now()))
+	}))
+	defer srv.Close()
+	c := New("k", nil)
+	c.BaseURL = srv.URL
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() { defer wg.Done(); _, _ = c.GetIntensity(context.Background(), "eu-central-1") }()
+	}
+	time.Sleep(100 * time.Millisecond)
+	close(release)
+	wg.Wait()
+	if n := calls.Load(); n != 1 {
+		t.Errorf("provider was called %d times for 8 concurrent callers, want 1", n)
 	}
 }

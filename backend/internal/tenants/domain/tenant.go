@@ -148,3 +148,23 @@ type Repository interface {
 	RevokeAPIKey(ctx context.Context, tenantID, id string) error
 	AuditLog(ctx context.Context, tenantID, action string, limit int) ([]AuditEntry, error)
 }
+
+// PolicyError is a refusal that comes from the organization's own settings (not from bad input).
+type PolicyError struct{ Reason string }
+
+func (e PolicyError) Error() string { return e.Reason }
+
+// EmailInDomains reports whether the address belongs to one of the (lower-case) domains.
+func EmailInDomains(email string, domains []string) bool {
+	at := strings.LastIndex(email, "@")
+	if at < 1 {
+		return false
+	}
+	d := strings.ToLower(email[at+1:])
+	for _, a := range domains {
+		if d == a {
+			return true
+		}
+	}
+	return false
+}

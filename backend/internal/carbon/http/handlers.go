@@ -55,7 +55,7 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := h.Svc.Summary(r.Context(), c.TenantID, project, from, to)
 	if err != nil {
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, struct {
@@ -92,7 +92,7 @@ func (h Handlers) trend(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := h.Svc.Trend(r.Context(), c.TenantID, project, from, to)
 	if err != nil {
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": t})
@@ -144,7 +144,7 @@ func (h Handlers) recalculate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.Svc.Recalculate(r.Context(), c.TenantID, in.ProjectID, from, to); err != nil {
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "queued"})

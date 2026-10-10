@@ -3,12 +3,17 @@ package application
 
 import (
 	"context"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/projects/domain"
 )
 
-type Service struct{ Repo domain.Repository }
+type Service struct {
+	Repo domain.Repository
+	// Limits is optional: when set, creating a project asks whether the organization has room for one more.
+	Limits entitlements.Gate
+}
 
 func (s Service) List(ctx context.Context, tenantID string) ([]domain.Project, error) {
 	return s.Repo.List(ctx, tenantID)
@@ -22,6 +27,11 @@ func (s Service) Create(ctx context.Context, tenantID, name, unit string) (domai
 	p, err := domain.New(tenantID, name, unit, time.Now().UTC())
 	if err != nil {
 		return domain.Project{}, err
+	}
+	if s.Limits != nil {
+		if err := s.Limits.Allow(ctx, tenantID, entitlements.Projects); err != nil {
+			return domain.Project{}, err
+		}
 	}
 	return s.Repo.Create(ctx, p)
 }

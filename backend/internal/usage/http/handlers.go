@@ -32,7 +32,7 @@ func (h Handlers) list(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.Svc.List(r.Context(), c.TenantID, project, from, to, limit)
 	if err != nil {
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})

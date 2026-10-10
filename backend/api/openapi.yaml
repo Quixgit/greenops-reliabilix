@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 1.0.0
+  version: 0.2.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -36,7 +36,35 @@ tags:
   description: Recommendations and the human-approval workflow
 - name: reports
   description: Report generation and download
+- name: settings
+  description: Configuration of the organization (ADR-0023)
+- name: operator
+  description: Platform operator console (cross-tenant metadata for the people who run the platform)
+- name: notifications
+  description: Where events are delivered (e-mail, webhook, Slack); destinations, delivery history, available channels
 paths:
+  /version:
+    get:
+      operationId: getVersion
+      summary: Build identity of this service
+      tags:
+      - system
+      description: |
+        Platform release, stage (dev, alpha, beta, rc, stable), service name and short commit of the running process.
+        Versioning policy: docs/release/versioning.md.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [platform, stage, service, commit]
+                properties:
+                  platform: {type: string, example: 0.1.0-alpha.1}
+                  stage: {type: string, enum: [dev, alpha, beta, rc, stable]}
+                  service: {type: string, example: api}
+                  commit: {type: string}
   /healthz:
     get:
       operationId: healthz
@@ -1483,6 +1511,7 @@ paths:
           - open
           - approved
           - applied
+          - verified
           - dismissed
       - $ref: '#/components/parameters/project_id'
       - name: limit
@@ -1737,6 +1766,924 @@ paths:
           $ref: '#/components/responses/Problem'
         '409':
           $ref: '#/components/responses/Problem'
+  /api/v1/notifications/catalog:
+    get:
+      operationId: getNotificationCatalog
+      summary: Channels this deployment offers and the event types that can be subscribed to
+      tags:
+      - notifications
+      description: |
+        Requires permission `notification:read`. `configured` is false when the platform has no encryption key for
+        destination addresses; destinations cannot be created then.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationCatalog'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/destinations:
+    get:
+      operationId: listNotificationDestinations
+      summary: List destinations
+      tags:
+      - notifications
+      description: |
+        Requires permission `notification:read`. The address itself is never returned, only a masked `target_hint`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationDestination'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createNotificationDestination
+      summary: Add a destination
+      tags:
+      - notifications
+      description: |
+        Requires permission `notification:write`. The address is sealed with AES-256-GCM before it is stored.
+        `email` addresses must belong to a member of the organization. `webhook` and `slack` URLs must be public
+        https endpoints (Slack: an incoming-webhook URL on hooks.slack.com). For `webhook` the response carries a
+        `signing_secret` once; deliveries are signed with it (`X-Reliabilix-Signature: t=<unix>,v1=<hex HMAC-SHA256
+        of "<t>.<body>">`). At most 20 destinations per organization.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationDestination'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedNotificationDestination'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/destinations/{id}:
+    delete:
+      operationId: deleteNotificationDestination
+      summary: Remove a destination (its delivery history is kept)
+      tags:
+      - notifications
+      description: Requires permission `notification:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/destinations/{id}/enable:
+    post:
+      operationId: enableNotificationDestination
+      summary: Resume deliveries to a destination
+      tags:
+      - notifications
+      description: Requires permission `notification:write`.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationDestination'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/destinations/{id}/disable:
+    post:
+      operationId: disableNotificationDestination
+      summary: Pause deliveries to a destination
+      tags:
+      - notifications
+      description: Requires permission `notification:write`. Events published while a destination is disabled are not delivered later.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationDestination'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/destinations/{id}/test:
+    post:
+      operationId: testNotificationDestination
+      summary: Send a test message to a destination
+      tags:
+      - notifications
+      description: |
+        Requires permission `notification:write`. Queues one message whatever the destination's filters say;
+        follow the result in the delivery history.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - delivery_id
+                properties:
+                  delivery_id:
+                    type: string
+                    format: uuid
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/notifications/deliveries:
+    get:
+      operationId: listNotificationDeliveries
+      summary: Recent deliveries (newest first)
+      tags:
+      - notifications
+      description: |
+        Requires permission `notification:read`. Delivery is at-least-once: a message may arrive twice after a
+        crash, so receivers deduplicate on the delivery id.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationDelivery'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/me:
+    get:
+      operationId: getOperatorMe
+      summary: The calling platform operator (403 for everyone else)
+      tags:
+      - operator
+      description: |
+        Operators are people who run the platform. They are recorded in the database by the migration owner; a tenant
+        role never grants this. API keys are rejected.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operator'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants:
+    get:
+      operationId: listOperatorTenants
+      summary: Organizations with health counters
+      tags:
+      - operator
+      description: |
+        Platform operators only. Metadata only (counts); no tenant data.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorTenant'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/notifications/stats:
+    get:
+      operationId: getOperatorNotificationStats
+      summary: Delivery counts by channel and status
+      tags:
+      - operator
+      description: |
+        Platform operators only. Window in hours (1-720).
+      parameters:
+      - name: hours
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 720
+          default: 24
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorDeliveryStat'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/notifications/deliveries:
+    get:
+      operationId: listOperatorDeliveries
+      summary: Deliveries across organizations
+      tags:
+      - operator
+      description: |
+        Platform operators only. Never contains payloads or destination addresses.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - pending
+          - sent
+          - failed
+          - skipped
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorDelivery'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/connections/unhealthy:
+    get:
+      operationId: listOperatorUnhealthyConnections
+      summary: Cloud connections that need attention
+      tags:
+      - operator
+      description: |
+        Platform operators only. 
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorConnection'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/system:
+    get:
+      operationId: getOperatorSystem
+      summary: Build facts and the state of every external integration
+      tags:
+      - operator
+      description: |
+        Platform operators only. Each integration is `ready`, `stub` (a development stand-in is running) or `missing`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorSystem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/deliveries/{id}/retry:
+    post:
+      operationId: retryOperatorDelivery
+      summary: Re-queue a failed delivery
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+        Only failed deliveries whose destination still exists can be retried.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/id'
+      responses:
+        '202':
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/destinations/{id}/enable:
+    post:
+      operationId: enableOperatorDestination
+      summary: Enable a tenant destination
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/destinations/{id}/disable:
+    post:
+      operationId: disableOperatorDestination
+      summary: Disable a tenant destination (abuse or broken endpoint)
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The action is written to the affected organization's audit log.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/errors:
+    get:
+      operationId: listOperatorErrors
+      summary: Errors of the platform's services, grouped
+      tags:
+      - operator
+      description: |
+        Platform operators only. Errors of the api and worker processes and of the integrations they call, grouped by
+        fingerprint with an occurrence counter (ADR-0021). Messages are sanitized: no tokens, credentials or e-mail
+        addresses. A resolved error that happens again is reopened.
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - open
+          - resolved
+          - ignored
+          - all
+          default: open
+      - name: service
+        in: query
+        schema:
+          type: string
+          example: worker
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OperatorError'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/errors/{id}/resolve:
+    post:
+      operationId: resolveOperatorError
+      summary: Mark an error as resolved
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. It is reopened automatically if it happens again.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/errors/{id}/ignore:
+    post:
+      operationId: ignoreOperatorError
+      summary: Mark an error as noise
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. An ignored error stays ignored when it recurs.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/errors/{id}/reopen:
+    post:
+      operationId: reopenOperatorError
+      summary: Reopen an error
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. 
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/settings:
+    get:
+      operationId: getSettings
+      summary: Settings of the organization with effective values
+      tags:
+      - settings
+      description: |
+        Requires permission `settings:read`. Each item says where its value comes from (`default`, `platform`, `tenant`, `operator`), whether an operator locked it and whether you may change it.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    patch:
+      operationId: updateSettings
+      summary: Change settings of the organization
+      tags:
+      - settings
+      description: |
+        Requires permission `settings:write`. All values are validated first; one rejected value rejects the whole request (422 with one message per key). Settings fixed by an operator cannot be changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/settings/reset:
+    post:
+      operationId: resetSettings
+      summary: Return settings to the inherited value
+      tags:
+      - settings
+      description: |
+        Requires permission `settings:write`. Removes the organization's own values; they inherit the platform value or default again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsReset'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/settings/history:
+    get:
+      operationId: getSettingsHistory
+      summary: Who changed which setting, and when
+      tags:
+      - settings
+      description: Requires permission `settings:read`. Includes changes made by platform operators for this organization.
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SettingChange'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/settings:
+    get:
+      operationId: getOperatorSettings
+      summary: Platform-level values of every setting
+      tags:
+      - operator
+      description: |
+        Platform operators only. For organization-scope settings the platform value is the default every organization inherits.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    patch:
+      operationId: updateOperatorSettings
+      summary: Change platform-level values
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/settings/reset:
+    post:
+      operationId: resetOperatorSettings
+      summary: Return platform-level values to the catalog defaults
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsReset'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/settings/history:
+    get:
+      operationId: getOperatorSettingsHistory
+      summary: Setting changes at platform level or for one organization
+      tags:
+      - operator
+      description: Platform operators only. Without `tenant_id` the platform-level changes are returned.
+      parameters:
+      - name: tenant_id
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SettingChange'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/settings:
+    get:
+      operationId: getOperatorTenantSettings
+      summary: Effective settings of one organization
+      tags:
+      - operator
+      description: |
+        Platform operators only.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+    patch:
+      operationId: updateOperatorTenantSettings
+      summary: Fix settings for one organization
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. Values set here override the organization's own and lock the setting for it; changes are recorded in the organization's audit log.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsPatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/settings/reset:
+    post:
+      operationId: resetOperatorTenantSettings
+      summary: Remove operator overrides of one organization
+      tags:
+      - operator
+      description: |
+        Platform operators with the `admin` role only. The setting is unlocked and inherits again.
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsReset'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsView'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
     bearerAuth:
@@ -1790,6 +2737,11 @@ components:
           type: string
         request_id:
           type: string
+        errors:
+          type: object
+          description: For validation failures, one message per rejected field (for example per setting key)
+          additionalProperties:
+            type: string
       required:
       - title
       - status
@@ -2869,6 +3821,7 @@ components:
           - open
           - approved
           - applied
+          - verified
           - dismissed
         decided_by:
           type: string
@@ -2882,6 +3835,60 @@ components:
           format: date-time
           nullable: true
         created_at:
+          type: string
+          format: date-time
+        verification:
+          $ref: '#/components/schemas/ImpactVerification'
+      additionalProperties: true
+    ImpactVerification:
+      type: object
+      description: |
+        Measured result of an applied recommendation (status `verified`): the change of the daily mean of cost and
+        carbon for the project and service between the 14 days before the change and the 14 days that start 4 days
+        after it, scaled to 30 days. Positive values are savings. Workload changes are not controlled for.
+      properties:
+        outcome:
+          type: string
+          enum:
+          - realized
+          - partial
+          - not_realized
+          - inconclusive
+        method:
+          type: string
+        baseline_from:
+          type: string
+          format: date-time
+        baseline_to:
+          type: string
+          format: date-time
+        after_from:
+          type: string
+          format: date-time
+        after_to:
+          type: string
+          format: date-time
+        baseline_days:
+          type: integer
+        after_days:
+          type: integer
+        measured_carbon_kg_month:
+          type: number
+          nullable: true
+        measured_cost_month:
+          type: number
+          nullable: true
+        expected_carbon_kg_month:
+          type: number
+        expected_cost_month:
+          type: number
+          nullable: true
+        realization_pct:
+          type: number
+          nullable: true
+        note:
+          type: string
+        verified_at:
           type: string
           format: date-time
       additionalProperties: true
@@ -2965,3 +3972,347 @@ components:
       - period_start
       - period_end
       additionalProperties: true
+    NotificationCatalog:
+      type: object
+      required:
+      - channels
+      - event_types
+      - configured
+      - stubbed
+      properties:
+        channels:
+          type: array
+          description: Channels available on this deployment
+          items:
+            type: string
+            example: webhook
+        configured:
+          type: boolean
+        stubbed:
+          type: array
+          description: Channels running on a development stand-in (for example e-mail that is only logged)
+          items:
+            type: string
+        event_types:
+          type: array
+          items:
+            type: object
+            required:
+            - type
+            - description
+            - default_severity
+            properties:
+              type:
+                type: string
+                example: report.ready
+              description:
+                type: string
+              default_severity:
+                type: string
+                enum:
+                - info
+                - warning
+                - critical
+    NotificationDestination:
+      type: object
+      required:
+      - id
+      - kind
+      - name
+      - target_hint
+      - event_types
+      - min_severity
+      - enabled
+      - created_by
+      - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          example: slack
+        name:
+          type: string
+        target_hint:
+          type: string
+          description: Masked mailbox or just the host of a URL; the address itself is never returned
+        event_types:
+          type: array
+          items:
+            type: string
+          description: Event types (or "*") the destination receives
+        min_severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        enabled:
+          type: boolean
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    CreateNotificationDestination:
+      type: object
+      required:
+      - kind
+      - name
+      - target
+      properties:
+        kind:
+          type: string
+          example: webhook
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        target:
+          type: string
+          description: Mailbox (email) or URL (webhook, slack)
+        event_types:
+          type: array
+          items:
+            type: string
+          description: Defaults to ["*"]
+        min_severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+          default: info
+      additionalProperties: false
+    CreatedNotificationDestination:
+      type: object
+      required:
+      - destination
+      properties:
+        destination:
+          $ref: '#/components/schemas/NotificationDestination'
+        signing_secret:
+          type: string
+          description: Webhook signing secret. Returned on creation only.
+    NotificationDelivery:
+      type: object
+      required:
+      - id
+      - destination_id
+      - kind
+      - destination_name
+      - event_type
+      - severity
+      - status
+      - attempts
+      - next_attempt_at
+      - last_error
+      - created_at
+      - sent_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        destination_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: null once the destination was removed
+        kind:
+          type: string
+        destination_name:
+          type: string
+        event_type:
+          type: string
+        severity:
+          type: string
+          enum:
+          - info
+          - warning
+          - critical
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - failed
+          - skipped
+        attempts:
+          type: integer
+        next_attempt_at:
+          type: string
+          format: date-time
+        last_error:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+    Operator:
+      type: object
+      required: [subject, email, role]
+      properties:
+        subject: {type: string}
+        email: {type: string}
+        role: {type: string, enum: [viewer, admin]}
+    OperatorTenant:
+      type: object
+      required: [id, name, plan, created_at, members, projects, connections, connections_in_error, destinations, failed_deliveries_7d]
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        plan: {type: string}
+        created_at: {type: string, format: date-time}
+        members: {type: integer}
+        projects: {type: integer}
+        connections: {type: integer}
+        connections_in_error: {type: integer}
+        destinations: {type: integer}
+        failed_deliveries_7d: {type: integer}
+    OperatorDelivery:
+      type: object
+      required: [tenant_id, tenant_name, id, destination_id, kind, destination_name, event_type, severity, status, attempts, next_attempt_at, last_error, created_at, sent_at]
+      properties:
+        tenant_id: {type: string, format: uuid}
+        tenant_name: {type: string}
+        id: {type: string, format: uuid}
+        destination_id: {type: string, format: uuid, nullable: true}
+        kind: {type: string}
+        destination_name: {type: string}
+        event_type: {type: string}
+        severity: {type: string, enum: [info, warning, critical]}
+        status: {type: string, enum: [pending, sent, failed, skipped]}
+        attempts: {type: integer}
+        next_attempt_at: {type: string, format: date-time}
+        last_error: {type: string, nullable: true}
+        created_at: {type: string, format: date-time}
+        sent_at: {type: string, format: date-time, nullable: true}
+    OperatorDeliveryStat:
+      type: object
+      required: [kind, status, count]
+      properties:
+        kind: {type: string}
+        status: {type: string}
+        count: {type: integer}
+    OperatorConnection:
+      type: object
+      required: [tenant_id, tenant_name, provider, account_ref, sync_status, last_error, last_sync_at]
+      properties:
+        tenant_id: {type: string, format: uuid}
+        tenant_name: {type: string}
+        provider: {type: string}
+        account_ref: {type: string}
+        sync_status: {type: string}
+        last_error: {type: string, nullable: true}
+        last_sync_at: {type: string, format: date-time, nullable: true}
+    OperatorSystem:
+      type: object
+      required: [version, env, expected_migration, integrations]
+      properties:
+        version: {type: string}
+        env: {type: string}
+        expected_migration: {type: integer}
+        integrations:
+          type: array
+          items:
+            type: object
+            required: [name, status, note]
+            properties:
+              name: {type: string}
+              status: {type: string, enum: [ready, stub, missing]}
+              note: {type: string}
+    OperatorError:
+      type: object
+      required: [id, service, component, severity, message, status, occurrences, first_seen, last_seen, tenant_id, tenant_name, last_request_id, handled_by, handled_at]
+      properties:
+        id: {type: string, format: uuid}
+        service: {type: string, example: worker}
+        component: {type: string, example: "cloudaccounts:sync_aws_account"}
+        severity: {type: string, enum: [warning, error, critical]}
+        message: {type: string}
+        status: {type: string, enum: [open, resolved, ignored]}
+        occurrences: {type: integer}
+        first_seen: {type: string, format: date-time}
+        last_seen: {type: string, format: date-time}
+        tenant_id: {type: string, format: uuid, nullable: true}
+        tenant_name: {type: string, nullable: true}
+        last_request_id: {type: string, nullable: true}
+        handled_by: {type: string, nullable: true}
+        handled_at: {type: string, format: date-time, nullable: true}
+    SettingItem:
+      type: object
+      required: [key, group, title, description, scope, type, default, value, source, locked, editable]
+      properties:
+        key: {type: string, example: security.invitation_expiry_days}
+        group: {type: string}
+        title: {type: string}
+        description: {type: string}
+        note: {type: string}
+        scope: {type: string, enum: [platform, tenant, operator]}
+        type: {type: string, enum: [bool, int, float, string, enum, list]}
+        default: {}
+        value: {}
+        source: {type: string, enum: [default, platform, tenant, operator]}
+        locked: {type: boolean}
+        editable: {type: boolean}
+        unit: {type: string}
+        min: {type: number}
+        max: {type: number}
+        enum: {type: array, items: {type: string}}
+        list_enum: {type: array, items: {type: string}}
+        max_items: {type: integer}
+        min_items: {type: integer}
+        max_len: {type: integer}
+        pattern: {type: string}
+        updated_by: {type: string, nullable: true}
+        updated_at: {type: string, format: date-time, nullable: true}
+    SettingsView:
+      type: object
+      required: [groups, items]
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [id, title, description]
+            properties:
+              id: {type: string}
+              title: {type: string}
+              description: {type: string}
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingItem'
+    SettingsPatch:
+      type: object
+      required: [values]
+      properties:
+        values:
+          type: object
+          description: Map of setting key to its new JSON value
+          additionalProperties: true
+      additionalProperties: false
+    SettingsReset:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items: {type: string}
+      additionalProperties: false
+    SettingChange:
+      type: object
+      required: [at, tenant_id, key, old_value, new_value, actor, via]
+      properties:
+        at: {type: string, format: date-time}
+        tenant_id: {type: string, format: uuid, nullable: true}
+        key: {type: string}
+        old_value: {description: "Previous JSON value; null when there was none"}
+        new_value: {description: "New JSON value; null when the value was removed"}
+        actor: {type: string}
+        via: {type: string, enum: [tenant, operator]}

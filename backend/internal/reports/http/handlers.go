@@ -29,12 +29,14 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
+	case errors.Is(err, domain.ErrFormatNotAllowed):
+		httpx.WriteProblem(w, r, http.StatusForbidden, "report format not enabled", err.Error())
 	case errors.Is(err, domain.ErrInvalidReport):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid report request", "kind carbon|sci|finops, format csv|json|pdf, period of at most 400 days")
 	case errors.Is(err, domain.ErrNotReady):
 		httpx.WriteProblem(w, r, http.StatusConflict, "report is not ready", "")
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 

@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/ec2spec"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/domain"
@@ -29,8 +31,10 @@ type Service struct {
 	Repo     domain.Repository
 	Projects ProjectLister
 	Queue    queue.Enqueuer
-	Log      *slog.Logger
-	Now      func() time.Time
+	// Notify is optional: the measured result of a change is announced (best effort, never fails the run).
+	Notify notify.Notifier
+	Log    *slog.Logger
+	Now    func() time.Time
 }
 
 const windowDays = 30
@@ -87,6 +91,63 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 	}
 	observability.RecommendationsGenerated.Add(float64(created))
 	return created, nil
+}
+
+// VerifyApplied measures applied recommendations of a project whose after window is complete (ADR-0025) and
+// stores the result. A change that cannot be measured yet is left alone and tried again on the next run;
+// after GiveUpDays it is closed as inconclusive so it does not wait forever. Returns the number verified.
+func (s Service) VerifyApplied(ctx context.Context, tenantID, projectID string) (int, error) {
+	now := s.now()
+	recs, err := s.Repo.AppliedAwaitingVerification(ctx, tenantID, projectID)
+	if err != nil {
+		return 0, err
+	}
+	done := 0
+	for _, r := range recs {
+		if r.AppliedAt == nil || !domain.Due(*r.AppliedAt, now) {
+			continue
+		}
+		bFrom, bTo, aFrom, aTo := domain.Windows(*r.AppliedAt)
+		before, cur, err := s.Repo.DailySeries(ctx, tenantID, projectID, r.ServiceName, bFrom, bTo)
+		if err != nil {
+			return done, err
+		}
+		after, curAfter, err := s.Repo.DailySeries(ctx, tenantID, projectID, r.ServiceName, aFrom, aTo)
+		if err != nil {
+			return done, err
+		}
+		v := domain.Verify(r, before, after, now)
+		if v.Outcome == domain.Inconclusive && !domain.Expired(*r.AppliedAt, now) {
+			continue // data may still arrive (late billing export)
+		}
+		if cur != "" && curAfter != "" && cur != curAfter { // a currency change would make the cost delta meaningless
+			v.MeasuredCostMonth, v.ExpectedCostMonth = nil, nil
+			v.Note += " Cost not compared: the billing currency changed."
+		}
+		if cur == "" {
+			cur = curAfter
+		}
+		if err := s.Repo.SaveVerification(ctx, tenantID, r.ID, v, cur); err != nil {
+			return done, err
+		}
+		done++
+		s.announce(ctx, tenantID, r, v)
+	}
+	return done, nil
+}
+
+func (s Service) announce(ctx context.Context, tenantID string, r domain.Recommendation, v domain.Verification) {
+	if s.Notify == nil {
+		return
+	}
+	body := "Not enough data around the change to measure it."
+	if v.MeasuredCarbonKgMonth != nil {
+		body = fmt.Sprintf("Measured %.1f kg CO2e/month (expected %.1f).", *v.MeasuredCarbonKgMonth, v.ExpectedCarbonKgMonth)
+	}
+	_ = s.Notify.Publish(ctx, tenantID, notify.Event{Type: notify.TypeRecommendationVerified, Severity: notify.Info,
+		Title: fmt.Sprintf("Result of \"%s\": %s", r.Title, strings.ReplaceAll(string(v.Outcome), "_", " ")), Body: body,
+		Path: "/recommendations", DedupeKey: "recommendation:" + r.ID + ":verified",
+		Attrs: map[string]string{"recommendation_id": r.ID, "outcome": string(v.Outcome)}})
 }
 
 // energyModel is the active carbon methodology expressed for single instances, so a rightsizing estimate

@@ -90,3 +90,22 @@ func TestCheckStorageLocalAndAuth0(t *testing.T) {
 		t.Error("dev skips auth0")
 	}
 }
+
+func TestCheckNotifications(t *testing.T) {
+	if l, _ := levelOf(checkNotifications(context.Background(), config.Config{Env: "prod"}), "notifications"); l != lvlWarn {
+		t.Error("a production deployment without a key must warn")
+	}
+	if l, _ := levelOf(checkNotifications(context.Background(), config.Config{Env: "prod", NotificationsKey: "x"}), "notifications"); l != lvlOK {
+		t.Error("a configured key is OK")
+	}
+	if l, _ := levelOf(checkNotifications(context.Background(), config.Config{Env: "dev"}), "notifications"); l != lvlInfo {
+		t.Error("development without a key is informational")
+	}
+	if l, _ := levelOf(checkNotifications(context.Background(), config.Config{Env: "prod"}), "smtp"); l != lvlWarn {
+		t.Error("production without SMTP must warn")
+	}
+	unreachable := config.Config{Env: "prod", SMTPHost: "127.0.0.1", SMTPPort: 1, SMTPFrom: "n@example.com"}
+	if l, _ := levelOf(checkNotifications(context.Background(), unreachable), "smtp"); l != lvlFail {
+		t.Error("an SMTP server that cannot be reached must fail")
+	}
+}

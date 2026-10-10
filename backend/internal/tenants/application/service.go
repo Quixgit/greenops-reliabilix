@@ -3,19 +3,37 @@ package application
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/domain"
 )
 
 type Service struct {
 	Repo domain.Repository
 	Now  func() time.Time
+	// Settings and Limits are optional: without them the catalog defaults apply and nothing is limited.
+	Settings settings.Reader
+	Limits   entitlements.Gate
 }
 
-const invitationTTL = 7 * 24 * time.Hour
+func (s Service) cfg() settings.Reader {
+	if s.Settings != nil {
+		return s.Settings
+	}
+	return settings.Defaults{}
+}
+
+func (s Service) allow(ctx context.Context, tenantID string, r entitlements.Resource) error {
+	if s.Limits == nil {
+		return nil
+	}
+	return s.Limits.Allow(ctx, tenantID, r)
+}
 
 func (s Service) now() time.Time {
 	if s.Now != nil {
@@ -79,11 +97,18 @@ func (s Service) Invite(ctx context.Context, tenantID string, actor auth.Claims,
 	if !domain.ValidEmail(email) || !domain.ValidInviteRole(role) {
 		return domain.Invitation{}, "", domain.ErrInvalidInput
 	}
+	if allowed := s.cfg().Strings(ctx, tenantID, settings.KeyInviteAllowedDomain); len(allowed) > 0 && !domain.EmailInDomains(email, allowed) {
+		return domain.Invitation{}, "", domain.PolicyError{Reason: "invitations are limited to these e-mail domains: " + strings.Join(allowed, ", ")}
+	}
+	if err := s.allow(ctx, tenantID, entitlements.Members); err != nil {
+		return domain.Invitation{}, "", err
+	}
 	token, hash, err := domain.NewInvitationToken()
 	if err != nil {
 		return domain.Invitation{}, "", err
 	}
-	inv, err := s.Repo.CreateInvitation(ctx, tenantID, domain.Invitation{Email: email, Role: role, CreatedBy: actor.Subject, ExpiresAt: s.now().Add(invitationTTL)}, hash)
+	ttl := time.Duration(s.cfg().Int(ctx, tenantID, settings.KeyInviteExpiryDays)) * 24 * time.Hour
+	inv, err := s.Repo.CreateInvitation(ctx, tenantID, domain.Invitation{Email: email, Role: role, CreatedBy: actor.Subject, ExpiresAt: s.now().Add(ttl)}, hash)
 	return inv, token, err
 }
 
@@ -96,6 +121,19 @@ func (s Service) CreateAPIKey(ctx context.Context, tenantID string, actor auth.C
 	name = strings.TrimSpace(name)
 	if !domain.ValidName(name, 100) || !domain.ValidKeyRole(role) {
 		return domain.APIKey{}, "", domain.ErrInvalidInput
+	}
+	existing, err := s.Repo.APIKeys(ctx, tenantID)
+	if err != nil {
+		return domain.APIKey{}, "", err
+	}
+	active := int64(0)
+	for _, k := range existing {
+		if k.RevokedAt == nil {
+			active++
+		}
+	}
+	if max := s.cfg().Int(ctx, tenantID, settings.KeyAPIKeysMaxActive); active >= max {
+		return domain.APIKey{}, "", domain.PolicyError{Reason: "your organization allows at most " + strconv.FormatInt(max, 10) + " active API keys; revoke one first"}
 	}
 	key, prefix, err := auth.GenerateAPIKey()
 	if err != nil {

@@ -35,7 +35,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, domain.ErrRecommendationNot), errors.Is(err, domain.ErrUnsupported), errors.Is(err, domain.ErrInvalidInput), errors.Is(err, domain.ErrNoteRequired):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "cannot plan", err.Error())
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 

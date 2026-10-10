@@ -1,6 +1,7 @@
 package focus
 
 import (
+	"math"
 	"testing"
 	"time"
 )
@@ -17,12 +18,18 @@ func TestValidate(t *testing.T) {
 	}
 	q := 1.0
 	cases := map[string]func(*Record){
-		"provider": func(r *Record) { r.Provider = "oracle" },
-		"category": func(r *Record) { r.ServiceCategory = "ai" },
-		"region":   func(r *Record) { r.RegionID = "" },
-		"currency": func(r *Record) { r.Currency = "US" },
-		"period":   func(r *Record) { r.ChargePeriodEnd = r.ChargePeriodStart },
-		"qty/unit": func(r *Record) { r.ConsumedQuantity = &q },
+		"provider":            func(r *Record) { r.Provider = "oracle" },
+		"category":            func(r *Record) { r.ServiceCategory = "ai" },
+		"region":              func(r *Record) { r.RegionID = "" },
+		"currency":            func(r *Record) { r.Currency = "US" },
+		"currency lower case": func(r *Record) { r.Currency = "usd" },
+		"currency digits":     func(r *Record) { r.Currency = "U5D" },
+		"NaN billed cost":     func(r *Record) { r.BilledCost = math.NaN() },
+		"Inf effective cost":  func(r *Record) { r.EffectiveCost = math.Inf(1) },
+		"-Inf billed cost":    func(r *Record) { r.BilledCost = math.Inf(-1) },
+		"period":              func(r *Record) { r.ChargePeriodEnd = r.ChargePeriodStart },
+		"qty/unit":            func(r *Record) { r.ConsumedQuantity = &q },
+		"NaN quantity":        func(r *Record) { n := math.NaN(); u := "Hrs"; r.ConsumedQuantity, r.ConsumedUnit = &n, &u },
 	}
 	for name, mut := range cases {
 		r := valid()

@@ -82,11 +82,12 @@ func Authenticate(v Verifier, res Resolver) httpx.Middleware {
 						httpx.WriteProblem(w, r, http.StatusForbidden, "no tenant membership", "onboarding_required")
 						return
 					}
-					httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+					httpx.Internal(w, r, err)
 					return
 				}
 				c.TenantID, c.Role = t, role
 			}
+			httpx.SetTenant(r, c.TenantID) // lets the error log attribute a 5xx to the organization
 			next.ServeHTTP(w, r.WithContext(WithClaims(r.Context(), c)))
 		})
 	}

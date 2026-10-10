@@ -31,6 +31,22 @@ func TestRoleCan(t *testing.T) {
 		{RoleCI, PermAutomationRead, false}, // machines never plan, approve or read automation
 		{RoleCI, PermAutomationWrite, false},
 		{RoleCI, PermAutomationApprove, false},
+		{RoleOwner, PermNotificationWrite, true},
+		{RoleAdmin, PermNotificationWrite, true},
+		{RoleAdmin, PermNotificationRead, true},
+		{RoleEngineer, PermNotificationRead, true},
+		{RoleEngineer, PermNotificationWrite, false}, // endpoints and addresses are managed by owners and admins
+		{RoleViewer, PermNotificationRead, false},
+		{RoleBilling, PermNotificationRead, false},
+		{RoleCI, PermNotificationRead, false}, // machines never read or change where events go
+		{RoleCI, PermNotificationWrite, false},
+		{RoleOwner, PermSettingsWrite, true},
+		{RoleAdmin, PermSettingsWrite, true},
+		{RoleEngineer, PermSettingsRead, true},
+		{RoleEngineer, PermSettingsWrite, false},
+		{RoleViewer, PermSettingsRead, false},
+		{RoleBilling, PermSettingsRead, false},
+		{RoleCI, PermSettingsRead, false},
 		{Role("unknown"), PermProjectRead, false},
 	}
 	for _, c := range cases {

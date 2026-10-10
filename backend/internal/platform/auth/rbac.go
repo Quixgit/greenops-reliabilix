@@ -36,6 +36,15 @@ const (
 	PermTenantAdmin    Permission = "tenant:admin" // members, invitations, API keys
 	PermCIEvaluate     Permission = "ci:evaluate"
 
+	// Notifications: where events are delivered. Destinations carry addresses and endpoints, so only people who manage
+	// the organization change them; engineers can see what is configured and whether deliveries work.
+	PermNotificationRead  Permission = "notification:read"
+	PermNotificationWrite Permission = "notification:write"
+
+	// Settings: the organization's own configuration. Changing it affects everybody in the organization.
+	PermSettingsRead  Permission = "settings:read"
+	PermSettingsWrite Permission = "settings:write"
+
 	// Automation: plans for approved recommendations. Machines (CI keys) hold none of these.
 	PermAutomationRead    Permission = "automation:read"
 	PermAutomationWrite   Permission = "automation:write"   // create a plan, report the result, cancel
@@ -54,14 +63,14 @@ func perms(groups ...[]Permission) map[Permission]struct{} {
 
 var (
 	read   = []Permission{PermProjectRead, PermCloudRead, PermUsageRead, PermCarbonRead, PermRecommendRead, PermReportRead}
-	manage = []Permission{PermProjectWrite, PermCloudWrite, PermCarbonCompute, PermReportWrite, PermBillingRead, PermBudgetWrite, PermAuditRead, PermTenantAdmin, PermCIEvaluate}
+	manage = []Permission{PermProjectWrite, PermCloudWrite, PermCarbonCompute, PermReportWrite, PermBillingRead, PermBudgetWrite, PermAuditRead, PermTenantAdmin, PermCIEvaluate, PermNotificationRead, PermNotificationWrite, PermSettingsRead, PermSettingsWrite}
 )
 
 var matrix = map[Role]map[Permission]struct{}{
 	RoleOwner: perms(read, manage, []Permission{PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	// Admin manages people, connections and settings; it can see plans but does not approve infrastructure changes.
 	RoleAdmin:    perms(read, manage, []Permission{PermAutomationRead}),
-	RoleEngineer: perms(read, []Permission{PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
+	RoleEngineer: perms(read, []Permission{PermNotificationRead, PermSettingsRead, PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	RoleViewer:   perms(read),
 	RoleBilling:  perms([]Permission{PermUsageRead, PermCarbonRead, PermReportRead, PermReportWrite, PermBillingRead, PermBudgetWrite}),
 	RoleCI:       perms([]Permission{PermCIEvaluate}),

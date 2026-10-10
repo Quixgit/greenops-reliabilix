@@ -24,8 +24,8 @@ func TestRLSEnabledOnAllTenantTables(t *testing.T) {
 		SELECT n.nspname || '.' || c.relname, c.relrowsecurity, c.relforcerowsecurity
 		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind IN ('r','p') AND c.relispartition = false
-		  AND n.nspname IN ('tenants','projects','cloudaccounts','usage','carbon','finops','recommendations','reports','audit','automation')
-		  AND n.nspname || '.' || c.relname NOT IN ('carbon.grid_intensity', 'finops.region_price_index')`)
+		  AND n.nspname IN ('tenants','projects','cloudaccounts','usage','carbon','finops','recommendations','reports','audit','automation','notifications','settings')
+		  AND n.nspname || '.' || c.relname NOT IN ('carbon.grid_intensity', 'finops.region_price_index', 'settings.platform_values')`)
 	if err != nil {
 		t.Fatal(err)
 	}

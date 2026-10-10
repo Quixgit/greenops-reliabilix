@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
@@ -74,8 +75,24 @@ func (s Service) Ingest(ctx context.Context, tenantID, projectID, connectionID s
 			res.To = r.ChargePeriodStart
 		}
 	}
+	res.Totals = totalsOf(all)
 	observability.UsageRecordsProcessed.Add(float64(res.Records))
 	return res, nil
+}
+
+// totalsOf sums the billed cost per day and currency, in a stable order.
+func totalsOf(recs []focus.Record) []focus.ControlTotal {
+	type k struct{ day, cur string }
+	sums := map[k]float64{}
+	for _, r := range recs {
+		sums[k{r.ChargePeriodStart.UTC().Format(time.DateOnly), r.Currency}] += r.BilledCost
+	}
+	out := make([]focus.ControlTotal, 0, len(sums))
+	for key, v := range sums {
+		out = append(out, focus.ControlTotal{Day: key.day, Currency: key.cur, Billed: v})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Day+out[i].Currency < out[j].Day+out[j].Currency })
+	return out
 }
 
 func (s Service) archive(ctx context.Context, tenantID, connectionID string, b focus.RawBatch) error {

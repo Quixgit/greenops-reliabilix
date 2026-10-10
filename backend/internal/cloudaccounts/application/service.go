@@ -5,13 +5,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"log/slog"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
@@ -41,7 +46,13 @@ type Service struct {
 	// Rightsizing is optional: without it rightsizing jobs are no-ops.
 	Rightsizing domain.RightsizingSink
 	Queue       queue.Enqueuer
-	Log         *slog.Logger
+	// Settings and Limits are optional (catalog defaults, no limits when nil): allowed providers, connection limit and
+	// the minimum interval between data pulls come from the organization's settings (ADR-0023).
+	Settings settings.Reader
+	Limits   entitlements.Gate
+	// Notify is optional: a connection that starts to need customer action is announced (best effort).
+	Notify notify.Notifier
+	Log    *slog.Logger
 
 	PlatformAWSAccountID string
 	// PlatformGCPServiceAccount is the principal GCP customers grant read access to their billing dataset.
@@ -87,6 +98,14 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 	}
 	if _, err := s.Providers.Get(c.Provider); err != nil {
 		return domain.Connection{}, Setup{}, err
+	}
+	if s.Settings != nil && !slices.Contains(s.Settings.Strings(ctx, c.TenantID, settings.KeyProvidersAllowed), string(c.Provider)) {
+		return domain.Connection{}, Setup{}, domain.ErrProviderNotAllowed
+	}
+	if s.Limits != nil {
+		if err := s.Limits.Allow(ctx, c.TenantID, entitlements.Connections); err != nil {
+			return domain.Connection{}, Setup{}, err
+		}
 	}
 	ext, err := domain.NewExternalID()
 	if err != nil {
@@ -186,6 +205,17 @@ func (s Service) SetExport(ctx context.Context, tenantID, id string, e *domain.E
 	return s.Repo.Get(ctx, tenantID, id)
 }
 
+// announceError tells the tenant a connection needs attention. One notification per connection and day at most.
+func (s Service) announceError(ctx context.Context, tenantID string, c domain.Connection, reason string) {
+	if s.Notify == nil {
+		return
+	}
+	_ = s.Notify.Publish(ctx, tenantID, notify.Event{Type: notify.TypeConnectionError, Severity: notify.Warning,
+		Title: fmt.Sprintf("%s connection %s needs attention", strings.ToUpper(string(c.Provider)), c.AccountRef), Body: reason, Path: "/cloud",
+		DedupeKey: "connection:" + c.ID + ":error:" + time.Now().UTC().Format(time.DateOnly),
+		Attrs:     map[string]string{"connection_id": c.ID, "provider": string(c.Provider)}})
+}
+
 // Verify checks the granted access. On success the connection becomes healthy and a first sync is queued.
 func (s Service) Verify(ctx context.Context, tenantID, id string) (domain.Connection, error) {
 	c, err := s.Repo.Get(ctx, tenantID, id)
@@ -200,6 +230,7 @@ func (s Service) Verify(ctx context.Context, tenantID, id string) (domain.Connec
 		msg := safeMessage(err)
 		_ = s.Repo.SetStatus(ctx, tenantID, id, domain.StatusError, &msg)
 		_ = s.Repo.Audit(ctx, tenantID, "cloud_connection.verification_failed", id, map[string]any{"reason": msg})
+		s.announceError(ctx, tenantID, c, msg)
 		return domain.Connection{}, err
 	}
 	if err := s.Repo.SetStatus(ctx, tenantID, id, domain.StatusHealthy, nil); err != nil {
@@ -227,6 +258,9 @@ func (s Service) FanOut(ctx context.Context) (int, error) {
 	}
 	n := 0
 	for _, j := range refs {
+		if s.pulledRecently(ctx, j) {
+			continue
+		}
 		if err := s.SyncNow(ctx, j.TenantID, j.ProjectID, j.ConnectionID); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) {
 			s.Log.Error("enqueue sync", "connection", j.ConnectionID, "err", err)
 			continue
@@ -234,6 +268,24 @@ func (s Service) FanOut(ctx context.Context) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// pulledRecently implements the organization's minimum interval between data pulls. The platform schedule is every
+// 6 hours; an organization that asks for a longer interval has the runs in between skipped. At the default (6 hours)
+// nothing extra is read.
+func (s Service) pulledRecently(ctx context.Context, j domain.JobRef) bool {
+	if s.Settings == nil {
+		return false
+	}
+	hours := s.Settings.Int(ctx, j.TenantID, settings.KeySyncMinIntervalH)
+	if hours <= 6 {
+		return false
+	}
+	c, err := s.Repo.Get(ctx, j.TenantID, j.ConnectionID)
+	if err != nil || c.LastSyncAt == nil {
+		return false
+	}
+	return time.Since(*c.LastSyncAt) < time.Duration(hours)*time.Hour-30*time.Minute // slack for schedule jitter
 }
 
 // RightsizingNow queues a rightsizing refresh (deduplicated while one is pending).
@@ -332,9 +384,10 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 	label := string(c.Provider)
 	fail := func(cause error) error {
 		msg := safeMessage(cause)
-		_ = s.Repo.FinishRun(ctx, tenantID, runID, false, 0, &msg)
+		_ = s.Repo.FinishRun(ctx, tenantID, runID, false, 0, &msg, nil)
 		if domain.NeedsCustomerAction(cause) {
 			_ = s.Repo.SetStatus(ctx, tenantID, connectionID, domain.StatusError, &msg)
+			s.announceError(ctx, tenantID, c, msg)
 			observability.CloudSyncTotal.WithLabelValues(label, "denied").Inc()
 		} else {
 			observability.CloudSyncTotal.WithLabelValues(label, "failed").Inc()
@@ -345,31 +398,89 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 
 	from, to := s.window(c)
 	var res focus.IngestResult
+	quality := domain.Unchecked("nothing to fetch in this window", s.now())
 	if from.Before(to) {
-		batches, err := p.GetUsage(ctx, domain.UsageRequest{Connection: c, From: from, To: to})
+		req := domain.UsageRequest{Connection: c, From: from, To: to}
+		batches, err := p.GetUsage(ctx, req)
 		if err != nil {
 			return fail(err)
 		}
 		if res, err = s.Ingestor.Ingest(ctx, tenantID, c.ProjectID, connectionID, batches); err != nil {
 			return fail(fmt.Errorf("ingest: %w", err))
 		}
+		quality = s.reconcile(ctx, p, req, res)
 	}
-	if err := s.Repo.MarkSynced(ctx, tenantID, connectionID, to.AddDate(0, 0, -1), res.Records); err != nil {
+	through := to.AddDate(0, 0, -1)
+	if first, bad := quality.EarliestMismatch(); bad {
+		// Self-healing: do not move the cursor past a day that does not add up. The next sync re-reads from there
+		// (rewinding at most maxRewindDays, so a day that can never match cannot cause ever larger re-reads).
+		if rewind := first.AddDate(0, 0, -1); rewind.Before(through) {
+			through = laterOf(rewind, through.AddDate(0, 0, -maxRewindDays))
+		}
+	}
+	if err := s.Repo.MarkSynced(ctx, tenantID, connectionID, through, res.Records, &quality); err != nil {
 		return fail(err)
 	}
-	if err := s.Repo.FinishRun(ctx, tenantID, runID, true, res.Records, nil); err != nil {
+	if err := s.Repo.FinishRun(ctx, tenantID, runID, true, res.Records, nil, &quality); err != nil {
 		return err
 	}
 	observability.CloudSyncTotal.WithLabelValues(label, "succeeded").Inc()
+	observability.CloudSyncReconciliation.WithLabelValues(label, quality.Status).Inc()
 	observability.CloudSyncDuration.WithLabelValues(label).Observe(time.Since(start).Seconds())
+	if quality.Status == domain.QualityMismatch {
+		s.announceMismatch(ctx, tenantID, c, quality)
+	}
 
 	if res.Records > 0 { // chain: a finished sync queues the carbon calculation for the touched days
-		return s.Queue.Enqueue(ctx, queue.TaskCalculateCarbon, queue.WindowPayload{
+		if err := s.Queue.Enqueue(ctx, queue.TaskCalculateCarbon, queue.WindowPayload{
 			TenantID: tenantID, ProjectID: c.ProjectID,
 			From: res.From.Format(time.DateOnly), To: res.To.AddDate(0, 0, 1).Format(time.DateOnly),
-		})
+		}); err != nil {
+			// The data is stored and the cursor moved. Failing the job would re-read (and re-bill) the whole window
+			// just to queue a calculation; the daily recalculation covers the last 35 days anyway.
+			s.Log.Warn("carbon calculation not queued after sync; the daily recalculation will pick it up", "connection", connectionID, "err", err)
+		}
 	}
 	return nil
+}
+
+// maxRewindDays bounds how far a mismatch can pull the sync cursor back.
+const maxRewindDays = 14
+
+func laterOf(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+// reconcile compares the stored totals with the cloud's own, when the provider can report them. It never fails a
+// sync: an unverifiable sync is stored as "unchecked" with the reason.
+func (s Service) reconcile(ctx context.Context, p domain.CloudProvider, req domain.UsageRequest, res focus.IngestResult) domain.Quality {
+	cp, ok := p.(domain.ControlProvider)
+	if !ok {
+		return domain.Unchecked("this data source has no independent total to compare with", s.now())
+	}
+	control, err := cp.GetControlTotals(ctx, req)
+	if err != nil {
+		s.Log.Warn("control totals unavailable", "connection", req.Connection.ID, "err", err)
+		return domain.Unchecked("the cloud's own totals could not be fetched this time", s.now())
+	}
+	if control == nil {
+		return domain.Unchecked("this connection reads an invoice-level export that is its own source of truth", s.now())
+	}
+	return domain.Reconcile(control, res.Totals, s.now())
+}
+
+// announceMismatch tells the tenant (once a day per connection) that some days do not add up.
+func (s Service) announceMismatch(ctx context.Context, tenantID string, c domain.Connection, q domain.Quality) {
+	if s.Notify == nil {
+		return
+	}
+	_ = s.Notify.Publish(ctx, tenantID, notify.Event{Type: notify.TypeConnectionDataQuality, Severity: notify.Warning,
+		Title: fmt.Sprintf("%s connection %s: cost data does not match the cloud", strings.ToUpper(string(c.Provider)), c.AccountRef),
+		Body:  q.Note, Path: "/cloud", DedupeKey: "connection:" + c.ID + ":quality:" + time.Now().UTC().Format(time.DateOnly),
+		Attrs: map[string]string{"connection_id": c.ID, "provider": string(c.Provider)}})
 }
 
 // safeMessage is stored and shown to users: it never contains provider internals or secrets.

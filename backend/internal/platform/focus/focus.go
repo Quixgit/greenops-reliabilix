@@ -6,6 +6,7 @@ package focus
 import (
 	"errors"
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -51,8 +52,13 @@ func (r Record) Validate() error {
 		return fmt.Errorf("focus: unknown service_category %q", r.ServiceCategory)
 	case r.RegionID == "":
 		return errors.New("focus: region_id required")
-	case len(r.Currency) != 3:
-		return errors.New("focus: currency must be ISO 4217")
+	case !validCurrency(r.Currency):
+		return errors.New("focus: currency must be ISO 4217 (three upper-case letters)")
+	case !finite(r.BilledCost) || !finite(r.EffectiveCost):
+		// ParseFloat accepts "NaN" and "Inf": a provider payload must never smuggle them into the database.
+		return errors.New("focus: costs must be finite numbers")
+	case r.ConsumedQuantity != nil && !finite(*r.ConsumedQuantity):
+		return errors.New("focus: consumed_quantity must be a finite number")
 	case !r.ChargePeriodEnd.After(r.ChargePeriodStart):
 		return errors.New("focus: charge_period_end must be after charge_period_start")
 	case r.ConsumedQuantity != nil && *r.ConsumedQuantity < 0:
@@ -63,8 +69,33 @@ func (r Record) Validate() error {
 	return nil
 }
 
+func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
+
+func validCurrency(c string) bool {
+	if len(c) != 3 {
+		return false
+	}
+	for _, r := range c {
+		if r < 'A' || r > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
+// ControlTotal is the billed cost of one day in one currency. Providers report these straight from the cloud's own
+// totals (a second, ungrouped query), and ingestion reports what it actually stored; comparing the two catches
+// truncated pages, dropped rows and parsing mistakes that would otherwise silently understate costs.
+type ControlTotal struct {
+	Day      string // YYYY-MM-DD (UTC)
+	Currency string
+	Billed   float64
+}
+
 // IngestResult describes what one ingestion run wrote.
 type IngestResult struct {
 	Records  int
 	From, To time.Time // first and last charge day touched
+	// Totals is the billed cost that was stored, per day and currency, for reconciliation with the cloud's totals.
+	Totals []ControlTotal
 }

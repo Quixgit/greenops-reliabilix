@@ -4,6 +4,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/version"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -51,6 +52,8 @@ func MetricsHandler() http.Handler { return promhttp.Handler() }
 var (
 	CloudSyncTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "cloud_sync_total", Help: "Cloud sync runs by provider and result."}, []string{"provider", "result"})
+	CloudSyncReconciliation = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "cloud_sync_reconciliation_total", Help: "Cost reconciliation of cloud syncs by provider and result (ok, mismatch, unchecked)."}, []string{"provider", "result"})
 	CloudSyncDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: "cloud_sync_duration_seconds", Help: "Cloud sync duration.", Buckets: prometheus.ExponentialBuckets(1, 2, 10)}, []string{"provider"})
 	UsageRecordsProcessed = promauto.NewCounter(prometheus.CounterOpts{
@@ -61,7 +64,19 @@ var (
 		Name: "recommendations_generated_total", Help: "Recommendations generated."})
 	CarbonAPIErrors = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "carbon_api_errors_total", Help: "Errors from the grid carbon data provider."})
+	ErrorsRecorded = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "platform_errors_total", Help: "Errors written to the operator error log by service and result (recorded, dropped, failed)."}, []string{"service", "result"})
+	NotificationDeliveries = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "notification_deliveries_total", Help: "Notification delivery attempts by channel and outcome (sent, retry, failed, skipped)."}, []string{"channel", "outcome"})
 )
+
+// RegisterBuildInfo publishes build_info{service,version,stage,commit} = 1 so dashboards and alerts can see which
+// version every process is running (docs/release/versioning.md).
+func RegisterBuildInfo() {
+	i := version.Current()
+	g := promauto.NewGaugeVec(prometheus.GaugeOpts{Name: "build_info", Help: "Build identity of the running process (value is always 1)."}, []string{"service", "version", "stage", "commit"})
+	g.WithLabelValues(i.Service, i.Platform, i.Stage, i.Commit).Set(1)
+}
 
 // InitSentry enables error tracking when a DSN is configured. The returned func flushes pending events.
 // PII is not sent (the SDK default); request bodies and headers are never attached.

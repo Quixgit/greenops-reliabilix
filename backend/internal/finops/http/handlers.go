@@ -23,8 +23,8 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermBillingRead)).Get("/finops/anomalies", h.anomalies)
 }
 
-func internal(w http.ResponseWriter, r *http.Request) {
-	httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+func internal(w http.ResponseWriter, r *http.Request, err error) {
+	httpx.Internal(w, r, err)
 }
 
 func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +37,7 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 	}
 	s, err := h.Svc.Summary(r.Context(), c.TenantID, project, from, to)
 	if err != nil {
-		internal(w, r)
+		internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, s)
@@ -47,7 +47,7 @@ func (h Handlers) budgets(w http.ResponseWriter, r *http.Request) {
 	c, _ := auth.FromContext(r.Context())
 	items, err := h.Svc.Budgets(r.Context(), c.TenantID)
 	if err != nil {
-		internal(w, r)
+		internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
@@ -70,7 +70,7 @@ func (h Handlers) createBudget(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, domain.ErrInvalidBudget):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid budget", "amount >= 0, 3-letter currency, period monthly|quarterly|yearly")
 	case err != nil:
-		internal(w, r)
+		internal(w, r, err)
 	default:
 		httpx.WriteJSON(w, http.StatusCreated, b)
 	}
@@ -87,7 +87,7 @@ func (h Handlers) deleteBudget(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
 	case err != nil:
-		internal(w, r)
+		internal(w, r, err)
 	default:
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -103,7 +103,7 @@ func (h Handlers) anomalies(w http.ResponseWriter, r *http.Request) {
 	}
 	items, err := h.Svc.Anomalies(r.Context(), c.TenantID, project, from, to)
 	if err != nil {
-		internal(w, r)
+		internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})

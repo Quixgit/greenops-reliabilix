@@ -36,7 +36,7 @@ func filter(w http.ResponseWriter, r *http.Request) (domain.Filter, bool) {
 
 func respond[T any](w http.ResponseWriter, r *http.Request, items T, err error) {
 	if err != nil {
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})

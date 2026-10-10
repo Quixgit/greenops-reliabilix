@@ -12,6 +12,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/version"
 )
 
 // NewRouter builds the API. ready reports dependency health for /readyz.
@@ -27,6 +28,9 @@ func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, res auth.Re
 		httpx.AccessLog(log),
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/version", func(w http.ResponseWriter, req *http.Request) {
+		httpx.WriteJSON(w, http.StatusOK, version.Current())
+	})
 	r.Get("/readyz", func(w http.ResponseWriter, req *http.Request) {
 		ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 		defer cancel()

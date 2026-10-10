@@ -52,3 +52,43 @@ SELECT allowed_regions FROM projects.policies WHERE tenant_id = sqlc.arg(tenant_
 SELECT count(DISTINCT date_trunc('day', period_start))::int AS days FROM carbon.calculations
 WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id) AND methodology_version = sqlc.arg(methodology_version)
   AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts);
+
+-- name: AppliedAwaitingVerification :many
+SELECT r.* FROM recommendations.recommendations r
+WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.project_id = sqlc.arg(project_id) AND r.status = 'applied'
+  AND NOT EXISTS (SELECT 1 FROM recommendations.impact_verifications v WHERE v.tenant_id = r.tenant_id AND v.recommendation_id = r.id)
+ORDER BY r.applied_at;
+
+-- name: DailyCost :many
+SELECT date_trunc('day', recorded_at)::timestamptz AS day, sum(billed_cost)::float8 AS cost, max(currency)::text AS currency
+FROM usage.usage_records
+WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
+  AND (sqlc.arg(service)::text = '' OR service_name = sqlc.arg(service)::text)
+  AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts)
+GROUP BY 1 ORDER BY 1;
+
+-- name: DailyCarbon :many
+SELECT date_trunc('day', period_start)::timestamptz AS day, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id) AND methodology_version = sqlc.arg(methodology_version)
+  AND (sqlc.arg(service)::text = '' OR service_name = sqlc.arg(service)::text)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY 1 ORDER BY 1;
+
+-- name: InsertVerification :exec
+INSERT INTO recommendations.impact_verifications (tenant_id, recommendation_id, project_id, outcome, method, baseline_from, baseline_to,
+    after_from, after_to, baseline_days, after_days, measured_carbon_kg_month, measured_cost_month, expected_carbon_kg_month,
+    expected_cost_month, realization_pct, currency, note, verified_at)
+SELECT r.tenant_id, r.id, r.project_id, sqlc.arg(outcome), sqlc.arg(method), sqlc.arg(baseline_from), sqlc.arg(baseline_to),
+    sqlc.arg(after_from), sqlc.arg(after_to), sqlc.arg(baseline_days), sqlc.arg(after_days), sqlc.narg(measured_carbon_kg_month),
+    sqlc.narg(measured_cost_month), sqlc.arg(expected_carbon_kg_month), sqlc.narg(expected_cost_month), sqlc.narg(realization_pct),
+    sqlc.narg(currency), sqlc.arg(note), sqlc.arg(verified_at)
+FROM recommendations.recommendations r WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.id = sqlc.arg(id)
+ON CONFLICT (tenant_id, recommendation_id) DO NOTHING;
+
+-- name: MarkVerified :execrows
+UPDATE recommendations.recommendations SET status = 'verified'
+WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id) AND status = 'applied';
+
+-- name: ListVerifications :many
+SELECT * FROM recommendations.impact_verifications WHERE tenant_id = sqlc.arg(tenant_id) AND recommendation_id = ANY(sqlc.arg(ids)::uuid[]);

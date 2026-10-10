@@ -3,6 +3,7 @@ package http
 
 import (
 	"errors"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -32,6 +33,10 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
+	case errors.Is(err, entitlements.ErrLimitReached):
+		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
+	case errors.Is(err, domain.ErrProviderNotAllowed):
+		httpx.WriteProblem(w, r, http.StatusForbidden, "provider not enabled", err.Error())
 	case errors.Is(err, domain.ErrDuplicate):
 		httpx.WriteProblem(w, r, http.StatusConflict, "cloud account already connected", "")
 	case errors.Is(err, domain.ErrInvalidConnection):
@@ -51,7 +56,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "billing export not found",
 			"No billing export was found. Check that it is enabled and delivered (the first delivery can take up to 48 hours) and that the location is correct.")
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 

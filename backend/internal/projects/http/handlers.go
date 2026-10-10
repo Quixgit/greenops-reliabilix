@@ -3,6 +3,7 @@ package http
 
 import (
 	"errors"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	"net/http"
 	"time"
 
@@ -31,13 +32,15 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		httpx.NotFound(w, r)
+	case errors.Is(err, entitlements.ErrLimitReached):
+		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
 	case errors.Is(err, domain.ErrDuplicate):
 		httpx.WriteProblem(w, r, http.StatusConflict, "project already exists", "")
 	case errors.Is(err, domain.ErrInvalidName), errors.Is(err, domain.ErrInvalidUnit),
 		errors.Is(err, domain.ErrInvalidPeriod), errors.Is(err, domain.ErrInvalidPolicy):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", err.Error())
 	default:
-		httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
+		httpx.Internal(w, r, err)
 	}
 }
 

@@ -36,6 +36,7 @@ var (
 	ErrUnsupportedProvider = errors.New("provider not supported yet")
 	ErrNotFound            = errors.New("not found")
 	ErrDuplicate           = errors.New("cloud account already connected")
+	ErrProviderNotAllowed  = errors.New("this cloud provider is not enabled for your organization")
 	// ErrExportNotFound: the billing export does not exist where the connection says (wrong location, or the
 	// first delivery has not happened yet). Retrying immediately cannot help.
 	ErrExportNotFound = errors.New("billing export not found")
@@ -70,6 +71,8 @@ type Connection struct {
 	LastError     *string      `json:"last_error"`
 	LastSyncAt    *time.Time   `json:"last_sync_at"`
 	SyncedThrough *time.Time   `json:"synced_through"`
+	// LastQuality is the cost-data reconciliation of the latest successful sync (nil before the first one).
+	LastQuality *Quality `json:"data_quality"`
 	// Export, when set, makes the connection read the customer's FOCUS data export from S3 instead of
 	// Cost Explorer (invoice-level data, exact instance hours). nil = Cost Explorer.
 	Export *ExportConfig `json:"export"`
@@ -171,6 +174,7 @@ type SyncRun struct {
 	Status     string     `json:"status"`
 	Records    int        `json:"records"`
 	Error      *string    `json:"error"`
+	Quality    *Quality   `json:"quality"`
 }
 
 // JobRef identifies a connection for cross-tenant job fan-out.
@@ -186,8 +190,8 @@ type Repository interface {
 	SetExport(ctx context.Context, tenantID, id string, e *ExportConfig) error
 	SetStatus(ctx context.Context, tenantID, id string, status SyncStatus, lastError *string) error
 	StartRun(ctx context.Context, tenantID, connectionID string) (string, error)
-	FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string) error
-	MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int) error
+	FinishRun(ctx context.Context, tenantID, runID string, ok bool, records int, errMsg *string, q *Quality) error
+	MarkSynced(ctx context.Context, tenantID, id string, through time.Time, records int, q *Quality) error
 	ListRuns(ctx context.Context, tenantID, connectionID string) ([]SyncRun, error)
 	ListForSync(ctx context.Context) ([]JobRef, error)
 	// Audit appends a user-visible audit entry for the connection (verification outcome).

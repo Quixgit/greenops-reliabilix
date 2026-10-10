@@ -22,6 +22,7 @@ type memRepo struct {
 	status  map[string]domain.SyncStatus
 	through map[string]time.Time
 	runs    []string
+	quality *domain.Quality // quality stored by the latest successful sync
 }
 
 func newRepo(cs ...domain.Connection) *memRepo {
@@ -61,7 +62,7 @@ func (r *memRepo) SetStatus(_ context.Context, _, id string, s domain.SyncStatus
 	return nil
 }
 func (r *memRepo) StartRun(context.Context, string, string) (string, error) { return "run1", nil }
-func (r *memRepo) FinishRun(_ context.Context, _, _ string, ok bool, _ int, _ *string) error {
+func (r *memRepo) FinishRun(_ context.Context, _, _ string, ok bool, _ int, _ *string, _ *domain.Quality) error {
 	if ok {
 		r.runs = append(r.runs, "ok")
 	} else {
@@ -69,8 +70,9 @@ func (r *memRepo) FinishRun(_ context.Context, _, _ string, ok bool, _ int, _ *s
 	}
 	return nil
 }
-func (r *memRepo) MarkSynced(_ context.Context, _, id string, through time.Time, _ int) error {
+func (r *memRepo) MarkSynced(_ context.Context, _, id string, through time.Time, _ int, q *domain.Quality) error {
 	r.through[id] = through
+	r.quality = q
 	return nil
 }
 func (r *memRepo) Audit(context.Context, string, string, string, map[string]any) error { return nil }
@@ -343,5 +345,97 @@ func TestSyncFailuresThatNeedTheCustomerAreNotRetried(t *testing.T) {
 		if msg := safeMessage(cause); msg == "" || strings.Contains(msg, "retried automatically") {
 			t.Errorf("%v needs an actionable message, got %q", cause, msg)
 		}
+	}
+}
+
+// ---- cost data quality (ADR-0024) ----
+
+type controlProvider struct {
+	*fakeProvider
+	control []focus.ControlTotal
+	err     error
+}
+
+func (c controlProvider) GetControlTotals(context.Context, domain.UsageRequest) ([]focus.ControlTotal, error) {
+	return c.control, c.err
+}
+
+func syncWithControl(t *testing.T, cp controlProvider, stored []focus.ControlTotal, synced *time.Time) (*memRepo, *recorder) {
+	t.Helper()
+	conn := awsConn()
+	conn.SyncedThrough = synced
+	repo := newRepo(conn)
+	q := &recorder{}
+	s := Service{Repo: repo, Providers: domain.NewRegistry(cp), Ingestor: fakeIngestor{res: focus.IngestResult{Records: 3, From: day("2026-09-20"), To: day("2026-10-04"), Totals: stored}}, Queue: q,
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)), BackfillDays: 30, Now: func() time.Time { return time.Date(2026, 10, 5, 15, 0, 0, 0, time.UTC) }}
+	if err := s.RunSync(context.Background(), "t", "c1"); err != nil {
+		t.Fatal(err)
+	}
+	return repo, q
+}
+
+func TestSyncStoresAnOKQualityAndMovesTheCursorToYesterday(t *testing.T) {
+	cp := controlProvider{fakeProvider: &fakeProvider{}, control: []focus.ControlTotal{{Day: "2026-10-03", Currency: "USD", Billed: 50}}}
+	repo, q := syncWithControl(t, cp, []focus.ControlTotal{{Day: "2026-10-03", Currency: "USD", Billed: 50}}, nil)
+	if repo.quality == nil || repo.quality.Status != domain.QualityOK {
+		t.Fatalf("quality = %+v", repo.quality)
+	}
+	if !repo.through["c1"].Equal(day("2026-10-04")) {
+		t.Errorf("cursor = %v, want yesterday", repo.through["c1"])
+	}
+	if len(q.tasks) != 1 {
+		t.Errorf("tasks = %v", q.tasks)
+	}
+}
+
+// A day that does not add up must not be left behind the cursor: the next sync has to read it again.
+func TestSyncRewindsTheCursorToTheEarliestMismatchedDay(t *testing.T) {
+	cp := controlProvider{fakeProvider: &fakeProvider{}, control: []focus.ControlTotal{
+		{Day: "2026-09-28", Currency: "USD", Billed: 100}, {Day: "2026-10-01", Currency: "USD", Billed: 100}}}
+	repo, _ := syncWithControl(t, cp, []focus.ControlTotal{{Day: "2026-09-28", Currency: "USD", Billed: 40}, {Day: "2026-10-01", Currency: "USD", Billed: 100}}, nil)
+	if repo.quality.Status != domain.QualityMismatch || repo.quality.MismatchDays != 1 {
+		t.Fatalf("quality = %+v", repo.quality)
+	}
+	if !repo.through["c1"].Equal(day("2026-09-27")) {
+		t.Errorf("cursor = %v, want the day before the first mismatch (2026-09-27)", repo.through["c1"])
+	}
+}
+
+func TestRewindIsBoundedSoAnUnfixableDayCannotCauseEverLargerReads(t *testing.T) {
+	cp := controlProvider{fakeProvider: &fakeProvider{}, control: []focus.ControlTotal{{Day: "2026-09-05", Currency: "USD", Billed: 100}}}
+	repo, _ := syncWithControl(t, cp, nil, nil) // mismatch a month back
+	want := day("2026-10-04").AddDate(0, 0, -maxRewindDays)
+	if !repo.through["c1"].Equal(want) {
+		t.Errorf("cursor = %v, want %v (at most %d days back)", repo.through["c1"], want, maxRewindDays)
+	}
+}
+
+func TestUnverifiableSyncIsStoredAsUncheckedNotFailed(t *testing.T) {
+	cp := controlProvider{fakeProvider: &fakeProvider{}, err: errors.New("throttled")}
+	repo, _ := syncWithControl(t, cp, nil, nil)
+	if repo.quality == nil || repo.quality.Status != domain.QualityUnchecked || len(repo.runs) != 1 || repo.runs[0] != "ok" {
+		t.Errorf("a failing control query must not fail the sync: quality=%+v runs=%v", repo.quality, repo.runs)
+	}
+	plain, _ := syncWithControl(t, controlProvider{fakeProvider: &fakeProvider{}}, nil, nil) // control == nil: export-style connection
+	if plain.quality.Status != domain.QualityUnchecked {
+		t.Errorf("quality = %+v", plain.quality)
+	}
+}
+
+type failingQueue struct{ recorder }
+
+func (*failingQueue) Enqueue(context.Context, string, any, ...asynq.Option) error {
+	return errors.New("redis down")
+}
+
+func TestLostCarbonEnqueueDoesNotFailAnAlreadySuccessfulSync(t *testing.T) {
+	repo := newRepo(awsConn())
+	s := Service{Repo: repo, Providers: domain.NewRegistry(&fakeProvider{}), Ingestor: fakeIngestor{res: focus.IngestResult{Records: 2, From: day("2026-10-01"), To: day("2026-10-02")}},
+		Queue: &failingQueue{}, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), BackfillDays: 30, Now: func() time.Time { return time.Date(2026, 10, 5, 15, 0, 0, 0, time.UTC) }}
+	if err := s.RunSync(context.Background(), "t", "c1"); err != nil {
+		t.Fatalf("the data is stored; failing the job would re-read and re-bill it: %v", err)
+	}
+	if len(repo.runs) != 1 || repo.runs[0] != "ok" {
+		t.Errorf("runs = %v", repo.runs)
 	}
 }

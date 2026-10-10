@@ -54,11 +54,13 @@ var PanicHook func(v any)
 func Recover(log *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(context.WithValue(r.Context(), failureKey{}, &requestFailure{}))
 			defer func() {
 				if rec := recover(); rec != nil {
 					if PanicHook != nil {
 						PanicHook(rec)
 					}
+					reportPanic(r, rec)
 					log.Error("panic", "panic", rec, "stack", string(debug.Stack()), "request_id", RequestID(r.Context()))
 					WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
 				}
@@ -111,6 +113,18 @@ func AccessLog(log *slog.Logger) Middleware {
 			start := time.Now()
 			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(sw, r)
+			if sw.status >= 500 {
+				ev := ErrorEvent{Route: routeOf(r), Status: sw.status, RequestID: RequestID(r.Context())}
+				if f := failureOf(r.Context()); f != nil {
+					ev.Err, ev.TenantID = f.err, f.tenant
+				}
+				if ev.Err != nil {
+					log.Error("http 5xx", "route", ev.Route, "status", sw.status, "err", ev.Err, "request_id", ev.RequestID)
+				}
+				if ErrorHook != nil {
+					ErrorHook(ev)
+				}
+			}
 			log.Info("http", "method", r.Method, "path", r.URL.Path, "status", sw.status,
 				"duration_ms", time.Since(start).Milliseconds(), "request_id", RequestID(r.Context()))
 		})

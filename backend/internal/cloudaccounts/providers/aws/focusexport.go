@@ -28,7 +28,10 @@ const SourceFocusExport = "focus_export"
 const (
 	maxManifestBytes  = 1 << 20
 	maxDataFiles      = 500
-	maxFileBytes      = 8 << 30 // decompressed, per file
+	maxFileBytes      = 8 << 30  // decompressed, per file
+	maxCompressedFile = 2 << 30  // as stored in S3, per file
+	maxTotalBytes     = 24 << 30 // decompressed, over all files of one sync: bounds time and bandwidth
+	maxLineBytes      = 1 << 20  // one CSV line: a file without line breaks must not be buffered whole
 	maxAggregateKeys  = 500_000
 	ctxCheckEveryRows = 10_000
 )
@@ -52,10 +55,12 @@ func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, t
 	if err != nil {
 		return focus.RawBatch{}, classify(err)
 	}
+	owner := c.AccountRef
 	agg := newAggregate(from, to)
+	agg.budget = maxTotalBytes
 	found := 0
 	for _, month := range monthsIn(from, to) {
-		keys, ok, err := manifestFiles(ctx, s3c, *cfg, month)
+		keys, ok, err := manifestFiles(ctx, s3c, *cfg, owner, month)
 		if err != nil {
 			return focus.RawBatch{}, err
 		}
@@ -64,7 +69,7 @@ func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, t
 		}
 		found++
 		for _, key := range keys {
-			if err := readDataFile(ctx, s3c, cfg.Bucket, key, agg); err != nil {
+			if err := readDataFile(ctx, s3c, cfg.Bucket, key, c.AccountRef, agg); err != nil {
 				return focus.RawBatch{}, err
 			}
 		}
@@ -90,9 +95,9 @@ func monthsIn(from, to time.Time) []time.Time {
 
 // manifestFiles returns the data-file keys listed by the month's manifest. Only keys inside the export's own
 // folder are accepted: a manifest must not be able to point the platform at other objects.
-func manifestFiles(ctx context.Context, s3c S3API, cfg domain.ExportConfig, month time.Time) ([]string, bool, error) {
+func manifestFiles(ctx context.Context, s3c S3API, cfg domain.ExportConfig, owner string, month time.Time) ([]string, bool, error) {
 	key := fmt.Sprintf("%smetadata/BILLING_PERIOD=%s/%s-Manifest.json", cfg.Root(), month.Format("2006-01"), cfg.Name)
-	out, err := s3c.GetObject(ctx, &s3.GetObjectInput{Bucket: &cfg.Bucket, Key: &key})
+	out, err := s3c.GetObject(ctx, &s3.GetObjectInput{Bucket: &cfg.Bucket, Key: &key, ExpectedBucketOwner: ownerPtr(owner)})
 	if err != nil {
 		var nf *s3types.NoSuchKey
 		if errors.As(err, &nf) {
@@ -118,13 +123,26 @@ func manifestFiles(ctx context.Context, s3c S3API, cfg domain.ExportConfig, mont
 	return m.DataFiles, true, nil
 }
 
-// limitedReader fails (instead of silently truncating) when a stream exceeds its limit.
-type limitedReader struct {
-	r io.Reader
-	n int64
+// ownerPtr pins S3 requests to the AWS account that owns the connection. If a bucket name were released and
+// re-created by someone else, the customer's own role would otherwise happily read the attacker's "billing data".
+func ownerPtr(account string) *string {
+	if account == "" {
+		return nil
+	}
+	return &account
 }
 
-var errTooLarge = errors.New("aws: export file exceeds the size limit")
+// limitedReader fails (instead of silently truncating) when a stream exceeds its limit.
+type limitedReader struct {
+	r     io.Reader
+	n     int64
+	total *int64 // the sync-wide byte budget this stream draws from
+}
+
+var (
+	errTooLarge = errors.New("aws: export exceeds the size limit")
+	errLongLine = errors.New("aws: export line exceeds the length limit")
+)
 
 func (l *limitedReader) Read(p []byte) (int, error) {
 	if l.n <= 0 {
@@ -135,23 +153,51 @@ func (l *limitedReader) Read(p []byte) (int, error) {
 	}
 	n, err := l.r.Read(p)
 	l.n -= int64(n)
+	if l.total != nil {
+		*l.total -= int64(n)
+		if *l.total < 0 {
+			return n, errTooLarge
+		}
+	}
+	return n, err
+}
+
+// lineLimited fails when more than maxLineBytes pass without a line break: encoding/csv would otherwise buffer an
+// arbitrarily long "line" in memory.
+type lineLimited struct {
+	r   io.Reader
+	run int
+}
+
+func (l *lineLimited) Read(p []byte) (int, error) {
+	n, err := l.r.Read(p)
+	for _, b := range p[:n] {
+		if b == '\n' {
+			l.run = 0
+		} else if l.run++; l.run > maxLineBytes {
+			return n, errLongLine
+		}
+	}
 	return n, err
 }
 
 // readDataFile streams one gzip-compressed CSV and feeds its rows to the aggregate.
-func readDataFile(ctx context.Context, s3c S3API, bucket, key string, agg *aggregate) error {
-	out, err := s3c.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key})
+func readDataFile(ctx context.Context, s3c S3API, bucket, key, owner string, agg *aggregate) error {
+	out, err := s3c.GetObject(ctx, &s3.GetObjectInput{Bucket: &bucket, Key: &key, ExpectedBucketOwner: ownerPtr(owner)})
 	if err != nil {
 		return classify(err)
 	}
 	defer func() { _ = out.Body.Close() }()
-	gz, err := gzip.NewReader(out.Body)
+	if out.ContentLength != nil && *out.ContentLength > maxCompressedFile {
+		return fmt.Errorf("aws: export file is %d bytes (limit %d)", *out.ContentLength, int64(maxCompressedFile))
+	}
+	gz, err := gzip.NewReader(io.LimitReader(out.Body, maxCompressedFile+1))
 	if err != nil {
 		return fmt.Errorf("aws: export file is not gzip: %w", err)
 	}
 	defer func() { _ = gz.Close() }()
 
-	r := csv.NewReader(&limitedReader{r: gz, n: maxFileBytes})
+	r := csv.NewReader(&lineLimited{r: &limitedReader{r: gz, n: min(maxFileBytes, agg.remaining()), total: &agg.budget}})
 	r.ReuseRecord = true
 	header, err := r.Read()
 	if err != nil {
@@ -250,6 +296,7 @@ type hoursKey struct {
 
 // aggregate folds the rows of an export into daily sums within [from, to).
 type aggregate struct {
+	budget   int64 // decompressed bytes this sync may still read, across all files
 	from, to time.Time
 	cost     map[costKey]*[2]float64 // billed, effective
 	hours    map[hoursKey]float64
@@ -259,6 +306,8 @@ type aggregate struct {
 func newAggregate(from, to time.Time) *aggregate {
 	return &aggregate{from: from, to: to, cost: map[costKey]*[2]float64{}, hours: map[hoursKey]float64{}, s3: map[regionDay]float64{}}
 }
+
+func (a *aggregate) remaining() int64 { return a.budget }
 
 func (a *aggregate) size() int { return len(a.cost) + len(a.hours) + len(a.s3) }
 
@@ -382,7 +431,7 @@ func (p *Provider) validateExport(ctx context.Context, c domain.Connection) erro
 	}
 	now := time.Now().UTC()
 	for _, month := range []time.Time{time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC), time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.UTC)} {
-		if _, ok, err := manifestFiles(ctx, s3c, *c.Export, month); err != nil {
+		if _, ok, err := manifestFiles(ctx, s3c, *c.Export, c.AccountRef, month); err != nil {
 			return err
 		} else if ok {
 			return nil

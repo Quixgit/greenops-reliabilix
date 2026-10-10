@@ -9,6 +9,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/application"
 	rhttp "github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/http"
@@ -20,6 +21,7 @@ type Deps struct {
 	Log      *slog.Logger
 	Queue    queue.Enqueuer
 	Projects application.ProjectLister
+	Notify   notify.Notifier
 }
 
 type Module struct {
@@ -30,7 +32,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Projects: d.Projects, Queue: d.Queue, Log: d.Log}
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Projects: d.Projects, Queue: d.Queue, Notify: d.Notify, Log: d.Log}
 	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc, Svc: svc}
 }
 
@@ -45,6 +47,11 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 			return err
 		}
 		_, err = m.svc.Generate(ctx, p.TenantID, p.ProjectID)
+		if err != nil {
+			return err
+		}
+		// Measuring earlier changes rides on the same daily run; its failure must be retried like any other.
+		_, err = m.svc.VerifyApplied(ctx, p.TenantID, p.ProjectID)
 		return err
 	})
 	mux.HandleFunc(queue.TaskRecommendAll, func(ctx context.Context, _ *asynq.Task) error {
