@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/hibiken/asynq"
@@ -27,6 +28,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	// SCHEDULER_SKIP="cloudaccounts:sync_all,cloudaccounts:rightsizing_all": tasks that must not be scheduled in this
+	// deployment (a demonstration stand without real cloud accounts must not try to reach any).
+	skip := map[string]bool{}
+	for _, t := range strings.Split(os.Getenv("SCHEDULER_SKIP"), ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			skip[t] = true
+			log.Warn("scheduler: task switched off by SCHEDULER_SKIP", "task", t)
+		}
+	}
 	s := asynq.NewScheduler(asynq.RedisClientOpt{Addr: cfg.RedisAddr}, nil)
 	for spec, task := range map[string]string{
 		"0 */6 * * *": queue.TaskSyncAll,            // fan-out: one sync job per connection (sync -> carbon -> recommendations chain)
@@ -43,6 +53,9 @@ func main() {
 		"10 * * * *":  queue.TaskEraseDue,           // organizations whose erasure grace period is over
 		"50 5 * * *":  queue.TaskEnforceRetention,   // usage and carbon partitions past the retention window
 	} {
+		if skip[task] {
+			continue
+		}
 		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}"))); err != nil {
 			log.Error("register", "task", task, "err", err)
 			os.Exit(1)

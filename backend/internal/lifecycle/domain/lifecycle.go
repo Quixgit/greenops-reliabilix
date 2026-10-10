@@ -75,7 +75,7 @@ var ExportTables = []ExportTable{
 	tbl("reports", "id, project_id, kind, format, period_start, period_end, status, requested_by, created_at, completed_at", "reports.reports"),
 	tbl("notification_destinations", "id, kind, name, target_hint, event_types, min_severity, enabled, created_by, created_at", "notifications.destinations"),
 	tbl("settings", "key, value, source, updated_by, updated_at", "settings.tenant_values"),
-	tbl("kubernetes_workload_energy", "id, project_id, cluster, namespace, workload, kind, period_start, energy_kwh, region_id, intensity_g_per_kwh, carbon_kg_co2e, source, methodology_version, ingested_at", "kubernetes.workload_energy"),
+	tbl("kubernetes_workload_energy", "id, project_id, cluster, namespace, workload, kind, period_start, energy_kwh, region_id, intensity_g_per_kwh, carbon_kg_co2e, cpu_core_seconds, memory_avg_bytes, cpu_request_cores, memory_request_bytes, source, methodology_version, ingested_at", "kubernetes.workload_energy"),
 	tbl("alerts", "id, kind, severity, status, title, detail, project_id, object_ref, value, threshold, first_seen_at, last_seen_at, acknowledged_by, acknowledged_at, resolved_at", "alerts.alerts"),
 	tbl("audit_log", "id, actor_user_id, action, target, request_id, metadata, created_at", "audit.audit_logs"),
 }

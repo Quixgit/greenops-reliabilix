@@ -1,0 +1,18 @@
+# User unit (systemctl --user). Install with deploy/systemd/install.sh; see docs/setup/stand.md.
+[Unit]
+Description=Reliabilix GreenOps API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/reliabilix/api.env
+WorkingDirectory=%h/reliabilix-stand
+ExecStart=%h/reliabilix-stand/bin/api
+Environment=HTTP_ADDR=127.0.0.1:38452 METRICS_ADDR=127.0.0.1:38453
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

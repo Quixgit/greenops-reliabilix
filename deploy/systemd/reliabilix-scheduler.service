@@ -1,0 +1,17 @@
+[Unit]
+Description=Reliabilix GreenOps scheduler
+After=network-online.target reliabilix-worker.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/reliabilix/scheduler.env
+WorkingDirectory=%h/reliabilix-stand
+ExecStart=%h/reliabilix-stand/bin/scheduler
+# a demonstration stand has no real cloud accounts: never schedule their synchronization
+Environment=SCHEDULER_SKIP=cloudaccounts:sync_all,cloudaccounts:rightsizing_all
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

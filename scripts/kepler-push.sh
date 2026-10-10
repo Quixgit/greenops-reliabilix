@@ -23,21 +23,40 @@ period_start="$(date -u -d "@${start_epoch}" +%Y-%m-%dT%H:00:00Z)"
 query='sum by (container_namespace, pod_name) (increase(kepler_container_joules_total[1h])) / 3.6e6'
 resp="$(curl -fsS --max-time 60 -G "${PROM_URL%/}/api/v1/query" --data-urlencode "query=${query}" --data-urlencode "time=${end_epoch}")"
 
+# Optional usage and requests per pod (cAdvisor and kube-state-metrics). A query that fails or is empty only means the
+# samples carry energy without usage; it never stops the push.
+prom() { curl -fsS --max-time 60 -G "${PROM_URL%/}/api/v1/query" --data-urlencode "query=$1" --data-urlencode "time=${end_epoch}" 2>/dev/null || echo '{"data":{"result":[]}}'; }
+cpu_use="$(prom 'sum by (namespace, pod) (increase(container_cpu_usage_seconds_total{container!="",container!="POD"}[1h]))')"
+mem_use="$(prom 'sum by (namespace, pod) (avg_over_time(container_memory_working_set_bytes{container!="",container!="POD"}[1h]))')"
+cpu_req="$(prom 'sum by (namespace, pod) (avg_over_time(kube_pod_container_resource_requests{resource="cpu"}[1h]))')"
+mem_req="$(prom 'sum by (namespace, pod) (avg_over_time(kube_pod_container_resource_requests{resource="memory"}[1h]))')"
+
 # pod -> workload: strip the ReplicaSet hash and the pod suffix (a real hash contains a digit). The name is a heuristic;
 # anything it does not recognise is reported as the pod itself.
-payload="$(jq -c --arg project "$PROJECT_ID" --arg cluster "$CLUSTER" --arg region "$REGION" --arg start "$period_start" '
+payload="$(jq -c --argjson cpu_use "$cpu_use" --argjson mem_use "$mem_use" --argjson cpu_req "$cpu_req" --argjson mem_req "$mem_req" \
+  --arg project "$PROJECT_ID" --arg cluster "$CLUSTER" --arg region "$REGION" --arg start "$period_start" '
   def workload($p):
     if   ($p | test("-(?=[a-z0-9]*[0-9])[a-z0-9]{8,10}-[a-z0-9]{5}$")) then {name: ($p | sub("-(?=[a-z0-9]*[0-9])[a-z0-9]{8,10}-[a-z0-9]{5}$"; "")), kind: "deployment"}
     elif ($p | test("-[0-9]+$"))                    then {name: ($p | sub("-[0-9]+$"; "")), kind: "statefulset"}
     elif ($p | test("-[a-z0-9]{5}$"))               then {name: ($p | sub("-[a-z0-9]{5}$"; "")), kind: "daemonset"}
     else {name: $p, kind: "pod"} end;
-  [.data.result[]
+  # usage[ "<namespace>/<workload>" ] = sum over the pods of that workload
+  def usage($r): reduce ($r.data.result[]? | select(.metric.namespace != null and .metric.pod != null)) as $x ({};
+      .[$x.metric.namespace + "/" + (workload($x.metric.pod).name)] += ($x.value[1] | tonumber));
+  (usage($cpu_use)) as $cu | (usage($mem_use)) as $mu | (usage($cpu_req)) as $cr | (usage($mem_req)) as $mr
+  | [.data.result[]
     | select(.metric.container_namespace != null and .metric.pod_name != null)
     | (workload(.metric.pod_name)) as $w
     | {cluster: $cluster, namespace: .metric.container_namespace, workload: $w.name, kind: $w.kind,
        period_start: $start, energy_kwh: (.value[1] | tonumber), region: $region}]
   | group_by([.namespace, .workload, .kind])
   | map(.[0] + {energy_kwh: (map(.energy_kwh) | add)})
+  | map(. as $s | ($s.namespace + "/" + $s.workload) as $k
+      | $s
+      + (if $cu[$k] != null then {cpu_core_seconds: $cu[$k]} else {} end)
+      + (if $mu[$k] != null then {memory_avg_bytes: $mu[$k]} else {} end)
+      + (if $cr[$k] != null then {cpu_request_cores: $cr[$k]} else {} end)
+      + (if $mr[$k] != null then {memory_request_bytes: $mr[$k]} else {} end))
   | {project_id: $project, samples: .}' <<<"$resp")"
 
 n="$(jq '.samples | length' <<<"$payload")"

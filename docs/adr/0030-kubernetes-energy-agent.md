@@ -21,6 +21,10 @@ should not ask for cluster credentials.
   no carbon total instead of a partial one.
 - **Region comes from the agent** (the cloud region of the nodes), because a cluster name says nothing about the grid.
 
+- **Usage and requests are optional columns of the same row**: CPU core-seconds and average working set per hour, and the
+  average requested cores and memory, summed over the workload's pods. Utilization is used / requested over the hours that
+  have both; with none it is unknown, never 0. Recommendations (smaller requests, scheduling) are built on this later.
+
 ## Consequences
 - The workload name is derived by the agent from the pod name (ReplicaSet hash and suffix removed); it is a heuristic and
   labelled as such. A label-based mapping is a later improvement.

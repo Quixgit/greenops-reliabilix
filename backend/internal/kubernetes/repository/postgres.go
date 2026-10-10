@@ -28,13 +28,17 @@ func (r Postgres) Upsert(ctx context.Context, tenantID, projectID string, rows [
 		batch := &pgx.Batch{}
 		for _, s := range rows {
 			batch.Queue(`INSERT INTO kubernetes.workload_energy
-				(tenant_id, project_id, cluster, namespace, workload, kind, period_start, energy_kwh, region_id, intensity_g_per_kwh, carbon_kg_co2e, methodology_version)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+				(tenant_id, project_id, cluster, namespace, workload, kind, period_start, energy_kwh, region_id, intensity_g_per_kwh, carbon_kg_co2e, methodology_version,
+				 cpu_core_seconds, memory_avg_bytes, cpu_request_cores, memory_request_bytes)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 				ON CONFLICT (tenant_id, project_id, cluster, namespace, workload, period_start) DO UPDATE SET
 				  kind = EXCLUDED.kind, energy_kwh = EXCLUDED.energy_kwh, region_id = EXCLUDED.region_id,
 				  intensity_g_per_kwh = EXCLUDED.intensity_g_per_kwh, carbon_kg_co2e = EXCLUDED.carbon_kg_co2e,
-				  methodology_version = EXCLUDED.methodology_version, ingested_at = now()`,
-				tenantID, projectID, s.Cluster, s.Namespace, s.Workload, s.Kind, s.PeriodStart.UTC(), s.EnergyKWh, s.Region, s.Intensity, s.CarbonKg, s.MethodologyVersion)
+				  methodology_version = EXCLUDED.methodology_version, cpu_core_seconds = EXCLUDED.cpu_core_seconds,
+				  memory_avg_bytes = EXCLUDED.memory_avg_bytes, cpu_request_cores = EXCLUDED.cpu_request_cores,
+				  memory_request_bytes = EXCLUDED.memory_request_bytes, ingested_at = now()`,
+				tenantID, projectID, s.Cluster, s.Namespace, s.Workload, s.Kind, s.PeriodStart.UTC(), s.EnergyKWh, s.Region, s.Intensity, s.CarbonKg, s.MethodologyVersion,
+				s.CPUCoreSeconds, s.MemoryAvgBytes, s.CPURequestCores, s.MemoryRequestBytes)
 		}
 		br := tx.SendBatch(ctx, batch)
 		for range rows {
@@ -55,7 +59,13 @@ func (r Postgres) Workloads(ctx context.Context, tenantID string, project *strin
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT cluster, namespace, workload, max(kind), sum(energy_kwh)::float8,
 				CASE WHEN count(*) FILTER (WHERE carbon_kg_co2e IS NULL) = 0 THEN sum(carbon_kg_co2e)::float8 END,
-				count(*)::int, (count(*) FILTER (WHERE carbon_kg_co2e IS NULL))::int
+				count(*)::int, (count(*) FILTER (WHERE carbon_kg_co2e IS NULL))::int,
+				-- utilization over the hours that have both the usage and the request
+				(sum(cpu_core_seconds) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0)
+				  / NULLIF(sum(cpu_request_cores * 3600) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0), 0) * 100)::float8,
+				(sum(memory_avg_bytes) FILTER (WHERE memory_avg_bytes IS NOT NULL AND memory_request_bytes > 0)
+				  / NULLIF(sum(memory_request_bytes) FILTER (WHERE memory_avg_bytes IS NOT NULL AND memory_request_bytes > 0), 0) * 100)::float8,
+				(count(*) FILTER (WHERE cpu_core_seconds IS NOT NULL AND cpu_request_cores > 0))::int
 			FROM kubernetes.workload_energy
 			WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2) AND ($3 = '' OR cluster = $3)
 			  AND period_start >= $4 AND period_start < $5
@@ -66,7 +76,7 @@ func (r Postgres) Workloads(ctx context.Context, tenantID string, project *strin
 		defer rows.Close()
 		for rows.Next() {
 			var w domain.WorkloadRow
-			if err := rows.Scan(&w.Cluster, &w.Namespace, &w.Workload, &w.Kind, &w.EnergyKWh, &w.CarbonKg, &w.Hours, &w.NoGrid); err != nil {
+			if err := rows.Scan(&w.Cluster, &w.Namespace, &w.Workload, &w.Kind, &w.EnergyKWh, &w.CarbonKg, &w.Hours, &w.NoGrid, &w.CPUUtilizationPct, &w.MemoryUtilizationPct, &w.UsageHours); err != nil {
 				return err
 			}
 			out = append(out, w)

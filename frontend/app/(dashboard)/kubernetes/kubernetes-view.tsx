@@ -11,6 +11,17 @@ import { carbonParts, nf } from "@/lib/formatters";
 
 const carbon = (kg: number | null) => (kg === null ? <span className="text-muted" title="Some hours have no grid data yet">—</span> : `${nf(2).format(carbonParts(kg).n)} ${carbonParts(kg).unit === "t" ? "t" : "kg"}`);
 
+/** Used / requested. Low use of a request is the first sign of an over-sized workload; no data stays a dash. */
+function Use({ pct }: { pct: number | null | undefined }) {
+  if (pct === null || pct === undefined) return <span className="text-muted" title="The agent has not reported usage and requests for this workload">—</span>;
+  const low = pct < 25;
+  return (
+    <span className={`tabular-nums ${low ? "font-medium text-amber-700" : ""}`} title={low ? "Uses less than a quarter of what it requests: a candidate for smaller requests" : undefined}>
+      {nf(0).format(pct)}%
+    </span>
+  );
+}
+
 export function KubernetesView() {
   const [cluster, setCluster] = useState("");
   const clusters = useK8sClusters();
@@ -55,7 +66,7 @@ export function KubernetesView() {
           {workloads.isLoading ? <Skeleton className="h-24" /> : workloads.isError ? <ErrorState /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="text-xs text-muted"><tr><th className="py-2 pr-3 font-medium">Workload</th><th className="pr-3 font-medium">Namespace</th><th className="pr-3 font-medium">Kind</th><th className="pr-3 text-right font-medium">Energy</th><th className="pr-3 text-right font-medium">CO₂e</th><th className="text-right font-medium">Hours</th></tr></thead>
+                <thead className="text-xs text-muted"><tr><th className="py-2 pr-3 font-medium">Workload</th><th className="pr-3 font-medium">Namespace</th><th className="pr-3 font-medium">Kind</th><th className="pr-3 text-right font-medium">Energy</th><th className="pr-3 text-right font-medium">CO₂e</th><th className="pr-3 text-right font-medium" title="CPU used / CPU requested">CPU use</th><th className="pr-3 text-right font-medium" title="Memory used / memory requested">Memory use</th><th className="text-right font-medium">Hours</th></tr></thead>
                 <tbody className="divide-y divide-line/70">
                   {workloads.data!.map((w) => (
                     <tr key={`${w.cluster}/${w.namespace}/${w.workload}`}>
@@ -63,6 +74,8 @@ export function KubernetesView() {
                       <td className="pr-3">{w.namespace}</td><td className="pr-3 text-muted">{w.kind}</td>
                       <td className="pr-3 text-right tabular-nums">{nf(2).format(w.energy_kwh)} kWh</td>
                       <td className="pr-3 text-right tabular-nums">{carbon(w.carbon_kg_co2e)}</td>
+                      <td className="pr-3 text-right"><Use pct={w.cpu_utilization_pct} /></td>
+                      <td className="pr-3 text-right"><Use pct={w.memory_utilization_pct} /></td>
                       <td className="text-right tabular-nums text-muted">{w.hours}{w.hours_without_grid_data > 0 && <span title="hours without grid data"> ({w.hours_without_grid_data} ?)</span>}</td>
                     </tr>
                   ))}
@@ -71,7 +84,7 @@ export function KubernetesView() {
             </div>
           )}
           <p className="mt-3 text-xs text-muted">
-            Measured energy (Kepler) × PUE × grid intensity of that hour. A dash means some hours had no grid reading yet; the energy is
+            Measured energy (Kepler) × PUE × grid intensity of that hour. “Use” is what the workload consumed of what it requested over the hours the agent reported both; it is the base for right-sizing, which is not automated yet. A dash means some hours had no grid reading yet; the energy is
             kept and the carbon appears once a reading exists. <Link href="/carbon" className="text-primary hover:underline">How figures are calculated</Link>.
           </p>
         </Card>

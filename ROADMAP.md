@@ -39,7 +39,7 @@ Broader coverage and smarter advice.
 | 🗓️ | Citable carbon coefficients: verified import of a published dataset (new methodology version) and embodied emissions (SCI's M) |
 | 🗓️ | Azure connector (Cost Management API) |
 | ✅ | GCP connector (Cloud Billing export in BigQuery, ownership proof, measured compute and storage) |
-| 🚧 | Kubernetes: Kepler → Prometheus → agent → ingestion API: ingestion, storage and screens done ([ADR-0030](docs/adr/0030-kubernetes-energy-agent.md)); a packaged agent image and rightsizing from measured usage next |
+| 🚧 | Kubernetes: Kepler → Prometheus → agent → ingestion API: ingestion, storage and screens done ([ADR-0030](docs/adr/0030-kubernetes-energy-agent.md)); the packaged agent image and measured CPU/memory utilization done; automated rightsizing next |
 | 🗓️ | WattTime as secondary grid-data provider |
 | 🗓️ | More recommendation types: rightsizing, time shifting, spot migration |
 | 🗓️ | Scheduled reports, invitation e-mails, more channels (Teams, PagerDuty, SMS), more event types (budget, anomaly, new recommendation), SCI self-certification assistant |

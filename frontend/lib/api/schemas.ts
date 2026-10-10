@@ -215,6 +215,7 @@ export const operatorErrors = items(operatorError);
 export const k8sWorkload = z.object({
   cluster: z.string(), namespace: z.string(), workload: z.string(), kind: z.string(),
   energy_kwh: z.number(), carbon_kg_co2e: z.number().nullable(), hours: z.number(), hours_without_grid_data: z.number(),
+  cpu_utilization_pct: z.number().nullable().optional(), memory_utilization_pct: z.number().nullable().optional(), usage_hours: z.number().optional(),
 });
 export type K8sWorkload = z.infer<typeof k8sWorkload>;
 export const k8sWorkloads = items(k8sWorkload);

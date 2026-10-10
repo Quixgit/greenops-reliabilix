@@ -2487,6 +2487,14 @@ export interface components {
                 energy_kwh: number;
                 /** @description Cloud region of the nodes, for example eu-central-1. */
                 region: string;
+                /** @description Optional. CPU time used by the workload's containers in the hour. */
+                cpu_core_seconds?: number;
+                /** @description Optional. Average working set in the hour. */
+                memory_avg_bytes?: number;
+                /** @description Optional. Average requested cores in the hour. */
+                cpu_request_cores?: number;
+                /** @description Optional. Average requested memory in the hour. */
+                memory_request_bytes?: number;
             }[];
         };
         KubernetesWorkload: {
@@ -2498,6 +2506,10 @@ export interface components {
             carbon_kg_co2e?: number | null;
             hours?: number;
             hours_without_grid_data?: number;
+            /** @description CPU used / CPU requested over the hours that report both; null without such hours. */
+            cpu_utilization_pct?: number | null;
+            memory_utilization_pct?: number | null;
+            usage_hours?: number;
         } & {
             [key: string]: unknown;
         };

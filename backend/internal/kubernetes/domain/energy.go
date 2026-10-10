@@ -25,6 +25,10 @@ const (
 	// is a unit mistake (joules sent as kWh) and is refused instead of poisoning the totals.
 	MaxKWhPerHour = 5000.0
 	maxAge        = 400 * 24 * time.Hour
+	// Bounds of the optional usage figures: an hour of 1024 cores, 64 TiB of memory. Beyond them is a unit mistake.
+	maxCoreSeconds = 1024 * 3600.0
+	maxBytes       = 64 * 1024 * 1024 * 1024 * 1024.0
+	maxCores       = 4096.0
 )
 
 // Sample is one workload's measured energy in one UTC hour.
@@ -36,6 +40,12 @@ type Sample struct {
 	PeriodStart time.Time `json:"period_start"`
 	EnergyKWh   float64   `json:"energy_kwh"`
 	Region      string    `json:"region"`
+	// Usage and requests of the hour, summed over the workload's pods; all optional (an agent without cAdvisor and
+	// kube-state-metrics sends energy only).
+	CPUCoreSeconds     *float64 `json:"cpu_core_seconds,omitempty"`     // CPU time used in the hour
+	MemoryAvgBytes     *float64 `json:"memory_avg_bytes,omitempty"`     // average working set
+	CPURequestCores    *float64 `json:"cpu_request_cores,omitempty"`    // average requested cores
+	MemoryRequestBytes *float64 `json:"memory_request_bytes,omitempty"` // average requested memory
 }
 
 // Validate refuses what cannot be a real measurement. now is injected for tests.
@@ -55,6 +65,17 @@ func (s Sample) Validate(now time.Time) error {
 		return fmt.Errorf("%w: period_start is in the future or the hour is not over", ErrInvalidSample)
 	case s.PeriodStart.Before(now.Add(-maxAge)):
 		return fmt.Errorf("%w: period_start is older than 400 days", ErrInvalidSample)
+	}
+	for name, v := range map[string]struct {
+		val *float64
+		max float64
+	}{
+		"cpu_core_seconds": {s.CPUCoreSeconds, maxCoreSeconds}, "memory_avg_bytes": {s.MemoryAvgBytes, maxBytes},
+		"cpu_request_cores": {s.CPURequestCores, maxCores}, "memory_request_bytes": {s.MemoryRequestBytes, maxBytes},
+	} {
+		if v.val != nil && (math.IsNaN(*v.val) || math.IsInf(*v.val, 0) || *v.val < 0 || *v.val > v.max) {
+			return fmt.Errorf("%w: %s is out of range", ErrInvalidSample, name)
+		}
 	}
 	return nil
 }
@@ -78,6 +99,10 @@ type WorkloadRow struct {
 	CarbonKg  *float64 `json:"carbon_kg_co2e"` // nil when some hours had no grid data: a partial sum is never shown as a total
 	Hours     int      `json:"hours"`
 	NoGrid    int      `json:"hours_without_grid_data"`
+	// Utilization: usage divided by what the workload requested, over the hours that have both. Nil without such hours.
+	CPUUtilizationPct    *float64 `json:"cpu_utilization_pct"`
+	MemoryUtilizationPct *float64 `json:"memory_utilization_pct"`
+	UsageHours           int      `json:"usage_hours"`
 }
 
 // ClusterRow is a cluster's energy over a window.
@@ -101,6 +126,14 @@ type Repository interface {
 	Upsert(ctx context.Context, tenantID, projectID string, rows []Stored) error
 	Workloads(ctx context.Context, tenantID string, project *string, cluster string, from, to time.Time, limit int) ([]WorkloadRow, error)
 	Clusters(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]ClusterRow, error)
+}
+
+// Utilization is usage / request in percent; ok is false when there is no request to compare with.
+func Utilization(used, requested float64) (pct float64, ok bool) {
+	if requested <= 0 {
+		return 0, false
+	}
+	return used / requested * 100, true
 }
 
 // Stored is a sample with its grid reading and carbon, as persisted.

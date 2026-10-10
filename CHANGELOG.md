@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.16] - 2026-10-10
+
+### Added
+- Kubernetes usage next to energy: optional CPU time, memory and the requests per workload and hour; the Kubernetes page
+  shows CPU and memory utilization (used / requested, over the hours that report both; unknown stays a dash and low use
+  is flagged). The agent reads cAdvisor and kube-state-metrics when present. API contract 0.9.0. Migration 0025.
+- Systemd user units for a demonstration stand (`deploy/systemd`, `docs/setup/stand.md`) and `SCHEDULER_SKIP` to keep a
+  stand without real cloud accounts from scheduling cloud synchronization.
+
 ## [0.1.0-alpha.15] - 2026-10-10
 
 ### Added

@@ -1,0 +1,15 @@
+[Unit]
+Description=Reliabilix GreenOps web
+After=network-online.target reliabilix-api.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/reliabilix/web.env
+WorkingDirectory=%h/reliabilix-stand/web
+ExecStart=/usr/bin/env node node_modules/next/dist/bin/next start -H 0.0.0.0 -p 38451
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

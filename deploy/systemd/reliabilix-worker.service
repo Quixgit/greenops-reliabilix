@@ -1,0 +1,17 @@
+[Unit]
+Description=Reliabilix GreenOps worker
+After=network-online.target reliabilix-api.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/reliabilix/worker.env
+WorkingDirectory=%h/reliabilix-stand
+ExecStart=%h/reliabilix-stand/bin/worker
+# the worker connects with its own database role
+Environment=METRICS_ADDR=127.0.0.1:38454
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
