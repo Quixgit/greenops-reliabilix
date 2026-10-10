@@ -470,3 +470,17 @@ export const alerts = items(alert);
 
 export const automationJobs = items(z.object({ id: z.string(), kind: z.string(), status: z.string() }));
 export type AutomationJobLite = z.infer<typeof automationJobs>[number];
+
+/** A planned change of an approved recommendation. The platform plans; a person applies it and reports the result. */
+export const automationJob = z.object({
+  id: z.string(), project_id: z.string(), recommendation_id: z.string(), kind: z.string(), status: z.string(),
+  plan: z.object({ summary: z.string(), steps: z.array(z.string()).nullish(), terraform: z.string().nullish(), cli: z.array(z.string()).nullish() }),
+  risk: z.object({ level: z.string(), factors: z.array(z.string()).nullish() }),
+  rollback_plan: z.string().nullish(),
+  created_by: z.string(), created_at: z.string(),
+  approved_by: z.string().nullable().optional(), approved_at: z.string().nullable().optional(),
+  finished_by: z.string().nullable().optional(), finished_at: z.string().nullable().optional(),
+  result_note: z.string().nullable().optional(),
+});
+export type AutomationJob = z.infer<typeof automationJob>;
+export const automationJobList = items(automationJob);

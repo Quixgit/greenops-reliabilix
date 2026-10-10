@@ -88,6 +88,10 @@ export const useK8sWorkloads = (cluster: string) => {
   const f = useFilters();
   return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
 };
+/** The automation page: full jobs with plan, risk and rollback. */
+export const useAutomationPlans = () =>
+  useQuery({ queryKey: ["automation-jobs"], queryFn: () => api("automation/jobs", s.automationJobList, { limit: "100" }) });
+
 /** Automation jobs, for the Overview counters only; a user without the permission simply sees none. */
 export const useAutomationJobs = () =>
   useQuery({ queryKey: ["automation-jobs-lite"], retry: false, queryFn: () => api("automation/jobs", s.automationJobs, { limit: "100" }) });

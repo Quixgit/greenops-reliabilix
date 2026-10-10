@@ -2,19 +2,25 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Lightbulb } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api/client";
-import { recommendation, type ImpactVerification, type Recommendation } from "@/lib/api/schemas";
+import { automationJob, recommendation, type ImpactVerification, type Recommendation } from "@/lib/api/schemas";
 import { useRecommendations } from "@/hooks/use-overview";
 
 const FILTERS = ["open", "approved", "applied", "verified", "dismissed", "all"] as const;
 
-function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
+function Row({ r, canDecide, canPlan }: { r: Recommendation; canDecide: boolean; canPlan: boolean }) {
   const qc = useQueryClient();
+  const router = useRouter();
+  const plan = useMutation({
+    mutationFn: () => api("automation/jobs", automationJob, undefined, { method: "POST", body: JSON.stringify({ recommendation_id: r.id }) }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["automation-jobs"] }); void qc.invalidateQueries({ queryKey: ["automation-jobs-lite"] }); router.push("/automation"); },
+  });
   const act = useMutation({
     mutationFn: (verb: "approve" | "apply" | "dismiss") =>
       api(`recommendations/${r.id}/${verb}`, recommendation, undefined, { method: "POST", body: "{}" }),
@@ -49,7 +55,12 @@ function Row({ r, canDecide }: { r: Recommendation; canDecide: boolean }) {
           <button className={btn} disabled={act.isPending} onClick={() => act.mutate("dismiss")}>Dismiss</button>
         </div>
       )}
+      {canPlan && r.status === "approved" && r.type !== "k8s_rightsizing" && (
+        <div><button className={btn} disabled={plan.isPending} onClick={() => plan.mutate()}>Create the plan</button>
+          <span className="ml-2 text-xs text-muted">A reviewable plan with steps and rollback; nothing is changed in your cloud.</span></div>
+      )}
       {act.isError && <p role="alert" className="text-xs text-bad">{act.error.message}</p>}
+      {plan.isError && <p role="alert" className="text-xs text-bad">{plan.error.message}</p>}
     </li>
   );
 }
@@ -101,7 +112,7 @@ function VerifiedImpact({ v }: { v: ImpactVerification }) {
   );
 }
 
-export function RecommendationsView({ canDecide }: { canDecide: boolean }) {
+export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean; canPlan: boolean }) {
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("open");
   const q = useRecommendations(status);
   return (
@@ -116,7 +127,7 @@ export function RecommendationsView({ canDecide }: { canDecide: boolean }) {
       <Card>
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
           <EmptyState icon={Lightbulb} text="No recommendations here yet. They appear after a cloud account is synced and carbon is calculated." /> : (
-            <ul className="divide-y divide-line/70">{q.data!.map((r) => <Row key={r.id} r={r} canDecide={canDecide} />)}</ul>
+            <ul className="divide-y divide-line/70">{q.data!.map((r) => <Row key={r.id} r={r} canDecide={canDecide} canPlan={canPlan} />)}</ul>
           )}
       </Card>
     </div>

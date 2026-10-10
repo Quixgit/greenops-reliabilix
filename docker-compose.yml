@@ -29,7 +29,7 @@ x-backend: &backend
     SMTP_FROM: ${SMTP_FROM:-}
     PLATFORM_AWS_ACCOUNT_ID: ${PLATFORM_AWS_ACCOUNT_ID:-}   # shown to customers in the role trust policy
     SENTRY_DSN: ${SENTRY_DSN:-}
-    RELEASE: ${VERSION:-0.1.0-alpha.54}
+    RELEASE: ${VERSION:-0.1.0-alpha.55}
     S3_ENDPOINT: http://minio:9000
     S3_BUCKET: greenops
     S3_PATH_STYLE: "true"
@@ -49,8 +49,8 @@ services:
     ports: ["127.0.0.1:6379:6379"]
 
   migrate:
-    image: ${REGISTRY:-reliabilix}/migrate:${VERSION:-0.1.0-alpha.54}
-    build: {context: ., dockerfile: deploy/docker/Dockerfile, target: migrate, args: {VERSION: "${VERSION:-0.1.0-alpha.54}", COMMIT: "${COMMIT:-dev}"}}
+    image: ${REGISTRY:-reliabilix}/migrate:${VERSION:-0.1.0-alpha.55}
+    build: {context: ., dockerfile: deploy/docker/Dockerfile, target: migrate, args: {VERSION: "${VERSION:-0.1.0-alpha.55}", COMMIT: "${COMMIT:-dev}"}}
     environment: {GOOSE_DBSTRING: "postgres://greenops_owner:dev-only@postgres:5432/greenops?sslmode=disable"}
     depends_on: {postgres: {condition: service_healthy}}
     restart: "no"
@@ -63,8 +63,8 @@ services:
 
   greenops-api:
     <<: *backend
-    image: ${REGISTRY:-reliabilix}/api:${VERSION:-0.1.0-alpha.54}
-    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: api, VERSION: "${VERSION:-0.1.0-alpha.54}", COMMIT: "${COMMIT:-dev}"}}
+    image: ${REGISTRY:-reliabilix}/api:${VERSION:-0.1.0-alpha.55}
+    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: api, VERSION: "${VERSION:-0.1.0-alpha.55}", COMMIT: "${COMMIT:-dev}"}}
     environment:
       <<: *env
       HTTP_ADDR: ":8080"
@@ -73,21 +73,21 @@ services:
     ports: ["127.0.0.1:8080:8080"]
   greenops-worker:
     <<: *backend
-    image: ${REGISTRY:-reliabilix}/worker:${VERSION:-0.1.0-alpha.54}
-    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: worker, VERSION: "${VERSION:-0.1.0-alpha.54}", COMMIT: "${COMMIT:-dev}"}}
+    image: ${REGISTRY:-reliabilix}/worker:${VERSION:-0.1.0-alpha.55}
+    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: worker, VERSION: "${VERSION:-0.1.0-alpha.55}", COMMIT: "${COMMIT:-dev}"}}
     environment:
       <<: *env
       METRICS_ADDR: ":9090"
       DATABASE_URL: postgres://greenops_worker:dev-only@postgres:5432/greenops?sslmode=disable
   greenops-scheduler:
     <<: *backend
-    image: ${REGISTRY:-reliabilix}/scheduler:${VERSION:-0.1.0-alpha.54}
-    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: scheduler, VERSION: "${VERSION:-0.1.0-alpha.54}", COMMIT: "${COMMIT:-dev}"}}
+    image: ${REGISTRY:-reliabilix}/scheduler:${VERSION:-0.1.0-alpha.55}
+    build: {context: ., dockerfile: deploy/docker/Dockerfile, args: {CMD: scheduler, VERSION: "${VERSION:-0.1.0-alpha.55}", COMMIT: "${COMMIT:-dev}"}}
     environment: {<<: *env}
 
   web:
-    image: ${REGISTRY:-reliabilix}/web:${VERSION:-0.1.0-alpha.54}
-    build: {context: ., dockerfile: deploy/docker/Dockerfile.web, args: {NEXT_PUBLIC_BUILD_VERSION: "${VERSION:-0.1.0-alpha.54}", COMMIT: "${COMMIT:-dev}"}}
+    image: ${REGISTRY:-reliabilix}/web:${VERSION:-0.1.0-alpha.55}
+    build: {context: ., dockerfile: deploy/docker/Dockerfile.web, args: {NEXT_PUBLIC_BUILD_VERSION: "${VERSION:-0.1.0-alpha.55}", COMMIT: "${COMMIT:-dev}"}}
     restart: unless-stopped
     depends_on:
       greenops-api: {condition: service_started}

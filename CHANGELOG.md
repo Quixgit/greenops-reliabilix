@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.55] - 2026-10-10
+
+### Added
+- **Automation page**: the plans of approved recommendations in one place. "To do" and "Finished" lists; a plan shows its
+  steps, commands, Terraform, risk level with the reasons, the rollback and who did what and when. Approve (owners and
+  engineers), withdraw, and report the result (applied, failed, or applied and rolled back; a note is required for the
+  last two, and an applied result marks the recommendation applied). A plan is created from an approved recommendation
+  with "Create the plan". The platform still never changes the customer's cloud (ADR-0017). Frontend only, English and
+  Russian.
+
 ## [0.1.0-alpha.54] - 2026-10-10
 
 ### Added
