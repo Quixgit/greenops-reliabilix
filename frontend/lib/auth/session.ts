@@ -1,6 +1,8 @@
 import "server-only";
 import { auth0 } from "@/lib/auth0";
+import { cookies } from "next/headers";
 import { devAuthEnabled } from "./dev";
+import { DEV_COOKIE, devLoginEnabled, sessionOk } from "./devsession";
 import type { Role } from "@/lib/permissions";
 
 export type AppUser = { name: string; email: string; picture?: string; role: Role };
@@ -11,6 +13,7 @@ const asRole = (v: unknown): Role => (ROLES.includes(v as Role) ? (v as Role) : 
 /** Returns the signed-in user or null. Never exposes tokens to client components. */
 export async function getUser(): Promise<AppUser | null> {
   if (devAuthEnabled()) {
+    if (devLoginEnabled() && !(await sessionOk((await cookies()).get(DEV_COOKIE)?.value))) return null;
     return { name: "Dev User", email: "dev@reliabilix.local", role: asRole(process.env.DEV_ROLE ?? "owner") };
   }
   const session = await auth0.getSession();
@@ -28,6 +31,7 @@ export async function getUser(): Promise<AppUser | null> {
 /** Bearer token for the Go API, resolved server-side only. */
 export async function getApiToken(): Promise<string | null> {
   if (devAuthEnabled()) {
+    if (devLoginEnabled() && !(await sessionOk((await cookies()).get(DEV_COOKIE)?.value))) return null;
     const tenant = process.env.DEV_TENANT_ID;
     if (!tenant) return null;
     return `dev:dev-user:${tenant}:${process.env.DEV_ROLE ?? "owner"}`;

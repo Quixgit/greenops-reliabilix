@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.11] - 2026-10-10
+
+### Added
+- Development sign-in on the product's own page (`DEV_LOGIN_PAGE=true` with `DEV_AUTH` and `DEV_BASIC_AUTH`): the
+  browser's password prompt is replaced by the sign-in page; a signed http-only cookie carries the session; rate limited;
+  absent outside the development mode.
+
+### Fixed
+- Sign out answered 404 in the development environment; `/auth/logout` now ends the session and returns to the sign-in page.
+
 ## [0.1.0-alpha.10] - 2026-10-10
 
 ### Added

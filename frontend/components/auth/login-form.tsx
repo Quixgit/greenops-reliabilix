@@ -30,7 +30,7 @@ const social = "flex w-full items-center justify-center gap-2.5 rounded-xl borde
  * Sign-in options. Passwords and second factors are only ever typed on the identity provider's own page: this form
  * hands over the e-mail (and the chosen provider) and the provider asks for the rest, including the MFA code.
  */
-export function LoginForm({ mode, returnTo }: { mode: "auth0" | "dev"; returnTo: string }) {
+export function LoginForm({ mode, returnTo, devLogin = false, error: loginError }: { mode: "auth0" | "dev"; returnTo: string; devLogin?: boolean; error?: string }) {
   const [view, setView] = useState<"signin" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [touched, setTouched] = useState(false);
@@ -95,7 +95,20 @@ export function LoginForm({ mode, returnTo }: { mode: "auth0" | "dev"; returnTo:
         <p className="mt-1.5 text-sm text-muted">Sign in to see your cloud cost and carbon footprint.</p>
       </div>
 
-      {mode === "dev" && (
+      {mode === "dev" && devLogin && (
+        <form method="post" action="/api/dev/login" className="space-y-3 rounded-xl bg-violet-50 p-3.5 text-sm ring-1 ring-violet-200">
+          <p className="text-violet-900"><b>Test environment.</b> Sign in with the access details you were given. Google, GitHub and password recovery are available once the identity provider is connected.</p>
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <label className="block"><span className="text-xs font-medium text-violet-900">User name</span>
+            <input name="username" autoComplete="username" required className={field} /></label>
+          <label className="block"><span className="text-xs font-medium text-violet-900">Password</span>
+            <input name="password" type="password" autoComplete="current-password" required className={field} /></label>
+          {loginError && <p role="alert" className="text-xs text-bad">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
+          <button type="submit" className="brand-gradient w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95">Sign in</button>
+        </form>
+      )}
+
+      {mode === "dev" && !devLogin && (
         <div className="space-y-3 rounded-xl bg-violet-50 p-3.5 text-sm ring-1 ring-violet-200">
           <p className="text-violet-900"><b>Development environment.</b> Sign-in with Google, GitHub or a password is available once the identity provider is configured.</p>
           <a href="/overview" className="brand-gradient block rounded-lg px-4 py-2 text-center font-semibold text-white">Continue as the development user</a>

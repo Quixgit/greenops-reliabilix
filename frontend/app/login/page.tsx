@@ -3,13 +3,14 @@ import { Logo } from "@/components/layout/logo";
 import { LoginArt } from "@/components/auth/login-art";
 import { LoginForm } from "@/components/auth/login-form";
 import { devAuthEnabled } from "@/lib/auth/dev";
+import { devLoginEnabled } from "@/lib/auth/devsession";
 import { safeReturnTo } from "@/lib/auth/login";
 import { getUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in · Reliabilix GreenOps" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; preview?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; preview?: string; error?: string }> }) {
   const q = await searchParams;
   const dev = devAuthEnabled();
   // In the development environment everybody is signed in already; ?preview shows the page anyway for design review.
@@ -37,7 +38,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <span className="text-lg font-bold tracking-tight">Reliabilix <span className="font-medium text-muted">GreenOps</span></span>
           </div>
           <div className="glass p-7 sm:p-8">
-            <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} />
+            <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} devLogin={devLoginEnabled()} error={q.error} />
           </div>
           <p className="mt-5 text-center text-xs text-muted">© Reliabilix · <span>Secure sign-in</span></p>
         </div>
