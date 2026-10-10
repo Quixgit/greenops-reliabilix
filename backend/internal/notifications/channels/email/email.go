@@ -35,6 +35,18 @@ type Channel struct {
 	From   string // envelope and header sender, e.g. "Reliabilix <notifications@example.com>"
 	Sender Sender
 	Now    func() time.Time
+	// Config, when set, supplies the sender and the transport on every send, so a change in the operator console
+	// applies without a restart. ok=false means e-mail is not configured right now.
+	Config func(ctx context.Context) (from string, s Sender, ok bool)
+}
+
+// Available reports whether messages can be sent now; the notification catalog hides the channel otherwise.
+func (c *Channel) Available(ctx context.Context) bool {
+	if c.Config != nil {
+		_, _, ok := c.Config(ctx)
+		return ok
+	}
+	return c.Sender != nil
 }
 
 func New(from string, s Sender) *Channel { return &Channel{From: from, Sender: s} }
@@ -114,6 +126,15 @@ func (c *Channel) Message(to string, m domain.Message, now time.Time) ([]byte, s
 }
 
 func (c *Channel) Send(ctx context.Context, t domain.Target, m domain.Message) error {
+	if c.Config != nil {
+		from, s, ok := c.Config(ctx)
+		if !ok {
+			return domain.Permanent(errors.New("e-mail is not configured"))
+		}
+		cc := *c
+		cc.From, cc.Sender, cc.Config = from, s, nil
+		return cc.Send(ctx, t, m)
+	}
 	if c.Sender == nil {
 		return domain.Permanent(errors.New("e-mail is not configured"))
 	}
@@ -215,4 +236,44 @@ func (l Log) SendMail(_ context.Context, _, to string, msg []byte) error {
 		l.L.Info("e-mail (development: not sent)", "to", Mask(to), "bytes", len(msg))
 	}
 	return nil
+}
+
+// Check opens a connection, negotiates TLS and authenticates, then quits without sending anything. It is the
+// "test connection" of the operator console.
+func (s SMTP) Check(ctx context.Context) error {
+	addr := net.JoinHostPort(s.Host, strconv.Itoa(s.Port))
+	d := net.Dialer{Timeout: 10 * time.Second}
+	tlsCfg := &tls.Config{ServerName: s.Host, MinVersion: tls.VersionTLS12}
+	var conn net.Conn
+	var err error
+	if s.Port == 465 {
+		conn, err = (&tls.Dialer{NetDialer: &d, Config: tlsCfg}).DialContext(ctx, "tcp", addr)
+	} else {
+		conn, err = d.DialContext(ctx, "tcp", addr)
+	}
+	if err != nil {
+		return errors.New("could not connect to the mail server")
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(20 * time.Second))
+	c, err := smtp.NewClient(conn, s.Host)
+	if err != nil {
+		return errors.New("the mail server did not greet us")
+	}
+	defer func() { _ = c.Close() }()
+	if s.Port != 465 {
+		if ok, _ := c.Extension("STARTTLS"); ok {
+			if err := c.StartTLS(tlsCfg); err != nil {
+				return errors.New("TLS handshake with the mail server failed")
+			}
+		} else if !s.AllowPlain {
+			return errors.New("the mail server does not offer TLS")
+		}
+	}
+	if s.Username != "" {
+		if err := c.Auth(smtp.PlainAuth("", s.Username, s.Password, s.Host)); err != nil {
+			return errors.New("mail server login failed")
+		}
+	}
+	return c.Quit()
 }

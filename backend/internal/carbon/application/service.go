@@ -89,8 +89,10 @@ func (s *Service) intensityNow(ctx context.Context, region string) (float64, boo
 			}
 			return in.GPerKWh, true, nil
 		}
-		observability.CarbonAPIErrors.Inc()
-		s.Log.Warn("grid provider failed; using stored readings", "region", region, "err", err)
+		if !errors.Is(err, domain.ErrNotConfigured) {
+			observability.CarbonAPIErrors.Inc()
+			s.Log.Warn("grid provider failed; using stored readings", "region", region, "err", err)
+		}
 	}
 	return s.Store.IntensityAt(ctx, region, time.Now())
 }
@@ -309,7 +311,7 @@ func (s *Service) Trend(ctx context.Context, tenantID string, project *string, f
 // RefreshGrid persists the latest intensity of every region the provider covers, so dashboards read local data.
 func (s *Service) RefreshGrid(ctx context.Context) error {
 	lister, ok := s.Provider.(domain.RegionLister)
-	if !ok {
+	if !ok || len(lister.Regions()) == 0 {
 		s.Log.Warn("grid refresh skipped: no provider configured")
 		return nil
 	}

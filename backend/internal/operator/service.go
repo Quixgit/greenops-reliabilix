@@ -20,12 +20,14 @@ type Deps struct {
 	System func() domain.System
 	// Settings is the configuration engine (ADR-0023).
 	Settings domain.SettingsPort
+	// Integrations is the external-service credential store (ADR-0029).
+	Integrations domain.IntegrationsPort
 }
 
 type Module struct{ h ohttp.Handlers }
 
 func New(d Deps) *Module {
-	return &Module{h: ohttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings}}}
+	return &Module{h: ohttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings, Integrations: d.Integrations}}}
 }
 
 func (*Module) Name() string                  { return "operator" }

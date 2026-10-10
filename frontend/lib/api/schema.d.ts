@@ -1763,6 +1763,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/operator/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * External services the platform talks to and whether they are set up
+         * @description Operator console. Every field says where its value comes from (console, environment or not set). The value
+         *     of a secret field is never returned; only whether it is configured and a masked hint.
+         */
+        get: operations["listOperatorIntegrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/integrations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or reset the values of one integration
+         * @description Operator console, admin operators only. `null` resets a field to the deployment environment. Secret values are
+         *     stored sealed. The response is the new list of statuses.
+         */
+        put: operations["setOperatorIntegration"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/integrations/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check an integration with its current values
+         * @description Operator console, admin operators only. Answers 200 with `ok` and a short, safe message.
+         */
+        post: operations["testOperatorIntegration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operator/settings": {
         parameters: {
             query?: never;
@@ -2312,6 +2374,35 @@ export interface components {
             acknowledged_at?: string | null;
             /** Format: date-time */
             resolved_at?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        IntegrationStatus: {
+            id?: string;
+            name?: string;
+            description?: string;
+            testable?: boolean;
+            ready?: boolean;
+            fields?: ({
+                key?: string;
+                label?: string;
+                help?: string;
+                placeholder?: string;
+                secret?: boolean;
+                required?: boolean;
+                env?: string;
+                default?: string;
+                configured?: boolean;
+                /** @enum {string} */
+                source?: "console" | "environment" | "not_set";
+                value?: string;
+                hint?: string;
+                /** Format: date-time */
+                updated_at?: string;
+                updated_by?: string;
+            } & {
+                [key: string]: unknown;
+            })[];
         } & {
             [key: string]: unknown;
         };
@@ -5508,6 +5599,95 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IntegrationStatus"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    setOperatorIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    values: {
+                        [key: string]: string | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["IntegrationStatus"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    testOperatorIntegration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok?: boolean;
+                        message?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
     getOperatorSettings: {

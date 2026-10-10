@@ -13,6 +13,8 @@ type Service struct {
 	Repo     domain.Repository
 	System   func() domain.System
 	Settings domain.SettingsPort
+	// Integrations manages external-service credentials (optional: nil answers 404).
+	Integrations domain.IntegrationsPort
 }
 
 // Authorize resolves the operator behind a verified subject. write=true additionally demands an admin operator.

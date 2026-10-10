@@ -17,6 +17,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/errlog"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/secretbox"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
@@ -26,25 +27,33 @@ import (
 // buildNotifications registers the channels this deployment offers and the key that protects destination
 // addresses. This is the one place that knows every channel: adding one means implementing domain.Channel and
 // appending it here.
-func buildNotifications(cfg config.Config, log *slog.Logger, pool *pgxpool.Pool, q queue.Enqueuer, members tenantsapp.Service, errs errlog.Recorder, st settings.Reader, limits entitlements.Gate) (*notifications.Module, error) {
-	box, err := notificationsBox(cfg, log)
-	if err != nil {
-		return nil, err
-	}
+func buildNotifications(cfg config.Config, log *slog.Logger, pool *pgxpool.Pool, q queue.Enqueuer, members tenantsapp.Service, errs errlog.Recorder, st settings.Reader, limits entitlements.Gate, ints *integrations.Store, box *secretbox.Box) (*notifications.Module, error) {
 	// Webhook and Slack call URLs chosen by tenants: public https endpoints only, except in development.
 	opts := safehttp.Options{AllowPrivate: cfg.IsDev(), AllowHTTP: cfg.IsDev()}
 	channels := []domain.Channel{webhook.New(opts), slack.New(safehttp.Options{})}
 	var stubbed []domain.Kind // channels running on a development stand-in: shown as such in the UI
-	switch {
-	case cfg.SMTPHost != "":
-		channels = append(channels, email.New(cfg.SMTPFrom, email.SMTP{Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername,
-			Password: cfg.SMTPPassword, AllowPlain: cfg.IsDev() && cfg.SMTPAllowPlain}))
-	case cfg.IsDev():
-		log.Warn("SMTP_HOST not set: e-mail notifications are only logged (development)")
-		channels = append(channels, email.New("Reliabilix <notifications@localhost>", email.Log{L: log}))
-		stubbed = append(stubbed, domain.KindEmail)
-	default:
-		log.Warn("SMTP_HOST not set: the e-mail notification channel is unavailable")
+	// E-mail is always registered; the server, the sender and the credentials are read on every send, so setting them
+	// in the operator console takes effect without a restart. Until they are set the channel is hidden (production)
+	// or only logs (development).
+	allowPlain := cfg.IsDev() && cfg.SMTPAllowPlain
+	em := email.New("", nil)
+	em.Config = func(ctx context.Context) (string, email.Sender, bool) {
+		if s, from, ok := smtpFrom(ctx, ints, allowPlain); ok {
+			return from, s, true
+		}
+		if cfg.IsDev() {
+			return "Reliabilix <notifications@localhost>", email.Log{L: log}, true
+		}
+		return "", nil, false
+	}
+	channels = append(channels, em)
+	if _, _, ok := smtpFrom(context.Background(), ints, allowPlain); !ok {
+		if cfg.IsDev() {
+			log.Warn("SMTP is not configured: e-mail notifications are only logged (development)")
+			stubbed = append(stubbed, domain.KindEmail)
+		} else {
+			log.Warn("SMTP is not configured: the e-mail channel stays hidden until it is set in the operator console")
+		}
 	}
 	return notifications.New(notifications.Deps{Pool: pool, Log: log, Queue: q, Channels: domain.NewRegistry(channels...), Box: box,
 		Directory: memberDirectory{tenants: members}, BaseURL: cfg.PublicBaseURL, Stubbed: stubbed, Errors: errs, Settings: st, Limits: limits}), nil

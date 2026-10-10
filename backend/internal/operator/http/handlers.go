@@ -16,6 +16,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
@@ -32,6 +33,9 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 	r.With(read).Get("/operator/connections/unhealthy", h.unhealthy)
 	r.With(read).Get("/operator/system", h.system)
 	r.With(read).Get("/operator/errors", h.errors)
+	r.With(read).Get("/operator/integrations", h.integrations)
+	r.With(write).Put("/operator/integrations/{id}", h.setIntegration)
+	r.With(write).Post("/operator/integrations/{id}/test", h.testIntegration)
 	r.With(read).Get("/operator/settings", h.platformSettings)
 	r.With(write).Patch("/operator/settings", h.setPlatformSettings)
 	r.With(write).Post("/operator/settings/reset", h.resetPlatformSettings)
@@ -238,6 +242,66 @@ func (h Handlers) writeView(w http.ResponseWriter, r *http.Request, items []sett
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, settingsView{Groups: h.Svc.Settings.Groups(), Items: items})
+}
+
+func (h Handlers) integrations(w http.ResponseWriter, r *http.Request) {
+	if h.Svc.Integrations == nil {
+		httpx.NotFound(w, r)
+		return
+	}
+	items, err := h.Svc.Integrations.Statuses(r.Context())
+	list(w, r, items, err)
+}
+
+func integrationFail(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, integrations.ErrUnknown):
+		httpx.NotFound(w, r)
+	case errors.Is(err, integrations.ErrField):
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid value", err.Error())
+	case errors.Is(err, integrations.ErrNoBox):
+		httpx.WriteProblem(w, r, http.StatusServiceUnavailable, "secrets cannot be stored", "No sealing key is configured on the server (NOTIFICATIONS_SECRET_KEY).")
+	default:
+		httpx.Internal(w, r, err)
+	}
+}
+
+// setIntegration takes {"values": {"<field>": "<value>" | null}}. null returns the field to the deployment
+// environment. Nothing is echoed back: the response is the new status without any secret.
+func (h Handlers) setIntegration(w http.ResponseWriter, r *http.Request) {
+	if h.Svc.Integrations == nil {
+		httpx.NotFound(w, r)
+		return
+	}
+	var in struct {
+		Values map[string]*string `json:"values"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil || len(in.Values) == 0 || len(in.Values) > 20 {
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", `body must be {"values": {"<field>": "<value>" | null}}`)
+		return
+	}
+	id := chi.URLParam(r, "id")
+	if err := h.Svc.Integrations.Set(r.Context(), operatorOf(r).Subject, id, in.Values); err != nil {
+		integrationFail(w, r, err)
+		return
+	}
+	h.integrations(w, r)
+}
+
+func (h Handlers) testIntegration(w http.ResponseWriter, r *http.Request) {
+	if h.Svc.Integrations == nil {
+		httpx.NotFound(w, r)
+		return
+	}
+	msg, err := h.Svc.Integrations.Test(r.Context(), chi.URLParam(r, "id"))
+	switch {
+	case errors.Is(err, integrations.ErrUnknown):
+		httpx.NotFound(w, r)
+	case err != nil:
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": false, "message": err.Error()})
+	default:
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "message": msg})
+	}
 }
 
 func decodeValues(w http.ResponseWriter, r *http.Request) (map[string]json.RawMessage, bool) {

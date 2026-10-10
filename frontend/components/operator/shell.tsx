@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Bell, Cloud, LayoutDashboard, Server, ShieldCheck, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Bell, Cloud, LayoutDashboard, Plug, Server, ShieldCheck, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/operator/errors", label: "Errors", icon: AlertTriangle },
   { href: "/operator/notifications", label: "Notifications", icon: Bell },
   { href: "/operator/connections", label: "Connections", icon: Cloud },
+  { href: "/operator/integrations", label: "Integrations", icon: Plug },
   { href: "/operator/system", label: "System", icon: Server },
 ];
 

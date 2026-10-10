@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
@@ -130,6 +131,15 @@ type Repository interface {
 	SetErrorStatus(ctx context.Context, actor, id, status string) (bool, error)
 	RetryDelivery(ctx context.Context, actor, tenantID, deliveryID string) (bool, error)
 	SetDestinationEnabled(ctx context.Context, actor, tenantID, destinationID string, enabled bool) (bool, error)
+}
+
+// IntegrationsPort is what the console needs to manage external-service credentials (ADR-0029), wired in
+// internal/app. Values of secret fields never come back through it.
+type IntegrationsPort interface {
+	Statuses(ctx context.Context) ([]integrations.Status, error)
+	Set(ctx context.Context, actor, integration string, values map[string]*string) error
+	// Test checks the integration with its current values and returns a short, safe message.
+	Test(ctx context.Context, integration string) (string, error)
 }
 
 // SettingsPort is what the console needs from the settings engine (wired in internal/app).

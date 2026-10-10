@@ -211,6 +211,20 @@ export const operatorError = z.object({
 });
 export type OperatorError = z.infer<typeof operatorError>;
 export const operatorErrors = items(operatorError);
+// External services managed in the operator console. A secret field never carries a value, only "configured".
+export const integrationField = z.object({
+  key: z.string(), label: z.string(), help: z.string().optional(), placeholder: z.string().optional(),
+  secret: z.boolean(), required: z.boolean(), env: z.string(), default: z.string().optional(),
+  configured: z.boolean(), source: z.enum(["console", "environment", "not_set"]),
+  value: z.string().optional(), hint: z.string().optional(), updated_at: z.string().optional(), updated_by: z.string().optional(),
+});
+export const managedIntegration = z.object({
+  id: z.string(), name: z.string(), description: z.string(), testable: z.boolean(), ready: z.boolean(), fields: z.array(integrationField),
+});
+export type ManagedIntegration = z.infer<typeof managedIntegration>;
+export type IntegrationField = z.infer<typeof integrationField>;
+export const managedIntegrations = items(managedIntegration);
+export const testResult = z.object({ ok: z.boolean(), message: z.string() });
 export const changed = z.record(z.string(), z.unknown());
 
 // ---- Settings engine (ADR-0023): the form is generated from this description ------------------------------------

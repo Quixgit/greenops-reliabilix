@@ -261,6 +261,9 @@ func (s Service) CreateDestination(ctx context.Context, tenantID string, actor a
 	if err != nil {
 		return Created{}, err
 	}
+	if a, ok := ch.(domain.AvailableChannel); ok && !a.Available(ctx) {
+		return Created{}, domain.ErrUnknownKind // not set up on this platform (yet): the same answer as a channel that does not exist
+	}
 	d := domain.Destination{Kind: in.Kind, Name: strings.TrimSpace(in.Name), EventTypes: in.EventTypes, MinSeverity: in.MinSeverity, Enabled: true, CreatedBy: actor.Subject}
 	if len(d.EventTypes) == 0 {
 		d.EventTypes = []string{notify.Wildcard}
@@ -355,10 +358,10 @@ type Catalog struct {
 	Stubbed    []domain.Kind     `json:"stubbed"`
 }
 
-func (s Service) Catalog() Catalog {
+func (s Service) Catalog(ctx context.Context) Catalog {
 	stubbed := s.Stubbed
 	if stubbed == nil {
 		stubbed = []domain.Kind{}
 	}
-	return Catalog{Channels: s.Channels.Kinds(), EventTypes: notify.Catalog(), Configured: s.Box.Configured(), Stubbed: stubbed}
+	return Catalog{Channels: s.Channels.KindsAvailable(ctx), EventTypes: notify.Catalog(), Configured: s.Box.Configured(), Stubbed: stubbed}
 }

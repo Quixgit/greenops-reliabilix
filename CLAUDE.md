@@ -24,6 +24,9 @@ result in the changelog; do not change the stage on your own.
 ## Conventions
 
 - Backend: Go modular monolith; domains never import each other (ports wired in `internal/app`); every tenant query runs
-  in `database.WithTenantTx`; secrets never in the database or the frontend.
+  in `database.WithTenantTx`; secrets never in the database in clear text (sealed only) and never in the frontend.
+- External services: a key or an address of an external service gets an entry in `platform/integrations` (catalog,
+  console, sealed secrets) in the same change as the code that uses it; read it through the store, never from `os.Getenv`
+  at the call site (ADR-0029).
 - Settings: add a `Def` to `platform/settings/catalog.go` only together with the code that honours it.
 - No `Co-Authored-By` lines in commit messages (user's global rule).

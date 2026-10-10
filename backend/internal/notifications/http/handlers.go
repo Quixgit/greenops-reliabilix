@@ -56,8 +56,8 @@ func id(w http.ResponseWriter, r *http.Request) (string, bool) {
 	return v, ok
 }
 
-func (h Handlers) catalog(w http.ResponseWriter, _ *http.Request) {
-	httpx.WriteJSON(w, http.StatusOK, h.Svc.Catalog())
+func (h Handlers) catalog(w http.ResponseWriter, r *http.Request) {
+	httpx.WriteJSON(w, http.StatusOK, h.Svc.Catalog(r.Context()))
 }
 
 func (h Handlers) list(w http.ResponseWriter, r *http.Request) {

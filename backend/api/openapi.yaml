@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.5.0
+  version: 0.6.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -2757,6 +2757,117 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/operator/integrations:
+    get:
+      operationId: listOperatorIntegrations
+      summary: External services the platform talks to and whether they are set up
+      tags:
+      - operator
+      description: |
+        Operator console. Every field says where its value comes from (console, environment or not set). The value
+        of a secret field is never returned; only whether it is configured and a masked hint.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntegrationStatus'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/integrations/{id}:
+    put:
+      operationId: setOperatorIntegration
+      summary: Set or reset the values of one integration
+      tags:
+      - operator
+      description: |
+        Operator console, admin operators only. `null` resets a field to the deployment environment. Secret values are
+        stored sealed. The response is the new list of statuses.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - values
+              properties:
+                values:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    nullable: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IntegrationStatus'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+        '503':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/integrations/{id}/test:
+    post:
+      operationId: testOperatorIntegration
+      summary: Check an integration with its current values
+      tags:
+      - operator
+      description: Operator console, admin operators only. Answers 200 with `ok` and a short, safe message.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
   /api/v1/operator/settings:
     get:
       operationId: getOperatorSettings
@@ -3812,6 +3923,59 @@ components:
           type: string
           format: date-time
           nullable: true
+      additionalProperties: true
+    IntegrationStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        testable:
+          type: boolean
+        ready:
+          type: boolean
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              label:
+                type: string
+              help:
+                type: string
+              placeholder:
+                type: string
+              secret:
+                type: boolean
+              required:
+                type: boolean
+              env:
+                type: string
+              default:
+                type: string
+              configured:
+                type: boolean
+              source:
+                type: string
+                enum:
+                - console
+                - environment
+                - not_set
+              value:
+                type: string
+              hint:
+                type: string
+              updated_at:
+                type: string
+                format: date-time
+              updated_by:
+                type: string
+            additionalProperties: true
       additionalProperties: true
     CarbonTrendPoint:
       type: object

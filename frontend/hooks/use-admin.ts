@@ -34,3 +34,5 @@ export const useOperatorErrors = (status: string, service: string) =>
     queryFn: () => api("operator/errors", s.operatorErrors, { status, service: service === "all" ? undefined : service, limit: "100" }),
     refetchInterval: 30_000,
   });
+export const useOperatorIntegrations = () =>
+  useQuery({ queryKey: ["op-integrations"], queryFn: () => api("operator/integrations", s.managedIntegrations) });

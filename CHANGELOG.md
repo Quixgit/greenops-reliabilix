@@ -5,6 +5,18 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.10] - 2026-10-10
+
+### Added
+- Operator console **Integrations** page ([ADR-0029](docs/adr/0029-integration-credentials-in-the-console.md)): the
+  Electricity Maps key and zone overrides and the SMTP server, credentials and sender are set in the console, win over
+  the environment, take effect without a restart, secrets are stored sealed and never shown, and each has a connection
+  test. Fields fixed by the deployment are listed read-only with their state. API contract 0.6.0. Migration 0022.
+
+### Changed
+- The e-mail channel is now configured at run time: it is hidden (production) or only logs (development) until the
+  server and the sender are set.
+
 ## [0.1.0-alpha.9] - 2026-10-10
 
 ### Added

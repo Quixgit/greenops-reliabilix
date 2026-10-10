@@ -285,7 +285,7 @@ func TestCreateDestinationRules(t *testing.T) {
 	if _, err := e.svc.CreateDestination(ctx, "t1", admin, in(domain.KindWebhook, "https://x.example.com")); !errors.Is(err, domain.ErrNotConfigured) {
 		t.Errorf("without a key: %v", err)
 	}
-	if e.svc.Catalog().Configured {
+	if e.svc.Catalog(context.Background()).Configured {
 		t.Error("catalog must report an unconfigured deployment")
 	}
 }

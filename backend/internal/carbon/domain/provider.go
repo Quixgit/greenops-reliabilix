@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -18,6 +19,10 @@ type Forecast struct {
 	Region string
 	Points []Intensity
 }
+
+// ErrNotConfigured is returned by a provider that has no credentials (yet). Callers fall back to stored readings
+// quietly: it is a state of the deployment, not a failure of the provider.
+var ErrNotConfigured = errors.New("carbon data provider is not configured")
 
 // RegionLister is implemented by providers that can enumerate the regions they cover.
 type RegionLister interface{ Regions() []string }

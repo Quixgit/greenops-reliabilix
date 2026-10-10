@@ -27,6 +27,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/errlog"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
@@ -74,18 +75,22 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	if err != nil {
 		return nil, err
 	}
-	var grid carbondomain.CarbonDataProvider
-	switch {
-	case cfg.ElectricityMapsKey != "":
-		overrides, err := electricitymaps.ParseOverrides(cfg.ElectricityMapsZoneOverrides)
-		if err != nil {
+	// External-service credentials come from the operator console first and the environment second (ADR-0029).
+	box, err := notificationsBox(cfg, log)
+	if err != nil {
+		return nil, err
+	}
+	ints := &integrations.Store{Pool: pool, Box: box, Env: integrationEnv(cfg)}
+	if cfg.ElectricityMapsZoneOverrides != "" { // a typo in the environment should stop the start, as before
+		if _, err := electricitymaps.ParseOverrides(cfg.ElectricityMapsZoneOverrides); err != nil {
 			return nil, err
 		}
-		grid = electricitymaps.New(cfg.ElectricityMapsKey, overrides)
-	case cfg.IsDev():
-		grid = electricitymaps.Static{GPerKWh: 400}
-	default:
-		log.Warn("ELECTRICITYMAPS_API_KEY not set: only stored grid intensity is used")
+	}
+	var grid carbondomain.CarbonDataProvider = &electricitymaps.Dynamic{
+		DevFallback: cfg.IsDev(),
+		Source: func(ctx context.Context) (string, string) {
+			return ints.Value(ctx, "electricitymaps", "api_key"), ints.Value(ctx, "electricitymaps", "zone_overrides")
+		},
 	}
 	registry := o.providers
 	if registry == nil {
@@ -108,7 +113,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	cfgr := settingsM.Svc // settings.Reader for every domain
 	limits := limitsGate{pool: pool, cfg: cfgr}
 	tenantsM := tenants.New(tenants.Deps{Pool: pool, Settings: cfgr, Limits: limits})
-	notifyM, err := buildNotifications(cfg, log, pool, q, tenantsM.Svc, o.errors, cfgr, limits)
+	notifyM, err := buildNotifications(cfg, log, pool, q, tenantsM.Svc, o.errors, cfgr, limits, ints, box)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +136,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
-		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, alertsM,
+		dashboard.New(pool), recsM, kubernetes.New(), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}}), lifecycleM, alertsM,
 	}
 	c.Settings = cfgr
 	c.jobs = []queue.JobRegistrar{cloudM, carbonM, recsM, reportsM, notifyM, lifecycleM, alertsM}

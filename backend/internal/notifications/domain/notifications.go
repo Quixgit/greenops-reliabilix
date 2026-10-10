@@ -133,6 +133,12 @@ type Channel interface {
 	Send(ctx context.Context, t Target, m Message) error
 }
 
+// AvailableChannel is implemented by channels that may be configured at run time (e-mail): when it reports false the
+// channel is hidden from the catalog and refused for new destinations.
+type AvailableChannel interface {
+	Available(ctx context.Context) bool
+}
+
 // PersonalChannel is implemented by channels whose address identifies a person (e-mail). The platform sends
 // to such addresses only when they belong to a member of the tenant, so it cannot be used to mail strangers.
 type PersonalChannel interface{ PersonalAddress() bool }
@@ -162,6 +168,20 @@ func (r *Registry) Get(k Kind) (Channel, error) {
 }
 
 // Kinds lists the available channels in a stable order.
+// KindsAvailable is Kinds without the channels that report themselves unavailable right now.
+func (r *Registry) KindsAvailable(ctx context.Context) []Kind {
+	var out []Kind
+	for _, k := range r.Kinds() {
+		if c, err := r.Get(k); err == nil {
+			if a, ok := c.(AvailableChannel); ok && !a.Available(ctx) {
+				continue
+			}
+		}
+		out = append(out, k)
+	}
+	return out
+}
+
 func (r *Registry) Kinds() []Kind {
 	out := []Kind{}
 	if r != nil {
