@@ -115,10 +115,34 @@ export const activity = items(z.object({ id: z.number(), action: z.string(), tar
 export type Activity = z.infer<typeof activity>[number];
 
 export const project = z.object({
-  id: z.string(), name: z.string(), functional_unit: z.string(), created_at: z.string(),
+  id: z.string(), name: z.string(), functional_unit: z.string(), team_id: z.string().nullish(), created_at: z.string(),
 });
 export const projects = items(project);
 export type Project = z.infer<typeof project>;
+
+// Organization structure: teams own projects, environments hold a project's connections, allocation rules split shared cost.
+export const team = z.object({ id: z.string(), name: z.string(), created_at: z.string() });
+export const teams = items(team);
+export type Team = z.infer<typeof team>;
+export const environment = z.object({
+  id: z.string(), project_id: z.string(), name: z.string(),
+  kind: z.enum(["production", "staging", "development", "test", "other"]), connection_ids: z.array(z.string()),
+});
+export const environments = items(environment);
+export type Environment = z.infer<typeof environment>;
+export const allocationRule = z.object({
+  id: z.string(), name: z.string(), source_project_id: z.string(), service_name: z.string(),
+  targets: z.array(z.object({ project_id: z.string(), weight: z.number() })),
+});
+export const allocationRules = items(allocationRule);
+export type AllocationRule = z.infer<typeof allocationRule>;
+export const allocationReport = z.object({
+  currency: z.string(), from: z.string(), to: z.string(), excluded: z.number(),
+  projects: z.array(z.object({ project_id: z.string(), direct: z.number(), allocated_in: z.number(), allocated_out: z.number(), total: z.number() })),
+  environments: z.array(z.object({ project_id: z.string(), environment_id: z.string().nullable(), cost: z.number() })),
+  teams: z.array(z.object({ team_id: z.string().nullable(), total: z.number() })),
+});
+export type AllocationReport = z.infer<typeof allocationReport>;
 
 export const connection = z.object({
   id: z.string(), project_id: z.string(), provider: z.string(), account_ref: z.string(),

@@ -11,6 +11,8 @@ import (
 
 type Service struct {
 	Repo domain.Repository
+	// Structure stores teams, environments and allocation rules; optional for callers that never touch them.
+	Structure domain.StructureRepository
 	// Limits is optional: when set, creating a project asks whether the organization has room for one more.
 	Limits entitlements.Gate
 }

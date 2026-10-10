@@ -15,6 +15,7 @@ type Project struct {
 	TenantID       string    `json:"tenant_id"`
 	Name           string    `json:"name"`
 	FunctionalUnit string    `json:"functional_unit"` // SCI "R": what one unit of useful work is, e.g. "api_request"
+	TeamID         *string   `json:"team_id"`
 	CreatedAt      time.Time `json:"created_at"`
 }
 
@@ -25,6 +26,8 @@ var (
 	ErrNotFound      = errors.New("not found")
 	ErrInvalidPeriod = errors.New("invalid period")
 	ErrInvalidPolicy = errors.New("invalid policy")
+	// ErrInvalidAllocation: a team, environment or allocation rule that cannot be stored as asked.
+	ErrInvalidAllocation = errors.New("invalid organization structure")
 )
 
 func New(tenantID, name, functionalUnit string, now time.Time) (Project, error) {

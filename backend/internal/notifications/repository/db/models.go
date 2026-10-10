@@ -292,6 +292,37 @@ type PlatformOperatorAccessLog struct {
 	Action      string    `json:"action"`
 }
 
+type ProjectsAllocationRule struct {
+	ID              string    `json:"id"`
+	TenantID        string    `json:"tenant_id"`
+	Name            string    `json:"name"`
+	SourceProjectID string    `json:"source_project_id"`
+	ServiceName     string    `json:"service_name"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+type ProjectsAllocationTarget struct {
+	RuleID    string  `json:"rule_id"`
+	TenantID  string  `json:"tenant_id"`
+	ProjectID string  `json:"project_id"`
+	Weight    float64 `json:"weight"`
+}
+
+type ProjectsEnvironment struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	ProjectID string    `json:"project_id"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ProjectsEnvironmentConnection struct {
+	TenantID      string `json:"tenant_id"`
+	EnvironmentID string `json:"environment_id"`
+	ConnectionID  string `json:"connection_id"`
+}
+
 type ProjectsFunctionalUnitCount struct {
 	ID          string    `json:"id"`
 	TenantID    string    `json:"tenant_id"`
@@ -320,6 +351,14 @@ type ProjectsProject struct {
 	Name           string    `json:"name"`
 	FunctionalUnit string    `json:"functional_unit"`
 	CreatedAt      time.Time `json:"created_at"`
+	TeamID         *string   `json:"team_id"`
+}
+
+type ProjectsTeam struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type RecommendationsImpactVerification struct {

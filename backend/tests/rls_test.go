@@ -25,7 +25,7 @@ func TestRLSEnabledOnAllTenantTables(t *testing.T) {
 		FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind IN ('r','p') AND c.relispartition = false
 		  AND n.nspname IN ('tenants','projects','cloudaccounts','usage','carbon','finops','recommendations','reports','audit','automation','notifications','settings')
-		  AND n.nspname || '.' || c.relname NOT IN ('carbon.grid_intensity', 'finops.region_price_index', 'settings.platform_values')`)
+		  AND n.nspname || '.' || c.relname NOT IN ('carbon.grid_intensity', 'finops.region_price_index', 'finops.fx_rates', 'settings.platform_values')`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestDashboardIsolationAndEmptyTenant(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := owner.Exec(ctx, `INSERT INTO carbon.calculations (tenant_id,project_id,provider,region_id,service_name,service_category,method,period_start,period_end,energy_kwh,intensity_g_per_kwh,carbon_kg_co2e,methodology_version)
-		VALUES ($1,$2,'aws','eu-central-1','Amazon EC2','compute','cost_based',$3,$4,5,400,2,'RLX-PROVISIONAL-1')`, a, proj, day, day.Add(24*time.Hour)); err != nil {
+		VALUES ($1,$2,'aws','eu-central-1','Amazon EC2','compute','cost_based',$3,$4,5,400,2,'RLX-CCF-1')`, a, proj, day, day.Add(24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := owner.Exec(ctx, `INSERT INTO audit.audit_logs (tenant_id,actor_user_id,action,target) VALUES ($1,'u','project.created','project:p'),($1,'u','member.role_changed','member:x')`, a); err != nil {

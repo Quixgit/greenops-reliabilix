@@ -40,7 +40,7 @@ func TestCostViewsNeverMixCurrencies(t *testing.T) {
 		}
 	}
 	ins("EC2", "EUR", 500)
-	ins("S3", "USD", 100) // a smaller amount in another currency must not be added to the EUR total
+	ins("S3", "USD", 100) // no USD/EUR rate is stored in this database: the amount must be left out, not added or guessed
 
 	fin := c.must("GET", "/api/v1/finops/summary", alice, "", 200)
 	if str(fin, "currency") != "EUR" || fin["total_cost"].(float64) != 500 {
@@ -53,8 +53,11 @@ func TestCostViewsNeverMixCurrencies(t *testing.T) {
 	if cost != 500 {
 		t.Errorf("dashboard trend cost = %v, want 500", cost)
 	}
-	svcs := items(c.must("GET", "/api/v1/dashboard/services", alice, "", 200))
-	if len(svcs) != 1 {
-		t.Errorf("dashboard services = %v, want only the EUR service", svcs)
+	var svcCost float64
+	for _, s := range items(c.must("GET", "/api/v1/dashboard/services", alice, "", 200)) {
+		svcCost += s.(map[string]any)["cost"].(float64)
+	}
+	if svcCost != 500 {
+		t.Errorf("dashboard services add up to %v, want 500 (the amount without a rate is left out)", svcCost)
 	}
 }

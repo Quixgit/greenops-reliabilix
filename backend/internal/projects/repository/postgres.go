@@ -17,7 +17,7 @@ import (
 type Postgres struct{ Pool *pgxpool.Pool }
 
 func toProject(r db.ProjectsProject) domain.Project {
-	return domain.Project{ID: r.ID, TenantID: r.TenantID, Name: r.Name, FunctionalUnit: r.FunctionalUnit, CreatedAt: r.CreatedAt}
+	return domain.Project{ID: r.ID, TenantID: r.TenantID, Name: r.Name, FunctionalUnit: r.FunctionalUnit, TeamID: r.TeamID, CreatedAt: r.CreatedAt}
 }
 
 func (r Postgres) List(ctx context.Context, tenantID string) ([]domain.Project, error) {

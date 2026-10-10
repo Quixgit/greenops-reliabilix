@@ -10,10 +10,174 @@ import (
 	"time"
 )
 
+const addEnvironmentConnections = `-- name: AddEnvironmentConnections :execrows
+INSERT INTO projects.environment_connections (tenant_id, environment_id, connection_id)
+SELECT $1, $2, c.id
+FROM cloudaccounts.connections c
+WHERE c.tenant_id = $1 AND c.project_id = $3 AND c.id = ANY($4::uuid[])
+ON CONFLICT (connection_id) DO UPDATE SET environment_id = EXCLUDED.environment_id
+`
+
+type AddEnvironmentConnectionsParams struct {
+	TenantID      string   `json:"tenant_id"`
+	EnvironmentID string   `json:"environment_id"`
+	ProjectID     string   `json:"project_id"`
+	ConnectionIds []string `json:"connection_ids"`
+}
+
+// Only connections of the environment's own project can be assigned; a connection that is already in another
+// environment moves here.
+func (q *Queries) AddEnvironmentConnections(ctx context.Context, arg AddEnvironmentConnectionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, addEnvironmentConnections,
+		arg.TenantID,
+		arg.EnvironmentID,
+		arg.ProjectID,
+		arg.ConnectionIds,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const allocationCurrency = `-- name: AllocationCurrency :one
+SELECT COALESCE(finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND d.recorded_at >= $2 AND d.recorded_at < $3
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), '')::text AS currency
+`
+
+type AllocationCurrencyParams struct {
+	TenantID string    `json:"tenant_id"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+// The currency the allocation report is shown in: the organization's reporting currency, else the dominant one of the window.
+func (q *Queries) AllocationCurrency(ctx context.Context, arg AllocationCurrencyParams) (string, error) {
+	row := q.db.QueryRow(ctx, allocationCurrency, arg.TenantID, arg.FromTs, arg.ToTs)
+	var currency string
+	err := row.Scan(&currency)
+	return currency, err
+}
+
+const clearEnvironmentConnections = `-- name: ClearEnvironmentConnections :exec
+DELETE FROM projects.environment_connections WHERE tenant_id = $1 AND environment_id = $2
+`
+
+type ClearEnvironmentConnectionsParams struct {
+	TenantID      string `json:"tenant_id"`
+	EnvironmentID string `json:"environment_id"`
+}
+
+func (q *Queries) ClearEnvironmentConnections(ctx context.Context, arg ClearEnvironmentConnectionsParams) error {
+	_, err := q.db.Exec(ctx, clearEnvironmentConnections, arg.TenantID, arg.EnvironmentID)
+	return err
+}
+
+const createAllocationRule = `-- name: CreateAllocationRule :one
+INSERT INTO projects.allocation_rules (tenant_id, name, source_project_id, service_name)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, source_project_id, service_name, created_at
+`
+
+type CreateAllocationRuleParams struct {
+	TenantID        string `json:"tenant_id"`
+	Name            string `json:"name"`
+	SourceProjectID string `json:"source_project_id"`
+	ServiceName     string `json:"service_name"`
+}
+
+type CreateAllocationRuleRow struct {
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	SourceProjectID string    `json:"source_project_id"`
+	ServiceName     string    `json:"service_name"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+func (q *Queries) CreateAllocationRule(ctx context.Context, arg CreateAllocationRuleParams) (CreateAllocationRuleRow, error) {
+	row := q.db.QueryRow(ctx, createAllocationRule,
+		arg.TenantID,
+		arg.Name,
+		arg.SourceProjectID,
+		arg.ServiceName,
+	)
+	var i CreateAllocationRuleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.SourceProjectID,
+		&i.ServiceName,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createAllocationTarget = `-- name: CreateAllocationTarget :exec
+INSERT INTO projects.allocation_targets (rule_id, tenant_id, project_id, weight)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateAllocationTargetParams struct {
+	RuleID    string  `json:"rule_id"`
+	TenantID  string  `json:"tenant_id"`
+	ProjectID string  `json:"project_id"`
+	Weight    float64 `json:"weight"`
+}
+
+func (q *Queries) CreateAllocationTarget(ctx context.Context, arg CreateAllocationTargetParams) error {
+	_, err := q.db.Exec(ctx, createAllocationTarget,
+		arg.RuleID,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.Weight,
+	)
+	return err
+}
+
+const createEnvironment = `-- name: CreateEnvironment :one
+INSERT INTO projects.environments (tenant_id, project_id, name, kind)
+VALUES ($1, $2, $3, $4)
+RETURNING id, project_id, name, kind, created_at
+`
+
+type CreateEnvironmentParams struct {
+	TenantID  string `json:"tenant_id"`
+	ProjectID string `json:"project_id"`
+	Name      string `json:"name"`
+	Kind      string `json:"kind"`
+}
+
+type CreateEnvironmentRow struct {
+	ID        string    `json:"id"`
+	ProjectID string    `json:"project_id"`
+	Name      string    `json:"name"`
+	Kind      string    `json:"kind"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (CreateEnvironmentRow, error) {
+	row := q.db.QueryRow(ctx, createEnvironment,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.Name,
+		arg.Kind,
+	)
+	var i CreateEnvironmentRow
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectID,
+		&i.Name,
+		&i.Kind,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createProject = `-- name: CreateProject :one
 INSERT INTO projects.projects (tenant_id, name, functional_unit)
 VALUES ($1, $2, $3)
-RETURNING id, tenant_id, name, functional_unit, created_at
+RETURNING id, tenant_id, name, functional_unit, created_at, team_id
 `
 
 type CreateProjectParams struct {
@@ -31,8 +195,82 @@ func (q *Queries) CreateProject(ctx context.Context, arg CreateProjectParams) (P
 		&i.Name,
 		&i.FunctionalUnit,
 		&i.CreatedAt,
+		&i.TeamID,
 	)
 	return i, err
+}
+
+const createTeam = `-- name: CreateTeam :one
+INSERT INTO projects.teams (tenant_id, name) VALUES ($1, $2) RETURNING id, name, created_at
+`
+
+type CreateTeamParams struct {
+	TenantID string `json:"tenant_id"`
+	Name     string `json:"name"`
+}
+
+type CreateTeamRow struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (CreateTeamRow, error) {
+	row := q.db.QueryRow(ctx, createTeam, arg.TenantID, arg.Name)
+	var i CreateTeamRow
+	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	return i, err
+}
+
+const deleteAllocationRule = `-- name: DeleteAllocationRule :execrows
+DELETE FROM projects.allocation_rules WHERE tenant_id = $1 AND id = $2
+`
+
+type DeleteAllocationRuleParams struct {
+	TenantID string `json:"tenant_id"`
+	ID       string `json:"id"`
+}
+
+func (q *Queries) DeleteAllocationRule(ctx context.Context, arg DeleteAllocationRuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAllocationRule, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteEnvironment = `-- name: DeleteEnvironment :execrows
+DELETE FROM projects.environments WHERE tenant_id = $1 AND id = $2
+`
+
+type DeleteEnvironmentParams struct {
+	TenantID string `json:"tenant_id"`
+	ID       string `json:"id"`
+}
+
+func (q *Queries) DeleteEnvironment(ctx context.Context, arg DeleteEnvironmentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteEnvironment, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteTeam = `-- name: DeleteTeam :execrows
+DELETE FROM projects.teams WHERE tenant_id = $1 AND id = $2
+`
+
+type DeleteTeamParams struct {
+	TenantID string `json:"tenant_id"`
+	ID       string `json:"id"`
+}
+
+func (q *Queries) DeleteTeam(ctx context.Context, arg DeleteTeamParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTeam, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const functionalUnitsForDay = `-- name: FunctionalUnitsForDay :one
@@ -54,6 +292,27 @@ func (q *Queries) FunctionalUnitsForDay(ctx context.Context, arg FunctionalUnits
 	var units float64
 	err := row.Scan(&units)
 	return units, err
+}
+
+const getEnvironment = `-- name: GetEnvironment :one
+SELECT id, project_id FROM projects.environments WHERE tenant_id = $1 AND id = $2
+`
+
+type GetEnvironmentParams struct {
+	TenantID string `json:"tenant_id"`
+	ID       string `json:"id"`
+}
+
+type GetEnvironmentRow struct {
+	ID        string `json:"id"`
+	ProjectID string `json:"project_id"`
+}
+
+func (q *Queries) GetEnvironment(ctx context.Context, arg GetEnvironmentParams) (GetEnvironmentRow, error) {
+	row := q.db.QueryRow(ctx, getEnvironment, arg.TenantID, arg.ID)
+	var i GetEnvironmentRow
+	err := row.Scan(&i.ID, &i.ProjectID)
+	return i, err
 }
 
 const getPolicy = `-- name: GetPolicy :one
@@ -85,7 +344,7 @@ func (q *Queries) GetPolicy(ctx context.Context, arg GetPolicyParams) (ProjectsP
 }
 
 const getProject = `-- name: GetProject :one
-SELECT id, tenant_id, name, functional_unit, created_at
+SELECT id, tenant_id, name, functional_unit, created_at, team_id
 FROM projects.projects WHERE tenant_id = $1 AND id = $2
 `
 
@@ -103,8 +362,124 @@ func (q *Queries) GetProject(ctx context.Context, arg GetProjectParams) (Project
 		&i.Name,
 		&i.FunctionalUnit,
 		&i.CreatedAt,
+		&i.TeamID,
 	)
 	return i, err
+}
+
+const listAllocationRules = `-- name: ListAllocationRules :many
+SELECT id, name, source_project_id, service_name, created_at
+FROM projects.allocation_rules WHERE tenant_id = $1 ORDER BY created_at LIMIT 500
+`
+
+type ListAllocationRulesRow struct {
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	SourceProjectID string    `json:"source_project_id"`
+	ServiceName     string    `json:"service_name"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+func (q *Queries) ListAllocationRules(ctx context.Context, tenantID string) ([]ListAllocationRulesRow, error) {
+	rows, err := q.db.Query(ctx, listAllocationRules, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllocationRulesRow{}
+	for rows.Next() {
+		var i ListAllocationRulesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.SourceProjectID,
+			&i.ServiceName,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllocationTargets = `-- name: ListAllocationTargets :many
+SELECT rule_id, project_id, weight::float8 AS weight FROM projects.allocation_targets
+WHERE tenant_id = $1 ORDER BY rule_id, project_id
+`
+
+type ListAllocationTargetsRow struct {
+	RuleID    string  `json:"rule_id"`
+	ProjectID string  `json:"project_id"`
+	Weight    float64 `json:"weight"`
+}
+
+func (q *Queries) ListAllocationTargets(ctx context.Context, tenantID string) ([]ListAllocationTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listAllocationTargets, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllocationTargetsRow{}
+	for rows.Next() {
+		var i ListAllocationTargetsRow
+		if err := rows.Scan(&i.RuleID, &i.ProjectID, &i.Weight); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnvironments = `-- name: ListEnvironments :many
+SELECT e.id, e.project_id, e.name, e.kind, e.created_at,
+       COALESCE(array_agg(ec.connection_id ORDER BY ec.connection_id) FILTER (WHERE ec.connection_id IS NOT NULL), '{}')::uuid[] AS connection_ids
+FROM projects.environments e
+LEFT JOIN projects.environment_connections ec ON ec.environment_id = e.id
+WHERE e.tenant_id = $1
+GROUP BY e.id ORDER BY e.project_id, e.name LIMIT 500
+`
+
+type ListEnvironmentsRow struct {
+	ID            string    `json:"id"`
+	ProjectID     string    `json:"project_id"`
+	Name          string    `json:"name"`
+	Kind          string    `json:"kind"`
+	CreatedAt     time.Time `json:"created_at"`
+	ConnectionIds []string  `json:"connection_ids"`
+}
+
+func (q *Queries) ListEnvironments(ctx context.Context, tenantID string) ([]ListEnvironmentsRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironments, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEnvironmentsRow{}
+	for rows.Next() {
+		var i ListEnvironmentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.Name,
+			&i.Kind,
+			&i.CreatedAt,
+			&i.ConnectionIds,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFunctionalUnits = `-- name: ListFunctionalUnits :many
@@ -154,7 +529,7 @@ func (q *Queries) ListFunctionalUnits(ctx context.Context, arg ListFunctionalUni
 }
 
 const listProjects = `-- name: ListProjects :many
-SELECT id, tenant_id, name, functional_unit, created_at
+SELECT id, tenant_id, name, functional_unit, created_at, team_id
 FROM projects.projects WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 500
 `
 
@@ -173,6 +548,7 @@ func (q *Queries) ListProjects(ctx context.Context, tenantID string) ([]Projects
 			&i.Name,
 			&i.FunctionalUnit,
 			&i.CreatedAt,
+			&i.TeamID,
 		); err != nil {
 			return nil, err
 		}
@@ -182,6 +558,113 @@ func (q *Queries) ListProjects(ctx context.Context, tenantID string) ([]Projects
 		return nil, err
 	}
 	return items, nil
+}
+
+const listTeams = `-- name: ListTeams :many
+SELECT id, name, created_at FROM projects.teams WHERE tenant_id = $1 ORDER BY name LIMIT 200
+`
+
+type ListTeamsRow struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (q *Queries) ListTeams(ctx context.Context, tenantID string) ([]ListTeamsRow, error) {
+	rows, err := q.db.Query(ctx, listTeams, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeamsRow{}
+	for rows.Next() {
+		var i ListTeamsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const projectServiceCost = `-- name: ProjectServiceCost :many
+SELECT u.project_id, ec.environment_id, u.service_name,
+       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, $1::text, u.recorded_at::date)), 0)::float8 AS cost,
+       (count(*) FILTER (WHERE finops.convert_cost(u.billed_cost, u.currency::text, $1::text, u.recorded_at::date) IS NULL))::int AS excluded
+FROM usage.usage_records u
+LEFT JOIN projects.environment_connections ec ON ec.connection_id = u.connection_id AND ec.tenant_id = u.tenant_id
+WHERE u.tenant_id = $2 AND u.recorded_at >= $3 AND u.recorded_at < $4
+GROUP BY u.project_id, ec.environment_id, u.service_name
+`
+
+type ProjectServiceCostParams struct {
+	Currency string    `json:"currency"`
+	TenantID string    `json:"tenant_id"`
+	FromTs   time.Time `json:"from_ts"`
+	ToTs     time.Time `json:"to_ts"`
+}
+
+type ProjectServiceCostRow struct {
+	ProjectID     string  `json:"project_id"`
+	EnvironmentID *string `json:"environment_id"`
+	ServiceName   string  `json:"service_name"`
+	Cost          float64 `json:"cost"`
+	Excluded      int32   `json:"excluded"`
+}
+
+// Cost per project, environment and service in one currency at the rate of each day. An amount without a rate is left
+// out of the sum and counted in `excluded`, never guessed.
+func (q *Queries) ProjectServiceCost(ctx context.Context, arg ProjectServiceCostParams) ([]ProjectServiceCostRow, error) {
+	rows, err := q.db.Query(ctx, projectServiceCost,
+		arg.Currency,
+		arg.TenantID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProjectServiceCostRow{}
+	for rows.Next() {
+		var i ProjectServiceCostRow
+		if err := rows.Scan(
+			&i.ProjectID,
+			&i.EnvironmentID,
+			&i.ServiceName,
+			&i.Cost,
+			&i.Excluded,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setProjectTeam = `-- name: SetProjectTeam :execrows
+UPDATE projects.projects SET team_id = $1
+WHERE tenant_id = $2 AND id = $3
+`
+
+type SetProjectTeamParams struct {
+	TeamID   *string `json:"team_id"`
+	TenantID string  `json:"tenant_id"`
+	ID       string  `json:"id"`
+}
+
+func (q *Queries) SetProjectTeam(ctx context.Context, arg SetProjectTeamParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setProjectTeam, arg.TeamID, arg.TenantID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const upsertFunctionalUnits = `-- name: UpsertFunctionalUnits :one

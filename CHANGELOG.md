@@ -5,6 +5,28 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.57] - 2026-10-10
+
+### Added
+- **Organization structure** (Projects, ADR-0042): **teams** that own projects, **environments** of a project (production,
+  staging, development, test, other) that hold the cloud connections running in them, and **allocation rules** that
+  split what one project is billed for (everything, or one service) between projects by weight, the source keeping a
+  share when it lists itself. A new report, "Cost by project, team and environment", shows direct cost, cost received
+  and handed over, and the total per project, with team and environment roll-ups. Rules are applied when the report is
+  read (nothing is rewritten), the totals always add up to the billed cost, a service rule wins over the rule for
+  everything, and an amount without a reference rate is left out and counted. Migration 0048, API contract 0.29.0
+  (`/teams`, `/environments`, `/allocation-rules`, `/allocation`, `team_id` on a project), data export and erasure
+  include the new tables. English and Russian.
+
+### Security
+- Every reference of the new tables to a project, team, environment or connection is a composite
+  `(tenant_id, id)` foreign key: a plain foreign key is checked without row-level security and would have accepted the
+  id of another organization's project. Covered by an integration test.
+
+### Fixed
+- Integration tests that still expected the pre-alpha.35 methodology, no currency conversion and a row-level-security
+  rule that did not know the global `finops.fx_rates` table now match the product.
+
 ## [0.1.0-alpha.56] - 2026-10-10
 
 ### Added

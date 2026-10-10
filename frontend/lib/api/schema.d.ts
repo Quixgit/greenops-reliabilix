@@ -580,6 +580,207 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List teams
+         * @description Requires permission `project:read`.
+         */
+        get: operations["listTeams"];
+        put?: never;
+        /**
+         * Create a team
+         * @description Requires permission `project:write`.
+         *     A team owns projects; names are unique in the organization.
+         */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a team
+         * @description Requires permission `project:write`.
+         *     Its projects stay and have no team.
+         */
+        delete: operations["deleteTeam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign a project to a team (or clear it)
+         * @description Requires permission `project:write`.
+         */
+        put: operations["setProjectTeam"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List environments with their connections
+         * @description Requires permission `project:read`.
+         */
+        get: operations["listEnvironments"];
+        put?: never;
+        /**
+         * Create an environment of a project
+         * @description Requires permission `project:write`.
+         *     Cost and carbon of the connections assigned to an environment are that environment's.
+         */
+        post: operations["createEnvironment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an environment
+         * @description Requires permission `project:write`.
+         *     Its connections stay and become unassigned.
+         */
+        delete: operations["deleteEnvironment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/environments/{id}/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace the connections of an environment
+         * @description Requires permission `project:write`.
+         *     Only connections of the environment's own project can be assigned; a connection moves here from another environment.
+         */
+        put: operations["setEnvironmentConnections"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/allocation-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List allocation rules
+         * @description Requires permission `project:read`.
+         */
+        get: operations["listAllocationRules"];
+        put?: never;
+        /**
+         * Create an allocation rule
+         * @description Requires permission `project:write`.
+         *     Splits what the source project is billed for a service (empty service = every service without a rule of its own)
+         *     between target projects by weight. One rule per source project and service.
+         */
+        post: operations["createAllocationRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/allocation-rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete an allocation rule
+         * @description Requires permission `project:write`.
+         */
+        delete: operations["deleteAllocationRule"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/allocation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost by project, environment and team with the allocation rules applied
+         * @description Requires permission `project:read`.
+         *     Rules move cost between projects; the totals always add up to the direct cost. Rules are applied when the report is read, for any period.
+         *     Amounts in a currency without a reference rate are left out and counted in `excluded`.
+         */
+        get: operations["getAllocation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/policy": {
         parameters: {
             query?: never;
@@ -2741,6 +2942,86 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        Team: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** Format: date-time */
+            created_at?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        Environment: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            project_id?: string;
+            name?: string;
+            /** @enum {string} */
+            kind?: "production" | "staging" | "development" | "test" | "other";
+            connection_ids?: string[];
+            /** Format: date-time */
+            created_at?: string;
+        } & {
+            [key: string]: unknown;
+        };
+        AllocationTarget: {
+            /** Format: uuid */
+            project_id: string;
+            /** @description Relative weight */
+            weight: number;
+        };
+        AllocationRuleInput: {
+            name: string;
+            /** Format: uuid */
+            source_project_id: string;
+            /** @description Empty = every service of the source that has no rule of its own. */
+            service_name?: string;
+            targets: components["schemas"]["AllocationTarget"][];
+        };
+        AllocationRule: components["schemas"]["AllocationRuleInput"] & {
+            /** Format: uuid */
+            id?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        AllocationReport: {
+            currency?: string;
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            projects?: {
+                /** Format: uuid */
+                project_id?: string;
+                direct?: number;
+                allocated_in?: number;
+                allocated_out?: number;
+                total?: number;
+            }[];
+            environments?: {
+                /** Format: uuid */
+                project_id?: string;
+                /**
+                 * Format: uuid
+                 * @description null = connections of the project not assigned to an environment
+                 */
+                environment_id?: string | null;
+                cost?: number;
+            }[];
+            teams?: {
+                /**
+                 * Format: uuid
+                 * @description null = projects without a team
+                 */
+                team_id?: string | null;
+                total?: number;
+            }[];
+            /** @description Amounts left out for lack of a reference rate. */
+            excluded?: number;
+        } & {
+            [key: string]: unknown;
+        };
         Project: {
             /** Format: uuid */
             id?: string;
@@ -2748,6 +3029,8 @@ export interface components {
             tenant_id?: string;
             name?: string;
             functional_unit?: string;
+            /** Format: uuid */
+            team_id?: string | null;
             /** Format: date-time */
             created_at?: string;
         } & {
@@ -2867,30 +3150,31 @@ export interface components {
             /** Format: uuid */
             project_id: string;
             /**
-             * @description Azure arrives later. GCP is available when the platform has a Google identity configured.
+             * @description GCP is available when the platform has a Google identity configured, Azure when it has its Microsoft Entra application configured.
              * @enum {string}
              */
             provider: "aws" | "gcp" | "azure";
-            /** @description AWS account id (12 digits) or GCP project id (6-30 lowercase letters, digits, hyphens). */
+            /** @description AWS account id (12 digits), GCP project id (6-30 lowercase letters, digits, hyphens) or Azure subscription id (GUID). */
             account_ref: string;
             /**
              * @description A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
              *     GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
-             *     `gcp_billing_export_resource_v1_*`). Raw keys are rejected.
+             *     `gcp_billing_export_resource_v1_*`). Azure: `azblob://<tenant id>@<storage account>/<container>/<export directory>`
+             *     of the Cost Management FOCUS export. Raw keys, SAS tokens and URLs are rejected.
              */
             credential_ref: string;
         } & {
             [key: string]: unknown;
         };
         Setup: {
-            /** @description Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset. */
+            /** @description Ownership token. AWS - the role's ExternalId. GCP - the key of the label the customer adds to the billing dataset. Azure - the container metadata key (hyphens become underscores) the customer sets to 1. */
             external_id?: string;
-            /** @description AWS account or GCP service account the customer grants access to. */
+            /** @description AWS account, GCP service account or Azure application (client) id the customer grants access to. */
             platform_account_id?: string;
             trust_policy?: Record<string, never>;
             permissions_policy?: Record<string, never>;
             required_permissions?: string[];
-            /** @description Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access). */
+            /** @description Ordered, human-readable setup instructions (for GCP the BigQuery API, billing export, ownership label and dataset access; for Azure the export, container metadata, service principal and role). */
             steps?: string[];
         } & {
             [key: string]: unknown;
@@ -4846,6 +5130,347 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Team"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setProjectTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    team_id?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        project_id?: string;
+                        /** Format: uuid */
+                        team_id?: string | null;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    listEnvironments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Environment"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    project_id: string;
+                    name: string;
+                    /** @enum {string} */
+                    kind: "production" | "staging" | "development" | "test" | "other";
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Environment"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteEnvironment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    setEnvironmentConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    connection_ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        environment_id?: string;
+                        connection_ids?: string[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listAllocationRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AllocationRule"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createAllocationRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AllocationRuleInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationRule"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteAllocationRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getAllocation: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AllocationReport"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     getPolicy: {

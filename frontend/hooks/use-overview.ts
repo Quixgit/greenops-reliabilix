@@ -88,6 +88,14 @@ export const useK8sWorkloads = (cluster: string) => {
   const f = useFilters();
   return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
 };
+export const useTeams = () => useQuery({ queryKey: ["teams"], queryFn: () => api("teams", s.teams) });
+export const useEnvironments = () => useQuery({ queryKey: ["environments"], queryFn: () => api("environments", s.environments) });
+export const useAllocationRules = () => useQuery({ queryKey: ["allocation-rules"], queryFn: () => api("allocation-rules", s.allocationRules) });
+export const useAllocation = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["allocation", f.from, f.to], queryFn: () => api("allocation", s.allocationReport, { from: f.from, to: f.to }) });
+};
+
 /** Budgets with the consumption of the current period; a role without billing access gets an error and sees nothing. */
 export const useBudgets = () =>
   useQuery({ queryKey: ["budgets"], retry: false, queryFn: () => api("finops/budgets", s.budgetList) });

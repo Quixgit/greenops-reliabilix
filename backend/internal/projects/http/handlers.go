@@ -26,6 +26,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(write).Post("/projects/{id}/functional-units", h.reportUnits)
 	r.With(read).Get("/projects/{id}/policy", h.getPolicy)
 	r.With(write).Put("/projects/{id}/policy", h.putPolicy)
+	h.StructureRoutes(r)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -35,8 +36,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, entitlements.ErrLimitReached):
 		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
 	case errors.Is(err, domain.ErrDuplicate):
-		httpx.WriteProblem(w, r, http.StatusConflict, "project already exists", "")
-	case errors.Is(err, domain.ErrInvalidName), errors.Is(err, domain.ErrInvalidUnit),
+		httpx.WriteProblem(w, r, http.StatusConflict, "already exists", "A project, team, environment or allocation rule with this name (or for this source and service) already exists.")
+	case errors.Is(err, domain.ErrInvalidName), errors.Is(err, domain.ErrInvalidUnit), errors.Is(err, domain.ErrInvalidAllocation),
 		errors.Is(err, domain.ErrInvalidPeriod), errors.Is(err, domain.ErrInvalidPolicy):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid request", err.Error())
 	default:

@@ -6,6 +6,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
+import { AllocationReportCard, AllocationRulesCard, ProjectStructure, TeamsCard } from "@/components/forms/structure-panels";
 import { PolicyPanel } from "@/components/forms/policy-panel";
 import { ProjectForm } from "@/components/forms/project-form";
 import { useFinopsSummary, useProjects } from "@/hooks/use-overview";
@@ -30,12 +31,15 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
                     <span className="font-medium">{p.name}</span>
                     <span className="flex items-center gap-2 text-muted">per {p.functional_unit}<ChevronDown className={`size-4 transition ${open === p.id ? "rotate-180" : ""}`} /></span>
                   </button>
-                  {open === p.id && <div className="mt-3"><PolicyPanel projectId={p.id} canEdit={canCreate} /></div>}
+                  {open === p.id && <div className="mt-3 space-y-3"><ProjectStructure projectId={p.id} teamId={p.team_id} canEdit={canCreate} /><PolicyPanel projectId={p.id} canEdit={canCreate} /></div>}
                 </li>
               ))}
             </ul>
           )}
       </Card>
+      <AllocationReportCard />
+      <TeamsCard canEdit={canCreate} />
+      <AllocationRulesCard canEdit={canCreate} />
       <BudgetsPanel canEdit={canBudget} currency={cost.data?.currency ?? "USD"} />
     </div>
   );

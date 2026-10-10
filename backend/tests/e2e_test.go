@@ -239,11 +239,11 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		t.Error("trend must have 3 days")
 	}
 	// the caveats travel with the figures: SCI must never look more complete than it is
-	if m := sub(sum, "methodology"); m["embodied_carbon_included"] != false || str(m, "provenance") != "author_estimate_unverified" ||
+	if m := sub(sum, "methodology"); m["embodied_carbon_included"] != false || !strings.Contains(str(m, "provenance"), "ccf_published_constants") ||
 		str(m, "status") != "provisional" || !strings.Contains(fmt.Sprint(m["caveats"]), "Embodied emissions") {
 		t.Fatalf("carbon summary must carry the methodology caveats: %v", sum["methodology"])
 	}
-	if m := c.must("GET", "/api/v1/carbon/methodology", alice, "", 200); str(m, "version") != "RLX-PROVISIONAL-1" || str(m, "status") != "provisional" {
+	if m := c.must("GET", "/api/v1/carbon/methodology", alice, "", 200); str(m, "version") != "RLX-CCF-1" || str(m, "status") != "provisional" {
 		t.Errorf("methodology: %v", m)
 	}
 	fin := c.must("GET", "/api/v1/finops/summary", alice, "", 200)
@@ -447,7 +447,7 @@ func TestEndToEndPipelineAndAPI(t *testing.T) {
 		t.Fatalf("report: %v", r)
 	}
 	code, _, raw := c.do("GET", "/api/v1/reports/"+str(rep, "id")+"/download", alice, "")
-	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") || !strings.Contains(string(raw), "Embodied emissions") || !strings.Contains(string(raw), "author_estimate_unverified") {
+	if code != 200 || !strings.Contains(string(raw), "carbon_kg_co2e") || !strings.Contains(string(raw), "Amazon Elastic Compute Cloud") || !strings.Contains(string(raw), "provisional") || !strings.Contains(string(raw), "Embodied emissions") || !strings.Contains(string(raw), "ccf_published_constants") {
 		t.Fatalf("csv download %d: %.200s", code, raw)
 	}
 	if code, _, raw := c.do("GET", "/api/v1/reports/"+str(sustRep, "id")+"/download", alice, ""); code != 200 ||

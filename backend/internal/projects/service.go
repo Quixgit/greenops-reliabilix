@@ -1,4 +1,5 @@
-// Package projects is the project domain module: projects, SCI functional units, policies.
+// Package projects is the project domain module: projects, SCI functional units, policies, teams, environments and
+// allocation rules.
 package projects
 
 import (
@@ -23,7 +24,8 @@ type Deps struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Limits: d.Limits}
+	repo := repository.Postgres{Pool: d.Pool}
+	svc := application.Service{Repo: repo, Structure: repo, Limits: d.Limits}
 	return &Module{h: phttp.Handlers{Svc: svc}, Svc: svc}
 }
 
