@@ -269,6 +269,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kubernetes/energy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Push measured workload energy (Kubernetes agent)
+         * @description Requires permission `kubernetes:ingest` (an API key of role `agent`, or an owner). Up to 500 samples of one
+         *     UTC hour each; the whole batch is refused when one sample is invalid. Sending an hour again replaces it.
+         *     Energy is attribution inside the nodes' energy and is not added to the organization's totals.
+         */
+        post: operations["ingestKubernetesEnergy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/workloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Energy and carbon per workload
+         * @description Requires permission `carbon:read`. `carbon_kg_co2e` is null when some hours had no grid data.
+         */
+        get: operations["listKubernetesWorkloads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Energy and carbon per cluster
+         * @description Requires permission `carbon:read`.
+         */
+        get: operations["listKubernetesClusters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/members": {
         parameters: {
             query?: never;
@@ -2060,7 +2122,7 @@ export interface components {
         ApiKeyInput: {
             name: string;
             /** @enum {string} */
-            role: "ci" | "viewer";
+            role: "ci" | "viewer" | "agent";
         } & {
             [key: string]: unknown;
         };
@@ -2403,6 +2465,47 @@ export interface components {
             } & {
                 [key: string]: unknown;
             })[];
+        } & {
+            [key: string]: unknown;
+        };
+        KubernetesEnergyInput: {
+            /** Format: uuid */
+            project_id: string;
+            samples: {
+                cluster: string;
+                namespace: string;
+                workload: string;
+                /** @enum {string} */
+                kind: "deployment" | "statefulset" | "daemonset" | "job" | "cronjob" | "pod" | "other";
+                /**
+                 * Format: date-time
+                 * @description Start of a completed UTC hour.
+                 */
+                period_start: string;
+                energy_kwh: number;
+                /** @description Cloud region of the nodes, for example eu-central-1. */
+                region: string;
+            }[];
+        };
+        KubernetesWorkload: {
+            cluster?: string;
+            namespace?: string;
+            workload?: string;
+            kind?: string;
+            energy_kwh?: number;
+            carbon_kg_co2e?: number | null;
+            hours?: number;
+            hours_without_grid_data?: number;
+        } & {
+            [key: string]: unknown;
+        };
+        KubernetesCluster: {
+            cluster?: string;
+            workloads?: number;
+            namespaces?: number;
+            energy_kwh?: number;
+            carbon_kg_co2e?: number | null;
+            last_hour?: string;
         } & {
             [key: string]: unknown;
         };
@@ -3330,6 +3433,102 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    ingestKubernetesEnergy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KubernetesEnergyInput"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        accepted?: number;
+                        without_grid_data?: number;
+                        methodology_version?: string;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    listKubernetesWorkloads: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                cluster?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["KubernetesWorkload"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listKubernetesClusters: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["KubernetesCluster"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
     listMembers: {

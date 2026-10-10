@@ -211,6 +211,19 @@ export const operatorError = z.object({
 });
 export type OperatorError = z.infer<typeof operatorError>;
 export const operatorErrors = items(operatorError);
+// Kubernetes workload energy pushed by the agent (ADR-0030). Carbon is null when some hours had no grid data.
+export const k8sWorkload = z.object({
+  cluster: z.string(), namespace: z.string(), workload: z.string(), kind: z.string(),
+  energy_kwh: z.number(), carbon_kg_co2e: z.number().nullable(), hours: z.number(), hours_without_grid_data: z.number(),
+});
+export type K8sWorkload = z.infer<typeof k8sWorkload>;
+export const k8sWorkloads = items(k8sWorkload);
+export const k8sCluster = z.object({
+  cluster: z.string(), workloads: z.number(), namespaces: z.number(), energy_kwh: z.number(),
+  carbon_kg_co2e: z.number().nullable(), last_hour: z.string(),
+});
+export const k8sClusters = items(k8sCluster);
+
 // External services managed in the operator console. A secret field never carries a value, only "configured".
 export const integrationField = z.object({
   key: z.string(), label: z.string(), help: z.string().optional(), placeholder: z.string().optional(),

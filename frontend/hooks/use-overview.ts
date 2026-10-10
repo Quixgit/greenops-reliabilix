@@ -58,3 +58,11 @@ export const useSyncRuns = (id: string) =>
   useQuery({ queryKey: ["sync-runs", id], queryFn: () => api(`cloud-accounts/${id}/sync-runs`, s.syncRuns) });
 export const useAlerts = (status: string) =>
   useQuery({ queryKey: ["alerts", status], queryFn: () => api("alerts", s.alerts, { status: status === "all" ? undefined : status, limit: "100" }) });
+export const useK8sClusters = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["k8s-clusters", f], queryFn: () => api("kubernetes/clusters", s.k8sClusters, f) });
+};
+export const useK8sWorkloads = (cluster: string) => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
+};

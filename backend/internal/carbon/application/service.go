@@ -62,6 +62,12 @@ type cachedIntensity struct {
 	exp time.Time
 }
 
+// StoredIntensityAt returns the stored (never provider-fetched) grid reading at or before a time: other modules use it to
+// attach the carbon of a past hour without triggering a provider call.
+func (s *Service) StoredIntensityAt(ctx context.Context, region string, at time.Time) (float64, bool, error) {
+	return s.Store.IntensityAt(ctx, region, at)
+}
+
 // intensityNow returns the current intensity of a region: cached live reading, else the provider (and the
 // reading is persisted so history accumulates), else the latest stored reading.
 func (s *Service) intensityNow(ctx context.Context, region string) (float64, bool, error) {

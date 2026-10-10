@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.14] - 2026-10-10
+
+### Added
+- Kubernetes energy ([ADR-0030](docs/adr/0030-kubernetes-energy-agent.md)): a customer-side agent pushes measured workload
+  energy (Kepler via Prometheus) with an API key of the new role `agent`; stored hourly per workload, carbon from the
+  stored grid intensity and the active PUE (unknown stays unknown); Kubernetes page with clusters and workloads. It is
+  attribution inside the cloud energy and is never added to totals. `POST /kubernetes/energy`, `GET /kubernetes/clusters`,
+  `GET /kubernetes/workloads`; reference agent `scripts/kepler-push.sh` and `docs/setup/kubernetes.md`.
+  API contract 0.7.0. Migration 0023.
+
 ## [0.1.0-alpha.13] - 2026-10-10
 
 ### Changed

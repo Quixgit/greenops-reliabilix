@@ -60,6 +60,9 @@ var (
 		Name: "usage_records_processed_total", Help: "Normalized usage records persisted."})
 	CarbonCalculations = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "carbon_calculations_total", Help: "Carbon calculations performed."})
+	KubernetesSamples = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "kubernetes_energy_samples_total", Help: "Workload energy samples accepted from agents.",
+	})
 	RecommendationsGenerated = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "recommendations_generated_total", Help: "Recommendations generated."})
 	CarbonAPIErrors = promauto.NewCounter(prometheus.CounterOpts{

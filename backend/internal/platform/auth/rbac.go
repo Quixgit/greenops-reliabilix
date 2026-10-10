@@ -13,30 +13,32 @@ const (
 	RoleViewer   Role = "viewer"
 	RoleBilling  Role = "billing"
 	RoleCI       Role = "ci"
+	RoleAgent    Role = "agent" // API keys of the Kubernetes agent: may push workload energy and nothing else
 )
 
 // Permission is a fine-grained capability checked by handlers.
 type Permission string
 
 const (
-	PermProjectRead    Permission = "project:read"
-	PermProjectWrite   Permission = "project:write"
-	PermCloudRead      Permission = "cloud:read"
-	PermCloudWrite     Permission = "cloud:write"
-	PermUsageRead      Permission = "usage:read"
-	PermCarbonRead     Permission = "carbon:read"
-	PermCarbonCompute  Permission = "carbon:compute"
-	PermRecommendRead  Permission = "recommendation:read"
-	PermRecommendApply Permission = "recommendation:apply" // approve, apply and dismiss
-	PermReportRead     Permission = "report:read"
-	PermReportWrite    Permission = "report:write"
-	PermBillingRead    Permission = "billing:read"
-	PermBudgetWrite    Permission = "budget:write"
-	PermAuditRead      Permission = "audit:read"
-	PermTenantAdmin    Permission = "tenant:admin" // members, invitations, API keys
-	PermAlertWrite     Permission = "alert:write"  // acknowledge and mute alerts
-	PermTenantData     Permission = "tenant:data"  // export all organization data and schedule its erasure: owners only
-	PermCIEvaluate     Permission = "ci:evaluate"
+	PermProjectRead      Permission = "project:read"
+	PermProjectWrite     Permission = "project:write"
+	PermCloudRead        Permission = "cloud:read"
+	PermCloudWrite       Permission = "cloud:write"
+	PermUsageRead        Permission = "usage:read"
+	PermCarbonRead       Permission = "carbon:read"
+	PermCarbonCompute    Permission = "carbon:compute"
+	PermRecommendRead    Permission = "recommendation:read"
+	PermRecommendApply   Permission = "recommendation:apply" // approve, apply and dismiss
+	PermReportRead       Permission = "report:read"
+	PermReportWrite      Permission = "report:write"
+	PermBillingRead      Permission = "billing:read"
+	PermBudgetWrite      Permission = "budget:write"
+	PermAuditRead        Permission = "audit:read"
+	PermTenantAdmin      Permission = "tenant:admin"      // members, invitations, API keys
+	PermKubernetesIngest Permission = "kubernetes:ingest" // push workload energy samples (agent keys, owners)
+	PermAlertWrite       Permission = "alert:write"       // acknowledge and mute alerts
+	PermTenantData       Permission = "tenant:data"       // export all organization data and schedule its erasure: owners only
+	PermCIEvaluate       Permission = "ci:evaluate"
 
 	// Notifications: where events are delivered. Destinations carry addresses and endpoints, so only people who manage
 	// the organization change them; engineers can see what is configured and whether deliveries work.
@@ -69,13 +71,14 @@ var (
 )
 
 var matrix = map[Role]map[Permission]struct{}{
-	RoleOwner: perms(read, manage, []Permission{PermTenantData, PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
+	RoleOwner: perms(read, manage, []Permission{PermTenantData, PermKubernetesIngest, PermRecommendApply, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	// Admin manages people, connections and settings; it can see plans but does not approve infrastructure changes.
 	RoleAdmin:    perms(read, manage, []Permission{PermAutomationRead}),
 	RoleEngineer: perms(read, []Permission{PermAlertWrite, PermNotificationRead, PermSettingsRead, PermCarbonCompute, PermRecommendApply, PermReportWrite, PermCIEvaluate, PermAutomationRead, PermAutomationWrite, PermAutomationApprove}),
 	RoleViewer:   perms(read),
 	RoleBilling:  perms([]Permission{PermUsageRead, PermCarbonRead, PermReportRead, PermReportWrite, PermBillingRead, PermBudgetWrite}),
 	RoleCI:       perms([]Permission{PermCIEvaluate}),
+	RoleAgent:    perms([]Permission{PermKubernetesIngest}),
 }
 
 // Can reports whether the role grants the permission. Unknown roles grant nothing.

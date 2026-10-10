@@ -18,7 +18,7 @@ import { api, apiVoid } from "@/lib/api/client";
 import { apiKeyCreated } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
 
-const schema = z.object({ name: z.string().trim().min(1, "Name is required").max(100, "Max 100 characters"), role: z.enum(["ci", "viewer"]) });
+const schema = z.object({ name: z.string().trim().min(1, "Name is required").max(100, "Max 100 characters"), role: z.enum(["ci", "viewer", "agent"]) });
 type Values = z.infer<typeof schema>;
 
 export function ApiKeysPanel() {
@@ -39,7 +39,7 @@ export function ApiKeysPanel() {
           {key && <SecretOnce title="API key" value={key} onDismiss={() => setKey(null)} />}
           <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3 sm:grid-cols-[2fr_1fr_auto] sm:items-start" noValidate>
             <Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. github-actions" /></Field>
-            <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option></select></Field>
+            <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option><option value="agent">Kubernetes agent</option></select></Field>
             <button disabled={create.isPending} className="brand-gradient mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
             {create.isError && <p role="alert" className="text-sm text-bad sm:col-span-3">{create.error.message}</p>}
           </form>

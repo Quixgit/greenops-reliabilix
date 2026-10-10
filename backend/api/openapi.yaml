@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.6.0
+  version: 0.7.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -392,6 +392,116 @@ paths:
         '404':
           $ref: '#/components/responses/Problem'
         '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/kubernetes/energy:
+    post:
+      operationId: ingestKubernetesEnergy
+      summary: Push measured workload energy (Kubernetes agent)
+      tags:
+      - kubernetes
+      description: |
+        Requires permission `kubernetes:ingest` (an API key of role `agent`, or an owner). Up to 500 samples of one
+        UTC hour each; the whole batch is refused when one sample is invalid. Sending an hour again replaces it.
+        Energy is attribution inside the nodes' energy and is not added to the organization's totals.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KubernetesEnergyInput'
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: integer
+                  without_grid_data:
+                    type: integer
+                  methodology_version:
+                    type: string
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/kubernetes/workloads:
+    get:
+      operationId: listKubernetesWorkloads
+      summary: Energy and carbon per workload
+      tags:
+      - kubernetes
+      description: Requires permission `carbon:read`. `carbon_kg_co2e` is null when some hours had no grid data.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - name: cluster
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KubernetesWorkload'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/kubernetes/clusters:
+    get:
+      operationId: listKubernetesClusters
+      summary: Energy and carbon per cluster
+      tags:
+      - kubernetes
+      description: Requires permission `carbon:read`.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/KubernetesCluster'
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
           $ref: '#/components/responses/Problem'
   /api/v1/members:
     get:
@@ -3347,6 +3457,7 @@ components:
           enum:
           - ci
           - viewer
+          - agent
       required:
       - name
       - role
@@ -3976,6 +4087,94 @@ components:
               updated_by:
                 type: string
             additionalProperties: true
+      additionalProperties: true
+    KubernetesEnergyInput:
+      type: object
+      required:
+      - project_id
+      - samples
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        samples:
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            required:
+            - cluster
+            - namespace
+            - workload
+            - kind
+            - period_start
+            - energy_kwh
+            - region
+            properties:
+              cluster:
+                type: string
+              namespace:
+                type: string
+              workload:
+                type: string
+              kind:
+                type: string
+                enum:
+                - deployment
+                - statefulset
+                - daemonset
+                - job
+                - cronjob
+                - pod
+                - other
+              period_start:
+                type: string
+                format: date-time
+                description: Start of a completed UTC hour.
+              energy_kwh:
+                type: number
+                minimum: 0
+                maximum: 5000
+              region:
+                type: string
+                description: Cloud region of the nodes, for example eu-central-1.
+    KubernetesWorkload:
+      type: object
+      properties:
+        cluster:
+          type: string
+        namespace:
+          type: string
+        workload:
+          type: string
+        kind:
+          type: string
+        energy_kwh:
+          type: number
+        carbon_kg_co2e:
+          type: number
+          nullable: true
+        hours:
+          type: integer
+        hours_without_grid_data:
+          type: integer
+      additionalProperties: true
+    KubernetesCluster:
+      type: object
+      properties:
+        cluster:
+          type: string
+        workloads:
+          type: integer
+        namespaces:
+          type: integer
+        energy_kwh:
+          type: number
+        carbon_kg_co2e:
+          type: number
+          nullable: true
+        last_hour:
+          type: string
       additionalProperties: true
     CarbonTrendPoint:
       type: object
