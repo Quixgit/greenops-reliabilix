@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+### Changed
+- The stand's scheduler unit no longer switches off `cloudaccounts:sync_all` and `cloudaccounts:rightsizing_all`: the
+  stand holds a real Azure connection now, and with the switch the data would never refresh by itself.
+  `docs/setup/stand.md` says not to load the demo dataset next to real connections and how to remove it (including the
+  stale per-unit figures it leaves in carbon calculations until they are recalculated).
+
 ## [0.1.0-alpha.65] - 2026-10-11
 
 ### Added

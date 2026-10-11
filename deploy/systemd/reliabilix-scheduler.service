@@ -7,8 +7,8 @@ Type=simple
 EnvironmentFile=%h/.config/reliabilix/scheduler.env
 WorkingDirectory=%h/reliabilix-stand
 ExecStart=%h/reliabilix-stand/bin/scheduler
-# a demonstration stand has no real cloud accounts: never schedule their synchronization
-Environment=SCHEDULER_SKIP=cloudaccounts:sync_all,cloudaccounts:rightsizing_all
+# The stand holds real connections (docs/setup/stand.md): synchronization is scheduled. To keep a demonstration stand
+# with fictitious accounts from calling clouds, set SCHEDULER_SKIP=cloudaccounts:sync_all,cloudaccounts:rightsizing_all
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

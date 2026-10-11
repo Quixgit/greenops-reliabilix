@@ -22,12 +22,19 @@ every organization and connection it finds.
 createdb greenops_stand
 # apply every migration (the "+goose Up" part of backend/migrations/*.sql, or `goose up`)
 psql greenops_stand -f deploy/dev/seed.sql        # the empty development organization and operator
-psql greenops_stand -f deploy/dev/seed-demo.sql   # optional: a labelled synthetic demo dataset
 ```
 
-The demo dataset has one AWS connection to a fictitious account. The scheduler unit therefore sets
-`SCHEDULER_SKIP=cloudaccounts:sync_all,cloudaccounts:rightsizing_all`, so no synchronization is ever attempted; every
-other job (carbon, recommendations, alerts, retention, notifications) runs.
+Do not load `deploy/dev/seed-demo.sql` on a stand that holds real connections: its fictitious AWS account and 60 days of
+synthetic usage would show up next to the real data (it also leaves functional-unit counts that give every later
+calculation a made-up "per request" figure). The stand is connected to real accounts through the console and the
+scheduler synchronizes them. Only a stand that keeps the demo dataset sets
+`SCHEDULER_SKIP=cloudaccounts:sync_all,cloudaccounts:rightsizing_all` in its scheduler unit, so the fictitious account
+is never called; the other jobs (carbon, recommendations, alerts, retention, notifications) run either way.
+
+To remove the demo dataset from a stand that has real connections: delete the fictitious AWS connection
+(`account_ref = '000000000000'`) with its usage and carbon rows, the demo recommendations, reports, functional-unit
+counts and policy, and recalculate carbon (`POST /api/v1/carbon/recalculate`) so stored per-unit figures are
+recomputed. Take a dump of the touched tables first.
 
 ## Run
 
