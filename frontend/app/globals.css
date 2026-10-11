@@ -279,3 +279,16 @@ html { scrollbar-gutter: stable; }
 .btn-leaf:hover:not(:disabled) { background-color: #277a66; }
 .btn-leaf:active:not(:disabled) { transform: scale(.98); }
 .btn-leaf:disabled { opacity: .5; }
+
+/* ---- Project card: the delete button pops out of the corner, the confirmation wipes over the card ---------------- */
+.del-btn { opacity: 0; transform: scale(.4) rotate(-90deg); pointer-events: none; transition: opacity .25s var(--ease-out-soft), transform .35s cubic-bezier(.34,1.56,.64,1), background-color .2s, color .2s, box-shadow .2s; }
+li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) rotate(0); pointer-events: auto; }
+.del-btn:hover { transform: scale(1.12) rotate(0); }
+.del-btn:hover .del-icon { animation: del-shake .5s ease-in-out; }
+@keyframes del-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-14deg); } 50% { transform: rotate(10deg); } 75% { transform: rotate(-6deg); } }
+@keyframes del-wipe { from { clip-path: circle(0 at calc(100% - 30px) 30px); } to { clip-path: circle(150% at calc(100% - 30px) 30px); } }
+.del-wipe { animation: del-wipe .5s var(--ease-out-soft) both; }
+@keyframes card-gone { to { opacity: 0; transform: scale(.85) rotate(-2deg); filter: blur(3px); } }
+.card-gone { animation: card-gone .45s ease-in forwards; }
+@media (hover: none) { .del-btn { opacity: 1; transform: none; pointer-events: auto; } }
+@media (prefers-reduced-motion: reduce) { .del-wipe, .card-gone, .del-btn:hover .del-icon { animation: none; } }

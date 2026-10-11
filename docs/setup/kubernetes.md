@@ -37,7 +37,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: push
-              image: ghcr.io/quixgit/reliabilix/agent:0.1.0-alpha.83   # pin the exact version
+              image: ghcr.io/quixgit/reliabilix/agent:0.1.0-alpha.84   # pin the exact version
               envFrom: [{secretRef: {name: reliabilix-agent}}]   # API_KEY, API_URL, PROJECT_ID, CLUSTER, REGION, PROM_URL
 ```
 

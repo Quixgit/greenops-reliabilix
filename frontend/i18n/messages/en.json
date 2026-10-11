@@ -996,5 +996,9 @@
   "wiz.step.team": "Team",
   "wiz.step.review": "Review",
   "ov2.accounts.open": "Open",
-  "ov2.accounts.connect": "Connect"
+  "ov2.accounts.connect": "Connect",
+  "proj.delete": "Delete project",
+  "proj.delete_ask": "Delete “{name}”?",
+  "proj.delete_hint": "Its policy, budget and work units are removed. A project with cloud connections or data cannot be deleted.",
+  "proj.delete_do": "Delete"
 }

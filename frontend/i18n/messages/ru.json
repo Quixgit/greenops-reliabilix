@@ -1048,5 +1048,9 @@
   "wiz.step.team": "Команда",
   "wiz.step.review": "Проверка",
   "ov2.accounts.open": "Открыть",
-  "ov2.accounts.connect": "Подключить"
+  "ov2.accounts.connect": "Подключить",
+  "proj.delete": "Удалить проект",
+  "proj.delete_ask": "Удалить «{name}»?",
+  "proj.delete_hint": "Политика, бюджет и объёмы работы будут удалены. Проект с облачными подключениями или данными удалить нельзя.",
+  "proj.delete_do": "Удалить"
 }

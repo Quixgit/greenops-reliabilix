@@ -22,6 +22,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(read).Get("/projects", h.list)
 	r.With(write).Post("/projects", h.create)
 	r.With(read).Get("/projects/{id}", h.get)
+	r.With(write).Delete("/projects/{id}", h.remove)
 	r.With(read).Get("/projects/{id}/functional-units", h.listUnits)
 	r.With(write).Post("/projects/{id}/functional-units", h.reportUnits)
 	r.With(read).Get("/projects/{id}/policy", h.getPolicy)
@@ -35,6 +36,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpx.NotFound(w, r)
 	case errors.Is(err, entitlements.ErrLimitReached):
 		httpx.WriteProblem(w, r, http.StatusPaymentRequired, "plan limit reached", err.Error())
+	case errors.Is(err, domain.ErrInUse):
+		httpx.WriteProblem(w, r, http.StatusConflict, "project in use", "The project still has cloud connections or measured data. Disconnect the accounts first; a project with history cannot be deleted.")
 	case errors.Is(err, domain.ErrDuplicate):
 		httpx.WriteProblem(w, r, http.StatusConflict, "already exists", "A project, team, environment or allocation rule with this name (or for this source and service) already exists.")
 	case errors.Is(err, domain.ErrInvalidName), errors.Is(err, domain.ErrInvalidUnit), errors.Is(err, domain.ErrInvalidAllocation),
@@ -86,6 +89,20 @@ func (h Handlers) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, p)
+}
+
+func (h Handlers) remove(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := httpx.PathUUID(r, "id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err := h.Svc.Delete(r.Context(), c.TenantID, id); err != nil {
+		fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h Handlers) listUnits(w http.ResponseWriter, r *http.Request) {

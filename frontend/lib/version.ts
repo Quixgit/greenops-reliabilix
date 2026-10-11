@@ -2,7 +2,7 @@ import pkg from "../package.json";
 
 export type Stage = "alpha" | "beta" | "rc" | "stable" | "dev";
 
-/** "0.1.0-alpha.83" -> { number: "0.1.0", stage: "alpha", full: "0.1.0-alpha.83" }. See docs/release/versioning.md. */
+/** "0.1.0-alpha.84" -> { number: "0.1.0", stage: "alpha", full: "0.1.0-alpha.84" }. See docs/release/versioning.md. */
 export function parseVersion(v: string): { number: string; stage: Stage; full: string } {
   const [number, pre] = v.split("-", 2);
   const id = pre?.split(".")[0];

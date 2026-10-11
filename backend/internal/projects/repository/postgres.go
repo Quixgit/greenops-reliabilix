@@ -170,3 +170,31 @@ func (r Postgres) CarbonLimits(ctx context.Context, tenantID string) (out []doma
 	})
 	return
 }
+
+// Delete removes a project that has no connection and no usage. Policies, units, budgets and the like go with it
+// (cascade); data that is not tied to the project by a key is why a project with data is refused instead.
+func (r Postgres) Delete(ctx context.Context, tenantID, id string) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		if _, err := db.New(tx).GetProject(ctx, db.GetProjectParams{TenantID: tenantID, ID: id}); err != nil {
+			if database.IsNotFound(err) {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+		var used bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM cloudaccounts.connections WHERE project_id = $1)
+			OR EXISTS (SELECT 1 FROM usage.usage_records WHERE project_id = $1)`, id).Scan(&used); err != nil {
+			return err
+		}
+		if used {
+			return domain.ErrInUse
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM projects.projects WHERE id = $1`, id); err != nil {
+			if isForeignKeyViolation(err) {
+				return domain.ErrInUse
+			}
+			return err
+		}
+		return audit.Record(ctx, tx, "project.deleted", "project:"+id, nil)
+	})
+}

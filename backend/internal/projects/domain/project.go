@@ -20,10 +20,12 @@ type Project struct {
 }
 
 var (
-	ErrInvalidName   = errors.New("name must be 1-120 characters")
-	ErrInvalidUnit   = errors.New("functional_unit must be 1-60 characters")
-	ErrDuplicate     = errors.New("project already exists")
-	ErrNotFound      = errors.New("not found")
+	ErrInvalidName = errors.New("name must be 1-120 characters")
+	ErrInvalidUnit = errors.New("functional_unit must be 1-60 characters")
+	ErrDuplicate   = errors.New("project already exists")
+	ErrNotFound    = errors.New("not found")
+	// ErrInUse: the project still has cloud connections or measured data; deleting it would orphan them.
+	ErrInUse         = errors.New("project has cloud connections or data")
 	ErrInvalidPeriod = errors.New("invalid period")
 	ErrInvalidPolicy = errors.New("invalid policy")
 	// ErrInvalidAllocation: a team, environment or allocation rule that cannot be stored as asked.
@@ -142,6 +144,8 @@ type Repository interface {
 	UpsertPolicy(ctx context.Context, tenantID string, p Policy) error
 	ListForJobs(ctx context.Context) ([]JobRef, error)
 	CarbonLimits(ctx context.Context, tenantID string) ([]CarbonLimit, error)
+	// Delete removes an empty project (no connections, no usage); ErrInUse otherwise.
+	Delete(ctx context.Context, tenantID, id string) error
 }
 
 // JobRef identifies a project for cross-tenant job fan-out.

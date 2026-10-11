@@ -38,6 +38,11 @@ func (s Service) Create(ctx context.Context, tenantID, name, unit string) (domai
 	return s.Repo.Create(ctx, p)
 }
 
+// Delete removes a project that holds no cloud connection and no measured data.
+func (s Service) Delete(ctx context.Context, tenantID, id string) error {
+	return s.Repo.Delete(ctx, tenantID, id)
+}
+
 func (s Service) ReportFunctionalUnits(ctx context.Context, tenantID string, f domain.FunctionalUnits) error {
 	if err := f.Validate(); err != nil {
 		return err

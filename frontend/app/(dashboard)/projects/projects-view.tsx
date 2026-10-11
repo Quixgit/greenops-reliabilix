@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
@@ -12,12 +12,12 @@ import { Drawer } from "@/components/connectors/drawer";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { IconCloud, IconFolder, IconGlobe, IconPlus, IconShield, IconWallet } from "@/components/ui/icons";
+import { IconCloud, IconFolder, IconGlobe, IconPlus, IconShield, IconTrash, IconWallet } from "@/components/ui/icons";
 import { Info } from "@/components/ui/info";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAllocation, useBudgets, useConnections, useFinopsSummary, useProjects, useTeams } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
-import { api } from "@/lib/api/client";
+import { api, apiVoid } from "@/lib/api/client";
 import type { Project } from "@/lib/api/schemas";
 import { formatCost, nf } from "@/lib/formatters";
 import { share } from "@/lib/overview";
@@ -49,8 +49,18 @@ function Chip({ on, children, title }: { on: boolean; children: React.ReactNode;
 }
 
 /** One project at a glance: what it costs, where it runs, what rules it has; a click opens everything about it. */
-function ProjectCard({ p, index, total, pol, onOpen }: { p: Project; index: number; total: number; pol?: Policy; onOpen: () => void }) {
+function ProjectCard({ p, index, total, pol, onOpen, canDelete }: { p: Project; index: number; total: number; pol?: Policy; onOpen: () => void; canDelete: boolean }) {
   const t = useT();
+  const qc = useQueryClient();
+  const [confirm, setConfirm] = useState(false);
+  const [gone, setGone] = useState(false);
+  const del = useMutation({
+    mutationFn: () => apiVoid(`projects/${p.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setGone(true);
+      window.setTimeout(() => { void qc.invalidateQueries({ queryKey: ["projects"] }); void qc.invalidateQueries({ queryKey: ["allocation"] }); void qc.invalidateQueries({ queryKey: ["budgets"] }); }, 450);
+    },
+  });
   const cur = useFinopsSummary().data?.currency || "USD";
   const alloc = useAllocation().data;
   const teams = useTeams().data ?? [];
@@ -62,7 +72,25 @@ function ProjectCard({ p, index, total, pol, onOpen }: { p: Project; index: numb
   const clouds = [...new Set(conns.map((c) => c.provider))];
   const sh = share(cost, total);
   return (
-    <li className="rise" style={{ "--i": index } as CSSProperties}>
+    <li className={cn("rise relative", gone && "card-gone")} style={{ "--i": index } as CSSProperties}>
+      {canDelete && (
+        <button type="button" aria-label={t("proj.delete")} title={t("proj.delete")} onClick={() => { del.reset(); setConfirm(true); }}
+          className="del-btn absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-line transition-colors hover:bg-[#fdecef] hover:text-[#d9707f] hover:ring-[#eba7b3] focus-visible:opacity-100">
+          <IconTrash className="del-icon size-[18px]" strokeWidth={1.8} />
+        </button>
+      )}
+      {confirm && (
+        <div className="del-wipe absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#fdf1f3] p-5 text-center ring-1 ring-[#eba7b3]">
+          <IconTrash className="size-10 text-[#d9707f]" strokeWidth={1.4} />
+          <p className="text-sm font-semibold text-ink">{t("proj.delete_ask", { name: p.name })}</p>
+          <p className="max-w-[18rem] text-xs leading-snug text-slate-500">{t("proj.delete_hint")}</p>
+          {del.isError && <p role="alert" className="max-w-[18rem] text-xs font-medium text-[#c25667]">{del.error.message}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setConfirm(false)} className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:text-ink">{t("common.cancel")}</button>
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#e08b98] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#d9707f] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
+          </div>
+        </div>
+      )}
       <button type="button" onClick={onOpen}
         className="group flex h-full w-full flex-col gap-4 rounded-2xl border border-line bg-white p-5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-leaf/50 hover:shadow-[0_14px_32px_-14px_rgba(47,143,120,0.35)]">
         <span className="flex items-start gap-3">
@@ -153,7 +181,7 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
           : projects.length === 0 ? <Card interactive={false}><EmptyState icon={IconFolder} text={t("proj.empty")} /></Card>
           : (
             <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {projects.map((p, i) => <ProjectCard key={p.id} p={p} index={i} total={total} pol={polOf(p.id)} onOpen={() => { setOpenId(p.id); setDetailTab("overview"); }} />)}
+              {projects.map((p, i) => <ProjectCard key={p.id} p={p} index={i} total={total} pol={polOf(p.id)} canDelete={canCreate} onOpen={() => { setOpenId(p.id); setDetailTab("overview"); }} />)}
             </ul>
           )
       )}

@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.84] - 2026-10-11
+
+### Added
+- **Delete a project.** `DELETE /api/v1/projects/{id}` removes an empty project (its policy, units, budgets and
+  allocation settings go with it); a project that still has cloud connections or measured data is refused with 409.
+  On the Projects page a round delete button pops out of a card's corner on hover, the confirmation wipes over the
+  card and the card dissolves when it is deleted.
+
 ## [0.1.0-alpha.83] - 2026-10-11
 
 ### Changed
