@@ -61,7 +61,7 @@ export function ApiKeysPanel() {
           <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3" noValidate>
             <Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. github-actions" /></Field>
             <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option><option value="agent">Kubernetes agent</option></select></Field>
-            <button disabled={create.isPending} className="rounded-lg bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
+            <button disabled={create.isPending} className="rounded-lg btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
             {create.isError && <p role="alert" className="text-sm text-bad">{create.error.message}</p>}
           </form>
         </div>

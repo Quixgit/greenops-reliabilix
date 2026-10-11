@@ -160,7 +160,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
           {created ? (
             <>
               <span />
-              <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl bg-leaf-deep px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110">{t("wiz.done.close")}</button>
+              <button type="button" onClick={onClose} className="inline-flex items-center gap-2 rounded-xl btn-leaf px-5 py-2.5 text-sm font-semibold text-white ">{t("wiz.done.close")}</button>
             </>
           ) : (
             <>
@@ -169,7 +169,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
                 <IconArrowLeft className="size-4" />{t("wiz.back")}
               </button>
               <button type="button" onClick={next} disabled={blocked || create.isPending}
-                className="inline-flex items-center gap-2 rounded-xl bg-leaf-deep px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:translate-y-0 disabled:opacity-50">
+                className="inline-flex items-center gap-2 rounded-xl btn-leaf px-5 py-2.5 text-sm font-semibold text-white ">
                 {step === STEPS.length - 1 ? (create.isPending ? t("wiz.creating") : t("wiz.create")) : t("wiz.next")}
                 {step < STEPS.length - 1 && <IconArrowRight className="size-4" />}
               </button>

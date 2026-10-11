@@ -118,7 +118,7 @@ function Content({ onClose }: { onClose: () => void }) {
       {save.isError && <p role="alert" className="text-sm text-bad">{save.error.message}</p>}
       <div className="sticky bottom-0 -mx-1 flex items-center gap-3 bg-white/95 px-1 py-3 backdrop-blur">
         <button type="button" disabled={save.isPending || selected.size === 0 || !pol.data} onClick={() => save.mutate()}
-          className="rounded-xl bg-leaf-deep px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">
+          className="rounded-xl btn-leaf px-5 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
           {save.isPending ? t("allow.saving") : t("allow.save", { count: selected.size })}
         </button>
         <span className="text-xs text-muted">{t("allow.then")}</span>

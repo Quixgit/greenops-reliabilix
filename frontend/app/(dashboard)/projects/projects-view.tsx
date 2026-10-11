@@ -120,7 +120,7 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
           <p className="mt-1 text-sm text-muted">{t("proj.subtitle")}</p>
         </div>
         {canCreate && (
-          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0">
+          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white ">
             <IconPlus className="size-4" strokeWidth={2.2} />{t("proj.new")}
           </button>
         )}

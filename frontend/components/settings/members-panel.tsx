@@ -41,7 +41,7 @@ function Invite() {
       <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3" noValidate>
         <Field label="E-mail" error={errors.email?.message}><input type="email" {...register("email")} className={input} placeholder="colleague@yourcompany.com" /></Field>
         <Field label="Role"><select {...register("role")} className={input}>{INVITE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select></Field>
-        <button disabled={m.isPending} className="mt-6 rounded-lg bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
+        <button disabled={m.isPending} className="mt-6 rounded-lg btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>

@@ -24,7 +24,7 @@ function GitHubMark() {
 }
 
 const field = "block h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-leaf-deep focus:ring-4 focus:ring-leaf-deep/10 disabled:bg-slate-50";
-const primary = "relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-b from-leaf-deep to-leaf-deep text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(15,118,110,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:from-leaf-deep hover:to-leaf-deep active:translate-y-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-leaf-deep/30 disabled:translate-y-0 disabled:opacity-60";
+const primary = "btn-leaf h-12 w-full rounded-xl text-sm font-semibold focus:outline-none focus-visible:ring-4 focus-visible:ring-leaf/30";
 const social = "flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-leaf-deep/15 aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
 type View = "signin" | "signup" | "forgot";

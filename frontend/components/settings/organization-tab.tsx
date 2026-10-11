@@ -111,7 +111,7 @@ function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, m
               {unit && <span className="text-xs text-muted">{unit}</span>}
               <button type="button" disabled={!valid || saving}
                 onClick={async () => { await onSave(n); setOpen(false); }}
-                className="ml-auto rounded-lg bg-leaf-deep px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
+                className="ml-auto rounded-lg btn-leaf px-3 py-1.5 text-xs font-semibold text-white active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
             </div>
             {error && <p role="alert" className="mt-1 text-xs text-bad">{error}</p>}
           </div>
@@ -285,7 +285,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
             {save.isSuccess && <span role="status" className="text-xs text-leaf-deep">{t("settings.org.saved")}</span>}
             {save.isError && <span role="alert" className="text-xs text-bad">{save.error.message}</span>}
             <button type="button" onClick={() => save.mutate()} disabled={!canEdit || (!nameChanged && !currencyChanged) || nm.trim().length < 2 || save.isPending}
-              className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">
+              className="rounded-lg btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
               {save.isPending ? t("settings.org.saving") : t("settings.org.save")}
             </button>
           </div>

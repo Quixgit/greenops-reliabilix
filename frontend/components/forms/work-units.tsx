@@ -39,7 +39,7 @@ export function WorkUnits({ projectId, unit, canEdit }: { projectId: string; uni
                 <input value={n} onChange={(e) => setN(e.target.value)} inputMode="decimal" placeholder="e.g. 1 200 000" className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm" /></label>
             </div>
             {save.isError && <p role="alert" className="text-xs text-bad">{save.error.message}</p>}
-            <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()} className="rounded-xl bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:opacity-50">{save.isPending ? "Saving…" : "Report units"}</button>
+            <button type="button" disabled={!valid || save.isPending} onClick={() => save.mutate()} className="rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white ">{save.isPending ? "Saving…" : "Report units"}</button>
           </div>
         </div>
       )}

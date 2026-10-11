@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.81] - 2026-10-11
+
+### Changed
+- **Primary buttons are no longer flat**: a soft green gradient with a light top edge, depth, a sheen that sweeps over
+  on hover and a press state. Used on the sign-in button, the wizard, projects, settings and forms.
+- **The user menu in the header** is a bordered pill with a raised avatar and the same hover and open states as the
+  other header controls.
+
 ## [0.1.0-alpha.80] - 2026-10-11
 
 ### Changed

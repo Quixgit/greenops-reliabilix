@@ -77,7 +77,7 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
         <div><Field label="Minimum severity">
           <select {...register("min_severity")} className={input}><option value="info">info</option><option value="warning">warning</option><option value="critical">critical</option></select>
         </Field></div>
-        <button disabled={m.isPending} className="rounded-lg bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Adding…" : "Add"}</button>
+        <button disabled={m.isPending} className="rounded-lg btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Adding…" : "Add"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>

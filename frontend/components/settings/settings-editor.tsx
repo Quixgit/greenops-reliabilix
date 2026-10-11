@@ -189,7 +189,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={dirty.length === 0 || save.isPending}
             onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
+            className="rounded-lg btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
           {dirty.length > 0 && <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">Discard</button>}
           {saved && dirty.length === 0 && <span role="status" className="text-sm text-leaf-deep">Saved.</span>}
           {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-bad">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}

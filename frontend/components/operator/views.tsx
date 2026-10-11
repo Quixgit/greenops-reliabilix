@@ -295,7 +295,7 @@ function StatusPanel({ id, canAct }: { id: string; canAct: boolean }) {
       {canAct && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {suspended ? (
-            <button type="button" disabled={set.isPending} onClick={() => set.mutate({ "organization.suspended": false })} className="rounded-xl bg-leaf-deep px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60">Restore access</button>
+            <button type="button" disabled={set.isPending} onClick={() => set.mutate({ "organization.suspended": false })} className="rounded-xl btn-leaf px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60">Restore access</button>
           ) : (<>
             <input value={message} onChange={(e) => setMessage(e.target.value)} maxLength={300} aria-label="Message shown to the organization" placeholder={current || "Reason shown to the organization"} className={`${selectCls} w-full sm:w-96`} />
             <ConfirmButton label="Suspend organization" confirmLabel="Suspend now" disabled={set.isPending}

@@ -273,3 +273,22 @@ html { scrollbar-gutter: stable; }
 @keyframes login-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 .login-float { animation: login-float 5s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .login-float { animation: none; } }
+
+/* ---- Primary button: a soft green gradient with a top light, a sheen that sweeps on hover ------------------------- */
+.btn-leaf {
+  position: relative; overflow: hidden; color: #fff;
+  background-image: linear-gradient(180deg, #7fd0b6 0%, #4fae93 55%, #2f8f78 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(0,0,0,.08), 0 1px 2px rgba(47,143,120,.35), 0 10px 22px -10px rgba(47,143,120,.65);
+  text-shadow: 0 1px 0 rgba(0,0,0,.12);
+  transition: transform .2s var(--ease-out-soft), box-shadow .2s var(--ease-out-soft), filter .2s;
+}
+.btn-leaf::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+  transition: transform .7s var(--ease-out-soft); pointer-events: none;
+}
+.btn-leaf:hover:not(:disabled) { transform: translateY(-1px); filter: saturate(1.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 4px rgba(47,143,120,.35), 0 16px 28px -12px rgba(47,143,120,.75); }
+.btn-leaf:hover:not(:disabled)::after { transform: translateX(120%); }
+.btn-leaf:active:not(:disabled) { transform: translateY(0); box-shadow: inset 0 2px 4px rgba(0,0,0,.15), 0 4px 10px -6px rgba(47,143,120,.6); }
+.btn-leaf:disabled { opacity: .55; }
+@media (prefers-reduced-motion: reduce) { .btn-leaf::after { display: none; } }

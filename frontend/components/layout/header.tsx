@@ -102,7 +102,7 @@ function PeriodPicker() {
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-line/70 px-1 pt-2.5">
               <span className="text-xs text-muted">{draft.from ? `${draft.from}${draft.to ? ` → ${draft.to}` : ""}` : t("header.pick_range")}</span>
               <button type="button" disabled={!draft.from} onClick={() => { setCustom(draft.from!, draft.to ?? draft.from!); setOpen(false); }}
-                className="rounded-lg bg-leaf-deep px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40">{t("header.apply")}</button>
+                className="rounded-lg btn-leaf px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40">{t("header.apply")}</button>
             </div>
           </div>
         </DropdownPanel>
@@ -186,8 +186,8 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
         </DropdownRoot>
 
         <DropdownRoot>
-          <DM.Trigger className="group flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-2.5 outline-none transition-colors hover:bg-slate-50 data-[state=open]:bg-slate-50">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-leaf to-leaf-deep text-sm font-bold text-white shadow-sm">{initials || "U"}</span>
+          <DM.Trigger className="group flex items-center gap-2.5 rounded-2xl border border-line/80 bg-white py-1 pl-1 pr-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:-translate-y-px hover:border-leaf/50 hover:shadow-[0_8px_18px_-10px_rgba(47,143,120,0.5)] data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]">
+            <span className="btn-leaf flex size-9 items-center justify-center rounded-xl text-sm font-bold">{initials || "U"}</span>
             <span className="hidden text-left leading-tight sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-xs capitalize text-muted">{user.role}</span></span>
           </DM.Trigger>
           <DropdownPanel align="end">
