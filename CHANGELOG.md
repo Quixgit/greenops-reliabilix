@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.85] - 2026-10-11
+
+### Fixed
+- The delete confirmation on a project card: Cancel and Delete are two equal buttons kept clear of the card's edges.
+
 ## [0.1.0-alpha.84] - 2026-10-11
 
 ### Added
