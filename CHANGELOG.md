@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.94] - 2026-10-11
+
+### Added
+- **Connect a cluster from the Kubernetes page**: a step-by-step wizard (cluster name, project and region; a key of the
+  access "Kubernetes agent" created in place and shown once; the ready `kubectl` secret and CronJob with the values
+  filled in and the agent image of this version; then it waits for the first hour and confirms when the cluster
+  appears). The platform still never reaches into a cluster (ADR-0030): the agent pushes with its own key.
+
 ## [0.1.0-alpha.93] - 2026-10-11
 
 ### Added

@@ -238,7 +238,7 @@ export function WorkloadTable({ cluster, onClear }: { cluster: string; onClear: 
 
 const SNIPPET = "PROM_URL=http://prometheus:9090 API_URL=<platform API> API_KEY=<agent key> PROJECT_ID=<project id> \\\nCLUSTER=<cluster name> REGION=<cloud region> scripts/kepler-push.sh";
 
-export function K8sSetup() {
+export function K8sSetup({ onConnect }: { onConnect?: () => void }) {
   const t = useT();
   const [done, setDone] = useState(false);
   return (
@@ -252,6 +252,7 @@ export function K8sSetup() {
       <div className="mx-auto mt-5 max-w-xl">
         <div className="mb-1 flex justify-end"><button type="button" onClick={() => { void navigator.clipboard?.writeText(SNIPPET); setDone(true); window.setTimeout(() => setDone(false), 1500); }} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium text-slate-500 hover:bg-slate-100"><IconCopy className="size-3.5" />{done ? t("au.copied") : t("au.copy")}</button></div>
         <pre className="overflow-x-auto rounded-xl bg-slate-900 px-4 py-3 font-mono text-xs text-slate-100">{SNIPPET}</pre>
+        {onConnect && <div className="mt-5 text-center"><button type="button" onClick={onConnect} className="btn-leaf rounded-xl px-5 py-2.5 text-sm font-semibold">{t("kc.connect")}</button></div>}
         <p className="mt-3 text-center text-xs text-muted">{t("k8.setup.docs")} <Link href="/settings" className="text-leaf-deep hover:underline">{t("k8.setup.keys")}</Link></p>
       </div>
     </Card>
