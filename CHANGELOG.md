@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.90] - 2026-10-11
+
+### Added
+- **Progress while a report is generated**: a thin leaf-green line along the top of the report builder eases forward while
+  the file is prepared, fills when it is ready (with the percentage and a message beside the button) and turns rose if
+  generation failed.
+
 ## [0.1.0-alpha.89] - 2026-10-11
 
 ### Fixed

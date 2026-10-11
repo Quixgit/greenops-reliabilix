@@ -1119,5 +1119,8 @@
   "rp.delete_ask": "Delete this report and its file?",
   "rp.delete_do": "Delete",
   "rp.empty": "No reports yet. Pick a kind above and generate the first one.",
-  "rp.none_match": "No report matches these filters."
+  "rp.none_match": "No report matches these filters.",
+  "rp.progress": "Preparing the report",
+  "rp.progress_done": "Ready — it is in the list below",
+  "rp.progress_fail": "Could not be generated"
 }

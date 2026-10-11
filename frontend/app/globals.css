@@ -296,3 +296,5 @@ li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) ro
 @keyframes report-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
 .report-bar { animation: report-bar 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .report-bar { animation: none; } }
+
+.progress-glow { box-shadow: 0 0 10px rgba(111,195,168,.7); }

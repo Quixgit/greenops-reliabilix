@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { DateField } from "@/components/ui/date-field";
 import { IconBolt, IconCheck, IconCoin, IconDownload, IconGauge, IconLeaf, IconReport } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProjects } from "@/hooks/use-overview";
+import { useProjects, useReports } from "@/hooks/use-overview";
 import { useReportOptions, useReportPreview, useRequestReport } from "@/hooks/use-reports";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,27 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
   const [range, setRange] = useState<[string, string]>(() => PRESETS[1].range());
   const [from, to] = range;
 
+  // Progress of the report just requested: it eases toward 92% while it renders, then fills when the file is ready.
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [pct, setPct] = useState(0);
+  const [phase, setPhase] = useState<"idle" | "run" | "done" | "fail">("idle");
+  const job = (useReports().data ?? []).find((r) => r.id === jobId);
+  useEffect(() => {
+    if (phase !== "run") return;
+    const id = window.setInterval(() => setPct((v) => v + (92 - v) * 0.08), 200);
+    return () => window.clearInterval(id);
+  }, [phase]);
+  useEffect(() => {
+    if (!jobId || phase !== "run" || !job) return;
+    if (job.status === "ready") { setPct(100); setPhase("done"); }
+    else if (job.status === "failed") { setPhase("fail"); }
+  }, [job, jobId, phase]);
+  useEffect(() => {
+    if (phase !== "done") return;
+    const id = window.setTimeout(() => { setPhase("idle"); setPct(0); setJobId(null); }, 1800);
+    return () => window.clearTimeout(id);
+  }, [phase]);
+
   const maxDays = opts.data?.max_days ?? 400;
   const formats = opts.data?.formats ?? ["pdf", "csv", "json"];
   const chosenFormat = formats.includes(format) ? format : formats[0];
@@ -53,10 +74,20 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
   const summary = useMemo(() => `${t(`rp.kind.${kind}`)} · ${chosenFormat?.toUpperCase()} · ${projectName} · ${from} → ${to}`, [t, kind, chosenFormat, projectName, from, to]);
 
   const setPresetRange = (id: string) => { setPreset(id); setRange(PRESETS.find((x) => x.id === id)!.range()); };
-  const submit = () => request.mutate({ kind, format: chosenFormat, project_id: project || null, period_start: from, period_end: to }, { onSuccess: onRequested });
+  const submit = () => {
+    setPct(4); setPhase("run");
+    request.mutate({ kind, format: chosenFormat, project_id: project || null, period_start: from, period_end: to }, {
+      onSuccess: (r) => { setJobId(r.id); onRequested(); },
+      onError: () => { setPhase("idle"); setPct(0); },
+    });
+  };
+  const busy = phase === "run";
 
   return (
-    <Card index={1} interactive={false}>
+    <Card index={1} interactive={false} className="relative overflow-hidden">
+      <div aria-hidden className={cn("absolute inset-x-0 top-0 h-[3px] bg-slate-100 transition-opacity duration-500", phase === "idle" ? "opacity-0" : "opacity-100")}>
+        <div className={cn("h-full rounded-r-full transition-[width,background-color] duration-300 ease-out", phase === "fail" ? "bg-[#e08b98]" : "bg-gradient-to-r from-leaf to-leaf-deep", busy && "progress-glow")} style={{ width: `${phase === "fail" ? 100 : pct}%` }} />
+      </div>
       <CardHeader icon={<IconReport className="size-[18px] text-leaf-deep" />} title={t("rp.new")} info={t("rp.info.new")} />
 
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rp.step.kind")}</p>
@@ -143,8 +174,13 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="min-w-0 truncate text-sm text-slate-600">{ok ? summary : ""}</p>
         <div className="flex items-center gap-3">
+          {phase !== "idle" && (
+            <span role="status" className={cn("text-xs font-medium tabular-nums", phase === "fail" ? "text-[#c25667]" : phase === "done" ? "text-leaf-deep" : "text-slate-500")}>
+              {phase === "run" ? `${t("rp.progress")} ${Math.round(pct)}%` : phase === "done" ? t("rp.progress_done") : t("rp.progress_fail")}
+            </span>
+          )}
           {request.isError && <span role="alert" className="text-sm text-bad">{request.error.message}</span>}
-          <button type="button" disabled={!ok || request.isPending} onClick={submit}
+          <button type="button" disabled={!ok || request.isPending || busy} onClick={submit}
             className="btn-leaf inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
             <IconDownload className="size-4" strokeWidth={2} />{request.isPending ? t("rp.requesting") : t("rp.generate")}
           </button>
