@@ -5,8 +5,7 @@ import { IconArrowUpRight as ArrowUpRight, IconCheckCircle as CheckCircle2, Icon
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
-import { ConnectionForm } from "@/components/forms/connection-form";
-import { Drawer } from "@/components/connectors/drawer";
+import { ConnectWizard } from "@/components/connectors/connect-wizard";
 import { HealthRing } from "@/components/connectors/health-ring";
 import { ProviderMark } from "@/components/connectors/provider-mark";
 import { RunBars } from "@/components/connectors/run-bars";
@@ -66,13 +65,15 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]["id"]>("all");
-  const [connectAs, setConnectAs] = useState<Provider | null>(null);
+  const [connectAs, setConnectAs] = useState<Provider | "" | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   // /connectors?connect=aws opens the connect panel for that cloud (the Settings page links here)
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("connect");
     if (p === "aws" || p === "gcp" || p === "azure") setConnectAs(p);
   }, []);
+
+  useEffect(() => { if (connectAs !== null) window.scrollTo({ top: 0, behavior: "smooth" }); }, [connectAs]);
 
   const notifOn = useNotificationsEnabled();
   const conns = d.connections.data ?? [];
@@ -127,22 +128,28 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
           <h1 className="text-2xl font-bold tracking-tight">{t("connectors.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("connectors.subtitle")}</p>
         </div>
-        {canConnect && (
-          <button onClick={() => setConnectAs((["aws", "gcp", "azure"] as Provider[]).find((p) => !conns.some((c) => c.provider === p)) ?? "aws")} className="brand-gradient inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0">
-            <Plus className="size-4" />{t("connectors.connect")}
+        {canConnect && connectAs === null && (
+          <button onClick={() => setConnectAs("")} className="btn-leaf inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold">
+            <Plus className="size-4" strokeWidth={2.2} />{t("connectors.connect")}
           </button>
         )}
       </div>
 
+      <div className={cn("grid transition-[grid-template-rows,opacity] duration-500 ease-out", connectAs !== null && canConnect ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")} aria-hidden={connectAs === null}>
+        <div className="overflow-hidden"><div className="pb-1">
+          {connectAs !== null && canConnect && <ConnectWizard key={connectAs} initialProvider={connectAs || null} onClose={() => setConnectAs(null)} />}
+        </div></div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi index={0} label={t("connectors.kpi.active")} info={t("info.connectors_active")} hint={t("connectors.kpi.active_of", { total: k.total })}
-          ring={<span className="flex size-11 items-center justify-center rounded-xl bg-leaf-soft text-leaf-deep"><Zap className="size-5" /></span>}>
+          ring={<Zap className="size-11 text-leaf-deep" strokeWidth={1.4} />}>
           {loading ? <Skeleton className="h-8 w-14" /> : <CountUp value={k.active} format={(n) => String(Math.round(n))} />}
         </Kpi>
         <Kpi index={1} label={t("connectors.kpi.sources")} info={t("info.connectors_sources")} hint={k.sources.length ? undefined : t("connectors.kpi.sources_none")}
-          ring={<span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Cloud className="size-5" /></span>}>
+          ring={<Cloud className="size-11 text-[#5b8fdc]" strokeWidth={1.4} />}>
           {loading ? <Skeleton className="h-8 w-28" /> : k.sources.length ? (
-            <span className="flex items-center -space-x-1.5">{k.sources.map((s) => <span key={s} className="rounded-xl ring-2 ring-white"><ProviderMark id={s} size="sm" /></span>)}</span>
+            <span className="flex items-center -space-x-1.5">{k.sources.map((s) => <span key={s} className="rounded-full bg-white"><ProviderMark id={s} size="sm" /></span>)}</span>
           ) : <span className="text-muted">—</span>}
         </Kpi>
         <Kpi index={2} label={t("connectors.kpi.health")} info={t("info.connectors_health")} hint={d.runs.loading ? undefined : k.health === null ? t("connectors.kpi.no_data") : t("connectors.kpi.health_hint")}
@@ -150,7 +157,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.health === null ? <span className="text-muted">—</span> : <CountUp value={k.health} format={(n) => `${Math.round(n)}%`} />}
         </Kpi>
         <Kpi index={3} label={t("connectors.kpi.sync_time")} info={t("info.connectors_time")} hint={d.runs.loading ? undefined : k.avgSyncSeconds === null ? t("connectors.kpi.no_data") : t("connectors.kpi.sync_time_hint")}
-          ring={<span className="flex size-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><RefreshCw className="size-5" /></span>}>
+          ring={<RefreshCw className="size-11 text-[#8a78d8]" strokeWidth={1.4} />}>
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.avgSyncSeconds === null ? <span className="text-muted">—</span> : formatDuration(k.avgSyncSeconds)}
         </Kpi>
       </div>
@@ -162,14 +169,14 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
             <label className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("connectors.search")}
-                className="w-56 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-leaf/40/30" />
+                className="w-56 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm outline-none transition-shadow " />
             </label>
           </div>
           <div role="tablist" className="flex flex-wrap gap-2 border-b border-line px-5 py-3">
             {(["all", "synced", "attention", "waiting"] as Filter[]).map((f) => (
               <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
                 className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm ring-1 ring-inset transition-all duration-200",
-                  filter === f ? "bg-primary text-white ring-primary shadow-sm" : "bg-white text-slate-700 ring-line hover:bg-slate-50")}>
+                  filter === f ? "bg-leaf-deep text-white ring-leaf-deep" : "bg-white text-slate-700 ring-line hover:bg-leaf-soft hover:text-leaf-deep")}>
                 {t(`connectors.filter.${f}`)}
                 <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", filter === f ? "bg-white/25" : "bg-slate-100 text-muted")}>{counts[f]}</span>
               </button>
@@ -240,7 +247,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
                               <div className="flex items-start gap-2 sm:flex-col">
                                 {canConnect && (
                                   <button onClick={() => sync.mutate(c.id)} disabled={sync.isPending && sync.variables === c.id}
-                                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60">
+                                    className="btn-leaf inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold">
                                     {sync.isPending && sync.variables === c.id ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                                     {sync.isPending && sync.variables === c.id ? t("connectors.syncing") : t("connectors.sync_now")}
                                   </button>
@@ -315,7 +322,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
             {CATEGORIES.map((c) => (
               <button key={c.id} role="tab" aria-selected={cat === c.id} onClick={() => setCat(c.id)}
                 className={cn("rounded-full px-3 py-1 text-sm ring-1 ring-inset transition-all duration-200",
-                  cat === c.id ? "bg-primary text-white ring-primary shadow-sm" : "bg-white text-slate-700 ring-line hover:bg-slate-50")}>
+                  cat === c.id ? "bg-leaf-deep text-white ring-leaf-deep" : "bg-white text-slate-700 ring-line hover:bg-leaf-soft hover:text-leaf-deep")}>
                 {t(`connectors.cat.${c.id}`, undefined, c.label)}
               </button>
             ))}
@@ -328,9 +335,6 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
         </div>
       </section>
 
-      <Drawer open={connectAs !== null && canConnect} onClose={() => setConnectAs(null)} title={t("connectors.drawer.title")} closeLabel={t("common.cancel")}>
-        {connectAs && <ConnectionForm key={connectAs} initialProvider={connectAs} onDone={() => setConnectAs(null)} />}
-      </Drawer>
     </div>
   );
 }

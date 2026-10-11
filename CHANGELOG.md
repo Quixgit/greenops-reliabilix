@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.92] - 2026-10-11
+
+### Changed
+- **Connectors page and the connect flow rebuilt.** Connecting a cloud is a step-by-step wizard that slides open above
+  the page (cloud, way of access, details, verification) instead of a side panel: each way of access (own read-only
+  credential or the advanced role / shared dataset / export) is explained, fields are validated per provider, the
+  cloud-side steps and policies are shown with copy buttons, and access is verified in place.
+- Provider marks are our own drawn icons (AWS, Azure, Google Cloud, Kubernetes and the notification channels), bare;
+  the summary tiles use bare icons; filters and the primary actions follow the platform's flat green.
+
 ## [0.1.0-alpha.91] - 2026-10-11
 
 ### Changed

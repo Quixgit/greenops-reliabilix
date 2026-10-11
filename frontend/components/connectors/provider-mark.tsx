@@ -1,29 +1,22 @@
+import { IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
-const MARKS: Record<string, { label: string; tile: string }> = {
-  aws: { label: "AWS", tile: "from-pastel-amber to-pastel-amber" },
-  azure: { label: "Az", tile: "from-pastel-blue to-blue-600" },
-  gcp: { label: "GC", tile: "from-leaf to-leaf-deep" },
-  kubernetes: { label: "K8s", tile: "from-pastel-violet to-blue-600" },
-  email: { label: "@", tile: "from-slate-400 to-slate-600" },
-  slack: { label: "#", tile: "from-pastel-violet to-violet-600" },
-  webhook: { label: "{ }", tile: "from-cyan-400 to-sky-600" },
-  teams: { label: "T", tile: "from-pastel-violet to-violet-600" },
+const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {
+  aws: { icon: IconAws, tone: "", own: true },
+  azure: { icon: IconAzure, tone: "", own: true },
+  gcp: { icon: IconGcp, tone: "", own: true },
+  kubernetes: { icon: IconKubernetes, tone: "", own: true },
+  email: { icon: IconMail, tone: "text-slate-500" },
+  slack: { icon: IconSend, tone: "text-[#8a78d8]" },
+  webhook: { icon: IconPlug, tone: "text-[#5b8fdc]" },
+  teams: { icon: IconUsers, tone: "text-[#8a78d8]" },
+  prometheus: { icon: IconCpu, tone: "text-[#d9a441]" },
+  "electricity-maps": { icon: IconLeaf, tone: "text-leaf-deep" },
 };
 
-/** One tile per connector: the same shape and weight for every provider, so a list of mixed sources reads evenly. */
+/** The drawn mark of a connector: bare, no tile or frame, the same weight for every source so mixed lists read evenly. */
 export function ProviderMark({ id, size = "md", dim = false }: { id: string; size?: "sm" | "md" | "lg"; dim?: boolean }) {
-  const m = MARKS[id] ?? { label: id.slice(0, 2).toUpperCase(), tile: "from-slate-300 to-slate-500" };
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br font-bold tracking-tight text-white shadow-sm ring-1 ring-black/5 transition-transform duration-300",
-        size === "sm" ? "size-8 text-[11px]" : size === "lg" ? "size-12 text-sm" : "size-10 text-xs",
-        m.tile, dim && "opacity-45 saturate-50",
-      )}
-    >
-      {m.label}
-    </span>
-  );
+  const m = MARKS[id] ?? { icon: IconDatabase, tone: "text-slate-400" };
+  const Icon = m.icon;
+  return <Icon className={cn(size === "sm" ? "size-8" : size === "lg" ? "size-12" : "size-10", "shrink-0 transition-transform duration-300", m.tone, dim && "opacity-45 saturate-50")} strokeWidth={1.4} />;
 }
