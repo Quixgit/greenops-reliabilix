@@ -97,7 +97,7 @@ export function BudgetsPanel({ canEdit, currency }: { canEdit: boolean; currency
   if (q.isError) return null; // no billing access (403): the page simply has no budgets section
   const name = (id: string | null) => (id === null ? t("budgets.scope_org") : projects.data?.find((p) => p.id === id)?.name ?? t("budgets.project_unknown"));
   return (
-    <Panel index={1} icon={Wallet} title={t("budgets.title")} hint={t("budgets.intro")}>
+    <Panel info={t("info.set_budgets")} index={1} icon={Wallet} title={t("budgets.title")} hint={t("budgets.intro")}>
       {canEdit && <div className="mb-4"><NewBudget currency={currency} /></div>}
       {q.isLoading ? <Skeleton className="h-24" /> : q.data!.length === 0 ? (
         <EmptyState icon={Wallet} text={t("budgets.empty")} />

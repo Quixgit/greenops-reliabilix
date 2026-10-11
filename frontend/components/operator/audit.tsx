@@ -1,6 +1,6 @@
 "use client";
 
-import { History } from "lucide-react";
+import { IconHistory as History } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";

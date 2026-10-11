@@ -2,8 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { History as HistoryIcon, Power } from "lucide-react";
-import { IconBell as Bell, IconPlus as Plus, IconSend as Send } from "@/components/ui/icons";
+import { IconHistory as HistoryIcon, IconPower as Power, IconBell as Bell, IconPlus as Plus, IconSend as Send } from "@/components/ui/icons";
 import { Switch } from "@/components/operator/ui";
 import { useNotificationsEnabled } from "@/hooks/use-admin";
 import { settingsView } from "@/lib/api/schemas";
@@ -164,7 +163,7 @@ function MasterSwitch({ canEdit }: { canEdit: boolean }) {
   const list = dests.data ?? [];
   const on = list.filter((d) => d.enabled).length;
   return (
-    <Panel index={0} icon={Power} title={t("settings.notif.master")} hint={t("settings.notif.master_hint")}>
+    <Panel info={t("info.set_notif_master")} index={0} icon={Power} title={t("settings.notif.master")} hint={t("settings.notif.master_hint")}>
       <div className="flex items-center justify-between gap-3 border-t border-line/70 pt-3">
         <span className="text-[13px] text-slate-700">{enabled === false ? t("settings.notif.master_off") : t("settings.notif.master_on")}</span>
         <Switch label={t("settings.notif.master")} checked={enabled !== false} disabled={!canEdit || enabled === undefined || toggle.isPending} onChange={(v) => toggle.mutate(v)} />
@@ -191,17 +190,17 @@ export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel index={0} icon={Bell} title={t("settings.notif.destinations")} hint={t("settings.notif.destinations_hint")} className="lg:col-span-2">
+        <Panel info={t("info.set_notif_dest")} index={0} icon={Bell} title={t("settings.notif.destinations")} hint={t("settings.notif.destinations_hint")} className="lg:col-span-2">
           {cat.isLoading ? <Skeleton className="h-24" /> : cat.isError ? <ErrorState /> : <DestinationList canEdit={canEdit && cat.data!.configured} catalog={cat.data!} />}
         </Panel>
         <div className="flex flex-col gap-4 [&>section]:flex-1">
           <MasterSwitch canEdit={canEdit} />
           {canEdit && cat.data?.configured && (
-            <Panel index={1} icon={Plus} title={t("settings.notif.add")} hint={t("settings.notif.add_hint")}><AddDestination catalog={cat.data} /></Panel>
+            <Panel info={t("info.set_notif_add")} index={1} icon={Plus} title={t("settings.notif.add")} hint={t("settings.notif.add_hint")}><AddDestination catalog={cat.data} /></Panel>
           )}
         </div>
       </div>
-      <Panel index={2} icon={HistoryIcon} title={t("settings.notif.deliveries")} hint={t("settings.notif.deliveries_hint")}><DeliveryHistory /></Panel>
+      <Panel info={t("info.set_notif_hist")} index={2} icon={HistoryIcon} title={t("settings.notif.deliveries")} hint={t("settings.notif.deliveries_hint")}><DeliveryHistory /></Panel>
     </div>
   );
 }

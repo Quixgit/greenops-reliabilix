@@ -1,8 +1,7 @@
 "use client";
 
-import { CreditCard, Palette } from "lucide-react";
+import { IconCard as CreditCard, IconPalette as Palette, IconBell as Bell, IconBuilding as Building2, IconDatabase as Database, IconFlow as Workflow, IconKey as KeyRound, IconSliders as SettingsIcon, IconSliders as SlidersHorizontal, IconUsers as Users } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as Bell, IconBuilding as Building2, IconDatabase as Database, IconFlow as Workflow, IconKey as KeyRound, IconSliders as SettingsIcon, IconSliders as SlidersHorizontal, IconUsers as Users } from "@/components/ui/icons";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DataTab } from "@/components/settings/data-tab";
 import { AuditPanel } from "@/components/settings/audit-panel";

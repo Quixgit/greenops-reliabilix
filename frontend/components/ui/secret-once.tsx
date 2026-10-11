@@ -1,7 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
-import { IconKey as KeyRound } from "@/components/ui/icons";
+import { IconCheck as Check, IconCopy as Copy, IconKey as KeyRound } from "@/components/ui/icons";
 import { useState } from "react";
 
 /** A secret the API shows exactly once (API key, invitation token, webhook signing secret). */

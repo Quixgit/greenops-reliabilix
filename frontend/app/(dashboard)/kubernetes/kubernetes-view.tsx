@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/i18n/provider";
 import { IconCluster as Boxes } from "@/components/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
@@ -24,6 +25,7 @@ function Use({ pct }: { pct: number | null | undefined }) {
 }
 
 export function KubernetesView() {
+  const t = useT();
   const [cluster, setCluster] = useState("");
   const clusters = useK8sClusters();
   const workloads = useK8sWorkloads(cluster);
@@ -38,7 +40,7 @@ export function KubernetesView() {
         </p>
       </div>
       <Card index={0}>
-        <CardHeader title="Clusters" />
+        <CardHeader info={t("info.k8s_clusters")} title="Clusters" />
         {clusters.isLoading ? <Skeleton className="h-20" /> : clusters.isError ? <ErrorState /> : clusters.data!.length === 0 ? (
           <EmptyState icon={Boxes} className="py-10"
             text="No Kubernetes data yet. Create an API key with the access “Kubernetes agent” in Settings, then run the agent in your cluster (see docs/setup/kubernetes.md)."
@@ -64,7 +66,7 @@ export function KubernetesView() {
       </Card>
       {!!clusters.data?.length && (
         <Card index={1}>
-          <CardHeader title={cluster ? `Workloads in ${cluster}` : "Workloads"} action={cluster ? <button className="text-sm text-primary" onClick={() => setCluster("")}>All clusters</button> : undefined} />
+          <CardHeader info={t("info.k8s_workloads")} title={cluster ? `Workloads in ${cluster}` : "Workloads"} action={cluster ? <button className="text-sm text-primary" onClick={() => setCluster("")}>All clusters</button> : undefined} />
           {workloads.isLoading ? <Skeleton className="h-24" /> : workloads.isError ? <ErrorState /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">

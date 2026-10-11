@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Pencil, Trash2 } from "lucide-react";
-import { IconLock as Lock, IconPlus as Plus, IconShield as ShieldCheck } from "@/components/ui/icons";
+import { IconChevronDown as ChevronDown, IconPencil as Pencil, IconTrash as Trash2, IconLock as Lock, IconPlus as Plus, IconShield as ShieldCheck } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
@@ -85,7 +84,7 @@ export function RolesPanel() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {editing && <Editor view={view} draft={editing} onClose={() => setEditing(null)} />}
-      <Panel index={0} icon={ShieldCheck} title={t("roles.custom")} hint={t("settings.roles.custom_hint")} action={!editing && (
+      <Panel info={t("info.set_roles_custom")} index={0} icon={ShieldCheck} title={t("roles.custom")} hint={t("settings.roles.custom_hint")} action={!editing && (
         <button type="button" onClick={() => start()} className="inline-flex items-center gap-1.5 rounded-lg bg-leaf-soft px-3 py-1.5 text-sm font-medium text-leaf-deep transition-colors hover:bg-leaf-soft"><Plus className="size-4" aria-hidden />{t("roles.new")}</button>
       )}>
         {view.custom.length === 0 ? <p className="border-t border-line/70 pt-3 text-sm text-muted">{t("roles.none")}</p> : (
@@ -110,7 +109,7 @@ export function RolesPanel() {
         <p className="mt-3 text-xs text-muted">{t("roles.assign_hint")}</p>
       </Panel>
 
-      <Panel index={1} icon={Lock} title={t("roles.builtin")} hint={t("settings.roles.builtin_hint")}>
+      <Panel info={t("info.set_roles_builtin")} index={1} icon={Lock} title={t("roles.builtin")} hint={t("settings.roles.builtin_hint")}>
         <ul className="text-sm">
           {view.builtin.map((b) => {
             const isOpen = openRole === b.role;

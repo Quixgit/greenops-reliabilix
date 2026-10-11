@@ -2,9 +2,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Locate, Maximize2, Minus } from "lucide-react";
+import { IconArrowDown as ArrowDown, IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight, IconArrowUp as ArrowUp, IconLocate as Locate, IconExpand as Maximize2, IconMinus as Minus, IconPlus as Plus } from "@/components/ui/icons";
 import { CloseButton } from "@/components/ui/close-button";
-import { IconPlus as Plus } from "@/components/ui/icons";
 import type { RegionFootprint, RegionIntensity } from "@/lib/api/schemas";
 import { landDots, project, MAP_H, MAP_W } from "@/lib/dot-grid";
 import { REGION_GEO, REGION_LABEL, distanceKm, flag, regionProvider, rttMs } from "@/lib/regions";

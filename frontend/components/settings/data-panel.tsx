@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Trash2 } from "lucide-react";
+import { IconDownload as Download, IconTrash as Trash2 } from "@/components/ui/icons";
 import { useState } from "react";
 import { z } from "zod";
 import { ConfirmButton } from "@/components/ui/confirm-button";
@@ -36,7 +36,7 @@ export function DataPanel() {
   const scheduled = q.data?.scheduled;
   return (
     <>
-      <Panel index={7} icon={Download} title={t("settings.data.export")} hint={t("settings.data.export_hint")}>
+      <Panel info={t("info.set_export")} index={7} icon={Download} title={t("settings.data.export")} hint={t("settings.data.export_hint")}>
         <p className="text-sm text-muted">
           Everything the organization stores — projects, connections, usage, carbon results, recommendations, members and the audit
           log — as one NDJSON file. Secrets (API key hashes, notification targets, AWS ExternalIds) and generated report files are not included.
@@ -46,7 +46,7 @@ export function DataPanel() {
           <Download className="size-4" />Download export
         </a>
       </Panel>
-      <Panel index={8} icon={Trash2} title={t("settings.data.erase")} hint={t("settings.data.erase_hint")}>
+      <Panel info={t("info.set_erase")} index={8} icon={Trash2} title={t("settings.data.erase")} hint={t("settings.data.erase_hint")}>
         {scheduled ? (
           <div className="space-y-3 text-sm">
             <p role="status" className="rounded-lg bg-red-50 p-3 text-bad ring-1 ring-red-200">

@@ -1,9 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Cable } from "lucide-react";
+import { IconCable as Cable, IconBell as BellRing, IconChart as BarChart3, IconKey as KeyRound } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as BellRing, IconChart as BarChart3, IconKey as KeyRound } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";

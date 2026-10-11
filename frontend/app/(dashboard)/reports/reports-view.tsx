@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/i18n/provider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconReport as FileText } from "@/components/ui/icons";
@@ -47,14 +48,15 @@ function ReportForm() {
 }
 
 export function ReportsView({ canCreate }: { canCreate: boolean }) {
+  const t = useT();
   const q = useReports();
   const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-      {canCreate && <Card><CardHeader title="New report" /><ReportForm /></Card>}
+      {canCreate && <Card><CardHeader info={t("info.reports_new")} title="New report" /><ReportForm /></Card>}
       <Card>
-        <CardHeader title="Your reports" />
+        <CardHeader info={t("info.reports_list")} title="Your reports" />
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
           <EmptyState icon={FileText} text="No reports yet. Generated reports are listed here and can be downloaded when ready." /> : (
             <ul className="divide-y divide-line/70 text-sm">

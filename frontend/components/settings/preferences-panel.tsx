@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Palette } from "lucide-react";
+import { IconEye as Eye, IconPalette as Palette } from "@/components/ui/icons";
 import { Switch } from "@/components/operator/ui";
 import { useT } from "@/i18n/provider";
 import { usePrefs } from "@/lib/prefs";
@@ -37,7 +37,7 @@ export function PreferencesPanel() {
     <div className="space-y-4">
       <p className="text-sm text-muted">{t("settings.prefs.note", undefined, "Personal display settings. They are kept in this browser and never change what other people in the organization see.")}</p>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel index={0} icon={Palette} title={t("settings.prefs.display")} hint={t("settings.prefs.display_hint")}>
+        <Panel info={t("info.set_prefs_display")} index={0} icon={Palette} title={t("settings.prefs.display")} hint={t("settings.prefs.display_hint")}>
           <Row title={t("settings.prefs.period", undefined, "Default period")} hint={t("settings.prefs.period_hint", undefined, "The period every chart and number opens with.")}>
             <Segmented label="Default period" value={period === "custom" ? "30d" : period} onChange={setPeriod} options={PERIODS.map((p) => [p.key, p.label.replace("Last ", "")] as [typeof p.key, string])} />
           </Row>
@@ -48,7 +48,7 @@ export function PreferencesPanel() {
             <Segmented label="Density" value={density} onChange={(v) => set({ density: v })} options={[["comfortable", "Comfortable"], ["compact", "Compact"]]} />
           </Row>
         </Panel>
-        <Panel index={1} icon={Eye} title={t("settings.prefs.access")} hint={t("settings.prefs.access_hint")}>
+        <Panel info={t("info.set_prefs_access")} index={1} icon={Eye} title={t("settings.prefs.access")} hint={t("settings.prefs.access_hint")}>
           <Row title={t("settings.prefs.motion", undefined, "Reduce motion")} hint={t("settings.prefs.motion_hint", undefined, "Turns off entrance animations, pulses and transitions.")}>
             <Switch label="Reduce motion" checked={reduceMotion} onChange={(v) => set({ reduceMotion: v })} />
           </Row>

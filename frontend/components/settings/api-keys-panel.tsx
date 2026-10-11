@@ -38,7 +38,7 @@ export function ApiKeysPanel() {
   const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <Panel index={0} icon={KeyRound} title={t("settings.keys.title")} hint={t("settings.keys.hint", { count: active })} className="lg:col-span-2">
+      <Panel info={t("info.set_keys")} index={0} icon={KeyRound} title={t("settings.keys.title")} hint={t("settings.keys.hint", { count: active })} className="lg:col-span-2">
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={KeyRound} text="No API keys. Create one for a CI pipeline that calls the CI gate." /> : (
           <ul className="text-sm">
             {pg.slice.map((k) => (
@@ -55,7 +55,7 @@ export function ApiKeysPanel() {
         <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
         {revoke.isError && <p role="alert" className="mt-2 text-sm text-bad">{revoke.error.message}</p>}
       </Panel>
-      <Panel index={1} icon={Plus} title={t("settings.keys.create")} hint={t("settings.keys.create_hint")}>
+      <Panel info={t("info.set_keys_new")} index={1} icon={Plus} title={t("settings.keys.create")} hint={t("settings.keys.create_hint")}>
         <div className="space-y-3">
           {key && <SecretOnce title="API key" value={key} onDismiss={() => setKey(null)} />}
           <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3" noValidate>

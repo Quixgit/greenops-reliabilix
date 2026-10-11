@@ -7,14 +7,14 @@ import { cn } from "@/lib/utils";
  * second tone behind the main shape, so a screen reads as one illustration instead of a pile of stock glyphs.
  * Every icon takes the usual `className` and `strokeWidth` and follows the text colour.
  */
-export type IconProps = { className?: string; strokeWidth?: number };
+export type IconProps = { className?: string; strokeWidth?: number; "aria-label"?: string };
 export type IconType = ComponentType<IconProps>;
 /** Either set: the screens still holding a stock glyph keep working while the drawn set takes over. */
 export type AnyIcon = LucideIcon | IconType;
 
 function make(name: string, tone: ReactNode, line: ReactNode): IconType {
-  const Icon = ({ className, strokeWidth = 1.6 }: IconProps) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={cn("size-5 shrink-0", className)} aria-hidden>
+  const Icon = ({ className, strokeWidth = 1.6, "aria-label": label }: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={cn("size-5 shrink-0", className)} aria-hidden={label ? undefined : true} aria-label={label} role={label ? "img" : undefined}>
       {tone && <g fill="currentColor" stroke="none" opacity=".15">{tone}</g>}
       {line}
     </svg>
@@ -186,3 +186,148 @@ export const IconGcp = make("gcp",
 export const IconKubernetes = make("kubernetes",
   <path d="M12 3.3l7.2 3.5 1.8 7.8-5 6.2H8l-5-6.2 1.8-7.8z" />,
   <><path d="M12 3.1l7.5 3.6 1.9 8.1-5.2 6.5H7.8l-5.2-6.5 1.9-8.1z" /><circle cx="12" cy="12.4" r="2.2" /><path d="M12 10.2V6.4M13.9 11.2l3.3-1.9M13.8 13.6l3 2.4M10.2 13.6l-3 2.4M10.1 11.2L6.8 9.3" /></>);
+
+/* Second batch: the glyphs the operator console and the rarer forms still took from the stock set. */
+export const IconServer = make("server",
+  <path d="M4.4 4.6c0-.6.5-1.1 1.1-1.1h13c.6 0 1.1.5 1.1 1.1v3.6c0 .6-.5 1.1-1.1 1.1h-13c-.6 0-1.1-.5-1.1-1.1z" />,
+  <><path d="M4.5 4.7c0-.7.5-1.2 1.2-1.2h12.6c.7 0 1.2.5 1.2 1.2v3.5c0 .7-.5 1.2-1.2 1.2H5.7c-.7 0-1.2-.5-1.2-1.2z" /><path d="M4.5 15.8c0-.7.5-1.2 1.2-1.2h12.6c.7 0 1.2.5 1.2 1.2v3.5c0 .7-.5 1.2-1.2 1.2H5.7c-.7 0-1.2-.5-1.2-1.2z" /><path d="M7.8 6.5h.01M7.8 17.5h.01" /><path d="M12 9.4v5.2" /></>);
+
+export const IconNetwork = make("network",
+  <circle cx="12" cy="6" r="2.6" />,
+  <><circle cx="12" cy="5.9" r="2.5" /><circle cx="5.9" cy="18" r="2.5" /><circle cx="18.1" cy="18" r="2.5" /><path d="M10.9 8.2 7 15.7M13.1 8.2l3.9 7.5M8.4 18h7.2" /></>);
+
+export const IconShare = make("share",
+  <circle cx="17.5" cy="6.2" r="2.6" />,
+  <><circle cx="17.5" cy="6" r="2.5" /><circle cx="6.3" cy="12" r="2.5" /><circle cx="17.5" cy="18" r="2.5" /><path d="M8.5 10.8l7-3.6M8.5 13.2l7 3.6" /></>);
+
+export const IconPalette = make("palette",
+  <path d="M12 3.6a8.4 8.4 0 1 0 0 16.8c1.2 0 1.7-.9 1.4-1.8-.4-1 .3-2.1 1.4-2.1h2.2a2.6 2.6 0 0 0 2.6-2.6C19.6 7.1 16.2 3.6 12 3.6z" />,
+  <><path d="M12 3.4a8.6 8.6 0 1 0 0 17.2c1.3 0 1.8-1 1.4-1.9-.4-1 .3-2.2 1.5-2.2h2.1a2.7 2.7 0 0 0 2.7-2.7c0-5.1-3.7-10.4-7.7-10.4z" /><path d="M7.6 11.2h.01M10 7.6h.01M14.4 7.8h.01" /></>);
+
+export const IconEye = make("eye",
+  <ellipse cx="12" cy="12" rx="8.6" ry="5.4" />,
+  <><path d="M2.9 12c1.9-3.6 5.1-5.7 9.1-5.7s7.2 2.1 9.1 5.7c-1.9 3.6-5.1 5.7-9.1 5.7S4.8 15.6 2.9 12z" /><circle cx="12" cy="12" r="2.8" /></>);
+
+export const IconEyeOff = make("eye-off",
+  <ellipse cx="12" cy="12" rx="8.6" ry="5.4" />,
+  <><path d="M9.9 6.6a9.6 9.6 0 0 1 2.1-.3c4 0 7.2 2.1 9.1 5.7-.7 1.3-1.5 2.4-2.5 3.3M6.2 8.3A13 13 0 0 0 2.9 12c1.9 3.6 5.1 5.7 9.1 5.7 1.3 0 2.5-.2 3.6-.7" /><path d="M10 10.2a2.8 2.8 0 0 0 3.7 3.7" /><path d="M4 4l16 16" /></>);
+
+export const IconCable = make("cable",
+  <path d="M8 3.6h8v5H8z" />,
+  <><path d="M8.2 3.5h7.6v5.2H8.2z" /><path d="M10.2 3.5V2M13.8 3.5V2" /><path d="M12 8.7v4.8c0 1.8-1.4 3-3 3H8" /><path d="M6 14.5v4M3.5 18.5h5" /></>);
+
+export const IconChevronDown = make("chevron-down", null, <path d="M6 9.5l6 5.6 6-5.6" />);
+export const IconChevronLeft = make("chevron-left", null, <path d="M14.5 6l-5.6 6 5.6 6" />);
+export const IconChevronsUpDown = make("chevrons-up-down", null, <path d="M7.5 9.2 12 4.8l4.5 4.4M7.5 14.8 12 19.2l4.5-4.4" />);
+export const IconArrowUp = make("arrow-up", null, <path d="M12 19.2V5M6 10.8 12 5l6 5.8" />);
+export const IconArrowDown = make("arrow-down", null, <path d="M12 4.8V19M6 13.2 12 19l6-5.8" />);
+export const IconArrowLeft = make("arrow-left", null, <path d="M19.2 12H5M10.8 6 5 12l5.8 6" />);
+export const IconArrowUpRight = make("arrow-up-right", null, <path d="M6.5 17.5 17 7M9 6.6h8.4V15" />);
+export const IconMinus = make("minus", null, <path d="M5.5 12h13" />);
+
+export const IconPencil = make("pencil",
+  <path d="M15.4 5.2l3.4 3.4-9.6 9.6-4.2.8.8-4.2z" />,
+  <><path d="M15.2 4.9a2 2 0 0 1 2.9 0l1 1a2 2 0 0 1 0 2.9L9.3 18.7l-4.6 1 1-4.6z" /><path d="M13.6 6.6l3.8 3.8" /></>);
+
+export const IconTrash = make("trash",
+  <path d="M6.4 7.6h11.2l-.9 11.2c-.1.9-.8 1.6-1.7 1.6H9c-.9 0-1.6-.7-1.7-1.6z" />,
+  <><path d="M4.4 7.2h15.2" /><path d="M9.4 7V4.9c0-.5.4-.9.9-.9h3.4c.5 0 .9.4.9.9V7" /><path d="M6.5 7.2l.9 11.6c.1.9.8 1.6 1.7 1.6h5.8c.9 0 1.6-.7 1.7-1.6l.9-11.6" /><path d="M10 11v5.4M14 11v5.4" /></>);
+
+export const IconCard = make("card",
+  <path d="M3.6 6.8c0-.8.6-1.4 1.4-1.4h14c.8 0 1.4.6 1.4 1.4v2.4H3.6z" />,
+  <><path d="M3.6 7c0-1 .8-1.8 1.8-1.8h13.2c1 0 1.8.8 1.8 1.8v10c0 1-.8 1.8-1.8 1.8H5.4c-1 0-1.8-.8-1.8-1.8z" /><path d="M3.7 9.8h16.6" /><path d="M7 15h3.2" /></>);
+
+export const IconRepeat = make("repeat",
+  null,
+  <><path d="M5 11.2V10c0-1.7 1.3-3 3-3h10.2M15.6 4.2 18.4 7l-2.8 2.8" /><path d="M19 12.8V14c0 1.7-1.3 3-3 3H5.8M8.4 19.8 5.6 17l2.8-2.8" /></>);
+
+export const IconHistory = make("history",
+  <circle cx="12.6" cy="12" r="7.4" />,
+  <><path d="M4.2 12a8 8 0 1 0 2.5-5.8L4.2 8.6" /><path d="M4.1 4.6v4h4" /><path d="M12.4 7.8V12l3 1.8" /></>);
+
+export const IconUndo = make("undo", null,
+  <><path d="M4.6 5.2v4.6h4.6" /><path d="M5 9.6A8 8 0 1 1 4.4 13" /></>);
+
+export const IconPower = make("power",
+  <circle cx="12" cy="13" r="7.4" />,
+  <><path d="M12 3.6v8" /><path d="M7.2 7.2a7.4 7.4 0 1 0 9.6 0" /></>);
+
+export const IconUserPlus = make("user-plus",
+  <circle cx="9.6" cy="8.4" r="3.6" />,
+  <><circle cx="9.5" cy="8.3" r="3.5" /><path d="M3.4 19.6c.5-3.3 3-5.2 6.1-5.2 1.7 0 3.2.5 4.3 1.5" /><path d="M18 9.4v5.6M15.2 12.2h5.6" /></>);
+
+export const IconUser = make("user",
+  <circle cx="12" cy="8.4" r="3.9" />,
+  <><circle cx="12" cy="8.3" r="3.7" /><path d="M4.6 20c.6-3.6 3.5-5.6 7.4-5.6s6.8 2 7.4 5.6" /></>);
+
+export const IconDownload = make("download", null,
+  <><path d="M12 4v11M7.2 10.6 12 15.4l4.8-4.8" /><path d="M4.6 17.6v.9c0 .9.7 1.6 1.6 1.6h11.6c.9 0 1.6-.7 1.6-1.6v-.9" /></>);
+
+export const IconCopy = make("copy",
+  <rect x="9" y="9" width="11" height="11" rx="2.4" />,
+  <><rect x="8.8" y="8.8" width="11" height="11" rx="2.4" /><path d="M15.2 8.6V6.4c0-1.2-.9-2.2-2.2-2.2H6.4c-1.2 0-2.2.9-2.2 2.2V13c0 1.2.9 2.2 2.2 2.2h2.2" /></>);
+
+export const IconEnter = make("enter", null,
+  <><path d="M19.4 5v7.4c0 1-.8 1.8-1.8 1.8H5" /><path d="M9.4 9.8 5 14.2l4.4 4.4" /></>);
+
+export const IconCheckCircle = make("check-circle",
+  <circle cx="12" cy="12" r="8.6" />,
+  <><circle cx="12" cy="12" r="8.4" /><path d="M8.2 12.4l2.6 2.6 5-5.6" /></>);
+
+export const IconCircleDashed = make("circle-dashed", null,
+  <><path d="M12 3.5a8.5 8.5 0 0 1 4.4 1.2M19.3 7.6a8.5 8.5 0 0 1 1.2 4.4M20.5 12.5a8.5 8.5 0 0 1-1.2 3.9M16.4 19.3a8.5 8.5 0 0 1-4.4 1.2M7.6 19.3a8.5 8.5 0 0 1-3.2-3.2M3.5 12a8.5 8.5 0 0 1 1.2-4.4M7.6 4.7" /></>);
+
+export const IconHourglass = make("hourglass",
+  <path d="M7.4 4h9.2c0 4-2.2 5.6-4.6 8-2.4-2.4-4.6-4-4.6-8z" />,
+  <><path d="M6.4 3.6h11.2M6.4 20.4h11.2" /><path d="M7.6 3.6c0 4.2 2.1 5.7 4.4 8.4-2.3 2.7-4.4 4.2-4.4 8.4M16.4 3.6c0 4.2-2.1 5.7-4.4 8.4 2.3 2.7 4.4 4.2 4.4 8.4" /></>);
+
+export const IconCpu = make("cpu",
+  <rect x="7" y="7" width="10" height="10" rx="2" />,
+  <><rect x="6.8" y="6.8" width="10.4" height="10.4" rx="2.2" /><rect x="9.8" y="9.8" width="4.4" height="4.4" rx="1" /><path d="M9.5 3.6v3.2M14.5 3.6v3.2M9.5 17.2v3.2M14.5 17.2v3.2M3.6 9.5h3.2M3.6 14.5h3.2M17.2 9.5h3.2M17.2 14.5h3.2" /></>);
+
+export const IconLogOut = make("log-out", null,
+  <><path d="M9.6 4.4H6.2c-1 0-1.8.8-1.8 1.8v11.6c0 1 .8 1.8 1.8 1.8h3.4" /><path d="M15.4 8 19.6 12l-4.2 4M19.4 12H9.6" /></>);
+
+export const IconMenu = make("menu", null, <path d="M4.6 7h14.8M4.6 12h14.8M4.6 17h14.8" />);
+
+export const IconLanguages = make("languages",
+  <circle cx="12" cy="12" r="8.6" />,
+  <><path d="M4 6.6h8M8 4.4v2.2M5.6 6.6c.5 2.6 2.4 4.8 5 5.8M10.6 6.6C10 9.6 7.6 12 4.8 13" /><path d="M12.6 19.6l3.6-8.4 3.6 8.4M13.8 17h4.8" /></>);
+
+export const IconCalculator = make("calculator",
+  <rect x="5.4" y="3.4" width="13.2" height="17.2" rx="2.4" />,
+  <><rect x="5.2" y="3.3" width="13.6" height="17.4" rx="2.5" /><path d="M8.4 7.6h7.2" /><path d="M8.6 12h.01M12 12h.01M15.4 12h.01M8.6 15.6h.01M12 15.6h.01M15.4 15.6h.01" /></>);
+
+export const IconDrive = make("drive",
+  <path d="M3.6 14.4h16.8v3.2c0 1-.8 1.8-1.8 1.8H5.4c-1 0-1.8-.8-1.8-1.8z" />,
+  <><path d="M5.2 6.6c.3-.7 1-1.2 1.8-1.2h10c.8 0 1.5.5 1.8 1.2l1.6 7.4v3.6c0 1-.8 1.8-1.8 1.8H5.4c-1 0-1.8-.8-1.8-1.8V14z" /><path d="M3.8 14h16.4" /><path d="M16.4 16.8h.01" /></>);
+
+export const IconTable = make("table",
+  <path d="M3.6 6c0-1 .8-1.8 1.8-1.8h13.2c1 0 1.8.8 1.8 1.8v3H3.6z" />,
+  <><rect x="3.5" y="4.2" width="17" height="15.6" rx="2.2" /><path d="M3.6 9.4h16.8M3.6 14.6h16.8M9.4 9.4v10.4" /></>);
+
+export const IconLocate = make("locate",
+  <circle cx="12" cy="12" r="4.4" />,
+  <><circle cx="12" cy="12" r="4.2" /><path d="M12 2.8v3.4M12 17.8v3.4M2.8 12h3.4M17.8 12h3.4" /></>);
+
+export const IconExpand = make("expand", null,
+  <><path d="M14.4 4.6h5v5M9.6 19.4h-5v-5" /><path d="M19.4 4.6 13.6 10.4M4.6 19.4l5.8-5.8" /></>);
+
+export const IconSparkles = make("sparkles",
+  <path d="M10.4 5.4l1.5 4.2 4.2 1.5-4.2 1.5-1.5 4.2-1.5-4.2-4.2-1.5 4.2-1.5z" />,
+  <><path d="M10.2 4.6 12 9.8l5.2 1.8-5.2 1.8-1.8 5.2-1.8-5.2-5.2-1.8 5.2-1.8z" /><path d="M18.6 3.6v3.2M17 5.2h3.2M18.4 16.8v2.8M17 18.2h2.8" /></>);
+
+export const IconReceipt = make("receipt",
+  <path d="M6.4 3.6h11.2v16.8l-2.8-1.8-2.8 1.8-2.8-1.8-2.8 1.8z" />,
+  <><path d="M6.2 3.5h11.6v17.1l-2.9-1.9-2.9 1.9-2.9-1.9-2.9 1.9z" /><path d="M9.2 8.4h5.6M9.2 12.2h5.6" /></>);
+
+export const IconTimer = make("timer",
+  <circle cx="12" cy="13.4" r="7.2" />,
+  <><circle cx="12" cy="13.4" r="7.1" /><path d="M9.6 3.4h4.8M12 13.4l2.8-2.8" /></>);
+
+export const IconMerge = make("merge",
+  <circle cx="6.4" cy="18" r="2.4" />,
+  <><circle cx="6.4" cy="6" r="2.3" /><circle cx="6.4" cy="18" r="2.3" /><circle cx="17.6" cy="12" r="2.3" /><path d="M6.4 8.3v7.4" /><path d="M8.5 7.2c3 0 6 1.6 7 3.4M8.5 16.8c3 0 6-1.6 7-3.4" /></>);
+
+export const IconLoader = make("loader", null,
+  <path d="M12 3.6a8.4 8.4 0 1 0 8.4 8.4" />);

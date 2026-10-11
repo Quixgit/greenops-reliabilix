@@ -22,7 +22,7 @@ export function AuditPanel() {
   const pg = usePaged(filtered, 10);
   const rows = pg.slice;
   return (
-    <Panel icon={ClipboardList} title={t("settings.audit.title")} hint={t("settings.audit.hint")}>
+    <Panel info={t("info.set_audit")} icon={ClipboardList} title={t("settings.audit.title")} hint={t("settings.audit.hint")}>
       <div role="tablist" className="mb-3 flex flex-wrap gap-1.5">
         {AREAS.map((a) => (
           <button key={a} role="tab" aria-selected={area === a} type="button" onClick={() => { setArea(a); pg.setPage(1); }}

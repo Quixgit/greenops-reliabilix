@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/i18n/provider";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconBell as Bell } from "@/components/ui/icons";
 import { useState } from "react";
@@ -49,6 +50,7 @@ function AlertRow({ a, canAct }: { a: Alert; canAct: boolean }) {
 
 /** Everything that needs attention, derived from data the platform already holds: no invented alerts. */
 export function AlertsView({ canAct = false }: { canAct?: boolean }) {
+  const t = useT();
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("new");
   const stored = useAlerts(status);
   const pg = usePaged(stored.data ?? [], 10);
@@ -61,7 +63,7 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
       <Card index={0}>
-        <CardHeader title="Alerts" />
+        <CardHeader info={t("info.alerts_list")} title="Alerts" />
         <div role="tablist" className="mb-2 flex flex-wrap gap-2">
           {FILTERS.map((f) => (
             <button key={f} role="tab" aria-selected={f === status} onClick={() => { setStatus(f); }}
@@ -78,7 +80,7 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
       )}
       {!!anomalies.data?.length && (
         <Card index={1}>
-          <CardHeader title="Cost anomalies" />
+          <CardHeader info={t("info.alerts_anomalies")} title="Cost anomalies" />
           <ul className="divide-y divide-line/70 text-sm">
             {anomalies.data.map((a) => (
               <li key={a.day} className="flex items-center justify-between py-2.5">
@@ -91,7 +93,7 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
       )}
       {failed.length > 0 && (
         <Card index={2}>
-          <CardHeader title="Undelivered notifications" action={<Link href="/settings" className="text-sm font-medium text-primary">Delivery settings</Link>} />
+          <CardHeader info={t("info.alerts_undelivered")} title="Undelivered notifications" action={<Link href="/settings" className="text-sm font-medium text-primary">Delivery settings</Link>} />
           <ul className="divide-y divide-line/70 text-sm">
             {failed.map((d) => (
               <li key={d.id} className="flex items-center justify-between py-2.5">

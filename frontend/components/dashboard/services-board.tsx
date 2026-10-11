@@ -1,8 +1,7 @@
 "use client";
 
-import { ArrowDown, ArrowUp, HardDrive, Network, Server, Table2 } from "lucide-react";
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconDrive as HardDrive, IconNetwork as Network, IconServer as Server, IconTable as Table2, IconCluster as Boxes, IconDatabase as Database } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconCluster as Boxes, IconDatabase as Database } from "@/components/ui/icons";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";

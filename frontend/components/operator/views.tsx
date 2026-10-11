@@ -1,5 +1,6 @@
 "use client";
 
+import { DateField } from "@/components/ui/date-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconBell as Bell, IconCloud as Cloud, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
@@ -339,7 +340,7 @@ function PlanPanel({ id, current, canAct }: { id: string; current: string; canAc
             <option value="active">active</option><option value="trialing">trial</option><option value="past_due">past due</option><option value="canceled">canceled</option>
           </select>
           <label className="flex items-center gap-1.5 text-sm text-muted">{status === "trialing" ? "Trial ends" : "Paid until"}
-            <input type="date" value={until} onChange={(e) => setUntil(e.target.value)} className={selectCls} aria-label="Date" /></label>
+            <span className="w-44"><DateField value={until} onChange={setUntil} label="Date" /></span></label>
           <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Reason (required, kept in the audit log)" aria-label="Reason" className={`${selectCls} w-full sm:w-96`} />
           <button type="button" disabled={assign.isPending || reason.trim().length < 3 || !plan || (status === "trialing" && !until)} onClick={() => assign.mutate()}
             className="brand-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{assign.isPending ? "Assigning…" : "Assign plan"}</button>

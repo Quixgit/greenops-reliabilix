@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerDownLeft, Search } from "lucide-react";
+import { IconEnter as CornerDownLeft, IconSearch as Search } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";

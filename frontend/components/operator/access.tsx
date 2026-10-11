@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus } from "lucide-react";
-import { IconShield as ShieldCheck } from "@/components/ui/icons";
+import { IconUserPlus as UserPlus, IconShield as ShieldCheck } from "@/components/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";

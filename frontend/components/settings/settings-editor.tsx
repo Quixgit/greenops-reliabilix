@@ -1,9 +1,9 @@
 "use client";
 
+import { useT } from "@/i18n/provider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { History, RotateCcw, Search } from "lucide-react";
+import { IconHistory as History, IconUndo as RotateCcw, IconSearch as Search, IconBell as Bell, IconBell as BellRing, IconChart as BarChart3, IconDatabase as Database, IconGlobe as Globe2, IconLeaf as Leaf, IconLock as Lock, IconRefresh as RefreshCw, IconReport as FileText, IconSliders as Settings2 } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as Bell, IconBell as BellRing, IconChart as BarChart3, IconDatabase as Database, IconGlobe as Globe2, IconLeaf as Leaf, IconLock as Lock, IconRefresh as RefreshCw, IconReport as FileText, IconSliders as Settings2 } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -94,6 +94,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
   /** Keys shown elsewhere with a better control: not repeated here. */
   hideKeys?: string[];
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const key = ["settings", path];
   const q = useQuery({ queryKey: key, queryFn: () => api(path, settingsView), staleTime: 0 });
@@ -147,7 +148,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
 
       <div className={cn("grid gap-4", onlyGroup ? "" : "lg:grid-cols-2")}>
       {groups.filter((g) => shown.some((i) => i.group === g.id)).map((g, gi) => (
-        <Panel key={g.id} index={gi} icon={GROUP_ICON[g.id] ?? Settings2} title={g.title} hint={g.description}>
+        <Panel info={t("info.set_group")} key={g.id} index={gi} icon={GROUP_ICON[g.id] ?? Settings2} title={g.title} hint={g.description}>
           <ul className="divide-y divide-line/70">
             {shown.filter((i) => i.group === g.id).map((i) => {
               const value = i.key in draft ? draft[i.key] : i.value;
@@ -200,6 +201,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
 }
 
 export function SettingsHistory({ path }: { path: string }) {
+  const t = useT();
   const q = useQuery({ queryKey: ["settings-history", path], queryFn: () => api(path, settingChanges), staleTime: 0 });
   const pg = usePaged(q.data ?? [], 10);
   if (q.isLoading) return <Skeleton className="h-32" />;
@@ -207,7 +209,7 @@ export function SettingsHistory({ path }: { path: string }) {
   if (q.data!.length === 0) return <Panel icon={History} title="Change history" hint="Who changed which setting"><p className="py-4 text-center text-sm text-muted">No changes yet.</p></Panel>;
   const show = (v: unknown) => (v === null || v === undefined ? "—" : Array.isArray(v) ? `[${v.join(", ")}]` : String(v));
   return (
-    <Panel icon={History} title="Change history" hint="Who changed which setting, and when">
+    <Panel info={t("info.set_history")} icon={History} title="Change history" hint="Who changed which setting, and when">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs text-muted"><th className="py-1.5 pr-3 font-medium">When</th><th className="pr-3 font-medium">Setting</th><th className="pr-3 font-medium">Change</th><th className="pr-3 font-medium">By</th></tr></thead>

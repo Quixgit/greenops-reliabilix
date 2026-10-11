@@ -1,7 +1,6 @@
 "use client";
 
-import { LogOut, Menu } from "lucide-react";
-import { IconBell, IconFolder, IconSearch, IconSliders } from "@/components/ui/icons";
+import { IconLogOut as LogOut, IconMenu as Menu, IconBell, IconFolder, IconSearch, IconSliders } from "@/components/ui/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";

@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2, CircleDashed, Hourglass, Server, TriangleAlert } from "lucide-react";
-import { IconArrowRight as ArrowRight, IconDatabase as Database, IconKey as KeyRound } from "@/components/ui/icons";
+import { DateField } from "@/components/ui/date-field";
+import { IconCheckCircle as CheckCircle2, IconCircleDashed as CircleDashed, IconHourglass as Hourglass, IconServer as Server, IconWarning as TriangleAlert, IconArrowRight as ArrowRight, IconDatabase as Database, IconKey as KeyRound } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -162,8 +162,8 @@ function BackfillCard({ canAct }: { canAct: boolean }) {
       <h3 className="text-[15px] font-semibold tracking-tight">Load past grid data</h3>
       <p className="mt-1 text-sm text-muted">Days that were calculated before readings were collected use an estimate. Load the past readings of the regions in use so history is measured. It uses the provider’s past-data feature (a plan option) and counts against its request quota; the estimate is shown first. Existing readings are never overwritten.</p>
       <div className="mt-3 flex flex-wrap items-end gap-3 text-sm">
-        <label className="block"><span className="mb-1 block text-xs text-muted">From</span><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-lg bg-white/80 px-2.5 py-1.5 ring-1 ring-line" /></label>
-        <label className="block"><span className="mb-1 block text-xs text-muted">To (exclusive)</span><input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-lg bg-white/80 px-2.5 py-1.5 ring-1 ring-line" /></label>
+        <label className="block"><span className="mb-1 block text-xs text-muted">From</span><span className="block w-44"><DateField value={from} onChange={setFrom} label="from" /></span></label>
+        <label className="block"><span className="mb-1 block text-xs text-muted">To (exclusive)</span><span className="block w-44"><DateField value={to} onChange={setTo} label="to" /></span></label>
         <button type="button" disabled={run.isPending || !canAct} onClick={() => run.mutate(true)} className="rounded-xl px-3.5 py-2 font-medium ring-1 ring-line hover:bg-slate-50 disabled:opacity-50">Estimate</button>
         {plan && !plan.queued && plan.regions.length > 0 && canAct && (
           <button type="button" disabled={run.isPending} onClick={() => run.mutate(false)} className="brand-gradient rounded-xl px-4 py-2 font-semibold text-white disabled:opacity-50">Start loading</button>

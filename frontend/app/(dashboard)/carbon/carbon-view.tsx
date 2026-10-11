@@ -39,7 +39,7 @@ function IntensityHistoryCard() {
   const d = q.data;
   return (
     <Card index={2}>
-      <CardHeader title={t("carbon.intensity_history")} action={d && d.regions.length > 0 && (
+      <CardHeader info={t("info.carbon_history")} title={t("carbon.intensity_history")} action={d && d.regions.length > 0 && (
         <select aria-label="Region" value={d.region} onChange={(e) => setRegion(e.target.value)} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line">
           {d.regions.map((r) => <option key={r.region} value={r.region}>{r.region}</option>)}
         </select>)} />
@@ -79,7 +79,7 @@ function ScheduleCard() {
   const sel = "rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line";
   return (
     <Card index={3}>
-      <CardHeader title={t("schedule.title")} />
+      <CardHeader info={t("info.carbon_schedule")} title={t("schedule.title")} />
       <p className="mb-3 text-sm text-muted">{t("schedule.hint")}</p>
       {regions.length === 0 ? <p className="text-sm text-muted">{t("schedule.no_regions")}</p> : (<>
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -112,7 +112,7 @@ function IntensityOriginCard({ origins, measured }: { origins: { source: string;
   if (origins.length === 0) return null;
   return (
     <Card index={4}>
-      <CardHeader title={t("carbon.intensity_origin")} />
+      <CardHeader info={t("info.carbon_origin")} title={t("carbon.intensity_origin")} />
       <p className="mb-3 text-sm text-muted">
         {measured === null ? "" : <><b className="text-ink">{measured.toFixed(0)}%</b> of the carbon in this period uses the mean of the day’s own readings. </>}
         The rest uses a fewer-readings mean or the latest reading, which is less precise.
@@ -141,7 +141,7 @@ export function CarbonView() {
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">{t("carbon.title")}</h1>
       <Card index={0}>
-        <CardHeader title={t("carbon.period_totals")} />
+        <CardHeader info={t("info.carbon_totals")} title={t("carbon.period_totals")} />
         {sum.isLoading ? <Skeleton className="h-20" /> : sum.isError ? <ErrorState /> : !sum.data!.has_data ? (
           <EmptyState icon={Leaf} text="No carbon data yet. Connect a cloud account and run a sync." action={{ href: "/connectors", label: "Open connectors" }} />
         ) : (
@@ -155,7 +155,7 @@ export function CarbonView() {
         )}
       </Card>
       <Card index={1}>
-        <CardHeader title={t("carbon.daily_co2e")} />
+        <CardHeader info={t("info.carbon_daily")} title={t("carbon.daily_co2e")} />
         {trend.isLoading ? <Skeleton className="h-10" /> : trend.isError ? <ErrorState /> : trend.data!.length < 2 ?
           <p className="text-sm text-muted">Not enough days yet for a trend.</p> :
           <Sparkline values={trend.data!.map((p) => p.carbon_kg_co2e)} width={420} height={56} />}
@@ -165,7 +165,7 @@ export function CarbonView() {
       <ScheduleCard />
       {sum.data && <IntensityOriginCard origins={sum.data.intensity_origins} measured={sum.data.intensity_measured_share_pct} />}
       <Card index={4}>
-        <CardHeader title={t("carbon.methodology")} action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
+        <CardHeader info={t("info.carbon_method")} title={t("carbon.methodology")} action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
         {!m ? <Skeleton className="h-24" /> : (
           <div className="space-y-3 text-sm">
             <p><b>{m.version}</b> — {m.provenance}</p>

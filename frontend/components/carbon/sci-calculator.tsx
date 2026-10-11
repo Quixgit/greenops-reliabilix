@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator } from "lucide-react";
+import { IconCalculator as Calculator } from "@/components/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -42,7 +42,7 @@ export function SciCalculator({ summary }: { summary: CarbonSummary }) {
 
   return (
     <Card index={1}>
-      <CardHeader title={t("carbon.sci.title")} action={<Calculator className="size-4 text-muted" aria-hidden />} />
+      <CardHeader info={t("info.sci_calc")} title={t("carbon.sci.title")} action={<Calculator className="size-4 text-muted" aria-hidden />} />
       <p className="mb-4 text-sm text-muted">{t("carbon.sci.intro")}</p>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3">

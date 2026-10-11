@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ChevronsUpDown, Check } from "lucide-react";
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconChevronsUpDown as ChevronsUpDown, IconCheck as Check } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "@/lib/utils";

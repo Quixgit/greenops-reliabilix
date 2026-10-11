@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, CheckCircle2, ChevronDown, Loader2, Search } from "lucide-react";
-import { IconBell as Bell, IconBolt as Zap, IconCloud as Cloud, IconPlus as Plus, IconRefresh as RefreshCw, IconWarning as AlertTriangle } from "@/components/ui/icons";
+import { IconArrowUpRight as ArrowUpRight, IconCheckCircle as CheckCircle2, IconChevronDown as ChevronDown, IconLoader as Loader2, IconSearch as Search, IconBell as Bell, IconBolt as Zap, IconCloud as Cloud, IconPlus as Plus, IconRefresh as RefreshCw, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";

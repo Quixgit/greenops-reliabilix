@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowLeft, LogOut, Menu, Search } from "lucide-react";
-import { IconShield as ShieldCheck } from "@/components/ui/icons";
+import { IconArrowLeft as ArrowLeft, IconLogOut as LogOut, IconMenu as Menu, IconSearch as Search, IconShield as ShieldCheck } from "@/components/ui/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";

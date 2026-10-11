@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as Bell, IconBell as BellRing, IconBranch as GitBranch, IconBuilding as Building2, IconChart as BarChart3, IconChevronRight as ChevronRight, IconClipboard as ClipboardList, IconClock as Clock, IconCloud as Cloud, IconGauge as Minimize2, IconGlobe as Globe2, IconKey as KeyRound, IconLeaf as Leaf, IconLock as Lock, IconMail as Mail, IconPlug as Webhook, IconSend as Hash, IconShield as ShieldCheck, IconSliders as Settings, IconSliders as Settings2, IconTarget as Target, IconUsers as Users } from "@/components/ui/icons";
+import { IconBell as Bell, IconBell as BellRing, IconBranch as GitBranch, IconBuilding as Building2, IconChart as BarChart3, IconChevronRight as ChevronRight, IconClipboard as ClipboardList, IconClock as Clock, IconCloud as Cloud, IconGauge as Minimize2, IconGlobe as Globe2, IconKey as KeyRound, IconLeaf as Leaf, IconLock as Lock, IconMail as Mail, IconPlug as Webhook, IconSend as Hash, IconShield as ShieldCheck, IconSliders as Settings, IconSliders as Settings2, IconTarget as Target, IconUsers as Users, IconAws, IconAzure, IconGcp, IconKubernetes, type IconType } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { z } from "zod";
@@ -17,7 +17,6 @@ import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logos";
-import { IconAws, IconAzure, IconGcp, IconKubernetes, type IconType } from "@/components/ui/icons";
 import { Info } from "@/components/ui/info";
 
 const policy = z.object({

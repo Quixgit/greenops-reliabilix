@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Network, Share2 } from "lucide-react";
-import { IconDatabase as Layers } from "@/components/ui/icons";
+import { IconNetwork as Network, IconShare as Share2, IconDatabase as Layers } from "@/components/ui/icons";
 import { useState } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +39,7 @@ export function AllocationReportCard() {
   const hasRules = r?.projects.some((p) => p.allocated_in !== 0 || p.allocated_out !== 0);
   return (
     <Card index={1}>
-      <CardHeader title={t("structure.report.title")} />
+      <CardHeader info={t("info.struct_report")} title={t("structure.report.title")} />
       <p className="mb-3 text-sm text-muted">{t("structure.report.intro")}</p>
       {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : !r || r.projects.length === 0 ? (
         <EmptyState icon={Layers} text={t("structure.report.empty")} />
@@ -113,7 +112,7 @@ export function TeamsCard({ canEdit }: { canEdit: boolean }) {
   const del = useMutation({ mutationFn: (id: string) => apiVoid(`teams/${id}`, { method: "DELETE" }), onSuccess: refresh });
   return (
     <Card index={2}>
-      <CardHeader title={t("structure.teams.title")} />
+      <CardHeader info={t("info.struct_teams")} title={t("structure.teams.title")} />
       <p className="mb-3 text-sm text-muted">{t("structure.teams.intro")}</p>
       {canEdit && (
         <form onSubmit={(e) => { e.preventDefault(); if (name.trim()) add.mutate(); }} className="mb-3 flex flex-wrap items-end gap-3">
@@ -233,7 +232,7 @@ export function AllocationRulesCard({ canEdit }: { canEdit: boolean }) {
   const del = useMutation({ mutationFn: (id: string) => apiVoid(`allocation-rules/${id}`, { method: "DELETE" }), onSuccess: refresh });
   return (
     <Card index={3}>
-      <CardHeader title={t("structure.rules.title")} />
+      <CardHeader info={t("info.struct_rules")} title={t("structure.rules.title")} />
       <p className="mb-3 text-sm text-muted">{t("structure.rules.intro")}</p>
       {canEdit && (projects.data?.length ?? 0) > 1 && (
         <form onSubmit={(e) => { e.preventDefault(); if (valid) create.mutate(); }} className="mb-4 space-y-3 rounded-xl bg-slate-50 p-3 ring-1 ring-line">

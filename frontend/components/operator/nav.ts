@@ -1,6 +1,5 @@
-import { Calculator, GitMerge, History, Receipt, Server, Timer } from "lucide-react";
+import { IconCalculator as Calculator, IconMerge as GitMerge, IconHistory as History, IconReceipt as Receipt, IconServer as Server, IconTimer as Timer, IconBell as Bell, IconCloud as Cloud, IconCluster as Boxes, IconDatabase as Database, IconOverview as LayoutDashboard, IconPlug as Plug, IconSliders as SlidersHorizontal, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as Bell, IconCloud as Cloud, IconCluster as Boxes, IconDatabase as Database, IconOverview as LayoutDashboard, IconPlug as Plug, IconSliders as SlidersHorizontal, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; planned?: boolean };
 export type NavGroup = { title: string; items: NavItem[] };

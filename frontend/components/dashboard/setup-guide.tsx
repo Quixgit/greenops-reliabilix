@@ -1,9 +1,8 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import { Check } from "lucide-react";
+import { IconCheck as Check, IconBell as BellRing, IconCloud as Cloud, IconFolder as FolderKanban, IconGauge as Gauge, IconPin as MapPinned, IconPlay as Rocket, IconWallet as PiggyBank } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBell as BellRing, IconCloud as Cloud, IconFolder as FolderKanban, IconGauge as Gauge, IconPin as MapPinned, IconPlay as Rocket, IconWallet as PiggyBank } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, type CSSProperties } from "react";
 import { z } from "zod";

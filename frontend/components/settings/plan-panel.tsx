@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Check, CreditCard, Minus, Repeat } from "lucide-react";
-import { IconGauge as Gauge } from "@/components/ui/icons";
+import { IconCheck as Check, IconCard as CreditCard, IconMinus as Minus, IconRepeat as Repeat, IconGauge as Gauge } from "@/components/ui/icons";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";
@@ -35,13 +34,13 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
   const ends = p.status === "trialing" ? p.trial_ends_at : p.period_end;
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <Panel index={0} icon={CreditCard} title={t("plan.title")} action={<Badge tone={STATUS_TONE[p.status]}>{t(`plan.status.${p.status}`)}</Badge>}>
+      <Panel info={t("info.set_plan")} index={0} icon={CreditCard} title={t("plan.title")} action={<Badge tone={STATUS_TONE[p.status]}>{t(`plan.status.${p.status}`)}</Badge>}>
         <p className="mt-1 text-2xl font-bold tracking-tight">{p.name}</p>
         {ends && <p className="mt-1 text-sm text-muted">{p.status === "trialing" ? t("plan.trial_ends") : p.status === "canceled" ? t("plan.ended") : t("plan.period_end")}: {shortTime(ends)}</p>}
         {p.status === "past_due" && <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-200">{t("plan.past_due_note")}</p>}
       </Panel>
 
-      <Panel index={1} icon={Gauge} title={t("plan.usage")} hint={t("settings.plan.usage_hint")}>
+      <Panel info={t("info.set_plan_usage")} index={1} icon={Gauge} title={t("plan.usage")} hint={t("settings.plan.usage_hint")}>
         <ul className="space-y-3">
           {p.limits.map((l) => {
             const pct = l.limit > 0 ? Math.min(100, (l.used / l.limit) * 100) : 0;
@@ -64,7 +63,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
         </ul>
       </Panel>
 
-      <Panel index={2} icon={Repeat} title={t("plan.change")} hint={t("settings.plan.change_hint")}>
+      <Panel info={t("info.set_plan_change")} index={2} icon={Repeat} title={t("plan.change")} hint={t("settings.plan.change_hint")}>
         {p.providers.length === 0 ? <p className="text-sm text-muted">{t("plan.no_providers")}</p> : (
           <div className="space-y-4">
             {p.providers.map((pr) => (

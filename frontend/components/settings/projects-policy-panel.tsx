@@ -1,8 +1,8 @@
 "use client";
 
+import { useT } from "@/i18n/provider";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown } from "lucide-react";
-import { IconFolder as FolderKanban } from "@/components/ui/icons";
+import { IconChevronDown as ChevronDown, IconFolder as FolderKanban } from "@/components/ui/icons";
 import { useState } from "react";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Pagination, usePaged } from "@/components/ui/pagination";
@@ -49,10 +49,11 @@ function ProjectRow({ id, name, unit, canEdit }: { id: string; name: string; uni
 
 /** Every project's residency, automation, carbon limit and CI gate in one place; a row opens the full policy. */
 export function ProjectsPolicyPanel({ canEdit }: { canEdit: boolean }) {
+  const t = useT();
   const q = useProjects();
   const pg = usePaged(q.data ?? [], 10);
   return (
-    <Panel icon={FolderKanban} title="Projects & policies" hint="Where each project may run (data residency), what the platform may apply on its own, its monthly carbon limit and the CI gate. Open a row to change it.">
+    <Panel info={t("info.set_policy")} icon={FolderKanban} title="Projects & policies" hint="Where each project may run (data residency), what the platform may apply on its own, its monthly carbon limit and the CI gate. Open a row to change it.">
       {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={FolderKanban} text="No projects yet." /> : (
         <div className="overflow-hidden rounded-2xl ring-1 ring-line">
           <div className="overflow-x-auto">

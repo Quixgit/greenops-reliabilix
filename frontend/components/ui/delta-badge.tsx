@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { formatPct } from "@/lib/formatters";
 

@@ -28,7 +28,7 @@ export function MethodologyView() {
       </div>
 
       <Card index={1} interactive={false}>
-        <CardHeader title={t("method.current")} action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
+        <CardHeader info={t("info.method_current")} title={t("method.current")} action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
         {sum.isLoading ? <Skeleton className="h-20" /> : m ? (
           <div className="space-y-2 text-sm">
             <p><b>{m.version}</b> — {m.provenance}</p>
@@ -49,7 +49,7 @@ export function MethodologyView() {
       </Card>
 
       <Card index={2} interactive={false}>
-        <CardHeader title={t("method.formulas")} />
+        <CardHeader info={t("info.method_formulas")} title={t("method.formulas")} />
         <div className="space-y-3 text-sm leading-relaxed text-slate-700">
           <p><code className="rounded bg-slate-100 px-1.5 py-0.5">{t("method.f.energy")}</code></p>
           <p><code className="rounded bg-slate-100 px-1.5 py-0.5">{t("method.f.carbon")}</code></p>
@@ -59,7 +59,7 @@ export function MethodologyView() {
       </Card>
 
       <Card index={3} interactive={false}>
-        <CardHeader title={t("method.sources")} />
+        <CardHeader info={t("info.method_sources")} title={t("method.sources")} />
         <p className="mb-3 text-sm text-slate-600">{t("method.sources_intro")}</p>
         <ol className="space-y-2.5">
           {ordered.map((s, i) => (
@@ -72,7 +72,7 @@ export function MethodologyView() {
       </Card>
 
       <Card index={4} interactive={false}>
-        <CardHeader title={t("method.limits")} />
+        <CardHeader info={t("info.method_limits")} title={t("method.limits")} />
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-slate-700">
           {["method.l.operational", "method.l.estimate", "method.l.history", "method.l.relocation", "method.l.units"].map((k) => <li key={k}>{t(k)}</li>)}
         </ul>

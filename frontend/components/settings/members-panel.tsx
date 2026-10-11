@@ -2,8 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { UserPlus } from "lucide-react";
-import { IconClock as Clock, IconUsers as Users } from "@/components/ui/icons";
+import { IconUserPlus as UserPlus, IconClock as Clock, IconUsers as Users } from "@/components/ui/icons";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -70,7 +69,7 @@ export function MembersPanel() {
   const pg = usePaged(members.data ?? [], 10);
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <Panel index={0} icon={Users} title={t("settings.users.members")} hint={t("settings.users.members_hint", { count: members.data?.length ?? 0 })} className="lg:col-span-2">
+      <Panel info={t("info.set_members")} index={0} icon={Users} title={t("settings.users.members")} hint={t("settings.users.members_hint", { count: members.data?.length ?? 0 })} className="lg:col-span-2">
         {members.isLoading ? <Skeleton className="h-24" /> : members.isError ? <ErrorState /> : members.data!.length === 0 ? <EmptyState icon={Users} text="No members." /> : (
           <ul className="text-sm">
             {pg.slice.map((m) => (
@@ -94,9 +93,9 @@ export function MembersPanel() {
         {err && <p role="alert" className="mt-2 text-sm text-bad">{err.message}</p>}
       </Panel>
       <div className="flex flex-col gap-4 [&>section]:flex-1">
-        <Panel index={1} icon={UserPlus} title={t("settings.users.invite")} hint={t("settings.users.invite_hint")}><Invite /></Panel>
+        <Panel info={t("info.set_invite")} index={1} icon={UserPlus} title={t("settings.users.invite")} hint={t("settings.users.invite_hint")}><Invite /></Panel>
         {pending.length > 0 && (
-          <Panel index={2} icon={Clock} title={t("settings.users.pending")} hint={t("settings.users.pending_hint", { count: pending.length })}>
+          <Panel info={t("info.set_pending")} index={2} icon={Clock} title={t("settings.users.pending")} hint={t("settings.users.pending_hint", { count: pending.length })}>
             <ul className="text-sm">
               {pending.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 py-2.5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Languages } from "lucide-react";
+import { IconLanguages as Languages } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot, DropdownTrigger } from "@/components/ui/dropdown";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";

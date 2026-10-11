@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.78] - 2026-10-11
+
+### Changed
+- **The rest of the stock icons are gone**: the operator console, sign-in, pagination, map controls, menus and forms use
+  the platform's own drawn icons (about forty new ones: server, network, eye, pencil, trash, card, power, calculator…).
+- **Dates in the operator console** (plan expiry, grid-data backfill) use the platform calendar.
+- **Info tooltips (ⓘ)** on the remaining panels: all settings tabs, alerts, carbon, Kubernetes, methodology, reports,
+  cloud account, teams and allocation; English and Russian.
+
 ## [0.1.0-alpha.77] - 2026-10-11
 
 ### Changed

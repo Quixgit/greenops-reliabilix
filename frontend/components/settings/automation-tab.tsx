@@ -23,7 +23,7 @@ export function AutomationTab({ go }: { go: (section: string) => void }) {
   });
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Panel index={0} icon={Workflow} title={t("settings.auto.title")} hint={t("settings.auto.hint")}
+      <Panel info={t("info.set_auto")} index={0} icon={Workflow} title={t("settings.auto.title")} hint={t("settings.auto.hint")}
         foot={<FootLink href="/automation">{t("settings.auto.open")}</FootLink>}>
         {projects.isLoading ? <Skeleton className="my-3 h-16" /> : (projects.data ?? []).map((p, i) => {
           const pol = policies[i]?.data;
@@ -33,7 +33,7 @@ export function AutomationTab({ go }: { go: (section: string) => void }) {
           );
         })}
       </Panel>
-      <Panel index={1} icon={ShieldCheck} title={t("settings.auto.rules")} hint={t("settings.auto.rules_hint")}
+      <Panel info={t("info.set_auto_rules")} index={1} icon={ShieldCheck} title={t("settings.auto.rules")} hint={t("settings.auto.rules_hint")}
         foot={<FootLink onClick={() => go("policies")}>{t("settings.hub.manage_policies")}</FootLink>}>
         <Row icon={ShieldCheck} label={t("settings.auto.region_moves")} value={t("settings.auto.needs_person")} />
         <Row icon={ShieldCheck} label={t("settings.auto.rightsizing")} value={t("settings.auto.needs_person")} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { IconArrowLeft as ArrowLeft, IconEye as Eye, IconEyeOff as EyeOff, IconLock as Lock, IconMail as Mail, IconUser as User } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { loginUrl, validEmail } from "@/lib/auth/login";
 import { cn } from "@/lib/utils";

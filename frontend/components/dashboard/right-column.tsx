@@ -1,8 +1,7 @@
 "use client";
 
-import { Server, Sparkles } from "lucide-react";
+import { IconServer as Server, IconSparkles as Sparkles, IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";

@@ -1,7 +1,7 @@
 "use client";
 
 import * as DM from "@radix-ui/react-dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { IconChevronDown as ChevronDown } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 

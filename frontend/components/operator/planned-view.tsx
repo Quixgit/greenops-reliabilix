@@ -1,4 +1,4 @@
-import { Hourglass } from "lucide-react";
+import { IconHourglass as Hourglass } from "@/components/ui/icons";
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { PageTitle } from "./parts";

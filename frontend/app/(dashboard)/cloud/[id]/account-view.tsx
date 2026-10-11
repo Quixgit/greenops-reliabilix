@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
+import { IconArrowLeft as ArrowLeft } from "@/components/ui/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ProviderMark } from "@/components/connectors/provider-mark";
@@ -83,7 +83,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
           {act.isError && <p role="alert" className="text-sm text-bad">{act.error.message}</p>}
           <div className="grid gap-5 lg:grid-cols-2">
             <Card index={0}>
-              <CardHeader title="Connection" />
+              <CardHeader info={t("info.acc_connection")} title="Connection" />
               <dl className="grid grid-cols-[130px_1fr] gap-y-2 text-sm">
                 <dt className="text-muted">{t("connectors.col.project")}</dt><dd>{projects.data?.find((p) => p.id === c.project_id)?.name ?? "—"}</dd>
                 <dt className="text-muted">{t("connectors.col.access")}</dt><dd>{t(`connectors.access.${c.access || "role"}`)}</dd>
@@ -95,19 +95,19 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
               </dl>
             </Card>
             <Card index={1}>
-              <CardHeader title="Data quality" />
+              <CardHeader info={t("info.acc_quality")} title="Data quality" />
               <Quality q={c.data_quality} />
             </Card>
           </div>
           {(conn.data?.setup?.steps?.length ?? 0) > 0 && (
             <Card index={2}>
-              <CardHeader title={t("account.how_to_fix")} />
+              <CardHeader info={t("info.acc_fix")} title={t("account.how_to_fix")} />
               <ol className="list-decimal space-y-2 pl-5 text-sm">{conn.data!.setup!.steps!.map((st, i) => <li key={i} className="break-words">{st}</li>)}</ol>
             </Card>
           )}
           {disconnect.isError && <p role="alert" className="text-sm text-bad">{disconnect.error.message}</p>}
           <Card index={3}>
-            <CardHeader title="Sync history" />
+            <CardHeader info={t("info.acc_sync")} title="Sync history" />
             {runs.isLoading ? <Skeleton className="h-24" /> : runs.isError ? <ErrorState /> : runs.data!.length === 0 ? <EmptyState icon={ArrowLeft} text="No synchronization has run yet." /> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
