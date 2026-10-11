@@ -12,10 +12,15 @@ import { Pagination, usePaged } from "@/components/ui/pagination";
 import { api } from "@/lib/api/client";
 import { automationJob, recommendation, type ImpactVerification, type Recommendation } from "@/lib/api/schemas";
 import { useRecommendations } from "@/hooks/use-overview";
+import { CompareOptions, LatencyChip, Metric, parseOptions } from "@/components/dashboard/region-options";
+import { regionName } from "@/lib/regions";
+import { formatCost } from "@/lib/formatters";
+import { useT } from "@/i18n/provider";
 
 const FILTERS = ["open", "approved", "applied", "verified", "dismissed", "all"] as const;
 
 function Row({ r, canDecide, canPlan }: { r: Recommendation; canDecide: boolean; canPlan: boolean }) {
+  const t = useT();
   const qc = useQueryClient();
   const router = useRouter();
   const plan = useMutation({
@@ -34,17 +39,24 @@ function Row({ r, canDecide, canPlan }: { r: Recommendation; canDecide: boolean;
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-medium">{r.title}</p>
-          <p className="text-muted">{r.provider} · {r.service_name} · {r.current_region} → {r.recommended_region}</p>
+          <p className="text-muted">{r.provider} · {r.service_name} · {regionName(r.current_region)} → {regionName(r.recommended_region)}</p>
         </div>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize">{r.status}</span>
       </div>
       {r.type === "k8s_rightsizing" ? <K8sDetail r={r} /> : (
-      <p>
-        <span className="font-semibold text-primary">−{r.estimated_carbon_reduction_pct.toFixed(0)}% carbon</span>
-        {" "}(~{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/month) ·{" "}
-        {r.estimated_cost_impact === null ? <span className="text-muted">cost impact not estimated</span> : <span title={r.cost_basis === "region_price_index" ? "Estimated from AWS on-demand list prices of the EC2 instance basket in both regions. Excludes discounts, data transfer and the cost of the move." : undefined}>cost {r.estimated_cost_impact < 0 ? "saving" : "increase"} {Math.abs(r.estimated_cost_impact).toFixed(2)}{r.cost_basis === "region_price_index" && <span className="ml-1 text-xs text-muted">(list-price estimate)</span>}</span>}
-        {" "}· confidence {(r.confidence * 100).toFixed(0)}%
-      </p>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Metric label={t("rec.carbon")} tone="leaf">−{r.estimated_carbon_reduction_pct.toFixed(0)}% <span className="font-normal opacity-80">(~{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo)</span></Metric>
+            {r.estimated_cost_impact === null
+              ? <Metric label={t("rec.cost")} tone="slate" title={t("rec.cost_unknown")}>{t("rec.cost_unknown")}</Metric>
+              : <Metric label={t("rec.cost")} tone={r.estimated_cost_impact <= 0 ? "leaf" : "amber"} title={r.cost_basis === "region_price_index" ? "Estimated from AWS on-demand list prices of the EC2 instance basket (excludes discounts, data transfer and migration)." : undefined}>
+                  {r.estimated_cost_impact <= 0 ? t("rec.cost_saving", { amount: formatCost(Math.abs(r.estimated_cost_impact)) }) : t("rec.cost_more", { amount: formatCost(r.estimated_cost_impact) })}
+                </Metric>}
+            <LatencyChip details={r.details} from={r.current_region} to={r.recommended_region} />
+            <span className="text-xs text-muted">confidence {(r.confidence * 100).toFixed(0)}%</span>
+          </div>
+          <CompareOptions options={parseOptions(r.details)} budget={r.details?.latency_budget_ms} />
+        </div>
       )}
       {r.type !== "k8s_rightsizing" && <p className={passed ? "text-muted" : "text-bad"}>Data residency: {r.compliance_check.residency}{r.compliance_check.allowed_regions?.length ? ` (allowed: ${r.compliance_check.allowed_regions.join(", ")})` : ""}</p>}
       {r.status === "applied" && r.type !== "k8s_rightsizing" && <p className="text-muted">Applied — measured result appears once 18 days of data after the change are in.</p>}

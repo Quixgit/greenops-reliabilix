@@ -22,7 +22,7 @@ export type MethodologyInfo = z.infer<typeof methodologyInfo>;
 export const intensityOrigin = z.object({ source: z.string(), basis: z.string(), carbon_kg_co2e: z.number(), share_pct: z.number() });
 export const carbonSummary = totals.extend({
   has_data: z.boolean(), previous: totals, comparable: z.boolean(), methodology: methodologyInfo,
-  intensity_origins: z.array(intensityOrigin).default([]), intensity_measured_share_pct: z.number().nullable().default(null),
+  intensity_origins: z.array(intensityOrigin).default([]), intensity_measured_share_pct: z.number().nullable().default(null), energy_cost_based_share_pct: z.number().nullable().default(null),
 });
 export type CarbonSummary = z.infer<typeof carbonSummary>;
 
@@ -96,7 +96,7 @@ export const regionFootprint = items(z.object({
   provider: z.string(), region: z.string(), cost: z.number(), energy_kwh: z.number(), carbon_kg_co2e: z.number(), g_per_kwh: z.number().nullable(),
   alternative: z.object({
     region: z.string(), g_per_kwh: z.number(), carbon_saving_kg: z.number(), carbon_saving_pct: z.number(),
-    cost_estimated: z.boolean(), cost_delta: z.number().nullable().default(null), cost_basis: z.string().optional(), residency_ok: z.boolean().default(false), checks_required: z.array(z.string()),
+    cost_estimated: z.boolean(), latency_ms: z.number().optional(), distance_km: z.number().optional(), latency_basis: z.string().optional(), latency_error_pct: z.number().optional(), latency_budget_ms: z.number().optional(), cost_delta: z.number().nullable().default(null), cost_basis: z.string().optional(), residency_ok: z.boolean().default(false), checks_required: z.array(z.string()),
   }).nullable(),
   relocation_blocked: z.string().optional(),
 }));
@@ -115,7 +115,7 @@ export const efficiency = z.object({
 });
 export type Efficiency = z.infer<typeof efficiency>;
 
-export const activity = items(z.object({ id: z.number(), action: z.string(), target: z.string(), at: z.string() }));
+export const activity = items(z.object({ id: z.number(), action: z.string(), target: z.string(), at: z.string(), detail: z.record(z.string(), z.string()).nullish() }));
 export type Activity = z.infer<typeof activity>[number];
 
 export const project = z.object({
@@ -335,6 +335,8 @@ export type IntegrationStatus = z.infer<typeof integrationStatus>;
 export const operatorSystem = z.object({
   version: z.string(), env: z.string(), expected_migration: z.number(),
   integrations: z.array(z.object({ name: z.string(), status: integrationStatus, note: z.string() })),
+  runtime: z.object({ started_at: z.string(), go_version: z.string(), goroutines: z.number(), heap_mb: z.number(), cpus: z.number() }).optional(),
+  database: z.object({ ok: z.boolean(), ping_ms: z.number(), connections: z.number(), in_use: z.number(), max: z.number() }).optional(),
 });
 export type OperatorSystem = z.infer<typeof operatorSystem>;
 

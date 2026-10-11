@@ -9,7 +9,7 @@ import { useT } from "@/i18n/provider";
 
 const SOURCES: { id: string; key: string }[] = [
   { id: "electricitymaps", key: "method.src.electricitymaps" }, { id: "uk_carbon_intensity", key: "method.src.uk" },
-  { id: "eia", key: "method.src.eia" }, { id: "energy_charts", key: "method.src.energy_charts" }, { id: "ember", key: "method.src.ember" },
+  { id: "eia", key: "method.src.eia" }, { id: "energy_charts", key: "method.src.energy_charts" }, { id: "ieso", key: "method.src.ieso" }, { id: "hydroquebec", key: "method.src.hydroquebec" }, { id: "entsoe", key: "method.src.entsoe" }, { id: "ons", key: "method.src.ons" }, { id: "ember", key: "method.src.ember" },
 ];
 
 /** What the figures rest on: sources, formulas, coefficients, assumptions, accuracy and limits, in one place. */

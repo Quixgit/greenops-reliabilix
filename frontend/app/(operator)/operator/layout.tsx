@@ -9,8 +9,9 @@ export const metadata = { title: "Operator console · Reliabilix GreenOps", robo
 
 // The API decides who is an operator (from the database). Anyone else gets a 404, as if the console did not exist.
 export default async function OperatorLayout({ children }: { children: ReactNode }) {
-  if (!(await getUser())) redirect("/login");
+  const user = await getUser();
+  if (!user) redirect("/login");
   const op = await getOperator();
   if (!op) notFound();
-  return <OperatorShell operator={op}>{children}</OperatorShell>;
+  return <OperatorShell operator={op} user={user}>{children}</OperatorShell>;
 }

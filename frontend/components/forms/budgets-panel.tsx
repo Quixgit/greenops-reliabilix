@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconWallet as Wallet } from "@/components/ui/icons";
 import { useState } from "react";
@@ -67,21 +68,21 @@ function NewBudget({ currency }: { currency: string }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (valid) create.mutate(); }} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_0.8fr_1fr_auto] lg:items-start" noValidate>
       <Field label={t("budgets.scope")}>
-        <select value={scope} onChange={(e) => setScope(e.target.value)} className={input}>
+        <SelectField value={scope} onChange={(e) => setScope(e.target.value)} className={input}>
           <option value="">{t("budgets.scope_org")}</option>
           {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </SelectField>
       </Field>
       <Field label={t("budgets.amount")} error={amount !== "" && !valid ? t("budgets.amount_invalid") : undefined}>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="5000" className={input} />
       </Field>
       <Field label={t("budgets.currency")}>
-        <select value={cur} onChange={(e) => setCur(e.target.value)} className={input}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select>
+        <SelectField value={cur} onChange={(e) => setCur(e.target.value)} className={input}>{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</SelectField>
       </Field>
       <Field label={t("budgets.period")}>
-        <select value={period} onChange={(e) => setPeriod(e.target.value as typeof period)} className={input}>
+        <SelectField value={period} onChange={(e) => setPeriod(e.target.value as typeof period)} className={input}>
           {PERIODS.map((p) => <option key={p} value={p}>{t(`budgets.period.${p}`)}</option>)}
-        </select>
+        </SelectField>
       </Field>
       <button disabled={create.isPending || !valid} className="brand-gradient mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{t("budgets.create")}</button>
       {create.isError && <p role="alert" className="text-sm text-bad sm:col-span-2 lg:col-span-5">{create.error.message}</p>}

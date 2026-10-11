@@ -3,18 +3,26 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-/** Two-step button for destructive actions: the first click arms it, the second one performs it. */
-export function ConfirmButton({ label, confirmLabel = "Confirm", onConfirm, disabled, className }:
-  { label: string; confirmLabel?: string; onConfirm: () => void; disabled?: boolean; className?: string }) {
+const TONE = {
+  danger: { idle: "text-[#c2566a] ring-rose-200 hover:bg-rose-50", armed: "bg-[#d9707f] text-white hover:bg-[#cf6272]" },
+  primary: { idle: "text-leaf-deep ring-leaf/40 hover:bg-leaf-soft/60", armed: "bg-leaf-deep text-white hover:bg-[#277a66]" },
+} as const;
+
+/**
+ * Two-step button: the first click arms it, the second one performs it. `danger` (default) is for what cannot be taken
+ * back, `primary` for a deliberate action that reaches other people, such as sending an announcement.
+ */
+export function ConfirmButton({ label, confirmLabel = "Confirm", onConfirm, disabled, className, tone = "danger" }:
+  { label: string; confirmLabel?: string; onConfirm: () => void; disabled?: boolean; className?: string; tone?: keyof typeof TONE }) {
   const [armed, setArmed] = useState(false);
   return armed ? (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="rise inline-flex items-center gap-1.5">
       <button type="button" disabled={disabled} onClick={() => { setArmed(false); onConfirm(); }}
-        className={cn("rounded-lg bg-bad px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-60", className)}>{confirmLabel}</button>
-      <button type="button" onClick={() => setArmed(false)} className="rounded-lg px-2 py-1 text-xs text-muted hover:bg-white">Cancel</button>
+        className={cn("rounded-xl px-3.5 py-2 text-xs font-semibold transition disabled:opacity-60", TONE[tone].armed, className)}>{confirmLabel}</button>
+      <button type="button" onClick={() => setArmed(false)} className="rounded-xl px-3 py-2 text-xs font-medium text-muted transition hover:bg-slate-100">Cancel</button>
     </span>
   ) : (
     <button type="button" disabled={disabled} onClick={() => setArmed(true)}
-      className={cn("rounded-lg px-2.5 py-1 text-xs font-medium text-bad ring-1 ring-red-200 hover:bg-red-50 disabled:opacity-60", className)}>{label}</button>
+      className={cn("rounded-xl bg-white px-3.5 py-2 text-xs font-semibold ring-1 transition disabled:cursor-not-allowed disabled:opacity-50", TONE[tone].idle, className)}>{label}</button>
   );
 }

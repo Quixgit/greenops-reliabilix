@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconNetwork as Network, IconShare as Share2, IconDatabase as Layers } from "@/components/ui/icons";
 import { useState } from "react";
@@ -163,10 +164,10 @@ export function ProjectStructure({ projectId, teamId, canEdit }: { projectId: st
     <div className="space-y-3 rounded-xl bg-slate-50 p-3 ring-1 ring-line">
       <label className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium text-slate-700">{t("structure.project.team")}</span>
-        <select disabled={!canEdit || setTeam.isPending} value={teamId ?? ""} onChange={(e) => setTeam.mutate(e.target.value)} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line">
+        <SelectField disabled={!canEdit || setTeam.isPending} value={teamId ?? ""} onChange={(e) => setTeam.mutate(e.target.value)} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line">
           <option value="">{t("structure.no_team")}</option>
           {teams.data?.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
+        </SelectField>
       </label>
       <div>
         <p className="mb-1 text-sm font-medium text-slate-700">{t("structure.env.title")}</p>
@@ -199,9 +200,9 @@ export function ProjectStructure({ projectId, teamId, canEdit }: { projectId: st
         {canEdit && (
           <form onSubmit={(ev) => { ev.preventDefault(); if (name.trim()) create.mutate(); }} className="mt-2 flex flex-wrap items-center gap-2">
             <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={t("structure.env.name")} aria-label={t("structure.env.name")} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line" />
-            <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} aria-label={t("structure.env.kind")} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line">
+            <SelectField value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} aria-label={t("structure.env.kind")} className="rounded-lg bg-white px-2.5 py-1.5 text-sm ring-1 ring-line">
               {KINDS.map((k) => <option key={k} value={k}>{t(`structure.kind.${k}`)}</option>)}
-            </select>
+            </SelectField>
             <button disabled={create.isPending || !name.trim()} className={btn}>{t("structure.env.add")}</button>
           </form>
         )}
@@ -239,10 +240,10 @@ export function AllocationRulesCard({ canEdit }: { canEdit: boolean }) {
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label={t("structure.rules.name")}><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={input} placeholder="Shared support" /></Field>
             <Field label={t("structure.rules.source")}>
-              <select value={source} onChange={(e) => setSource(e.target.value)} className={input}>
+              <SelectField value={source} onChange={(e) => setSource(e.target.value)} className={input}>
                 <option value="">{t("structure.rules.choose")}</option>
                 {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </SelectField>
             </Field>
             <Field label={t("structure.rules.service")}><input value={service} onChange={(e) => setService(e.target.value)} maxLength={200} className={input} placeholder={t("structure.rules.service_all")} /></Field>
           </div>

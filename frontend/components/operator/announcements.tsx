@@ -97,7 +97,7 @@ export function AnnouncementsView() {
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line/70 pt-4">
           {canAct ? (
-            <ConfirmButton label="Send announcement" confirmLabel={`Send to ${audience.length === 0 ? "everyone" : audience.join(", ")}`} disabled={!valid || send.isPending} onConfirm={submit} />
+            <ConfirmButton tone="primary" label="Send announcement" confirmLabel={`Send to ${audience.length === 0 ? "everyone" : audience.join(", ")}`} disabled={!valid || send.isPending} onConfirm={submit} />
           ) : <p className="text-sm text-muted">Only an operator with the admin role can send announcements.</p>}
           {sent && <span role="status" className="text-sm text-leaf-deep">Sent to {sent.recipients} organization{sent.recipients === 1 ? "" : "s"}{sent.mailed > 0 ? `, e-mailed in ${sent.mailed}` : ""}.</span>}
           {send.isError && <span role="alert" className="text-sm text-bad">{send.error.message}</span>}

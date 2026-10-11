@@ -14,7 +14,8 @@ import { useT } from "@/i18n/provider";
 import type { RegionFootprint } from "@/lib/api/schemas";
 import { formatCarbon, formatCost, nf } from "@/lib/formatters";
 import { intensityColor } from "@/lib/intensity-color";
-import { REGION_GEO, flag, regionName, regionProvider } from "@/lib/regions";
+import { isMeasured, latencyBasisLabel } from "@/lib/latency-basis";
+import { REGION_GEO, distanceKm, flag, regionName, regionProvider, latencyBetween } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 import { AllowRegions } from "./allow-regions";
 
@@ -33,8 +34,82 @@ function band(g: number | null): { key: string; tone: string } {
   return { key: "very_high", tone: "text-rose-700 bg-rose-50" };
 }
 
+/** A bar of the estimated round trip against the organization's limit: sky while within it, rose when beyond. */
+function LatencyGauge({ ms, km, limit, title, basis, errorPct, right }: { ms: number; km: number; limit: number; title: string; basis?: string; errorPct?: number; right?: React.ReactNode }) {
+  const t = useT();
+  const over = ms > limit;
+  return (
+    <div title={title}>
+      <div className="relative h-2 rounded-full bg-slate-100">
+        <span className={cn("absolute inset-y-0 left-0 rounded-full transition-all duration-700", over ? "bg-[#eab3bf]" : "bg-[#9cc3f2]")} style={{ width: `${Math.max(4, Math.min(100, (ms / (limit * 1.6)) * 100))}%` }} />
+        <span className="absolute -top-0.5 h-3 w-px bg-slate-400/70" style={{ left: `${(limit / (limit * 1.6)) * 100}%` }} aria-hidden />
+      </div>
+      <p className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-muted">
+        <span className={cn("font-semibold", over ? "text-[#b9566a]" : "text-[#3f78b8]")}>{basis === "estimated" || !basis ? "≈ " : ""}{ms} ms · {t("ov2.reg.km", { km: nf(0).format(km) })}</span>
+        {right}
+      </p>
+      {basis && <p className={cn("mt-0.5 text-[10px]", isMeasured(basis) ? "text-leaf-deep" : "text-slate-400")}>{latencyBasisLabel(t, basis, errorPct)}</p>}
+    </div>
+  );
+}
+
+/**
+ * Whether a move is realistic: for a region the organization does not run in, each of its own regions with the estimated round trip
+ * and the grid difference; for one it does run in, the cleaner option with its round trip. The same lines are drawn on the map.
+ */
+function Placement({ row, rows, limit }: { row: Row; rows: Row[]; limit: number }) {
+  const t = useT();
+  const alt = row.fp?.alternative;
+  const own = rows.filter((r) => r.fp && r.fp.carbon_kg_co2e > 0 && r.g !== null && r.region !== row.region).sort((a, b) => b.fp!.carbon_kg_co2e - a.fp!.carbon_kg_co2e).slice(0, 3);
+  const items = row.g === null || row.fp ? [] : own.map((o) => {
+    const lat = latencyBetween(o.region, row.region);
+    return { o, km: lat?.km ?? null, ms: lat?.ms ?? null, lat, diff: ((o.g! - row.g!) / o.g!) * 100 };
+  });
+  const best = items.filter((i) => i.ms !== null && i.ms <= limit && i.diff >= 5).sort((a, b) => b.diff - a.diff)[0];
+  if (!alt && items.length === 0) return null;
+  return (
+    <section className="rounded-2xl bg-white p-3.5 ring-1 ring-line">
+      <p className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t("ov2.pl.title")}<Info>{t("ov2.pl.note")}</Info></p>
+      {alt ? (
+        <div className="space-y-2.5">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs text-muted">{t("ov2.pl.cleaner_option")}</p>
+              <p className="truncate text-sm font-semibold">{regionName(alt.region)}</p>
+            </div>
+            <p className="shrink-0 rounded-full bg-leaf-soft px-2.5 py-1 text-sm font-bold tabular-nums text-leaf-deep">−{nf(0).format(alt.carbon_saving_pct)}%</p>
+          </div>
+          <p className="text-xs text-muted">{t("ov2.reg.move_detail", { kg: formatCarbon(alt.carbon_saving_kg) })}</p>
+          {alt.latency_ms != null
+            ? <LatencyGauge ms={alt.latency_ms} km={alt.distance_km ?? 0} basis={alt.latency_basis} errorPct={alt.latency_error_pct} limit={alt.latency_budget_ms ?? limit} title={t("rec.latency_hint", { from: regionName(row.region), to: regionName(alt.region), km: alt.distance_km ?? "?", budget: alt.latency_budget_ms ?? "?" })} />
+            : <p className="text-[11px] text-muted">{t("rec.latency")}: {t("rec.latency_unknown")}</p>}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className={cn("rounded-xl px-3 py-2 text-xs font-medium", best ? "bg-leaf-soft text-leaf-deep" : "bg-slate-50 text-slate-600")}>
+            {best ? t("ov2.pl.verdict_yes", { from: regionName(best.o.region), ms: best.ms!, pct: nf(0).format(best.diff) }) : t("ov2.pl.verdict_no", { ms: limit })}
+          </p>
+          <ul className="space-y-3">
+            {items.map(({ o, km, ms, lat, diff }) => (
+              <li key={o.region}>
+                <p className="mb-1.5 text-xs font-medium"><span className="font-normal text-muted">{t("ov2.pl.from")} </span>{regionName(o.region)}</p>
+                {ms !== null && km !== null && (
+                  <LatencyGauge ms={ms} km={km} limit={limit} basis={lat?.basis} errorPct={lat?.errorPct} title={`${regionName(o.region)} → ${regionName(row.region)}: ${ms} ms`}
+                    right={<span className={cn("shrink-0 rounded-full px-2 py-0.5 font-semibold ring-1", Math.abs(diff) < 5 ? "bg-slate-50 text-slate-600 ring-line" : diff > 0 ? "bg-leaf-soft text-leaf-deep ring-leaf/20" : "bg-amber-50 text-[#8a6218] ring-amber-100")}>
+                      {Math.abs(diff) < 5 ? t("ov2.reg.same_grid") : diff > 0 ? t("ov2.reg.cleaner_by", { pct: nf(0).format(diff) }) : t("ov2.reg.dirtier_by", { pct: nf(0).format(-diff) })}
+                    </span>} />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** What one selected region means for the organization: the grid now and over time, the footprint there, what moving would do. */
-function Detail({ row, rows, cur }: { row: Row; rows: Row[]; cur: string }) {
+function Detail({ row, rows, cur, limit }: { row: Row; rows: Row[]; cur: string; limit: number }) {
   const t = useT();
   const hist = useIntensityHistory(row.region);
   const geo = REGION_GEO[row.region];
@@ -62,6 +137,7 @@ function Detail({ row, rows, cur }: { row: Row; rows: Row[]; cur: string }) {
           <p className="text-4xl font-bold leading-none tracking-tight tabular-nums">{row.g === null ? "—" : nf(0).format(row.g)}<span className="ml-1.5 text-sm font-medium text-muted">gCO₂e/kWh</span></p>
           {row.change !== null && <span className={cn("text-xs font-semibold", row.change <= 0 ? "text-leaf-deep" : "text-bad")}>{row.change <= 0 ? "↓" : "↑"} {nf(1).format(Math.abs(row.change))}% · 24h</span>}
         </div>
+        {row.g !== null && <p className="mt-1.5 text-[11px] text-muted">{t("ov2.reg.now_note")}</p>}
         <div className="relative mt-3 h-2 rounded-full bg-gradient-to-r from-leaf via-pastel-amber to-pastel-rose">
           {row.g !== null && <span className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-slate-800 shadow transition-all duration-700" style={{ left: `${Math.min(100, (g / 600) * 100)}%` }} />}
         </div>
@@ -86,16 +162,14 @@ function Detail({ row, rows, cur }: { row: Row; rows: Row[]; cur: string }) {
         </div>
       ) : <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-muted ring-1 ring-line/70">{t("ov2.reg.unused")}</p>}
 
+      <Placement row={row} rows={rows} limit={limit} />
+
       <div className="mt-auto space-y-2 text-sm">
-        {alt ? (
-          <div className="rounded-xl bg-leaf-soft px-3 py-3 text-leaf-deep ring-1 ring-leaf-soft">
-            <p className="font-semibold">{t("ov2.reg.move", { to: regionName(alt.region), pct: nf(0).format(alt.carbon_saving_pct) })}</p>
-            <p className="mt-0.5 text-xs">{t("ov2.reg.move_detail", { kg: formatCarbon(alt.carbon_saving_kg) })}</p>
-          </div>
-        ) : row.fp && cleaner && cleaner.g! < g ? (
+        {alt ? null : row.fp && cleaner && cleaner.g! < g ? (
           <div className="rounded-xl bg-amber-50 px-3 py-3 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-100">
             {t("ov2.reg.cleaner", { region: regionName(cleaner.region), g: nf(0).format(cleaner.g!), pct: nf(0).format((1 - cleaner.g! / g) * 100) })}{" "}
             {row.fp.relocation_blocked === "residency_unknown" && <AllowRegions className="text-xs">{t("ov2.opt.set_regions")}</AllowRegions>}
+            {row.fp.relocation_blocked === "latency" && <span className="font-medium">{t("ov2.reg.blocked_latency")}.</span>}
           </div>
         ) : row.fp ? <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-muted ring-1 ring-line/70">{t("ov2.reg.none_cleaner")}</p> : null}
         <Link href="/carbon" className="inline-block text-xs font-semibold text-primary hover:underline">{t("ov.svc.link")}</Link>
@@ -111,6 +185,7 @@ export function RegionExplorer() {
   const fp = useRegionFootprint();
   const cur = useFinopsSummary().data?.currency || "USD";
   const [sel, setSel] = useState<string | null>(null);
+  const limit = (fp.data ?? []).map((f) => f.alternative?.latency_budget_ms).find((v) => v) ?? 60;
 
   const rows: Row[] = useMemo(() => {
     const byRegion = new Map((fp.data ?? []).map((f) => [f.region, f]));
@@ -144,7 +219,7 @@ export function RegionExplorer() {
       {q.isLoading ? <Skeleton className="h-80" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Globe2} text={t("ov.reg.empty")} /> : (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-4">
-            <RegionMap regions={q.data!} footprint={fp.data ?? []} selected={current?.region ?? null} onSelect={setSel} />
+            <RegionMap limitMs={limit} regions={q.data!} footprint={fp.data ?? []} selected={current?.region ?? null} onSelect={setSel} />
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">{t("ov2.reg.yours")}<Info>{t("info.regions_yours")}</Info></p>
               {used.length === 0 ? <p className="text-sm text-muted">{t("ov.reg.no_resources")}</p> : (
@@ -177,7 +252,7 @@ export function RegionExplorer() {
             )}
           </div>
           <div className="min-w-0 rounded-2xl border border-line/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-            {current ? <Detail row={current} rows={rows} cur={cur} /> : null}
+            {current ? <Detail row={current} rows={rows} cur={cur} limit={limit} /> : null}
           </div>
         </div>
       )}

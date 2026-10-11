@@ -106,6 +106,15 @@ button:not(:disabled):active { transform: scale(0.97); }
 .wave-b { animation-duration: 12s; animation-delay: -4s; }
 .wave-c { animation-duration: 15s; animation-delay: -7s; }
 
+/* the promo card's waves: each layer slides by one period (half its width) so the loop is seamless */
+@keyframes pw-slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes pw-bob { 0%, 100% { translate: 0 2px; } 50% { translate: 0 -3px; } }
+@keyframes pw-rise { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: .9; } 100% { transform: translateY(-34px); opacity: 0; } }
+.pw-a { animation: pw-slide 16s linear infinite, pw-bob 6s ease-in-out infinite; }
+.pw-b { animation: pw-slide 24s linear infinite reverse, pw-bob 8s ease-in-out -3s infinite; }
+.pw-c { animation: pw-slide 34s linear infinite, pw-bob 10s ease-in-out -6s infinite; }
+.pw-speck { opacity: 0; animation: pw-rise 5s ease-out infinite; }
+
 /* ---- Respect the user's motion preference ------------------------------------------------------------------------ */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -130,6 +139,10 @@ button:not(:disabled):active { transform: scale(0.97); }
 
 /* ---- Thin side-menu scrollbar: slim, inset from the edge, a little wider under the pointer ---------------------- */
 .thin-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(148, 163, 184, 0.35) transparent; scrollbar-gutter: stable; }
+/* The collapsed menu has no scrollbar and reserves no gutter for it, so its icons sit exactly in the middle. Unlayered like .thin-scroll, which
+   it must outrank (a Tailwind utility is in a layer and loses to it). */
+.thin-scroll.nav-slim { scrollbar-gutter: auto; scrollbar-width: none; }
+.thin-scroll.nav-slim::-webkit-scrollbar { display: none; }
 .thin-scroll:hover { scrollbar-color: rgba(148, 163, 184, 0.6) transparent; }
 .thin-scroll::-webkit-scrollbar { width: 12px; }
 .thin-scroll::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
@@ -224,6 +237,19 @@ html[data-motion="reduced"] .phoenix-live { animation: none; }
 .login-card { background: rgba(255, 255, 255, 0.92); color: #0f1b33; box-shadow: 0 30px 70px -28px rgba(15, 60, 70, 0.35), 0 0 0 1px rgba(15, 118, 110, 0.10);
   backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2); }
 @media (prefers-reduced-motion: reduce) { .aurora, .login-reveal, .login-card-in { animation: none; } }
+/* sign-in sky: a change of time of day is a slow fade (4 s), never a jump */
+.sky-fade { transition: opacity 4s ease-in-out; }
+@keyframes login-star { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.login-star { animation: login-star 3.6s ease-in-out infinite; }
+.login-copy, .login-copy * { transition: color 3s ease-in-out; }
+.login-dark .login-copy { color: #f1f5f9; }
+.login-dark .login-copy .text-slate-900 { color: #f1f5f9; }
+.login-dark .login-copy .text-slate-600 { color: #cbd5e1; }
+.login-dark .login-copy .text-slate-500 { color: #aeb9cc; }
+.login-dark .login-copy .text-slate-400 { color: #8d9ab3; }
+.login-dark .login-copy .text-leaf-deep { color: #6ee0c0; }
+.login-dark .login-copy h1 span { background-image: linear-gradient(90deg, #6ee0c0, #7dd3fc); }
+@media (prefers-reduced-motion: reduce) { .sky-fade, .login-copy, .login-copy * { transition: none; } .login-star { animation: none; opacity: 0.7; } }
 
 @keyframes info-pop { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
 .info-pop { animation: info-pop 0.16s ease-out both; }

@@ -18,6 +18,7 @@ import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import { ProjectsPolicyPanel } from "@/components/settings/projects-policy-panel";
 import { RolesPanel } from "@/components/settings/roles-panel";
 import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
+import { LatencyPanel } from "@/components/settings/latency-panel";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Pill } from "@/components/operator/ui";
 import { useT } from "@/i18n/provider";
@@ -105,6 +106,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     policies: (
       <div className="space-y-4">
         <ProjectsPolicyPanel canEdit={edit} />
+        <LatencyPanel canEdit={edit} />
         <BudgetsPanel canEdit={canManageTenant(user.role) || edit} currency={cost.data?.currency ?? "USD"} />
       </div>
     ),

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import { IconBell as Bell, IconBell as BellRing, IconBranch as GitBranch, IconBuilding as Building2, IconChart as BarChart3, IconChevronRight as ChevronRight, IconClipboard as ClipboardList, IconClock as Clock, IconCloud as Cloud, IconGauge as Minimize2, IconGlobe as Globe2, IconKey as KeyRound, IconLeaf as Leaf, IconLock as Lock, IconMail as Mail, IconPlug as Webhook, IconSend as Hash, IconShield as ShieldCheck, IconSliders as Settings, IconSliders as Settings2, IconTarget as Target, IconUsers as Users, IconAws, IconAzure, IconGcp, IconKubernetes, type IconType } from "@/components/ui/icons";
@@ -126,6 +127,10 @@ const GRID_NAME: Record<string, { name: string; desc: string; fresh: number }> =
   electricitymaps: { name: "Electricity Maps", desc: "Real-time grid intensity worldwide", fresh: 36 },
   eia: { name: "EIA", desc: "United States, from the generation mix", fresh: 72 },
   energy_charts: { name: "Energy-Charts", desc: "Europe, from the generation mix", fresh: 72 },
+  ieso: { name: "IESO", desc: "Ontario, from the generation mix", fresh: 72 },
+  hydroquebec: { name: "Hydro-Québec", desc: "Quebec, from the generation mix", fresh: 72 },
+  entsoe: { name: "ENTSO-E", desc: "Europe, from the generation mix", fresh: 72 },
+  ons: { name: "ONS", desc: "Brazil, from the generation mix", fresh: 72 },
   uk_carbon_intensity: { name: "UK Carbon Intensity", desc: "Great Britain, measured and forecast", fresh: 36 },
   ember: { name: "Ember", desc: "Monthly generation data, worldwide", fresh: 24 * 50 },
 };
@@ -276,9 +281,9 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
             </label>
             <label className="block">
               <span className="mb-1 block text-xs text-slate-600">{t("settings.org.currency")}</span>
-              <select className={field} value={cur} disabled={!canEdit || !currency?.editable || save.isPending} onChange={(e) => setCur(e.target.value)}>
+              <SelectField className={field} value={cur} disabled={!canEdit || !currency?.editable || save.isPending} onChange={(e) => setCur(e.target.value)}>
                 {(currency?.enum ?? [cur]).map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              </SelectField>
             </label>
           </div>
           <div className="flex items-center justify-end gap-3 pt-1">

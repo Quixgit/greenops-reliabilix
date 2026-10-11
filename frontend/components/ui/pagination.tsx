@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight } from "@/components/ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n/provider";
@@ -44,10 +45,10 @@ export function Pagination({ page, pages, total, size, onPage, onSize, className
         {onSize && (
           <label className="flex items-center gap-2 text-xs text-muted">
             {t("pagination.per_page")}
-            <select value={size} onChange={(e) => onSize(Number(e.target.value))}
+            <SelectField value={size} onChange={(e) => onSize(Number(e.target.value))}
               className="rounded-lg border border-line bg-white px-2 py-1 text-xs text-ink outline-none focus:border-leaf">
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
+            </SelectField>
           </label>
         )}
         <div className="flex items-center gap-1">

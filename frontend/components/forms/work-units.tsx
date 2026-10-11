@@ -28,6 +28,11 @@ export function WorkUnits({ projectId, unit, canEdit }: { projectId: string; uni
   return (
     <div className="space-y-4">
       <p className="text-sm leading-relaxed text-slate-600">Report how many <b>{unitName}</b> this project served. Cost and CO₂e per {unitName} appear on the Overview from the days you report.</p>
+      <ol className="space-y-1.5 rounded-xl bg-leaf-soft/40 px-4 py-3 text-[13px] leading-relaxed text-slate-700 ring-1 ring-leaf/15">
+        <li><b>1.</b> Pick the first and the last day of a period (one day or a whole month).</li>
+        <li><b>2.</b> Enter how many {unitName} your project served in it, for example <i>1 200 000</i> for a month. Use the same unit every time.</li>
+        <li><b>3.</b> Save. The platform divides the period&apos;s cost and CO₂e by that number; nothing is guessed for days you did not report.</li>
+      </ol>
       {canEdit && (
         <div className="grid gap-4 rounded-2xl border border-line bg-slate-50/50 p-3 sm:grid-cols-[auto_1fr]">
           <Calendar mode="range" from={range.from} to={range.to} max={new Date().toISOString().slice(0, 10)} onPick={(f, t) => setRange({ from: f, to: t })} />

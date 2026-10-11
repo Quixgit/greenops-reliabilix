@@ -4,7 +4,7 @@ import { MetricsBoard } from "./metrics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconCheckCircle as CheckCircle2, IconCpu as Cpu, IconPower as Power, IconUserPlus as UserPlus, IconArrowRight as ArrowRight, IconBell as Bell, IconBolt as Zap, IconBuilding as Building2, IconCloud as Cloud, IconDatabase as Database, IconDatabase as Layers, IconFolder as FolderKanban, IconPlug as Plug, IconTrend as Activity, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -14,11 +14,10 @@ import {
 import { api } from "@/lib/api/client";
 import { settingsView, type OperatorTenant } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
+import { useOperatorAttention } from "./attention";
 import { describe } from "./audit";
 import { PageTitle, Tile } from "./parts";
 import { DataTable, Meter, Pill, Switch, type Column, type PillTone } from "./ui";
-
-type Item = { key: string; text: string; href: string; icon: typeof Bell };
 
 // The platform switches an operator reaches for most. Each one is the same setting as on Platform settings.
 const SWITCHES: { key: string; title: string; hint: string; danger?: boolean }[] = [
@@ -52,7 +51,7 @@ function PlatformControls({ canAct }: { canAct: boolean }) {
                   <p className="flex items-center gap-2 text-sm font-medium">{s.title}{s.danger && on && <Pill tone="warn" pulse>active</Pill>}</p>
                   <p className="text-xs text-muted">{s.hint}</p>
                   {confirm === s.key && (
-                    <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
+                    <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#8a6218] ring-1 ring-amber-200">
                       Every organization will be unable to make changes until you turn this off.
                       <button type="button" onClick={() => save.mutate({ [s.key]: true })} className="rounded-lg bg-pastel-amber px-2.5 py-1 font-semibold text-white">Turn on</button>
                       <button type="button" onClick={() => setConfirm(null)} className="font-medium underline">Cancel</button>
@@ -93,18 +92,7 @@ export function OverviewView() {
   const backlog = jobs.data?.queues.reduce((n, q) => n + q.pending + q.retry, 0);
   const failedJobs = jobs.data?.queues.reduce((n, q) => n + q.failed_today, 0);
 
-  const attention = useMemo(() => {
-    const out: Item[] = [];
-    if (errors.data?.length) out.push({ key: "err", text: `${errors.data.length} open error group${errors.data.length === 1 ? "" : "s"}`, href: "/operator/errors", icon: AlertTriangle });
-    if (conns.data?.length) out.push({ key: "conn", text: `${conns.data.length} cloud connection${conns.data.length === 1 ? "" : "s"} failing to sync`, href: "/operator/connections", icon: Cloud });
-    if (failed24) out.push({ key: "notif", text: `${failed24} failed notification${failed24 === 1 ? "" : "s"} in 24 hours`, href: "/operator/notifications", icon: Bell });
-    const missing = system.data?.integrations.filter((i) => i.status === "missing" && !/^(planned|optional)/.test(i.note)) ?? [];
-    if (missing.length) out.push({ key: "int", text: `${missing.length} integration${missing.length === 1 ? "" : "s"} not set up: ${missing.map((m) => m.name).join(", ")}`, href: "/operator/data-sources", icon: Plug });
-    const bad = sources.data?.filter((s) => s.state === "attention") ?? [];
-    if (bad.length) out.push({ key: "src", text: `${bad.length} data source${bad.length === 1 ? "" : "s"} with failing connections`, href: "/operator/data-sources", icon: Database });
-    return out;
-  }, [errors.data, conns.data, failed24, system.data, sources.data]);
-  const loading = [errors, stats, conns, system, sources].some((q) => q.isLoading);
+  const { items: attention, loading } = useOperatorAttention();
 
   const orgCols: Column<OperatorTenant>[] = [
     { key: "name", header: "Organization", sort: (a, b) => a.name.localeCompare(b.name), render: (t) => t.name },
@@ -114,7 +102,7 @@ export function OverviewView() {
     { key: "conns", header: "Connections", align: "right", sort: (a, b) => a.connections - b.connections,
       render: (t) => <span className="tabular-nums">{t.connections}{t.connections_in_error > 0 && <span className="ml-1.5 text-bad">· {t.connections_in_error} failing</span>}</span> },
     { key: "deliv", header: "Failed deliveries 7d", align: "right", hideBelow: "lg", sort: (a, b) => a.failed_deliveries_7d - b.failed_deliveries_7d,
-      render: (t) => <span className={t.failed_deliveries_7d ? "font-medium text-amber-700 tabular-nums" : "tabular-nums text-muted"}>{t.failed_deliveries_7d}</span> },
+      render: (t) => <span className={t.failed_deliveries_7d ? "font-medium text-[#a8761f] tabular-nums" : "tabular-nums text-muted"}>{t.failed_deliveries_7d}</span> },
     { key: "state", header: "State", sort: (a, b) => (b.connections_in_error + b.failed_deliveries_7d) - (a.connections_in_error + a.failed_deliveries_7d),
       render: (t) => (t.connections_in_error + t.failed_deliveries_7d > 0 ? <Pill tone="warn">needs a look</Pill> : <Pill tone="good">healthy</Pill>) },
   ];
@@ -153,7 +141,7 @@ export function OverviewView() {
               {attention.map((a, i) => (
                 <li key={a.key} className="rise" style={{ "--i": i } as CSSProperties}>
                   <Link href={a.href} className="group flex items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-line transition hover:shadow-sm">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-orange-50"><a.icon className="size-4 text-orange-600" aria-hidden /></span>
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-amber-50"><a.icon className="size-4 text-amber-600" aria-hidden /></span>
                     <span className="font-medium">{a.text}</span>
                     <ArrowRight className="ml-auto size-4 text-muted transition group-hover:translate-x-0.5" aria-hidden />
                   </Link>
@@ -168,7 +156,7 @@ export function OverviewView() {
         <CardHeader title="Organizations" icon={<Building2 className="size-4 text-leaf-deep" />}
           action={<Link href="/operator/organizations" className="text-xs font-semibold text-primary hover:underline">All organizations →</Link>} />
         {tenants.isLoading ? <Skeleton className="h-40" /> : (
-          <DataTable columns={orgCols} rows={tenants.data ?? []} rowKey={(t) => t.id} href={(t) => `/operator/organizations/${t.id}`}
+          <DataTable flush columns={orgCols} rows={tenants.data ?? []} rowKey={(t) => t.id} href={(t) => `/operator/organizations/${t.id}`}
             initialSort={{ key: "state", dir: "desc" }} empty="No organizations yet." />
         )}
       </Card>
@@ -177,13 +165,13 @@ export function OverviewView() {
         <Card index={7} interactive={false}>
           <CardHeader title="Queues" icon={<Cpu className="size-4 text-violet-500" />} action={<Link href="/operator/jobs" className="text-xs font-semibold text-primary hover:underline">Jobs →</Link>} />
           {jobs.isLoading ? <Skeleton className="h-32" /> : (
-            <DataTable dense rowKey={(q) => q.name} rows={jobs.data?.queues ?? []} empty="No queues reported."
+            <DataTable flush dense rowKey={(q) => q.name} rows={jobs.data?.queues ?? []} empty="No queues reported."
               columns={[
                 { key: "name", header: "Queue", render: (q) => q.name },
                 { key: "pending", header: "Pending", align: "right", sort: (a, b) => a.pending - b.pending, render: (q) => <span className="tabular-nums">{q.pending}</span> },
                 { key: "active", header: "Active", align: "right", render: (q) => <span className="tabular-nums">{q.active}</span> },
-                { key: "retry", header: "Retry", align: "right", render: (q) => <span className={q.retry ? "font-medium text-amber-700 tabular-nums" : "tabular-nums text-muted"}>{q.retry}</span> },
-                { key: "failed", header: "Failed today", align: "right", sort: (a, b) => a.failed_today - b.failed_today, render: (q) => <span className={q.failed_today ? "font-medium text-bad tabular-nums" : "tabular-nums text-muted"}>{q.failed_today}</span> },
+                { key: "retry", header: "Retry", align: "right", render: (q) => <span className={q.retry ? "font-medium text-[#a8761f] tabular-nums" : "tabular-nums text-muted"}>{q.retry}</span> },
+                { key: "failed", header: "Failed today", align: "right", sort: (a, b) => a.failed_today - b.failed_today, render: (q) => <span className={q.failed_today ? "font-medium text-[#d9707f] tabular-nums" : "tabular-nums text-muted"}>{q.failed_today}</span> },
                 { key: "st", header: "State", render: (q) => (q.paused ? <Pill tone="warn">paused</Pill> : <Pill tone="good" pulse={q.active > 0}>running</Pill>) },
               ]} />
           )}
@@ -195,11 +183,11 @@ export function OverviewView() {
             const today = new Date().toISOString().slice(0, 10);
             const rows = (usage.data?.items ?? []).filter((i) => i.day.slice(0, 10) === today);
             return (
-              <DataTable dense rowKey={(r) => r.provider} rows={rows} empty="No calls to outside providers yet today."
+              <DataTable flush dense rowKey={(r) => r.provider} rows={rows} empty="No calls to outside providers yet today."
                 columns={[
                   { key: "p", header: "Provider", render: (r) => r.provider },
                   { key: "r", header: "Requests", align: "right", sort: (a, b) => a.requests - b.requests, render: (r) => <span className="tabular-nums">{r.requests}</span> },
-                  { key: "e", header: "Errors", align: "right", render: (r) => <span className={r.errors ? "font-medium text-bad tabular-nums" : "tabular-nums text-muted"}>{r.errors}</span> },
+                  { key: "e", header: "Errors", align: "right", render: (r) => <span className={r.errors ? "font-medium text-[#d9707f] tabular-nums" : "tabular-nums text-muted"}>{r.errors}</span> },
                   { key: "c", header: "Daily cap", render: (r) => <Meter value={r.requests} max={usage.data?.daily_caps[r.provider] ?? 0} label="Share of the daily request cap" /> },
                 ]} />
             );
@@ -211,7 +199,7 @@ export function OverviewView() {
         <Card index={9} interactive={false} className="xl:col-span-2">
           <CardHeader title="Data sources" icon={<Database className="size-4 text-leaf-deep" />} action={<Link href="/operator/data-sources" className="text-xs font-semibold text-primary hover:underline">Manage →</Link>} />
           {sources.isLoading ? <Skeleton className="h-40" /> : (
-            <DataTable dense rowKey={(s) => s.id} rows={sources.data ?? []} href={(s) => `/operator/data-sources/${s.id}`}
+            <DataTable flush dense rowKey={(s) => s.id} rows={sources.data ?? []} href={(s) => `/operator/data-sources/${s.id}`}
               initialSort={{ key: "state", dir: "asc" }}
               columns={[
                 { key: "name", header: "Source", render: (s) => s.name },
@@ -253,7 +241,7 @@ export function OverviewView() {
                 <span><span className="text-muted">Environment</span> <b>{system.data.env}</b></span>
                 <span><span className="text-muted">Schema</span> <b>{system.data.expected_migration}</b></span>
               </div>
-              <DataTable dense rowKey={(i) => i.name} rows={system.data.integrations}
+              <DataTable flush dense rowKey={(i) => i.name} rows={system.data.integrations}
                 columns={[
                   { key: "n", header: "Integration", render: (i) => i.name },
                   { key: "s", header: "Status", sort: (a, b) => a.status.localeCompare(b.status), render: (i) => <Pill tone={i.status === "ready" ? "good" : i.status === "stub" ? "violet" : "warn"}>{i.status === "stub" ? "stand-in" : i.status}</Pill> },

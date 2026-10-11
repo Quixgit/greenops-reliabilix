@@ -18,7 +18,8 @@ import { useIntensityHistory, useProjects } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
 import { apiKeyCreated } from "@/lib/api/schemas";
-import { nf, timeAgo } from "@/lib/formatters";
+import { formatCost, nf, timeAgo } from "@/lib/formatters";
+import { Select } from "@/components/operator/ui";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
@@ -94,19 +95,17 @@ export function GatePlayground() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <label className="block text-xs font-medium text-slate-500">{t("cd.f.project")}
-            <select value={project} onChange={(e) => setProject(e.target.value)} className={cn(field, "mt-1")}>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+            <Select label={t("cd.f.project")} className="mt-1 w-full" value={project} onChange={setProject} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
           </label>
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("cd.f.changes")}</p>
             {rows.map((r, i) => (
-              <div key={i} className="grid grid-cols-[1.2fr_1fr_1.2fr_0.9fr_auto] items-end gap-2">
-                <select value={r.kind} aria-label={t("cd.f.kind")} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, kind: e.target.value as GateChange["kind"] } : x)))} className={field}>
-                  {KINDS.map((k) => <option key={k} value={k}>{t(`cd.kind.${k}`)}</option>)}
-                </select>
+              <div key={i} className="relative grid grid-cols-2 gap-2 rounded-xl bg-slate-50/70 p-2.5 pr-11 ring-1 ring-line/70">
+                <Select label={t("cd.f.kind")} className="w-full" value={r.kind} onChange={(v) => setRows(rows.map((x, j) => (j === i ? { ...x, kind: v as GateChange["kind"] } : x)))} options={KINDS.map((k) => ({ value: k, label: t(`cd.kind.${k}`) }))} />
                 <input value={r.amount} inputMode="decimal" aria-label={t("cd.f.amount")} placeholder={t("cd.f.amount")} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} className={field} />
                 <input value={r.region} list="cd-regions" aria-label={t("cd.f.region")} placeholder="eu-central-1" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, region: e.target.value } : x)))} className={field} />
                 <input value={r.cost} inputMode="decimal" aria-label={t("cd.f.cost")} placeholder={t("cd.f.cost")} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, cost: e.target.value } : x)))} className={field} />
-                <button type="button" aria-label={t("cd.f.remove")} disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="grid size-9 place-items-center rounded-full text-slate-400 transition-colors hover:bg-[#fdecef] hover:text-[#d9707f] disabled:invisible"><IconTrash className="size-4" strokeWidth={1.8} /></button>
+                <button type="button" aria-label={t("cd.f.remove")} disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-slate-400 transition-colors hover:bg-[#fdecef] hover:text-[#d9707f] disabled:invisible"><IconTrash className="size-4" strokeWidth={1.8} /></button>
               </div>
             ))}
             <datalist id="cd-regions">{regions.map((r) => <option key={r} value={r} />)}</datalist>
@@ -135,7 +134,7 @@ export function GatePlayground() {
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-xl bg-white/80 px-3 py-2"><dt className="text-xs text-muted">{t("cd.res.carbon")}</dt><dd className="font-semibold tabular-nums">{nf(1).format(res.carbon_kg_month)} kg CO₂e</dd></div>
-                <div className="rounded-xl bg-white/80 px-3 py-2"><dt className="text-xs text-muted">{t("cd.res.cost")}</dt><dd className="font-semibold tabular-nums">{res.cost_delta_month >= 0 ? "+" : ""}{nf(0).format(res.cost_delta_month)}</dd></div>
+                <div className="rounded-xl bg-white/80 px-3 py-2"><dt className="text-xs text-muted">{t("cd.res.cost")}</dt><dd className="font-semibold tabular-nums">{res.cost_delta_month >= 0 ? "+" : ""}{formatCost(res.cost_delta_month)}</dd></div>
               </dl>
               {!!res.reasons?.length && <ul className="mt-3 space-y-1 text-sm text-slate-700">{res.reasons.map((r, i) => <li key={i} className="flex gap-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-slate-400" />{r}</li>)}</ul>}
               {!res.thresholds_applied && <p className="mt-3 text-xs text-muted">{t("cd.res.no_thresholds")}</p>}
@@ -275,9 +274,7 @@ export function Integrate({ canKeys }: { canKeys: boolean }) {
               ))}
             </div>
             {tab !== "schedule" && (
-              <select value={project} onChange={(e) => setProject(e.target.value)} aria-label={t("cd.f.project")} className="ml-auto rounded-xl border border-line bg-white px-3 py-1.5 text-sm">
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <Select label={t("cd.f.project")} className="ml-auto w-44" value={project} onChange={setProject} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
             )}
           </div>
           <div className="relative">
@@ -320,7 +317,7 @@ export function GateHistory() {
                 <span className="block truncate text-sm font-semibold">{projects.find((p) => p.id === e.project_id)?.name ?? "—"}{e.ref && <span className="ml-2 font-normal text-muted">{e.ref}</span>}</span>
                 <span className="block truncate text-xs text-muted">{e.reasons[0] ?? t("cd.hist.within")} · {e.regions.join(", ")}</span>
               </span>
-              <span className="text-sm tabular-nums text-slate-700">{nf(1).format(e.carbon_kg_month)} kg · {e.cost_delta_month >= 0 ? "+" : ""}{nf(0).format(e.cost_delta_month)}</span>
+              <span className="text-sm tabular-nums text-slate-700">{nf(1).format(e.carbon_kg_month)} kg · {e.cost_delta_month >= 0 ? "+" : ""}{formatCost(e.cost_delta_month)}</span>
               <span className="w-28 shrink-0 text-right text-xs text-muted">{e.source === "api_key" ? t("cd.hist.pipeline") : t("cd.hist.console")} · {timeAgo(e.created_at)}</span>
             </li>
           ))}

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -186,9 +187,9 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
               <div className="flex justify-between"><dt className="text-muted">{t("bl.order.amount")}</dt><dd className="font-semibold tabular-nums">{(() => { const pr = priceOf(order.plan, provider); return pr ? `${money(pr.amount, pr.currency)} / ${t("bl.period")}` : t("bl.price_at_checkout"); })()}</dd></div>
               {offers(order.plan).length > 1 ? (
                 <label className="block text-xs font-medium text-slate-500">{t("bl.order.provider")}
-                  <select value={provider} onChange={(e) => setProvider(e.target.value)} className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm">
+                  <SelectField value={provider} onChange={(e) => setProvider(e.target.value)} className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm">
                     {offers(order.plan).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                  </select>
+                  </SelectField>
                 </label>
               ) : <div className="flex justify-between"><dt className="text-muted">{t("bl.order.provider")}</dt><dd className="font-semibold">{offers(order.plan)[0]?.name}</dd></div>}
             </dl>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconUserPlus as UserPlus, IconClock as Clock, IconUsers as Users } from "@/components/ui/icons";
@@ -79,10 +80,10 @@ export function MembersPanel() {
                   <span className="min-w-0"><span className="block truncate font-medium">{m.email || m.user_id}</span><span className="block text-xs text-muted">{t("settings.users.joined", { when: shortTime(m.created_at) })}</span></span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <select aria-label={`Role of ${m.email}`} value={m.custom_role ? `custom:${m.custom_role.id}` : `role:${m.role}`} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, value: e.target.value })} className="rounded-lg border border-line bg-white px-2 py-1 text-xs outline-none focus:border-leaf-deep">
+                  <SelectField aria-label={`Role of ${m.email}`} value={m.custom_role ? `custom:${m.custom_role.id}` : `role:${m.role}`} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, value: e.target.value })} className="rounded-lg border border-line bg-white px-2 py-1 text-xs outline-none focus:border-leaf-deep">
                     <optgroup label="Built-in">{MEMBER_ROLES.map((r) => <option key={r} value={`role:${r}`}>{r}</option>)}</optgroup>
                     {roles.data && roles.data.custom.length > 0 && <optgroup label="Custom">{roles.data.custom.map((r) => <option key={r.id} value={`custom:${r.id}`}>{r.name}</option>)}</optgroup>}
-                  </select>
+                  </SelectField>
                   <ConfirmButton label="Remove" disabled={remove.isPending} onConfirm={() => remove.mutate(m.id)} />
                 </span>
               </li>

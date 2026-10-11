@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { PolicyPanel } from "@/components/forms/policy-panel";
@@ -37,7 +37,7 @@ function Stat({ index, icon: Icon, label, value, hint, info }: { index: number; 
       <Icon className="size-11 shrink-0 text-leaf-deep" strokeWidth={1.4} />
       <div className="min-w-0">
         <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}<Info>{info}</Info></p>
-        <p className="mt-0.5 text-2xl font-bold leading-tight tracking-tight tabular-nums">{value}</p>
+        <div className="mt-0.5 text-2xl font-bold leading-tight tracking-tight tabular-nums">{value}</div>
         {hint && <p className="truncate text-xs text-muted">{hint}</p>}
       </div>
     </Card>
@@ -133,6 +133,17 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
   const total = useMemo(() => (alloc.data?.projects ?? []).reduce((n, x) => n + x.total, 0), [alloc.data]);
   const withRegions = policies.filter((x) => (x.data?.allowed_regions.length ?? 0) > 0).length;
   const overBudget = (budgets.data ?? []).filter((b) => b.state !== "ok").length;
+  // The Overview's "Report what your work produces" step links here with ?units: open the first project on its work-units tab, so
+  // the person lands on the form to fill in instead of on a list.
+  const unitsDeepLink = useRef(false);
+  useEffect(() => {
+    if (unitsDeepLink.current || projects.length === 0 || typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("units")) return;
+    unitsDeepLink.current = true;
+    setTab("projects");
+    setOpenId(projects[0].id);
+    setDetailTab("units");
+  }, [projects]);
   const open = projects.find((p) => p.id === openId) ?? null;
   const conns = (useConnections().data ?? []).filter((c) => c.project_id === openId);
 

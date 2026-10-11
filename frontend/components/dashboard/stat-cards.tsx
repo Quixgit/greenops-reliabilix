@@ -28,8 +28,8 @@ function StatCard({ index, icon: Icon, tone, label, hint, value, unit, delta, lo
   note?: string;
 }) {
   return (
-    <Card index={index} className="group p-4">
-      <div className="flex items-center gap-3">
+    <Card index={index} className="group @container p-4">
+      <div className="flex flex-col gap-2 @[215px]:flex-row @[215px]:items-center @[215px]:gap-3">
         <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full ring-1 transition-transform duration-500 ease-[var(--ease-out-soft)] group-hover:scale-110 group-hover:rotate-6", TONE[tone])}>
           <Icon className="size-[26px]" />
         </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -199,9 +200,9 @@ export function WorkloadTable({ cluster, onClear }: { cluster: string; onClear: 
           <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("k8.wl.search")} className="w-56 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm" aria-label={t("k8.wl.search")} />
         </label>
-        <select value={ns} onChange={(e) => setNs(e.target.value)} aria-label={t("k8.wl.namespace")} className="rounded-xl border border-line bg-white px-3 py-2 text-sm">
+        <SelectField value={ns} onChange={(e) => setNs(e.target.value)} aria-label={t("k8.wl.namespace")} className="rounded-xl border border-line bg-white px-3 py-2 text-sm">
           <option value="">{t("k8.wl.all_ns")}</option>{namespaces.map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
+        </SelectField>
         <button type="button" aria-pressed={onlyLow} onClick={() => setOnlyLow((v) => !v)} className={chip(onlyLow)}>{t("k8.wl.only_low")}</button>
         <div className="ml-auto flex gap-1.5" role="group" aria-label={t("k8.wl.sort")}>
           {(["energy", "carbon", "cpu"] as const).map((k) => <button key={k} type="button" aria-pressed={sort === k} onClick={() => setSort(k)} className={chip(sort === k)}>{t(`k8.sort.${k}`)}</button>)}

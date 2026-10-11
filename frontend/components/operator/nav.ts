@@ -1,4 +1,4 @@
-import { IconSend as Megaphone, IconTrend as TrendIcon, IconCalculator as Calculator, IconMerge as GitMerge, IconHistory as History, IconReceipt as Receipt, IconServer as Server, IconTimer as Timer, IconBell as Bell, IconCloud as Cloud, IconCluster as Boxes, IconDatabase as Database, IconOverview as LayoutDashboard, IconPlug as Plug, IconSliders as SlidersHorizontal, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
+import { IconGauge as Gauge, IconSend as Megaphone, IconTrend as TrendIcon, IconCalculator as Calculator, IconMerge as GitMerge, IconHistory as History, IconReceipt as Receipt, IconServer as Server, IconTimer as Timer, IconBell as Bell, IconCloud as Cloud, IconCluster as Boxes, IconDatabase as Database, IconOverview as LayoutDashboard, IconPlug as Plug, IconSliders as SlidersHorizontal, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; planned?: boolean };
@@ -9,8 +9,6 @@ export const OPERATOR_NAV: NavGroup[] = [
   { title: "Overview", items: [
     { href: "/operator", label: "Overview", icon: LayoutDashboard, hint: "What needs attention now" },
     { href: "/operator/metrics", label: "Metrics", icon: TrendIcon, hint: "What was created, and when" },
-  ] },
-  { title: "Communication", items: [
     { href: "/operator/announcements", label: "Announcements", icon: Megaphone, hint: "Updates and notices to organizations" },
   ] },
   { title: "Customers", items: [
@@ -19,7 +17,7 @@ export const OPERATOR_NAV: NavGroup[] = [
   ] },
   { title: "Data", items: [
     { href: "/operator/data-sources", label: "Data sources", icon: Database, hint: "Sources, services, keys and settings" },
-        { href: "/operator/planned/aggregation", label: "Aggregation & policies", icon: GitMerge, hint: "Source priority, fallback, provenance", planned: true },
+    { href: "/operator/aggregation", label: "Aggregation & policies", icon: GitMerge, hint: "Source priority, freshness, provenance" },
     { href: "/operator/methodology", label: "Methodology & SCI", icon: Calculator, hint: "Versions, coefficients, provenance" },
   ] },
   { title: "Operations", items: [
@@ -28,6 +26,7 @@ export const OPERATOR_NAV: NavGroup[] = [
     { href: "/operator/connections", label: "Connections", icon: Cloud, hint: "Customer cloud accounts needing attention" },
     { href: "/operator/system", label: "System", icon: Server, hint: "Build, schema, integration state" },
     { href: "/operator/jobs", label: "Jobs & scheduler", icon: Timer, hint: "Queues, schedules, failed tasks" },
+    { href: "/operator/diagnostics", label: "Diagnostics", icon: Gauge, hint: "Self-tests of the platform's services" },
   ] },
   { title: "Governance", items: [
     { href: "/operator/settings", label: "Platform settings", icon: SlidersHorizontal, hint: "Limits, modules, security, retention" },

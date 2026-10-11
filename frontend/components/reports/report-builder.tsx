@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { DateField } from "@/components/ui/date-field";
@@ -113,10 +114,10 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
         <div className="space-y-4">
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rp.step.scope")}</p>
-            <select value={project} onChange={(e) => setProject(e.target.value)} aria-label={t("rp.step.scope")} className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-medium">
+            <SelectField value={project} onChange={(e) => setProject(e.target.value)} aria-label={t("rp.step.scope")} className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-medium">
               <option value="">{t("rp.all_projects")}</option>
               {projects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rp.step.format")}</p>

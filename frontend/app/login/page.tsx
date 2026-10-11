@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="relative min-h-screen overflow-hidden text-slate-900">
       <LoginBackdrop />
       <div className="relative z-10 mx-auto grid min-h-screen max-w-[1240px] items-center gap-12 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-10">
-        <section className="hidden lg:block">
+        <section className="login-copy hidden lg:block">
           <div className="login-reveal flex items-center gap-3.5" style={{ "--i": 0 } as React.CSSProperties}>
             <Logo className="h-14 w-11" />
             <span className="leading-tight">
@@ -56,14 +56,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         </section>
 
         <div className="login-card-in w-full lg:justify-self-end">
-          <div className="mb-6 flex items-center gap-3 lg:hidden">
+          <div className="login-copy mb-6 flex items-center gap-3 lg:hidden">
             <Logo className="h-11 w-9" />
             <span className="leading-tight"><span className="block text-xl font-bold text-slate-900">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.2em] text-leaf-deep">Systems</span></span>
           </div>
           <div className="login-card rounded-3xl p-7 sm:p-9">
             <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} devLogin={devLoginEnabled()} error={q.error} />
           </div>
-          <p className="mt-5 text-center text-[11px] text-slate-400">GreenOps Platform · Reliabilix Systems</p>
+          <p className="login-copy mt-5 text-center text-[11px] text-slate-400">GreenOps Platform · Reliabilix Systems</p>
         </div>
       </div>
     </main>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type CSSProperties } from "react";
 import { IconArrowLeft, IconArrowRight, IconCheck, IconCluster, IconCopy, IconKey, IconLock, IconShield } from "@/components/ui/icons";
@@ -102,9 +103,9 @@ export function ConnectCluster({ onClose }: { onClose: () => void }) {
                   {name && !nameOk && <span role="alert" className="mt-1 block text-xs text-bad">{t("kc.err.name")}</span>}
                 </label>
                 <label className="block text-xs font-medium text-slate-500">{t("kc.f.project")}
-                  <select value={project} onChange={(e) => setProject(e.target.value)} className={cn(field, "mt-1")}>
+                  <SelectField value={project} onChange={(e) => setProject(e.target.value)} className={cn(field, "mt-1")}>
                     <option value="" disabled>{t("cw.f.project_pick")}</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  </SelectField>
                 </label>
                 <label className="block text-xs font-medium text-slate-500">{t("kc.f.region")}
                   <input value={region} onChange={(e) => setRegion(e.target.value.trim())} className={cn(field, "mt-1")} placeholder="eu-central-1 · westeurope · europe-west4" />

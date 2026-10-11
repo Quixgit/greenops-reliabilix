@@ -5,7 +5,7 @@ import { tokens } from "@/design-system/tokens";
 import type { IntensityPoint } from "@/lib/api/schemas";
 import { Chart } from "./chart";
 
-export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed from generation mix)", energy_charts: "Energy-Charts (computed from generation mix)" };
+export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed from generation mix)", energy_charts: "Energy-Charts (computed from generation mix)", ieso: "IESO (Ontario, computed from generation mix)", hydroquebec: "Hydro-Québec (computed from generation mix)", entsoe: "ENTSO-E (Europe, computed from generation mix)", ons: "ONS (Brazil, computed from generation mix)" };
 const OTHER_COLORS = ["#8b5cf6", "#f2cf8a", "#06b6d4"];
 
 /**
@@ -18,6 +18,10 @@ export function IntensityChart({ points, from, to }: { points: IntensityPoint[];
     const byDay = new Map(points.map((p) => [p.day.slice(0, 10), p]));
     const days: string[] = [];
     for (let t = new Date(from.slice(0, 10) + "T00:00:00Z").getTime(); t < new Date(to.slice(0, 10) + "T00:00:00Z").getTime(); t += 86_400_000) days.push(new Date(t).toISOString().slice(0, 10));
+    // The window ends before `to`, but the newest day (today) has readings too and is the freshest data there is: every
+    // day the API returned belongs on the axis, whatever the window says.
+    for (const p of points) { const d = p.day.slice(0, 10); if (!days.includes(d)) days.push(d); }
+    days.sort();
     // A young history (readings only since the source was connected) would be a few dots at the far right of an empty
     // month: start the axis shortly before the first reading instead, never narrower than a week.
     if (points.length > 0 && points.length < days.length / 2) {

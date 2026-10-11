@@ -63,3 +63,50 @@ export function useErasure(id: string) {
     cancel: useMutation({ mutationFn: (reason: string) => api(`operator/tenants/${id}/erasure/cancel`, z.unknown(), undefined, { method: "POST", body: JSON.stringify({ reason }) }), onSuccess: done }),
   };
 }
+
+const aggSource = z.object({
+  id: z.string(), label: z.string(), measure: z.string(), granularity: z.enum(["hourly", "monthly"]), computed: z.boolean(), licence: z.string(),
+  position: z.number(), pinned_regions: z.number(), regions: z.number(), hourly_readings_30d: z.number(), monthly_figures: z.number(),
+  newest: z.string().nullable(), max_age_hours: z.number(), freshness: z.enum(["fresh", "aging", "stale", "none"]),
+});
+const aggregation = z.object({
+  policy: z.object({
+    priority: z.array(z.string()), overrides: z.record(z.string(), z.string()).nullable().transform((v) => v ?? {}), min_day_readings: z.number(), max_age_hours: z.number(),
+    source_max_age_hours: z.record(z.string(), z.number()).nullable().transform((v) => v ?? {}), daily_request_cap: z.number(),
+  }),
+  sources: z.array(aggSource),
+  provenance: z.object({
+    days: z.number(), total: z.number(), unattributed: z.number(), precise_share: z.number(),
+    rows: z.array(z.object({ source: z.string(), basis: z.string(), rows: z.number() })).nullable().transform((v) => v ?? []),
+  }),
+  rules: z.array(z.object({ code: z.string(), title: z.string(), text: z.string() })),
+  regions_in_use: z.number(),
+  divergence: z.array(z.object({
+    region: z.string(), in_use: z.boolean(), ratio: z.number(), level: z.enum(["ok", "differs", "disagrees"]), used: z.string(),
+    sources: z.array(z.object({
+      id: z.string(), label: z.string(), g_per_kwh: z.number(), readings: z.number(), newest: z.string().nullable(), computed: z.boolean(), fresh: z.boolean(),
+      vs_anchor_pct: z.number().nullable(),
+    })),
+    anchor: z.object({ source: z.string(), label: z.string(), month: z.string(), g_per_kwh: z.number() }).nullable(),
+    inventory: z.object({ source: z.string(), label: z.string(), month: z.string(), g_per_kwh: z.number() }).nullable().optional().transform((v) => v ?? null),
+  })).nullable().transform((v) => v ?? []),
+});
+export type Aggregation = z.infer<typeof aggregation>;
+export type AggSource = z.infer<typeof aggSource>;
+export const useAggregation = () => useQuery({ queryKey: ["op-aggregation"], queryFn: () => api("operator/aggregation", aggregation) });
+
+const nul = <T extends z.ZodTypeAny>(t: T) => t.nullable();
+const explainSource = z.object({
+  source: z.string(), position: z.number(), pinned: z.boolean(), day_readings: z.number(), day_mean: nul(z.number()), monthly: nul(z.number()),
+  latest_before: nul(z.number()), latest_before_at: nul(z.string()), age_hours: nul(z.number()), max_age_hours: z.number(), within_max_age: z.boolean(),
+  latest_overall: nul(z.number()), latest_overall_at: nul(z.string()),
+  verdict: z.enum(["chosen", "outranked", "too_few", "backup", "stale", "no_data"]),
+});
+const explanation = z.object({
+  region: z.string(), day: z.string(), min_day_readings: z.number(), max_age_hours: z.number(), order: z.array(z.string()),
+  sources: z.array(explainSource), chosen: nul(z.object({ g_per_kwh: z.number(), source: z.string(), basis: z.string() })),
+});
+export type Explanation = z.infer<typeof explanation>;
+export type ExplainSource = z.infer<typeof explainSource>;
+export const useExplain = (region: string, day: string) =>
+  useQuery({ queryKey: ["op-explain", region, day], enabled: region !== "" && day !== "", retry: false, queryFn: () => api("operator/aggregation/explain", explanation, { region, day }) });

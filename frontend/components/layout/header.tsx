@@ -3,7 +3,7 @@
 import { IconLogOut as LogOut, IconMenu as Menu, IconBell, IconFolder, IconSearch, IconSliders } from "@/components/ui/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot } from "@/components/ui/dropdown";
 import * as DM from "@radix-ui/react-dropdown-menu";
@@ -11,6 +11,7 @@ import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { NAV } from "@/components/layout/nav";
 import { useConnections, useProjects } from "@/hooks/use-overview";
 import { NotificationBell } from "@/components/layout/bell";
+import { QuickSearchBox, type QuickItem } from "@/components/layout/quick-search";
 import { useT } from "@/i18n/provider";
 import { timeAgo } from "@/lib/formatters";
 import type { Role } from "@/lib/permissions";
@@ -27,52 +28,12 @@ function QuickSearch() {
   const projects = useProjects();
   const conns = useConnections();
   const setProject = useUi((s) => s.setProject);
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const [cur, setCur] = useState(0);
-  const box = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); box.current?.focus(); setOpen(true); } };
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, []);
-  const items = useMemo(() => {
-    const all: { label: string; hint: string; run: () => void }[] = [
-      ...NAV.map((n) => ({ label: n.label, hint: t("search.page"), run: () => router.push(n.href) })),
-      ...(projects.data ?? []).map((p) => ({ label: p.name, hint: t("search.project"), run: () => { setProject(p.id); router.push("/overview"); } })),
-      ...(conns.data ?? []).map((c) => ({ label: `${c.provider.toUpperCase()} ${c.account_ref}`, hint: t("search.connection"), run: () => router.push(`/cloud/${c.id}`) })),
-    ];
-    const n = q.trim().toLowerCase();
-    return (n ? all.filter((i) => i.label.toLowerCase().includes(n)) : all.slice(0, 7)).slice(0, 8);
-  }, [q, t, router, projects.data, conns.data, setProject]);
-  const go = (i: number) => { items[i]?.run(); setOpen(false); setQ(""); box.current?.blur(); };
-  return (
-    <div className="relative hidden md:block">
-      <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-slate-400" />
-      <input ref={box} value={q} placeholder={t("header.search")} aria-label={t("header.search")} role="combobox" aria-expanded={open} aria-controls="quick-search"
-        onChange={(e) => { setQ(e.target.value); setCur(0); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => window.setTimeout(() => setOpen(false), 120)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") { e.preventDefault(); setCur((c) => Math.min(items.length - 1, c + 1)); }
-          else if (e.key === "ArrowUp") { e.preventDefault(); setCur((c) => Math.max(0, c - 1)); }
-          else if (e.key === "Enter") { e.preventDefault(); go(cur); }
-          else if (e.key === "Escape") { setOpen(false); box.current?.blur(); }
-        }}
-        className="h-10 w-60 rounded-xl border border-line/80 bg-white pl-11 pr-14 text-sm text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] placeholder:text-slate-400 lg:w-72" />
-      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">⌘K</kbd>
-      {open && items.length > 0 && (
-        <ul id="quick-search" role="listbox" className="info-pop absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-[0_18px_44px_rgba(31,52,110,0.16)]">
-          {items.map((it, i) => (
-            <li key={`${it.hint}-${it.label}`} role="option" aria-selected={i === cur}>
-              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(i)} onMouseEnter={() => setCur(i)}
-                className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors", i === cur ? "bg-leaf-soft/70" : "")}>
-                <span className="truncate font-medium">{it.label}</span><span className="shrink-0 text-xs text-muted">{it.hint}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  const all = useMemo<QuickItem[]>(() => [
+    ...NAV.map((n) => ({ label: n.label, hint: t("search.page"), run: () => router.push(n.href) })),
+    ...(projects.data ?? []).map((p) => ({ label: p.name, hint: t("search.project"), run: () => { setProject(p.id); router.push("/overview"); } })),
+    ...(conns.data ?? []).map((c) => ({ label: `${c.provider.toUpperCase()} ${c.account_ref}`, hint: t("search.connection"), run: () => router.push(`/cloud/${c.id}`) })),
+  ], [t, router, projects.data, conns.data, setProject]);
+  return <QuickSearchBox all={all} />;
 }
 
 /** The period: three presets as one segmented control and a calendar for any other range. */

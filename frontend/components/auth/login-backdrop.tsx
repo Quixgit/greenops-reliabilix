@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { localHour, skyAt, type Sky } from "@/lib/sky";
 import { landDots, project, MAP_H, MAP_W } from "@/lib/dot-grid";
 import { REGION_GEO } from "@/lib/regions";
 
@@ -9,8 +10,30 @@ import { REGION_GEO } from "@/lib/regions";
  * subject. Cloud regions pulse softly and light travels between them along arcs, the way cost and carbon travel
  * through a cloud estate. Decorative only; it stands still for people who asked for reduced motion.
  */
+// fixed positions: the same stars every visit
+const STARS = Array.from({ length: 46 }, (_, i) => ({ x: (i * 53) % 100, y: ((i * 37) % 61) + (i % 3), r: 1 + (i % 3 === 0 ? 1 : 0), d: (i % 7) * 0.6 }));
+
+/**
+ * The sky follows the visitor's own clock (no location is asked for): by day the scene is as it always was, in the evening it
+ * darkens slowly like a sunset, at night it is a deep blue with stars, and it brightens again at dawn. Re-evaluated every minute;
+ * the CSS transitions make a change a slow fade rather than a jump. `?sky=21:30` previews a time.
+ */
 export function LoginBackdrop() {
   const ref = useRef<HTMLCanvasElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  // server and first paint: day, so there is nothing to mismatch; the effect then fades into the visitor's real time
+  const [sky, setSky] = useState<Sky>({ night: 0, glow: 0, morning: true });
+
+  useEffect(() => {
+    const set = () => {
+      const next = skyAt(localHour(new Date(), new URLSearchParams(window.location.search).get("sky")));
+      setSky(next);
+      root.current?.closest("main")?.classList.toggle("login-dark", next.night > 0.55);
+    };
+    const id = window.setTimeout(set, 60);
+    const iv = window.setInterval(set, 60_000);
+    return () => { window.clearTimeout(id); window.clearInterval(iv); };
+  }, []);
 
   useEffect(() => {
     const cv = ref.current;
@@ -97,15 +120,27 @@ export function LoginBackdrop() {
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", onResize); };
   }, []);
 
+  const n = sky.night;
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-[#f3f8f7]">
-      <div className="aurora aurora-a absolute -left-[10%] -top-[25%] h-[75%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(110,231,183,0.55),transparent)] blur-3xl" />
-      <div className="aurora aurora-b absolute -right-[12%] top-[5%] h-[75%] w-[55%] rounded-full bg-[radial-gradient(closest-side,rgba(125,211,252,0.50),transparent)] blur-3xl" />
-      <div className="aurora aurora-c absolute bottom-[-30%] left-[15%] h-[65%] w-[65%] rounded-full bg-[radial-gradient(closest-side,rgba(196,181,253,0.40),transparent)] blur-3xl" />
+    <div ref={root} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-[#f3f8f7]">
+      <div className="aurora aurora-a absolute -left-[10%] -top-[25%] h-[75%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(110,231,183,0.55),transparent)] blur-3xl sky-fade" style={{ opacity: 1 - n * 0.75 }} />
+      <div className="aurora aurora-b absolute -right-[12%] top-[5%] h-[75%] w-[55%] rounded-full bg-[radial-gradient(closest-side,rgba(125,211,252,0.50),transparent)] blur-3xl sky-fade" style={{ opacity: 1 - n * 0.75 }} />
+      <div className="aurora aurora-c absolute bottom-[-30%] left-[15%] h-[65%] w-[65%] rounded-full bg-[radial-gradient(closest-side,rgba(196,181,253,0.40),transparent)] blur-3xl sky-fade" style={{ opacity: 1 - n * 0.6 }} />
+      {/* the night sky, and the warm light on the horizon while the sun is near it */}
+      <div className="absolute inset-0 sky-fade" style={{ opacity: n, background: "linear-gradient(180deg,#070d22 0%,#13204d 40%,#27337c 72%,#3d3a8c 100%)" }} />
+      <div className="absolute inset-0 sky-fade" style={{ opacity: Math.min(1, sky.glow * 1.05), background: sky.morning
+        ? "radial-gradient(ellipse 90% 55% at 50% 108%,rgba(255,183,150,0.95),rgba(255,214,170,0.55) 38%,transparent 72%)"
+        : "radial-gradient(ellipse 90% 55% at 50% 108%,rgba(255,128,64,0.95),rgba(214,90,120,0.6) 38%,rgba(110,70,190,0.25) 62%,transparent 80%)" }} />
+      <div className="absolute inset-0 sky-fade" style={{ opacity: Math.max(0, n - 0.35) / 0.65 }}>
+        {STARS.map((st, i) => (
+          <span key={i} className="login-star absolute rounded-full bg-white" style={{ left: `${st.x}%`, top: `${st.y}%`, width: st.r, height: st.r, animationDelay: `${st.d}s` }} />
+        ))}
+      </div>
       <canvas ref={ref} className="absolute inset-0 size-full" />
       {/* keeps the words on the left and the form on the right calm and readable */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(243,248,247,0.88)_0%,rgba(243,248,247,0.45)_46%,rgba(243,248,247,0.62)_100%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_115%,rgba(243,248,247,0.95),transparent_55%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(243,248,247,0.88)_0%,rgba(243,248,247,0.45)_46%,rgba(243,248,247,0.62)_100%)] sky-fade" style={{ opacity: (1 - n) ** 1.7 }} />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_115%,rgba(243,248,247,0.95),transparent_55%)] sky-fade" style={{ opacity: (1 - n) ** 1.7 * (1 - sky.glow * 0.8) }} />
+      <div className="absolute inset-0 sky-fade" style={{ opacity: n * 0.55, background: "linear-gradient(90deg,rgba(7,13,34,0.55) 0%,rgba(7,13,34,0.15) 50%,rgba(7,13,34,0.3) 100%)" }} />
     </div>
   );
 }

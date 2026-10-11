@@ -20,7 +20,10 @@ function PrefsApplier() {
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(() => new QueryClient({
-    defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
+    // A page left open must not go stale: data is fresh for a minute, is read again when the person comes back to the tab and every
+    // five minutes while the tab is in front (a background tab asks for nothing). Sources sync every few hours and the grid
+    // every hour, so this is as often as anything changes.
+    defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: true, refetchInterval: 5 * 60_000 } },
   }));
   useEffect(() => { void useUi.persist.rehydrate(); void usePrefs.persist.rehydrate(); }, []); // filters saved by the previous visit
   return <QueryClientProvider client={client}><PrefsApplier />{children}</QueryClientProvider>;

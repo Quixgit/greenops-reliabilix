@@ -1,4 +1,4 @@
-import { ErrorsView } from "@/components/operator/views";
+import { ErrorsView } from "@/components/operator/operations";
 
 export const metadata = { title: "Errors · Operator console" };
 

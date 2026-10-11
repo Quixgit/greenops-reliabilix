@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { OrganizationView } from "@/components/operator/views";
+import { OrganizationView } from "@/components/operator/org-detail";
 
 export const metadata = { title: "Organization · Operator console" };
 

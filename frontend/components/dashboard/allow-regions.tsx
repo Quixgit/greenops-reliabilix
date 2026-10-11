@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { z } from "zod";
@@ -82,9 +83,9 @@ function Content({ onClose }: { onClose: () => void }) {
       <p className="text-sm leading-relaxed text-slate-600">{t("allow.intro")}</p>
       {(projects.data?.length ?? 0) > 1 && (
         <label className="block text-sm"><span className="mb-1 block text-xs font-medium text-slate-600">{t("allow.project")}</span>
-          <select value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-leaf-deep">
+          <SelectField value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-leaf-deep">
             {projects.data!.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </SelectField>
         </label>
       )}
       {grid.isLoading || fp.isLoading || pol.isLoading ? <Skeleton className="h-64" /> : (

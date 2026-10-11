@@ -33,3 +33,25 @@ export async function getOperator(): Promise<{ subject: string; email: string; r
     return null; // API unreachable: do not show the console
   }
 }
+
+/**
+ * Server-side: the currency this organization's money is shown in (what the cost summary resolves "auto" to). Without it a
+ * page that does not itself load the cost summary (Connectors, an account's page) would show dollar signs on a bill in
+ * another currency. Falls back to USD when nothing can be told.
+ */
+export async function getOrgCurrency(): Promise<string> {
+  const token = await getApiToken();
+  if (!token) return "USD";
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+  const now = Date.now();
+  try {
+    const res = await fetch(`${process.env.API_URL ?? "http://localhost:8080"}/api/v1/finops/summary?from=${day(new Date(now - 30 * 86_400_000))}&to=${day(new Date(now + 86_400_000))}`, {
+      headers: { Authorization: `Bearer ${token}` }, cache: "no-store",
+    });
+    if (!res.ok) return "USD";
+    const c = ((await res.json()) as { currency?: string }).currency;
+    return typeof c === "string" && /^[A-Z]{3}$/.test(c) ? c : "USD";
+  } catch {
+    return "USD";
+  }
+}

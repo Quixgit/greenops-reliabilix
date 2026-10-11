@@ -1,4 +1,4 @@
-import { SystemView } from "@/components/operator/views";
+import { SystemView } from "@/components/operator/operations";
 
 export const metadata = { title: "System · Operator console" };
 

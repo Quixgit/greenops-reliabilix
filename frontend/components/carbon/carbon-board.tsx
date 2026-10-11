@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectField } from "@/components/ui/select-field";
 import Link from "next/link";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { IntensityChart, SOURCE_LABEL } from "@/components/charts/intensity-chart";
@@ -55,7 +56,7 @@ export function CarbonKpis() {
       <Kpi index={1} icon={IconBolt} tone="text-[#d9a441]" label={t("carbon.energy")} info={t("cb.info.energy")} loading={q.isLoading || trend.isLoading}
         value={has ? <CountUp value={c!.energy_kwh} format={(n) => nf(c!.energy_kwh < 100 ? 1 : 0).format(n)} /> : null} unit="kWh"
         delta={has && c!.comparable ? <DeltaBadge pct={pctChange(c!.energy_kwh, c!.previous.energy_kwh)} /> : null} empty={empty}
-        foot={<><span>{t("cb.kpi.energy_note")}</span></>} />
+        foot={<><span>{(c?.energy_cost_based_share_pct ?? 0) >= 50 ? t("cb.kpi.energy_cost_based", { pct: Math.round(c!.energy_cost_based_share_pct!) }) : t("cb.kpi.energy_note")}</span></>} />
       <Kpi index={2} icon={IconGlobe} tone="text-[#5b8fdc]" label={t("carbon.grid_intensity")} info={t("cb.info.intensity")} loading={q.isLoading || trend.isLoading}
         value={intensity !== null ? <CountUp value={intensity} format={(n) => nf(0).format(n)} /> : null} unit="gCO₂e/kWh" empty={empty}
         delta={b ? <span className="text-xs font-semibold text-muted">{t(`ov2.band.${b.key}`)}</span> : null}
@@ -289,9 +290,9 @@ export function ScheduleAdvisor() {
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block text-xs font-medium text-slate-500">{t("schedule.region")}
-              <select value={chosen} onChange={(e) => setRegion(e.target.value)} className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-medium text-ink">
+              <SelectField value={chosen} onChange={(e) => setRegion(e.target.value)} className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-medium text-ink">
                 {regions.map((r) => <option key={r.region} value={r.region}>{r.region}</option>)}
-              </select></label>
+              </SelectField></label>
             <div className="text-xs font-medium text-slate-500">{t("schedule.duration")}<div className="mt-1">{seg([1, 2, 4, 8], duration, (n) => { setDuration(n); if (within < n) setWithin(n <= 12 ? 12 : 24); }, " h")}</div></div>
             <div className="text-xs font-medium text-slate-500">{t("schedule.within")}<div className="mt-1">{seg([12, 24, 48].filter((h) => h >= duration), within, setWithin, " h")}</div></div>
           </div>

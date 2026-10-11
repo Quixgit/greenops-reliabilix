@@ -1,4 +1,4 @@
-import { IconSrcElectricityMaps, IconSrcEmber, IconSrcEia, IconSrcEnergyCharts, IconSrcUkGrid, IconSrcWattTime, IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
+import { IconSrcElectricityMaps, IconSrcEmber, IconSrcEia, IconSrcEnergyCharts, IconSrcIeso, IconSrcHydroQuebec, IconSrcEntsoe, IconSrcOns, IconSrcUkGrid, IconSrcWattTime, IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {
@@ -14,6 +14,10 @@ const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {
   "electricity-maps": { icon: IconSrcElectricityMaps, tone: "", own: true },
   electricitymaps: { icon: IconSrcElectricityMaps, tone: "", own: true },
   energy_charts: { icon: IconSrcEnergyCharts, tone: "", own: true },
+  ieso: { icon: IconSrcIeso, tone: "", own: true },
+  hydroquebec: { icon: IconSrcHydroQuebec, tone: "", own: true },
+  entsoe: { icon: IconSrcEntsoe, tone: "", own: true },
+  ons: { icon: IconSrcOns, tone: "", own: true },
   eia: { icon: IconSrcEia, tone: "", own: true },
   ember: { icon: IconSrcEmber, tone: "", own: true },
   watttime: { icon: IconSrcWattTime, tone: "", own: true },

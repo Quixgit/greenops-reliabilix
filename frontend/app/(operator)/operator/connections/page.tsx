@@ -1,4 +1,4 @@
-import { ConnectionsOpsView } from "@/components/operator/views";
+import { ConnectionsOpsView } from "@/components/operator/operations";
 
 export const metadata = { title: "Connections · Operator console" };
 

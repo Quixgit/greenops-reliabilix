@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { crossSite } from "@/lib/api/cross-site";
 import { getApiToken } from "@/lib/auth/session";
 
 // Browser -> this route -> Go API. The access token is attached server-side and never reaches
@@ -7,8 +8,18 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 const ALLOWED = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]); // PUT replaces a setting, policy or list: the screens need it
 const WITH_BODY = new Set(["POST", "PUT", "PATCH"]);
 
+/** The names this site answers to: where the request arrived, what a proxy forwarded, and the public address in the configuration. */
+function siteHosts(req: NextRequest): string[] {
+  let configured = "";
+  try { configured = new URL(process.env.APP_BASE_URL ?? "").host; } catch { /* not configured */ }
+  return [req.headers.get("x-forwarded-host") ?? "", req.headers.get("host") ?? "", configured];
+}
+
 async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   if (!ALLOWED.has(req.method)) return NextResponse.json({ title: "method not allowed", status: 405 }, { status: 405 });
+  if (crossSite(req.method, req.headers, siteHosts(req))) {
+    return NextResponse.json({ title: "cross-site request refused", status: 403 }, { status: 403 });
+  }
   const token = await getApiToken();
   if (!token) return NextResponse.json({ title: "unauthorized", status: 401 }, { status: 401 });
 

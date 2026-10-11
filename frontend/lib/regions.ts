@@ -1,3 +1,5 @@
+import latencyTable from "./latency.json";
+
 // Cloud regions we can place on the map: city, country as spelled in world-atlas (Natural Earth), ISO-2 code for the flag,
 // and the position of the data centres. Extend as regions are onboarded; an unknown region is still listed, just not drawn.
 export type RegionGeo = { city: string; country: string; cc: string; lat: number; lon: number };
@@ -101,8 +103,34 @@ export function distanceKm(a: string, b: string): number | null {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
-/** Round-trip time through fibre: ~200 km per ms one way, routes are about 1.5x longer than the great circle. An estimate. */
-export const rttMs = (km: number) => Math.max(1, Math.round((km * 1.5 * 2) / 200));
+export type LatencyBasis = "measured_azure" | "measured_aws" | "estimated";
+export type Latency = { ms: number; km: number | null; basis: LatencyBasis; errorPct: number };
+
+type Matrix = Record<string, Record<string, number>>;
+const AZURE = latencyTable.azure.ms as Matrix, AWS = latencyTable.aws.ms as Matrix, FIT = latencyTable.fit;
+
+function pick(m: Matrix, a: string, b: string): number | null {
+  const x = m[a]?.[b], y = m[b]?.[a];
+  if (x != null && y != null) return Math.max(x, y);
+  return x ?? y ?? null;
+}
+
+/**
+ * Round trip between two regions, as the backend (`geo.Between`) computes it: a figure published by Microsoft (Azure pairs) or
+ * measured by CloudPing (AWS pairs, median over a year) where one exists, otherwise an estimate from the distance with a line fitted
+ * to the measured pairs (`errorPct`: 80% of them are within it). Null when the pair is unknown and a region is not on the map.
+ */
+export function latencyBetween(a: string, b: string): Latency | null {
+  const km = distanceKm(a, b);
+  if (a !== b) {
+    const az = pick(AZURE, a, b);
+    if (az !== null) return { ms: Math.max(1, az), km, basis: "measured_azure", errorPct: 0 };
+    const aws = pick(AWS, a, b);
+    if (aws !== null) return { ms: Math.max(1, aws), km, basis: "measured_aws", errorPct: 0 };
+  }
+  if (km === null) return null;
+  return { ms: Math.max(1, Math.round(FIT.intercept_ms + FIT.per_km_ms * km)), km, basis: "estimated", errorPct: FIT.p80_error_pct };
+}
 
 /** Flag emoji from an ISO-2 code (regional indicator letters). */
 export const flag = (cc: string) => String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 127397 + c.charCodeAt(0)));

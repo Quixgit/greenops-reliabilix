@@ -1,4 +1,4 @@
-import { NotificationsOpsView } from "@/components/operator/views";
+import { NotificationsOpsView } from "@/components/operator/operations";
 
 export const metadata = { title: "Notifications · Operator console" };
 

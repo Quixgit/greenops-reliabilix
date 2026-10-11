@@ -22,7 +22,7 @@ const SERIES: { key: Key; label: string; hint: string; color: string; kind: "bar
   { key: "deliveries", label: "Notification deliveries", hint: "Messages queued per day; the failed ones are in rose.", color: "#8db4ee", kind: "bars" },
   { key: "errors", label: "New platform errors", hint: "Error groups first seen per day.", color: "#eba7b3", kind: "bars" },
 ];
-const dayLabel = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+const dayLabel = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 
 /** One series as bars (or a line) with a value on hover; two numbers on top: the sum over the window and the last day. */
 function SeriesCard({ s, rows, index, wide }: { s: (typeof SERIES)[number]; rows: MetricDay[]; index: number; wide?: boolean }) {

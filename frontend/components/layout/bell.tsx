@@ -19,7 +19,19 @@ const SEV_DOT = { critical: "bg-[#e08b98]", warning: "bg-pastel-amber", info: "b
 type Row = { key: string; title: string; body: string; severity: "info" | "warning" | "critical"; at: string; href: string; unread: boolean; area: string };
 
 /** The bell: platform messages and open alerts in one list, an honest unread count, a chime when something new arrives. */
-export function NotificationBell() {
+export type BellExtra = { key: string; title: string; href: string; icon?: IconType };
+
+const SEEN = "rlx.bell.seen";
+const loadSeen = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(SEEN) ?? "[]") as string[]); } catch { return new Set(); } };
+const saveSeen = (s: Set<string>) => { try { localStorage.setItem(SEEN, JSON.stringify([...s].slice(-200))); } catch { /* ignore */ } };
+
+/**
+ * `extra` are rows that belong to the person's role (the operator console adds what needs attention on the platform).
+ * They are derived from the state of the platform, so there is no inbox to mark: "read" is remembered in this browser for
+ * that exact line, and the line is unread again when it changes (a new count, a new text). `extraReady` is false while they
+ * are still loading, so they never ring the bell on page load. `allHref` and `settingsHref` say where the footer links go.
+ */
+export function NotificationBell({ extra = [], extraReady = true, allHref = "/alerts", settingsHref = "/settings#notifications" }: { extra?: BellExtra[]; extraReady?: boolean; allHref?: string; settingsHref?: string }) {
   const t = useT();
   const inbox = useInbox();
   const alerts = useAlerts("new");
@@ -27,28 +39,38 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [own, setOwn] = useState<"on" | "off" | null>(null);
   const [ring, setRing] = useState(false);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
   const last = useRef<number | null>(null);
 
-  useEffect(() => { setOwn(readSoundPref()); }, []);
+  useEffect(() => { setOwn(readSoundPref()); setSeen(loadSeen()); }, []);
   const soundOn = (own ?? (inbox.data?.sound ? "on" : "off")) === "on";
 
   const rows: Row[] = [
     ...(inbox.data?.items ?? []).map((i: InboxItem): Row => ({ key: i.id, title: i.title, body: i.body, severity: i.severity, at: i.created_at, href: i.path || "/alerts", unread: i.unread, area: eventArea(i.type) })),
     ...(alerts.data ?? []).map((a): Row => ({ key: `a-${a.id}`, title: a.title, body: a.detail, severity: a.severity, at: a.last_seen_at, href: "/alerts#alerts", unread: true, area: a.kind === "budget" ? "billing" : "connections" })),
   ].sort((a, z) => Date.parse(z.at) - Date.parse(a.at));
-  const unread = (inbox.data?.unread ?? 0) + (alerts.data?.length ?? 0);
+  const now = new Date().toISOString();
+  const seenKey = (x: BellExtra) => `${x.key}|${x.title}`;
+  const extras: Row[] = extra.map((x): Row => ({ key: `x-${x.key}`, title: x.title, body: "", severity: "warning", at: now, href: x.href, unread: !seen.has(seenKey(x)), area: "platform" }));
+  rows.unshift(...extras);
+  const unseen = extras.filter((x) => x.unread).length;
+  const unread = (inbox.data?.unread ?? 0) + (alerts.data?.length ?? 0) + unseen;
+  // Nothing is judged new until everything the bell shows has loaded: the first count is the baseline, not news.
+  const ready = inbox.isSuccess && alerts.isSuccess && extraReady;
 
   // A new item since the last look: the bell rings, and a chime plays if the person (or the organization) wants it.
   useEffect(() => {
+    if (!ready) return;
     if (last.current !== null && unread > last.current) {
       setRing(true);
       window.setTimeout(() => setRing(false), 1200);
       if (soundOn) playChime();
     }
     last.current = unread;
-  }, [unread, soundOn]);
+  }, [unread, soundOn, ready]);
 
-  const markAll = () => read.mutate();
+  const markSeen = (xs: BellExtra[]) => setSeen((cur) => { const n = new Set(cur); xs.forEach((x) => n.add(seenKey(x))); saveSeen(n); return n; });
+  const markAll = () => { if ((inbox.data?.unread ?? 0) > 0) read.mutate(); markSeen(extra); };
   return (
     <DropdownRoot open={open} onOpenChange={setOpen}>
       <DM.Trigger aria-label={unread ? t("bell.aria_unread", { count: unread }) : t("header.notifications")}
@@ -60,7 +82,7 @@ export function NotificationBell() {
         <div className="w-[380px] max-w-[92vw]">
           <div className="flex items-center justify-between px-3 pb-2 pt-2.5">
             <p className="text-sm font-semibold">{t("header.notifications")}</p>
-            <button type="button" onClick={markAll} disabled={(inbox.data?.unread ?? 0) === 0 || read.isPending}
+            <button type="button" onClick={markAll} disabled={((inbox.data?.unread ?? 0) === 0 && unseen === 0) || read.isPending}
               className="inline-flex items-center gap-1 text-xs font-semibold text-leaf-deep hover:underline disabled:cursor-default disabled:text-slate-400 disabled:no-underline">
               <IconCheck className="size-3.5" strokeWidth={2.6} />{t("bell.mark_read")}
             </button>
@@ -78,7 +100,7 @@ export function NotificationBell() {
                 return (
                   <li key={r.key}>
                     <DM.Item asChild>
-                      <Link href={r.href} onClick={() => { if (!r.key.startsWith("a-") && r.unread) read.mutate(); }}
+                      <Link href={r.href} onClick={() => { if (r.key.startsWith("x-")) markSeen(extra.filter((x) => `x-${x.key}` === r.key)); else if (!r.key.startsWith("a-") && r.unread) read.mutate(); }}
                         className={cn("flex gap-3 rounded-xl px-3 py-2.5 outline-none transition-colors data-[highlighted]:bg-slate-50", r.unread && "bg-leaf-soft/40")}>
                         <Icon className={cn("mt-0.5 size-7 shrink-0", r.severity === "critical" ? "text-[#d9707f]" : r.severity === "warning" ? "text-[#d9a441]" : "text-[#5b8fdc]")} strokeWidth={1.5} />
                         <span className="min-w-0 flex-1">
@@ -99,8 +121,8 @@ export function NotificationBell() {
               {t("bell.sound")}
             </label>
             <span className="flex gap-3">
-              <Link href="/alerts" className="text-xs font-semibold text-leaf-deep hover:underline">{t("bell.all")}</Link>
-              <Link href="/settings#notifications" className="text-xs font-semibold text-slate-500 hover:underline">{t("bell.settings")}</Link>
+              <Link href={allHref} className="text-xs font-semibold text-leaf-deep hover:underline">{t("bell.all")}</Link>
+              <Link href={settingsHref} className="text-xs font-semibold text-slate-500 hover:underline">{t("bell.settings")}</Link>
             </span>
           </div>
         </div>

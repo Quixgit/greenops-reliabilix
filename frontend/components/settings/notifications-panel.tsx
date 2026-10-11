@@ -16,7 +16,7 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { SecretOnce } from "@/components/ui/secret-once";
 import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDeliveries, useDestinations, useNotificationCatalog } from "@/hooks/use-admin";
+import { useDeliveries, useDestinations, useMembers, useNotificationCatalog } from "@/hooks/use-admin";
 import { api, apiVoid } from "@/lib/api/client";
 import { createdDestination, destination, testQueued, type NotificationCatalog } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
@@ -46,6 +46,9 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
     resolver: zodResolver(schema), defaultValues: { kind: catalog.channels[0] ?? "", min_severity: "info", event_types: [] },
   });
   const kind = watch("kind");
+  // An e-mail destination may only be a member of the organization (the server enforces it): offer the members, not a free field.
+  const members = useMembers().data ?? [];
+  const memberEmails = [...new Set(members.map((x) => x.email).filter((e): e is string => !!e))].sort();
   const m = useMutation({
     mutationFn: (v: Values) => api("notifications/destinations", createdDestination, undefined, {
       method: "POST", body: JSON.stringify({ ...v, event_types: v.event_types?.length ? v.event_types : ["*"] }),
@@ -64,10 +67,22 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
           <select {...register("kind")} className={input}>{catalog.channels.map((c) => <option key={c} value={c}>{c}{catalog.stubbed.includes(c) ? " (stub)" : ""}</option>)}</select>
         </Field></div>
         <div><Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. ops-alerts" /></Field></div>
-        <div><Field label="Address" error={errors.target?.message}><input {...register("target")} className={input} placeholder={PLACEHOLDER[kind] ?? ""} autoComplete="off" /></Field></div>
+        <div>
+          {kind === "email" && memberEmails.length > 0 ? (
+            <Field label="Send to a member" error={errors.target?.message}>
+              <select {...register("target")} className={input} defaultValue="">
+                <option value="" disabled>Choose a member of your organization</option>
+                {memberEmails.map((e) => <option key={e} value={e}>{e}</option>)}
+              </select>
+              <p className="mt-1.5 text-xs text-muted">E-mail goes only to people in your organization. To send to someone else, invite them first under Members; they then appear here.</p>
+            </Field>
+          ) : (
+            <Field label="Address" error={errors.target?.message}><input {...register("target")} className={input} placeholder={PLACEHOLDER[kind] ?? ""} autoComplete="off" /></Field>
+          )}
+        </div>
         <fieldset>
           <legend className="mb-1 text-sm font-medium text-slate-600">Events <span className="font-normal text-muted">(none selected = all)</span></legend>
-          <div className="grid grid-cols-1 gap-y-1.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-y-1.5">
             {catalog.event_types.map((t) => (
               <label key={t.type} className="flex items-center gap-1.5 text-sm" title={t.description}>
                 <input type="checkbox" value={t.type} {...register("event_types")} className="size-4 accent-leaf-deep" />{t.type}

@@ -36,7 +36,7 @@ export function SetupGuide() {
       { id: "connect", icon: Cloud, done: (conns.data?.length ?? 0) > 0, href: "/connectors" },
       { id: "sync", icon: Rocket, done: synced, href: "/connectors" },
       { id: "regions", icon: MapPinned, done: regions, href: "/settings#policies" },
-      { id: "units", icon: Gauge, done: !!eff.data?.has_units, href: "/projects" },
+      { id: "units", icon: Gauge, done: !!eff.data?.has_units, href: "/projects?units=1" },
       { id: "budget", icon: PiggyBank, done: (budgets.data?.length ?? 0) > 0, href: "/settings" },
       { id: "notify", icon: BellRing, done: (dests.data ?? []).some((d) => d.enabled), href: "/settings#notifications" },
     ];

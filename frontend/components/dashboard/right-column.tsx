@@ -1,5 +1,6 @@
 "use client";
 
+import { latencyBasisLabel } from "@/lib/latency-basis";
 import { IconServer as Server, IconSparkles as Sparkles, IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { AllowRegions } from "./allow-regions";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { content } from "@/content/schema";
+import { regionName } from "@/lib/regions";
 import { useAutomationJobs, useFinopsSummary, useOptimization, useRecommendations } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import type { Recommendation } from "@/lib/api/schemas";
@@ -99,6 +101,7 @@ export function TopRecommendations() {
                     <span className="mt-1 flex flex-wrap gap-1.5">
                       <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium uppercase text-slate-600">{r.provider}</span>
                       <span title="High: 40% or more estimated carbon reduction, medium: 15% or more" className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", impact.cls)}>{impact.label}</span>
+                      {r.details?.latency_ms && <span title={t("rec.latency_hint", { from: regionName(r.current_region), to: regionName(r.recommended_region), km: r.details.distance_km ?? "?", budget: r.details.latency_budget_ms ?? "?", basis: latencyBasisLabel(t, r.details.latency_basis, r.details.latency_error_pct) })} className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3f78b8] ring-1 ring-inset ring-sky-100">{t(r.details.latency_basis === "estimated" || !r.details.latency_basis ? "ov2.reg.latency_chip" : "ov2.reg.latency_chip_measured", { ms: r.details.latency_ms })}</span>}
                     </span>
                   </span>
                   <span className="shrink-0 text-right leading-tight">

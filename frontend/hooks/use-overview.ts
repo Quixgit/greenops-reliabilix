@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { z } from "zod";
 import { api } from "@/lib/api/client";
 import * as s from "@/lib/api/schemas";
 import { setDefaultCurrency } from "@/lib/formatters";
@@ -43,6 +44,9 @@ export const useConnectionCosts = () => {
   return useQuery({ queryKey: ["connection-costs", f], queryFn: () => api("dashboard/connections", s.connectionCosts, f) });
 };
 export const useRegions = () => useQuery({ queryKey: ["regions"], queryFn: () => api("dashboard/regions", s.regions) });
+const countries = z.object({ items: z.array(z.object({ code: z.string(), g_per_kwh: z.number(), month: z.string(), source: z.enum(["ember", "inventory"]).default("ember") })) }).transform((o) => o.items);
+/** The newest national monthly average of every country: colours the map where no cloud region is. Reference data, slow to change. */
+export const useCountries = () => useQuery({ queryKey: ["countries"], queryFn: () => api("dashboard/countries", countries), staleTime: 60 * 60_000 });
 export const useRegionFootprint = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["region-footprint", f], queryFn: () => api("dashboard/regions/footprint", s.regionFootprint, f) });
@@ -55,7 +59,7 @@ export const useEfficiency = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["efficiency", f], queryFn: () => api("dashboard/efficiency", s.efficiency, f) });
 };
-export const useActivity = () => useQuery({ queryKey: ["activity"], queryFn: () => api("dashboard/activity", s.activity, { limit: "6" }) });
+export const useActivity = () => useQuery({ queryKey: ["activity"], queryFn: () => api("dashboard/activity", s.activity, { limit: "20" }) });
 export const useProjects = () => useQuery({ queryKey: ["projects"], queryFn: () => api("projects", s.projects) });
 export const useConnections = () => useQuery({ queryKey: ["connections"], queryFn: () => api("cloud-accounts", s.connections) });
 export const useRecommendations = (status: string) =>

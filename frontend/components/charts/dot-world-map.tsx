@@ -5,8 +5,11 @@ import { createPortal } from "react-dom";
 import { IconArrowDown as ArrowDown, IconArrowLeft as ArrowLeft, IconArrowRight as ArrowRight, IconArrowUp as ArrowUp, IconLocate as Locate, IconExpand as Maximize2, IconMinus as Minus, IconPlus as Plus } from "@/components/ui/icons";
 import { CloseButton } from "@/components/ui/close-button";
 import type { RegionFootprint, RegionIntensity } from "@/lib/api/schemas";
+import ISO3Raw from "@/lib/country-names.json";
+import { useCountries } from "@/hooks/use-overview";
 import { landDots, project, MAP_H, MAP_W } from "@/lib/dot-grid";
-import { REGION_GEO, REGION_LABEL, distanceKm, flag, regionProvider, rttMs } from "@/lib/regions";
+import { latencyBasisLabel } from "@/lib/latency-basis";
+import { REGION_GEO, REGION_LABEL, flag, latencyBetween, regionProvider } from "@/lib/regions";
 import { useT } from "@/i18n/provider";
 import { intensityColor, NEUTRAL, STOPS } from "@/lib/intensity-color";
 import { formatCarbon, formatCost, nf } from "@/lib/formatters";
@@ -16,13 +19,14 @@ import { cn } from "@/lib/utils";
 export type MapMode = "intensity" | "footprint" | "relocation";
 type Marker = { region: string; x: number; y: number; city: string; cc: string; country: string; g: number | null; r: number; fp?: RegionFootprint };
 
+const ISO3 = ISO3Raw as Record<string, string>;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /**
  * The land dots live on two canvases: the base is drawn once (a single paint per colour), the overlay only holds the
  * dots of the hovered country. The sweep-in is a CSS clip-path, so no frame is ever redrawn in JavaScript.
  */
-const DotLayer = memo(function DotLayer({ byCountry, hoverCountry, pxWidth, sweep }: { byCountry: Map<string, number>; hoverCountry: string | null; pxWidth: number; sweep: boolean }) {
+const DotLayer = memo(function DotLayer({ byCountry, national, inventory, hoverCountry, pxWidth, sweep }: { byCountry: Map<string, number>; national: Set<string>; inventory: Set<string>; hoverCountry: string | null; pxWidth: number; sweep: boolean }) {
   const base = useRef<HTMLCanvasElement>(null);
   const hot = useRef<HTMLCanvasElement>(null);
   const dots = useMemo(() => landDots(), []);
@@ -34,17 +38,23 @@ const DotLayer = memo(function DotLayer({ byCountry, hoverCountry, pxWidth, swee
     if (!cv) return;
     const ctx = cv.getContext("2d")!;
     ctx.clearRect(0, 0, W, H);
-    const groups = new Map<string, number[]>();
-    colors.forEach((c, i) => (groups.get(c) ?? groups.set(c, []).get(c)!).push(i));
-    ctx.globalAlpha = 0.95;
-    const r = 0.82 * k;
-    for (const [c, idx] of groups) {
-      ctx.fillStyle = c;
-      ctx.beginPath();
-      for (const i of idx) { const d = dots[i]; ctx.moveTo(d.x * k + r, d.y * k); ctx.arc(d.x * k, d.y * k, r, 0, 6.2832); }
-      ctx.fill();
+    // Three strengths: a country with a cloud region at full strength, one with only the national monthly average softer, and one
+    // that only has the inventory figure (direct emissions, a lower bound) faint and small, so it cannot be read as a measured value.
+    const tier = (c: string) => (inventory.has(c) ? 0 : national.has(c) ? 1 : 2);
+    const look = [{ a: 0.42, r: 0.62 * k }, { a: 0.62, r: 0.82 * k }, { a: 0.95, r: 0.82 * k }];
+    for (const t of [0, 1, 2]) {
+      const groups = new Map<string, number[]>();
+      colors.forEach((c, i) => { if (tier(dots[i].country) === t) (groups.get(c) ?? groups.set(c, []).get(c)!).push(i); });
+      ctx.globalAlpha = look[t].a;
+      const r = look[t].r;
+      for (const [c, idx] of groups) {
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        for (const i of idx) { const d = dots[i]; ctx.moveTo(d.x * k + r, d.y * k); ctx.arc(d.x * k, d.y * k, r, 0, 6.2832); }
+        ctx.fill();
+      }
     }
-  }, [dots, colors, W, H, k]);
+  }, [dots, colors, national, inventory, W, H, k]);
 
   useEffect(() => {
     const cv = hot.current;
@@ -71,10 +81,14 @@ const DotLayer = memo(function DotLayer({ byCountry, hoverCountry, pxWidth, swee
 });
 
 /** Dot-matrix world on a canvas, with markers and pop-over labels on top; in the big map you can zoom and drag. */
-function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
+function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitMs }: {
   regions: RegionIntensity[]; footprint: RegionFootprint[]; mode: MapMode; big: boolean; selected: string | null; onSelect: (r: string | null) => void;
+  /** The regions the organization runs in (largest first) and its latency limit: a selected region is linked to them with the estimated round trip. */
+  own: string[]; limitMs: number;
 }) {
-  const { markers, byCountry, arcs } = useMemo(() => {
+  const t = useT();
+  const countryRows = useCountries().data;
+  const { markers, byCountry, national, inventory, arcs } = useMemo(() => {
     const acc = new Map<string, number[]>();
     for (const r of regions) {
       const geo = REGION_GEO[r.region];
@@ -106,8 +120,27 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
         if (alt && ag) as.push({ from: m, to: project(ag.lat, ag.lon), key: `${m.region}>${alt.region}` });
       }
     }
-    return { markers: ms, byCountry: new Map([...acc].map(([c, v]) => [c, v.reduce((a, b) => a + b, 0) / v.length])), arcs: as };
-  }, [regions, footprint, mode]);
+    // Every country is painted: where a cloud region is, by its regions; elsewhere by Ember's national monthly average (softer).
+    const byCountry = new Map([...acc].map(([c, v]) => [c, v.reduce((a, b) => a + b, 0) / v.length]));
+    const national = new Set<string>(), inventory = new Set<string>();
+    for (const c of countryRows ?? []) {
+      const name = ISO3[c.code];
+      if (name && !byCountry.has(name)) { byCountry.set(name, c.g_per_kwh); (c.source === "inventory" ? inventory : national).add(name); }
+    }
+    return { markers: ms, byCountry, national, inventory, arcs: as };
+  }, [regions, footprint, mode, countryRows]);
+
+  // From the selected region to the places you run: a line each, labelled with the estimated round trip.
+  const links = useMemo(() => {
+    const from = selected ? REGION_GEO[selected] : undefined;
+    if (!selected || !from) return [];
+    const a = project(from.lat, from.lon);
+    return own.filter((o) => o !== selected && REGION_GEO[o]).map((o) => {
+      const g = REGION_GEO[o], b = project(g.lat, g.lon), lat = latencyBetween(selected, o), km = lat?.km ?? null, ms = lat?.ms ?? null;
+      const cx = (a[0] + b[0]) / 2, cy = Math.min(a[1], b[1]) - Math.hypot(a[0] - b[0], a[1] - b[1]) * 0.22;
+      return { key: o, a, b, cx, cy, mx: 0.25 * a[0] + 0.5 * cx + 0.25 * b[0], my: 0.25 * a[1] + 0.5 * cy + 0.25 * b[1], km, ms, basis: lat?.basis, errorPct: lat?.errorPct ?? 0, city: g.city, over: ms !== null && ms > limitMs };
+    });
+  }, [selected, own, limitMs]);
 
   // Canvas resolution: the real width on screen, a little extra for zooming; never more than 2400 px.
   const [pxWidth, setPxWidth] = useState(big ? 1800 : 900);
@@ -180,7 +213,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
   return (
     <div ref={wrap} className={cn("map-wrap relative w-full overflow-hidden rounded-2xl", big && "cursor-grab")} style={{ aspectRatio: `${MAP_W} / ${MAP_H}` }}>
       <div ref={stage} className="map-stage absolute inset-0 origin-top-left" style={{ ["--k" as string]: 1 }}>
-        <DotLayer byCountry={byCountry} hoverCountry={hoverCountry} pxWidth={pxWidth} sweep={!big} />
+        <DotLayer byCountry={byCountry} national={national} inventory={inventory} hoverCountry={hoverCountry} pxWidth={pxWidth} sweep={!big} />
         <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="absolute inset-0 size-full overflow-visible" role="img" aria-label="Carbon intensity of the electricity grid by region">
           {arcs.map((a) => {
             const mx = (a.from.x + a.to[0]) / 2, my = Math.min(a.from.y, a.to[1]) - Math.hypot(a.from.x - a.to[0], a.from.y - a.to[1]) * 0.28;
@@ -191,6 +224,12 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
               </g>
             );
           })}
+          {links.map((l) => (
+            <g key={`link-${l.key}`}>
+              <path d={`M${l.a[0]},${l.a[1]} Q${l.cx},${l.cy} ${l.b[0]},${l.b[1]}`} fill="none" stroke={l.over ? "#e7a8b4" : "#8fb4f0"} strokeWidth={0.6} strokeDasharray="1.8 1.4" strokeLinecap="round" className="map-arc" />
+              <circle cx={l.b[0]} cy={l.b[1]} r={1.7} fill="none" stroke={l.over ? "#e7a8b4" : "#8fb4f0"} strokeWidth={0.5} />
+            </g>
+          ))}
           {markers.map((m, i) => {
             const on = selected === m.region || hover === m.region;
             const fill = m.g === null ? "#b9c6dc" : intensityColor(m.g);
@@ -221,7 +260,14 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
             </div>
           );
         })}
-        {markers.filter((m) => m.region === selected).map((m) => (
+        {links.filter((l) => l.ms !== null).map((l) => (
+          <div key={`lat-${l.key}`} className="map-pill pointer-events-none absolute z-10 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-[0_6px_16px_rgba(31,52,110,.14)] ring-1"
+            title={`${l.city}: ${l.basis === "estimated" ? "≈ " : ""}${l.ms} ms (${nf(0).format(l.km ?? 0)} km) · ${latencyBasisLabel(t, l.basis, l.errorPct)}`}
+            style={{ left: `${(l.mx / MAP_W) * 100}%`, top: `${(l.my / MAP_H) * 100}%`, transform: "translate(-50%, -50%) scale(calc(1 / var(--k, 1)))", background: l.over ? "#fbeef1" : "#eef5ff", color: l.over ? "#b9566a" : "#3f78b8", ["--tw-ring-color" as string]: l.over ? "#f4d3da" : "#d4e4fb" }}>
+            {l.basis === "estimated" ? "≈ " : ""}{l.ms} ms<span className="ml-1 font-medium opacity-70">· {l.city}</span>
+          </div>
+        ))}
+        {big && markers.filter((m) => m.region === selected).map((m) => (
           <MiniCard key={m.region} m={m} below={m.y < MAP_H * 0.5} compact={!big} onClose={() => onSelect(null)} />
         ))}
       </div>
@@ -299,7 +345,7 @@ function Legend({ t, mode }: { t: ReturnType<typeof useT>; mode: MapMode }) {
       <span className="h-2 w-40 rounded-full" style={{ background: grad }} />
       <span>{t("map.dirty", undefined, "High carbon")}</span>
       <span className="ml-auto hidden sm:inline">
-        {mode === "footprint" ? t("map.size_cost", undefined, "Marker size: cost in the period · colour: grid intensity") : mode === "relocation" ? t("map.arcs", undefined, "Arrows: a cleaner region of the same cloud · operational effect only") : "gCO₂e/kWh · 0 – 600+"}
+        {mode === "footprint" ? t("map.size_cost", undefined, "Marker size: cost in the period · colour: grid intensity") : mode === "relocation" ? t("map.arcs", undefined, "Arrows: a cleaner region of the same cloud · operational effect only") : t("map.national", undefined, "gCO₂e/kWh · 0 – 600+ · lighter: national monthly average")}
       </span>
     </div>
   );
@@ -336,8 +382,8 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
           {fp.alternative.cost_delta !== null && (
             <span className="mt-1 block font-medium">{t("map.cost_delta", { amount: `${fp.alternative.cost_delta > 0 ? "+" : "−"}${formatCost(Math.abs(fp.alternative.cost_delta))}` })}</span>
           )}
-          {(() => { const km = distanceKm(r.region, fp.alternative.region); return km === null ? null : (
-            <span className="mt-1 block">{t("map.distance", { km: nf(0).format(km), ms: rttMs(km) })}</span>); })()}
+          {(() => { const l = latencyBetween(r.region, fp.alternative.region); return l === null || l.km === null ? null : (
+            <span className="mt-1 block">{t("map.distance", { km: nf(0).format(l.km), ms: l.ms, basis: latencyBasisLabel(t, l.basis, l.errorPct) })}</span>); })()}
           <span className="mt-1 block text-leaf-deep/80">{t("map.checks", undefined, "Not yet checked: exact latency and service availability. Data residency is respected (project policy).")}</span>
         </div>
       )}
@@ -347,8 +393,10 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
 }
 
 /** World map of grid carbon intensity. A small card version that opens into a full-screen explorer. */
-export function RegionMap({ regions, footprint = [], selected = null, onSelect }: {
+export function RegionMap({ regions, footprint = [], selected = null, onSelect, limitMs = 60 }: {
   regions: RegionIntensity[]; footprint?: RegionFootprint[];
+  /** The organization's latency limit, to colour the links that exceed it. */
+  limitMs?: number;
   /** Controlled selection: a click on a marker selects it for the page's own detail panel instead of opening the modal. */
   selected?: string | null; onSelect?: (region: string | null) => void;
 }) {
@@ -372,6 +420,7 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
     return [...regions, ...extra].sort((a, b) => (isNaN(a.g_per_kwh) ? 1e9 : a.g_per_kwh) - (isNaN(b.g_per_kwh) ? 1e9 : b.g_per_kwh));
   }, [regions, footprint]);
   const current = rows.find((r) => r.region === sel) ?? null;
+  const own = useMemo(() => [...footprint].filter((f) => f.carbon_kg_co2e > 0 || f.cost > 0).sort((a, b) => b.carbon_kg_co2e - a.carbon_kg_co2e).slice(0, 3).map((f) => f.region), [footprint]);
   // one line per place: a city that holds regions of several clouds is one grid, so it is listed once with its clouds
   const groups = useMemo(() => {
     const m = new Map<string, { key: string; first: RegionIntensity; regions: string[]; clouds: string[] }>();
@@ -387,7 +436,7 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
   return (
     <>
       <div className="relative">
-        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} selected={onSelect ? selected : null} onSelect={(r) => { if (onSelect) { onSelect(r); return; } if (r) { setSel(r); setOpen(true); } }} />
+        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} own={own} limitMs={limitMs} selected={onSelect ? selected : null} onSelect={(r) => { if (onSelect) { onSelect(r); return; } if (r) { setSel(r); setOpen(true); } }} />
         <button type="button" onClick={() => setOpen(true)} aria-label={t("map.expand", undefined, "Expand map")}
           className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-xl border border-line bg-white/90 text-muted shadow-sm transition hover:scale-105 hover:text-ink">
           <Maximize2 className="size-4" />
@@ -403,7 +452,7 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
               <CloseButton onClick={() => setOpen(false)} label={t("map.close", undefined, "Close")} />
             </div>
             <div>
-              <DotMap regions={regions} footprint={footprint} mode={mode} big selected={sel} onSelect={setSel} />
+              <DotMap regions={regions} footprint={footprint} mode={mode} big own={own} limitMs={limitMs} selected={sel} onSelect={setSel} />
               <div className="flex flex-wrap items-center justify-between gap-x-6">
                 <Legend t={t} mode={mode} />
                 <ModeSwitch mode={mode} onChange={setMode} t={t} disabled={footprint.length === 0} />

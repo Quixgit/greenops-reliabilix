@@ -27,16 +27,18 @@ const SEV_CHIP = { critical: "bg-[#fdecef] text-[#c25667]", warning: "bg-[#fdf3d
 const STATUS_CHIP: Record<string, string> = { new: "bg-[#eef3fd] text-[#4a6fb0]", acknowledged: "bg-slate-100 text-slate-600", muted: "bg-slate-100 text-slate-400", resolved: "bg-leaf-soft text-leaf-deep" };
 
 function Stat({ index, icon: Icon, tone, label, info, value, hint, onClick, on }: { index: number; icon: IconType; tone: string; label: string; info: string; value: number | null; hint?: string; onClick: () => void; on: boolean }) {
+  // The ⓘ is a button too and a button cannot hold a button: it sits in the card's corner, beside the clickable area.
   return (
-    <Card index={index} interactive={false} className="p-0">
+    <Card index={index} interactive={false} className="relative p-0">
       <button type="button" onClick={onClick} aria-pressed={on} className={cn("flex w-full items-center gap-4 rounded-[inherit] p-4 text-left transition-all duration-300 hover:-translate-y-0.5", on && "bg-leaf-soft/50")}>
         <Icon className={cn("size-11 shrink-0", tone)} strokeWidth={1.4} />
         <span className="min-w-0">
-          <span className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}<Info>{info}</Info></span>
+          <span className="block text-[13px] font-medium text-slate-600">{label}</span>
           <span className="mt-0.5 block text-2xl font-bold tracking-tight tabular-nums">{value === null ? "–" : <CountUp value={value} format={(n) => String(Math.round(n))} />}</span>
           {hint && <span className="block truncate text-xs text-muted">{hint}</span>}
         </span>
       </button>
+      <span className="absolute right-3 top-3"><Info>{info}</Info></span>
     </Card>
   );
 }

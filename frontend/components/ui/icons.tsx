@@ -390,6 +390,27 @@ export const IconSrcEnergyCharts = mark("src-energy-charts",
     <rect x="18.600" y="5" width="4.400" height="21" rx="1.200" fill="#f2cf8a" />
     <path d="M4 27.600h24" stroke="#b9c4d6" strokeWidth="1.600" />
   </>);
+export const IconSrcIeso = mark("src-ieso",
+  <>
+    <path d="M16 4.800c-5.200 5-8 9.400-8 13.400a8 8 0 0 0 16 0c0-4-2.800-8.400-8-13.400z" fill="#c9d7f7" stroke="#6f8fe0" strokeWidth="1.600" />
+    <path d="M12.400 18.600l2.600 2.600 4.600-5.400" stroke="#6fc3a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </>);
+export const IconSrcHydroQuebec = mark("src-hydroquebec",
+  <>
+    <path d="M5 12.400c3-3 6-3 9 0s6 3 9 0" stroke="#8db4ee" strokeWidth="2.400" strokeLinecap="round" fill="none" />
+    <path d="M5 18.400c3-3 6-3 9 0s6 3 9 0" stroke="#6fc3a8" strokeWidth="2.400" strokeLinecap="round" fill="none" />
+    <path d="M5 24.400c3-3 6-3 9 0s6 3 9 0" stroke="#c9d7f7" strokeWidth="2.400" strokeLinecap="round" fill="none" />
+  </>);
+export const IconSrcEntsoe = mark("src-entsoe",
+  <>
+    <circle cx="16" cy="16" r="10.500" fill="#c9d7f7" stroke="#6f8fe0" strokeWidth="1.600" />
+    <path d="M16 7l1.600 4.400 4.600.2-3.600 2.900 1.300 4.500L16 16.400 12.100 19l1.300-4.500-3.600-2.900 4.600-.2z" fill="#f2cf8a" />
+  </>);
+export const IconSrcOns = mark("src-ons",
+  <>
+    <path d="M5 24l5-9 4.500 5 4-10 4.500 14z" fill="#b9e3d3" stroke="#4fae8f" strokeWidth="1.600" strokeLinejoin="round" />
+    <circle cx="23.500" cy="8.500" r="3" fill="#f2cf8a" />
+  </>);
 export const IconSrcEia = mark("src-eia",
   <>
     <path d="M16 4.600 4.800 10h22.400z" fill="#c9d7f7" stroke="#6f8fe0" strokeWidth="1.600" />

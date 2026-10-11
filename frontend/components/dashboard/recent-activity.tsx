@@ -1,58 +1,107 @@
 "use client";
 
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
-import { IconBulb as Lightbulb, IconCloud as Cloud, IconFolder as FolderPlus, IconRefresh as RefreshCw, IconReport as FileText, IconTrend as ActivityIcon } from "@/components/ui/icons";
+import { IconBulb, IconCard, IconChevronDown, IconCloud, IconFolder, IconRefresh, IconReport, IconTrash, IconTrend as ActivityIcon } from "@/components/ui/icons";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { content } from "@/content/schema";
 import { useActivity } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
-import { timeAgo } from "@/lib/formatters";
+import { getFormatLocale } from "@/lib/formatters";
+import type { Activity } from "@/lib/api/schemas";
+import { cn } from "@/lib/utils";
 
-// Only user-facing audit actions reach this list (allowlisted server-side).
-const EVENTS: Record<string, { icon: LucideIcon; tone: string; text: (target: string) => string }> = {
-  "project.created": { icon: FolderPlus, tone: "bg-blue-50 text-blue-600", text: (t) => `Project created: ${t.replace(/^project:/, "")}` },
-  "cloud_connection.created": { icon: Cloud, tone: "bg-leaf-soft text-leaf-deep", text: () => "Cloud account connected" },
-  "cloud_sync.completed": { icon: RefreshCw, tone: "bg-sky-50 text-sky-600", text: () => "Data sync completed" },
-  "report.generated": { icon: FileText, tone: "bg-leaf-soft text-leaf-deep", text: () => "Report generated" },
-  "recommendation.created": { icon: Lightbulb, tone: "bg-blue-50 text-blue-600", text: () => "New recommendation generated" },
-  "recommendation.applied": { icon: Lightbulb, tone: "bg-violet-50 text-violet-600", text: () => "Recommendation applied" },
-};
+type Ctx = { t: ReturnType<typeof useT> };
+type View = { icon: LucideIcon; tone: string; title: string; detail?: string; href: string };
 
-/** Where an event leads: the screen that holds the thing it is about. */
-function hrefOf(action: string): string {
-  if (action.startsWith("cloud_")) return "/connectors";
-  if (action.startsWith("recommendation")) return "/recommendations";
-  if (action.startsWith("report")) return "/reports";
-  if (action.startsWith("project")) return "/projects";
-  return "/overview";
+const money = (v: string) => { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString(getFormatLocale()) : v; };
+
+/** What an audit event says to a person: a title, the one fact that matters and where it leads. Only user-facing events reach here. */
+function describe(a: Activity, { t }: Ctx): View {
+  const d = a.detail ?? {};
+  switch (a.action) {
+    case "project.created": return { icon: IconFolder, tone: "bg-sky-50 text-[#3f78b8]", title: t("act.project_created"), detail: d.name, href: "/projects" };
+    case "project.deleted": return { icon: IconTrash, tone: "bg-rose-50 text-[#b9566a]", title: t("act.project_deleted"), href: "/projects" };
+    case "project.policy_updated": return { icon: IconFolder, tone: "bg-slate-100 text-slate-600", title: t("act.project_policy"), href: "/settings#policies" };
+    case "cloud_connection.created": return { icon: IconCloud, tone: "bg-leaf-soft text-leaf-deep", title: t("act.cloud_connected"), detail: d.provider?.toUpperCase(), href: "/connectors" };
+    case "cloud_sync.completed": return { icon: IconRefresh, tone: "bg-sky-50 text-[#3f78b8]", title: t("act.sync"), detail: d.records ? t("act.sync_detail", { records: Number(d.records).toLocaleString(getFormatLocale()) }) : undefined, href: "/connectors" };
+    case "report.generated": return { icon: IconReport, tone: "bg-leaf-soft text-leaf-deep", title: d.kind ? t("act.report", { kind: t(`rp.kind.${d.kind}`, undefined, d.kind) }) : t("act.report_plain"), detail: d.format?.toUpperCase(), href: "/reports" };
+    case "recommendation.created": return { icon: IconBulb, tone: "bg-amber-50 text-[#8a6218]", title: t("act.rec_created"), detail: d.type ? t(`act.type.${d.type}`, undefined, d.type) : undefined, href: "/recommendations" };
+    case "recommendation.approved": return { icon: IconBulb, tone: "bg-violet-50 text-violet-600", title: t("act.rec_approved"), href: "/recommendations" };
+    case "recommendation.applied": return { icon: IconBulb, tone: "bg-violet-50 text-violet-600", title: t("act.rec_applied"), href: "/recommendations" };
+    case "budget.created": return { icon: IconCard, tone: "bg-amber-50 text-[#8a6218]", title: t("act.budget"), detail: d.amount ? t("act.budget_detail", { amount: money(d.amount), period: d.period ?? "" }) : undefined, href: "/settings#policies" };
+    default: return { icon: ActivityIcon, tone: "bg-slate-100 text-slate-500", title: a.action, href: "/overview" };
+  }
 }
 
+const dayKey = (iso: string) => new Date(iso).toLocaleDateString("en-CA"); // the viewer's own calendar day, as YYYY-MM-DD
+
+function dayLabel(key: string, t: Ctx["t"]) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const yesterday = new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA");
+  if (key === today) return t("act.today");
+  if (key === yesterday) return t("act.yesterday");
+  return new Date(`${key}T12:00:00`).toLocaleDateString(getFormatLocale(), { weekday: "short", day: "numeric", month: "short" });
+}
+
+const FIRST = 6;
+
+/** What happened in the organization, newest first and grouped by day, as a timeline: what, the one fact that matters, and when. */
 export function RecentActivity() {
   const t = useT();
   const q = useActivity();
+  const [all, setAll] = useState(false);
+  const rows = q.data ?? [];
+  const shown = all ? rows : rows.slice(0, FIRST);
+  const groups = useMemo(() => {
+    const m = new Map<string, Activity[]>();
+    for (const a of shown) { const k = dayKey(a.at); m.set(k, [...(m.get(k) ?? []), a]); }
+    return [...m.entries()];
+  }, [shown]);
+  const time = (iso: string) => new Date(iso).toLocaleTimeString(getFormatLocale(), { hour: "2-digit", minute: "2-digit" });
+  let n = 0;
   return (
     <Card index={8} interactive={false}>
-      <CardHeader title="Recent Activity" info={t("info.activity")} />
-      {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> :
-        q.data!.length === 0 ? <EmptyState icon={ActivityIcon} text={content.empty.noActivity} /> : (
-          <ul className="space-y-3">
-            {q.data!.map((a, i) => {
-              const e = EVENTS[a.action] ?? { icon: ActivityIcon, tone: "bg-slate-100 text-slate-500", text: () => a.action };
-              return (
-                <li key={a.id} className="rise" style={{ "--i": i + 2 } as CSSProperties}>
-                  <Link href={hrefOf(a.action)} className="group flex items-center gap-3 rounded-xl p-1.5 text-sm transition-colors hover:bg-slate-50">
-                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110 ${e.tone}`}><e.icon className="size-4" /></span>
-                    <span className="min-w-0 flex-1"><span className="block">{e.text(a.target)}</span><time className="text-xs text-muted" dateTime={a.at}>{timeAgo(a.at)}</time></span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      <CardHeader title={t("act.title")} info={t("info.activity")} icon={<ActivityIcon className="size-[18px] text-leaf-deep" />} />
+      {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : rows.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <span className="grid size-12 place-items-center rounded-full bg-slate-100 text-slate-400"><ActivityIcon className="size-6" /></span>
+          <p className="max-w-[16rem] text-sm text-muted">{t("act.empty")}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groups.map(([key, items]) => (
+            <section key={key} aria-label={dayLabel(key, t)}>
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{dayLabel(key, t)}</h3>
+              <ol className="relative space-y-0.5 before:absolute before:bottom-3 before:left-[17px] before:top-3 before:w-px before:bg-line">
+                {items.map((a) => {
+                  const v = describe(a, { t });
+                  const i = n++;
+                  return (
+                    <li key={a.id} className="rise relative" style={{ "--i": Math.min(i, 8) } as CSSProperties}>
+                      <Link href={v.href} className="group flex items-start gap-3 rounded-xl p-1.5 transition-colors hover:bg-slate-50">
+                        <span className={cn("relative z-10 grid size-[30px] shrink-0 place-items-center rounded-full ring-4 ring-white transition-transform duration-300 group-hover:scale-110", v.tone)}><v.icon className="size-[15px]" /></span>
+                        <span className="min-w-0 flex-1 pt-0.5">
+                          <span className="block truncate text-[13px] font-semibold leading-snug text-ink">{v.title}</span>
+                          {v.detail && <span className="block truncate text-xs text-muted">{v.detail}</span>}
+                        </span>
+                        <time dateTime={a.at} title={new Date(a.at).toLocaleString(getFormatLocale())} className="shrink-0 pt-1 text-[11px] tabular-nums text-slate-400">{time(a.at)}</time>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          ))}
+          {rows.length > FIRST && (
+            <button type="button" onClick={() => setAll((o) => !o)} aria-expanded={all} className="mx-auto flex items-center gap-1.5 text-xs font-semibold text-leaf-deep hover:underline">
+              {all ? t("act.show_less") : t("act.show_all", { n: rows.length })}<IconChevronDown className={cn("size-3.5 transition-transform duration-300", all && "rotate-180")} aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
