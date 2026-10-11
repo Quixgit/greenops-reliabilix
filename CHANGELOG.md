@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.91] - 2026-10-11
+
+### Changed
+- **Automation page rebuilt as a change pipeline** (ADR-0017 unchanged: the platform plans, a person applies): four
+  clickable stages with live counts (ready to plan, to approve, to apply, finished); approved recommendations get their
+  plan created right on the page; each plan shows the effect of its recommendation, a timeline (planned, approved,
+  applied), the risk reasons, a step checklist that remembers ticks, copyable commands and Terraform, the rollback,
+  and the approve / report / withdraw actions. A completed change can now be recorded as rolled back.
+
 ## [0.1.0-alpha.90] - 2026-10-11
 
 ### Added
