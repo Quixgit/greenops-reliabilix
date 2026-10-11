@@ -26,13 +26,13 @@ export function RecentActivity() {
       <CardHeader title="Recent Activity" />
       {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> :
         q.data!.length === 0 ? <EmptyState icon={ActivityIcon} text={content.empty.noActivity} /> : (
-          <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          <ul className="space-y-3">
             {q.data!.map((a, i) => {
               const e = EVENTS[a.action] ?? { icon: ActivityIcon, tone: "bg-slate-100 text-slate-500", text: () => a.action };
               return (
                 <li key={a.id} className="rise flex items-center gap-3 text-sm" style={{ "--i": i + 2 } as CSSProperties}>
                   <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${e.tone}`}><e.icon className="size-4" /></span>
-                  <span className="min-w-0 flex-1"><span className="block truncate">{e.text(a.target)}</span><time className="text-xs text-muted" dateTime={a.at}>{timeAgo(a.at)}</time></span>
+                  <span className="min-w-0 flex-1"><span className="block">{e.text(a.target)}</span><time className="text-xs text-muted" dateTime={a.at}>{timeAgo(a.at)}</time></span>
                 </li>
               );
             })}

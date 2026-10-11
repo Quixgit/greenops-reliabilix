@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <div className="mb-7 flex items-center gap-3">
             <Logo className="size-10" />
             <span className="leading-tight">
-              <span className="block text-lg font-bold tracking-tight text-slate-900">Reliabilix</span>
+              <span className="block text-lg font-bold tracking-tight text-slate-900">Reliabilix Systems</span>
               <span className="block text-xs font-medium text-emerald-700">GreenOps Platform</span>
             </span>
           </div>

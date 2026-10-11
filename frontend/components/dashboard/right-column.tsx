@@ -84,7 +84,7 @@ export function TopRecommendations() {
       <CardHeader icon={<Sparkles className="size-[18px] text-blue-500" />} title="Top Recommendations"
         action={<Link href="/recommendations" className="text-xs font-semibold text-primary hover:underline">View all →</Link>} />
       <PotentialSummary />
-      {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : top.length === 0 ? <EmptyState icon={Lightbulb} text={content.recommendationsEmpty} /> : (
+      {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : top.length === 0 ? <EmptyState icon={Lightbulb} text={t("ov2.recs.empty")} action={{ href: "/settings#policies", label: t("ov2.opt.set_regions") }} /> : (
         <ul className="divide-y divide-line/70">
           {top.map((r, i) => {
             const m = ICONS[r.type] ?? FALLBACK, impact = impactOf(r);

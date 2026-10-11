@@ -1,6 +1,7 @@
 "use client";
 
 import { Gauge } from "lucide-react";
+import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEfficiency, useFinopsSummary } from "@/hooks/use-overview";
@@ -18,7 +19,10 @@ export function WorkloadEfficiency() {
     <Card index={4} interactive={false}>
       <CardHeader title={t("ov.eff.title")} icon={<Gauge className="size-4 text-violet-500" />} />
       {q.isLoading ? <Skeleton className="h-24" /> : !e || !e.has_units ? (
-        <p className="text-sm leading-relaxed text-muted">{t("ov.eff.no_units")}</p>
+        <div className="space-y-3">
+          <p className="text-sm leading-relaxed text-muted">{t("ov.eff.no_units")}</p>
+          <Link href="/projects" className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">{t("ov2.eff.report")} →</Link>
+        </div>
       ) : e.mixed_units ? (
         <p className="text-sm leading-relaxed text-muted">{t("ov.eff.mixed")}</p>
       ) : (

@@ -106,3 +106,9 @@ export const rttMs = (km: number) => Math.max(1, Math.round((km * 1.5 * 2) / 200
 
 /** Flag emoji from an ISO-2 code (regional indicator letters). */
 export const flag = (cc: string) => String.fromCodePoint(...[...cc.toUpperCase()].map((c) => 127397 + c.charCodeAt(0)));
+
+/** A region as a person reads it: "Toronto, Canada" when the platform knows the place, the provider's own id otherwise. */
+export function regionName(id: string): string {
+  const g = REGION_GEO[id];
+  return g ? `${g.city}, ${g.country}` : id;
+}

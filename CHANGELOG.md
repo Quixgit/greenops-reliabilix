@@ -5,6 +5,26 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.73] - 2026-10-11
+
+### Changed
+- **The Overview is rebuilt for GreenOps and FinOps together.**
+  - Four KPI cards with a trend line each: cloud cost (run-rate per day, last 7 days against the 7 before), operational
+    CO₂e, carbon intensity (with the cleanest grid now) and optimization potential (with the reason when there is none).
+  - A FinOps strip: **month-end forecast** (spent so far plus the 7-day run-rate), **budget burn** with projection,
+    **cost anomalies** and **grams of CO₂e per unit of currency spent**.
+  - Cost and carbon over time on two correct axes, with a crosshair, spikes marked and a 7-day average.
+  - Where it comes from, by cloud or by region, as paired cost and CO₂e bars with the grid intensity of each region.
+  - Services as one ranked board (share of cost and of emissions side by side, carbon-heavy services flagged, trend,
+    paging), replacing the bubble chart and the table.
+  - "Get the full picture": a checklist that says why a block may be empty and what unlocks it (connect, first sync,
+    allowed regions, work units, budget, notifications); it disappears when everything is set up.
+  - Data quality now also says whether cost matches the cloud's totals and explains estimates when grid readings are
+    not day averages. Empty recommendations and efficiency blocks give the reason and a way forward.
+- **Brand:** the phoenix of Reliabilix Systems in green and alive (a light band travels across the plumage, the glow
+  breathes), "Reliabilix Systems" in the menu, and the card at the foot of the menu rotates its message (the tagline,
+  the three verbs, your impact, and the cleanest grid right now).
+
 ## [0.1.0-alpha.72] - 2026-10-11
 
 ### Added

@@ -106,3 +106,11 @@ function MethodologyNotice({ m }: { m: MethodologyInfo }) {
     </details>
   );
 }
+
+/** The provisional-methodology notice that used to sit under the cards, on its own. */
+export function StatCardsNotice() {
+  const carbon = useCarbonSummary();
+  const c = carbon.data;
+  if (!c?.has_data || c.methodology.status !== "provisional") return null;
+  return <MethodologyNotice m={c.methodology} />;
+}

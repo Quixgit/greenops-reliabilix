@@ -1,50 +1,47 @@
-import { CarbonByProvider } from "@/components/dashboard/carbon-by-provider";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { DataQuality } from "@/components/dashboard/data-quality";
-import { CostVsCarbon } from "@/components/dashboard/cost-vs-carbon";
+import { FinopsStrip } from "@/components/dashboard/finops-strip";
+import { FootprintSplit } from "@/components/dashboard/footprint-split";
+import { KpiStrip } from "@/components/dashboard/kpi-strip";
 import { OverviewHeader } from "@/components/dashboard/overview-header";
-import { ServiceFootprint } from "@/components/dashboard/service-footprint";
-import { WorkloadEfficiency } from "@/components/dashboard/workload-efficiency";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { RegionIntensity } from "@/components/dashboard/region-intensity";
-import { PromoBanner, Tagline, TopRecommendations } from "@/components/dashboard/right-column";
-import { ServicesTable } from "@/components/dashboard/services-table";
-import { StatCards } from "@/components/dashboard/stat-cards";
-import { content } from "@/content/schema";
+import { TopRecommendations } from "@/components/dashboard/right-column";
+import { ServicesBoard } from "@/components/dashboard/services-board";
+import { SetupGuide } from "@/components/dashboard/setup-guide";
+import { StatCardsNotice } from "@/components/dashboard/stat-cards";
+import { TrendPanel } from "@/components/dashboard/trend-panel";
+import { WorkloadEfficiency } from "@/components/dashboard/workload-efficiency";
 
 export const metadata = { title: "Overview · Reliabilix GreenOps" };
 
 export default function OverviewPage() {
   return (
     <div className="mx-auto max-w-[1680px] space-y-5">
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-5">
           <OverviewHeader />
-          <StatCards />
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
-            <CostVsCarbon />
-            <CarbonByProvider />
+          <KpiStrip />
+          <StatCardsNotice />
+          <FinopsStrip />
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+            <TrendPanel />
+            <FootprintSplit />
           </div>
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
-            <ServiceFootprint />
-            <WorkloadEfficiency />
-          </div>
+          <ServicesBoard />
           <RegionIntensity />
-          <ServicesTable />
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
-            <RecentActivity />
-            <div className="min-w-0 space-y-5">
-              <DataQuality />
-              <ConnectedAccounts />
-            </div>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <WorkloadEfficiency />
+            <DataQuality />
           </div>
         </div>
         <div className="col-divider space-y-5 xl:pt-1">
-          <PromoBanner />
+          <SetupGuide />
           <TopRecommendations />
+          <ConnectedAccounts />
+          <RecentActivity />
         </div>
       </div>
-      <Tagline />
     </div>
   );
 }

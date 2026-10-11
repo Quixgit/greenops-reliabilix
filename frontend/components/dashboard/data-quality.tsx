@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SOURCE_LABEL } from "@/components/charts/intensity-chart";
+import { useConnectionRuns } from "@/hooks/use-connectors";
 import { useCarbonSummary, useConnections } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { nf, timeAgo } from "@/lib/formatters";
@@ -18,6 +19,11 @@ export function DataQuality() {
   const synced = (conns.data ?? []).map((x) => x.last_sync_at).filter((x): x is string => !!x).sort();
   const failing = (conns.data ?? []).filter((x) => x.sync_status === "error").length;
   const measured = c?.intensity_measured_share_pct ?? null;
+  // Cost against the cloud's own totals: the latest run of every connection that has been checked.
+  const runs = useConnectionRuns((conns.data ?? []).map((x) => x.id));
+  const checks = Object.values(runs.byId).map((r) => r.find((x) => x.quality)?.quality).filter((q): q is NonNullable<typeof q> => !!q);
+  const mismatched = checks.filter((q) => q.status === "mismatch").length;
+  const verified = checks.filter((q) => q.status === "ok").length;
   const basis = (b: string) => t(`ov.basis.${b}`, undefined, b);
   return (
     <Card index={6} interactive={false}>
@@ -31,8 +37,15 @@ export function DataQuality() {
             <div className="flex items-baseline justify-between"><span className="text-muted">{t("ov.dq.measured")}</span>
               <span className="font-semibold tabular-nums">{measured === null ? "—" : `${nf(0).format(measured)}%`}</span></div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-emerald-400 transition-[width] duration-700" style={{ width: `${Math.min(100, measured ?? 0)}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-teal-500/80 to-teal-400 transition-[width] duration-700" style={{ width: `${Math.min(100, measured ?? 0)}%` }} />
             </div>
+          </div>
+          {measured !== null && measured < 50 && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-snug text-amber-900 ring-1 ring-amber-100">{t("ov2.dq.estimated")}</p>}
+          <div className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-2 text-[13px]">
+            <span className="text-slate-600">{t("ov2.dq.cost_check")}</span>
+            <span className={mismatched ? "font-semibold text-bad" : verified ? "font-semibold text-teal-700" : "text-muted"}>
+              {runs.loading ? "…" : mismatched ? t("ov2.dq.cost_mismatch", { count: mismatched }) : verified ? t("ov2.dq.cost_ok", { count: verified }) : t("ov2.dq.cost_unchecked")}
+            </span>
           </div>
           <ul className="space-y-1.5">
             {c.intensity_origins.slice(0, 4).map((o) => (
