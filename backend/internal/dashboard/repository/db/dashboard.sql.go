@@ -54,6 +54,67 @@ func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityPa
 	return items, nil
 }
 
+const dashboardConnectionCost = `-- name: DashboardConnectionCost :many
+SELECT c.id::text AS connection_id,
+       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+         WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+           AND d.recorded_at >= $3 AND d.recorded_at < $4
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost,
+       count(DISTINCT u.recorded_at::date)::int AS days,
+       max(u.recorded_at)::timestamptz AS last_day
+FROM usage.usage_records u
+JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
+WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+  AND u.recorded_at >= $3 AND u.recorded_at < $4
+GROUP BY c.id
+`
+
+type DashboardConnectionCostParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type DashboardConnectionCostRow struct {
+	ConnectionID string    `json:"connection_id"`
+	Cost         float64   `json:"cost"`
+	Days         int32     `json:"days"`
+	LastDay      time.Time `json:"last_day"`
+}
+
+// Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the
+// same conversion as the service table). A line belongs to the connection of its provider and account.
+func (q *Queries) DashboardConnectionCost(ctx context.Context, arg DashboardConnectionCostParams) ([]DashboardConnectionCostRow, error) {
+	rows, err := q.db.Query(ctx, dashboardConnectionCost,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardConnectionCostRow{}
+	for rows.Next() {
+		var i DashboardConnectionCostRow
+		if err := rows.Scan(
+			&i.ConnectionID,
+			&i.Cost,
+			&i.Days,
+			&i.LastDay,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dashboardEfficiency = `-- name: DashboardEfficiency :one
 WITH carbon_d AS (
   SELECT x.project_id, date_trunc('day', x.period_start) AS day, sum(x.carbon_kg_co2e) AS kg, max(x.functional_units) AS r

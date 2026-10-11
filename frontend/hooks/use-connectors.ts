@@ -4,7 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
 import * as s from "@/lib/api/schemas";
 import type { SyncRun } from "@/lib/api/schemas";
-import { useConnections, useK8sClusters, useProjects, useRegionFootprint } from "./use-overview";
+import { useConnectionCosts, useConnections, useK8sClusters, useProjects, useRegionFootprint, useRegions } from "./use-overview";
 import { useDestinations } from "./use-admin";
 
 /** Recent sync runs per connection (the same cache entries the connection page uses). */
@@ -24,6 +24,8 @@ export function useConnectorData() {
   const destinations = useDestinations();
   const projects = useProjects();
   const footprint = useRegionFootprint();
+  const costs = useConnectionCosts();
+  const grid = useRegions();
   const runs = useConnectionRuns((connections.data ?? []).map((c) => c.id));
-  return { connections, clusters, destinations, projects, footprint, runs };
+  return { connections, clusters, destinations, projects, footprint, costs, grid, runs };
 }

@@ -30,6 +30,14 @@ describe("connectorSummary", () => {
   });
 });
 
+describe("grid data source", () => {
+  it("is live while readings are fresh, waiting when stale, and unknown without any", () => {
+    expect(connectorSummary("electricity-maps", facts({ gridReadings: ["2026-10-11T11:00:00Z", "2026-10-11T10:00:00Z"] }))).toMatchObject({ state: "synced", count: 2, lastAt: "2026-10-11T11:00:00.000Z" });
+    expect(connectorSummary("electricity-maps", facts({ gridReadings: ["2026-10-09T11:00:00Z"] })).state).toBe("waiting");
+    expect(connectorSummary("electricity-maps", facts({})).state).toBe("available");
+  });
+});
+
 describe("kpis", () => {
   const run = (status: string, start: string, end: string | null) => ({ started_at: start, finished_at: end, status });
   // newest first, as the API lists them: an old failure behind a fresh success must not weigh on health

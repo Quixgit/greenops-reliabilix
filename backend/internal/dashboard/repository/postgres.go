@@ -49,6 +49,21 @@ func (r Postgres) Providers(ctx context.Context, f domain.Filter) ([]domain.Prov
 	return out, err
 }
 
+func (r Postgres) ConnectionCosts(ctx context.Context, f domain.Filter) ([]domain.ConnectionCost, error) {
+	out := []domain.ConnectionCost{}
+	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
+		rows, err := db.New(tx).DashboardConnectionCost(ctx, db.DashboardConnectionCostParams{TenantID: f.TenantID, ProjectID: f.Project, FromTs: f.From, ToTs: f.To})
+		if err != nil {
+			return err
+		}
+		for _, x := range rows {
+			out = append(out, domain.ConnectionCost{ConnectionID: x.ConnectionID, Cost: x.Cost, Days: int(x.Days), LastDay: x.LastDay})
+		}
+		return nil
+	})
+	return out, err
+}
+
 func (r Postgres) Services(ctx context.Context, f domain.Filter, category string) ([]domain.ServiceRow, error) {
 	byName := map[string]*domain.ServiceRow{}
 	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {

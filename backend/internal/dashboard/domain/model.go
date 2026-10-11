@@ -113,7 +113,17 @@ type Filter struct {
 	From, To time.Time
 }
 
+// ConnectionCost is what one cloud connection delivered over the period: its billed cost (organization currency),
+// how many days have data and the newest day.
+type ConnectionCost struct {
+	ConnectionID string    `json:"connection_id"`
+	Cost         float64   `json:"cost"`
+	Days         int       `json:"days"`
+	LastDay      time.Time `json:"last_day"`
+}
+
 type Repository interface {
+	ConnectionCosts(ctx context.Context, f Filter) ([]ConnectionCost, error)
 	Trend(ctx context.Context, f Filter) ([]TrendPoint, error)
 	Providers(ctx context.Context, f Filter) ([]ProviderShare, error)
 	Services(ctx context.Context, f Filter, category string) ([]ServiceRow, error)

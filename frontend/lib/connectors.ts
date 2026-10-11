@@ -18,8 +18,13 @@ export interface ConnectorFacts {
   connections: ConnectionFacts[];
   clusters: ClusterFacts[];
   destinations: DestinationFacts[];
+  /** Timestamps (ISO) of the newest grid-intensity reading of every region the platform follows. */
+  gridReadings?: string[];
   now?: number;
 }
+
+/** Grid data older than this is no longer "live": the platform refreshes it hourly, so a day without news is a fault. */
+const GRID_FRESH_MS = 24 * 3600_000;
 
 /** A cluster that pushed energy data in the last two days counts as connected; an older one is waiting. */
 const CLUSTER_FRESH_MS = 48 * 3600_000;
@@ -42,6 +47,12 @@ export function connectorSummary(id: string, f: ConnectorFacts): ConnectorSummar
   if (id === "kubernetes") {
     const last = f.clusters.map((c) => c.last_hour).sort().at(-1) ?? null;
     return { state: worstState(f.clusters.map((c) => clusterState(c, now))) ?? "available", count: f.clusters.length, lastAt: last };
+  }
+  if (id === "electricity-maps") {
+    const times = (f.gridReadings ?? []).map((x) => Date.parse(x)).filter(Number.isFinite);
+    if (times.length === 0) return { state: "available", count: 0, lastAt: null };
+    const newest = Math.max(...times);
+    return { state: now - newest <= GRID_FRESH_MS ? "synced" : "waiting", count: times.length, lastAt: new Date(newest).toISOString() };
   }
   if (id === "email" || id === "slack" || id === "webhook") {
     const list = f.destinations.filter((d) => d.kind === id);

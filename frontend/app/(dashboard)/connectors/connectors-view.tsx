@@ -70,21 +70,19 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const conns = d.connections.data ?? [];
   const facts: ConnectorFacts = useMemo(() => ({
     connections: conns, clusters: d.clusters.data ?? [], destinations: d.destinations.data ?? [],
-  }), [conns, d.clusters.data, d.destinations.data]);
+    gridReadings: (d.grid.data ?? []).map((r) => r.at),
+  }), [conns, d.clusters.data, d.destinations.data, d.grid.data]);
   const k = useMemo(() => kpis(facts, d.runs.byId), [facts, d.runs.byId]);
   const projectName = (id: string) => d.projects.data?.find((p) => p.id === id)?.name ?? "—";
 
-  // cost and carbon of the period, by provider: the footprint is per provider and region, so a provider with two
-  // connections shows the same total on both rows (marked as shared) instead of an invented split.
-  const perProvider = useMemo(() => {
-    const m: Record<string, { cost: number; carbon: number }> = {};
-    for (const r of d.footprint.data ?? []) {
-      const x = (m[r.provider] ??= { cost: 0, carbon: 0 });
-      x.cost += r.cost; x.carbon += r.carbon_kg_co2e;
-    }
-    return m;
-  }, [d.footprint.data]);
-  const sharedProvider = (p: string) => conns.filter((c) => c.provider === p).length > 1;
+  // Cost is the connection's own (its provider and account). Carbon is stored per provider and region, so it is
+  // shown only where one connection is the whole provider; with several, a split would be invented.
+  const costOf = (id: string) => d.costs.data?.find((x) => x.connection_id === id);
+  const carbonOf = (provider: string) => {
+    if (conns.filter((c) => c.provider === provider).length !== 1) return null;
+    const rows = (d.footprint.data ?? []).filter((r) => r.provider === provider);
+    return rows.length ? rows.reduce((a, r) => a + r.carbon_kg_co2e, 0) : null;
+  };
 
   const stateOf = connectionState;
   const counts: Record<Filter, number> = {
@@ -194,7 +192,8 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
                       const st = stateOf(c);
                       const runs = d.runs.byId[c.id] ?? [];
                       const isOpen = open === c.id;
-                      const money = perProvider[c.provider];
+                      const money = costOf(c.id);
+                      const carbon = carbonOf(c.provider);
                       return (
                         <ConnectionRow key={c.id} index={i} open={isOpen} onToggle={() => setOpen(isOpen ? null : c.id)}
                           main={
@@ -215,7 +214,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
                                 {money ? (
                                   <>
                                     <p className="font-medium tabular-nums">{formatCost(money.cost)}</p>
-                                    <p className="text-xs text-muted tabular-nums">{formatCarbon(money.carbon)}{sharedProvider(c.provider) ? ` · ${t("connectors.shared")}` : ""}</p>
+                                    <p className="text-xs text-muted tabular-nums">{carbon !== null ? `${formatCarbon(carbon)} · ` : ""}{t("connectors.days_with_data", { count: money.days })}</p>
                                   </>
                                 ) : <span className="text-muted">—</span>}
                               </td>
@@ -352,7 +351,7 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
   const s = connectorSummary(item.id, facts);
   const planned = item.status === "planned", platform = item.status === "platform";
   const cloud = item.category === "cloud" && (item.provider === "aws" || item.provider === "gcp" || item.provider === "azure");
-  const live = !planned && !platform && s.state !== "available";
+  const live = !planned && s.state !== "available";
   return (
     <Card index={index} interactive={false} className={cn("connector-card flex flex-col gap-4", planned && "bg-slate-50/60")}>
       <div className="flex items-start gap-3">
@@ -361,7 +360,7 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold leading-tight">{item.name}</p>
             {planned ? <Badge tone="stub">{item.phase ?? t("connectors.status.planned")}</Badge>
-              : platform ? <Badge tone="neutral">{t("connectors.status.platform")}</Badge>
+              : platform && !live ? <Badge tone="neutral">{t("connectors.status.platform")}</Badge>
               : live ? <StateBadge state={s.state as ConnectionState} label={t(`connection.state.${s.state}`)} />
               : <Badge tone="neutral">{t("connectors.status.available")}</Badge>}
           </div>
@@ -370,7 +369,8 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
       </div>
       <div className="mt-auto flex items-center justify-between text-sm">
         <span className="text-xs text-muted">
-          {live ? (cloud ? t("connectors.connected_count", { count: s.count }) : item.id === "kubernetes" ? t("connectors.k8s.clusters", { count: s.count }) : t("connectors.channels.destinations", { count: s.count })) : ""}
+          {platform ? (live && s.lastAt ? `${t("connectors.status.platform")} · ${t("connectors.updated", { ago: timeAgo(s.lastAt) })}` : "")
+            : live ? (cloud ? t("connectors.connected_count", { count: s.count }) : item.id === "kubernetes" ? t("connectors.k8s.clusters", { count: s.count }) : t("connectors.channels.destinations", { count: s.count })) : ""}
         </span>
         {planned || platform ? null : cloud && canConnect ? (
           <button onClick={() => onConnect(item.provider as Provider)} className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">

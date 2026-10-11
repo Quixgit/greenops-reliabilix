@@ -2446,6 +2446,45 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/connections:
+    get:
+      operationId: dashboardConnections
+      summary: Billed cost and data coverage of every cloud connection
+      tags:
+      - dashboard
+      description: |
+        Requires permission `usage:read`. A usage line belongs to the connection of its provider and account; the cost
+        is in the organization's reporting currency.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [connection_id, cost, days, last_day]
+                      properties:
+                        connection_id: {type: string, format: uuid}
+                        cost: {type: number}
+                        days: {type: integer, description: Days of the period that have data.}
+                        last_day: {type: string, format: date-time}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/dashboard/services:
     get:
       operationId: dashboardServices

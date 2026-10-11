@@ -149,3 +149,19 @@ GROUP BY 1;
 
 -- name: DashboardPriceIndex :many
 SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = 'aws';
+
+-- name: DashboardConnectionCost :many
+-- Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the
+-- same conversion as the service table). A line belongs to the connection of its provider and account.
+SELECT c.id::text AS connection_id,
+       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+         WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+           AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost,
+       count(DISTINCT u.recorded_at::date)::int AS days,
+       max(u.recorded_at)::timestamptz AS last_day
+FROM usage.usage_records u
+JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
+WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
+  AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+GROUP BY c.id;

@@ -36,6 +36,10 @@ export const useServices = (category: string) => {
     queryFn: () => api("dashboard/services", s.services, { ...f, category: category === "all" ? undefined : category }),
   });
 };
+export const useConnectionCosts = () => {
+  const f = useFilters();
+  return useQuery({ queryKey: ["connection-costs", f], queryFn: () => api("dashboard/connections", s.connectionCosts, f) });
+};
 export const useRegions = () => useQuery({ queryKey: ["regions"], queryFn: () => api("dashboard/regions", s.regions) });
 export const useRegionFootprint = () => {
   const f = useFilters();

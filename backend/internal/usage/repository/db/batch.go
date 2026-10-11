@@ -18,12 +18,14 @@ var (
 )
 
 const upsertUsageRecord = `-- name: UpsertUsageRecord :batchexec
-INSERT INTO usage.usage_records (tenant_id, project_id, connection_id, source, provider, resource_id, resource_type, service_name, service_category,
+INSERT INTO usage.usage_records (tenant_id, project_id, connection_id, account_ref, source, provider, resource_id, resource_type, service_name, service_category,
     region_id, consumed_quantity, consumed_unit, billed_cost, effective_cost, currency, recorded_at, charge_period_end)
-VALUES ($1, $2, $3, $4, $5, $6, $7,
+VALUES ($1, $2, $3,
+    COALESCE((SELECT c.account_ref FROM cloudaccounts.connections c WHERE c.tenant_id = $1 AND c.id = $3::uuid), ''),
+    $4, $5, $6, $7,
     $8, $9, $10, $11, $12,
     $13, $14, $15, $16, $17)
-ON CONFLICT (tenant_id, project_id, provider, service_name, region_id, resource_id, consumed_unit, recorded_at)
+ON CONFLICT (tenant_id, project_id, provider, account_ref, service_name, region_id, resource_id, consumed_unit, recorded_at)
 DO UPDATE SET billed_cost = EXCLUDED.billed_cost, effective_cost = EXCLUDED.effective_cost, consumed_quantity = EXCLUDED.consumed_quantity,
               charge_period_end = EXCLUDED.charge_period_end, currency = EXCLUDED.currency, connection_id = EXCLUDED.connection_id
 `
@@ -54,6 +56,8 @@ type UpsertUsageRecordParams struct {
 	ChargePeriodEnd  time.Time `json:"charge_period_end"`
 }
 
+// account_ref is the connection's account (the key of the line together with the provider): two accounts of one
+// provider never overwrite each other, and connecting an account again updates its lines instead of doubling them.
 func (q *Queries) UpsertUsageRecord(ctx context.Context, arg []UpsertUsageRecordParams) *UpsertUsageRecordBatchResults {
 	batch := &pgx.Batch{}
 	for _, a := range arg {

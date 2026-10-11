@@ -19,6 +19,7 @@ func (h Handlers) Routes(r chi.Router) {
 	read.Get("/dashboard/trend", h.trend)
 	read.Get("/dashboard/providers", h.providers)
 	read.Get("/dashboard/services", h.services)
+	read.Get("/dashboard/connections", h.connections)
 	read.Get("/dashboard/regions", h.regions)
 	read.Get("/dashboard/regions/footprint", h.footprint)
 	read.Get("/dashboard/optimization", h.optimization)
@@ -43,6 +44,13 @@ func respond[T any](w http.ResponseWriter, r *http.Request, items T, err error) 
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h Handlers) connections(w http.ResponseWriter, r *http.Request) {
+	if f, ok := filter(w, r); ok {
+		v, err := h.Repo.ConnectionCosts(r.Context(), f)
+		respond(w, r, v, err)
+	}
 }
 
 func (h Handlers) trend(w http.ResponseWriter, r *http.Request) {

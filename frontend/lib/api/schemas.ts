@@ -86,6 +86,9 @@ export type ServiceRow = z.infer<typeof services>[number];
 export const regions = items(z.object({
   region: z.string(), g_per_kwh: z.number(), change_pct: z.number().nullable(), at: z.string(),
 }));
+// What one cloud connection delivered over the period: billed cost in the organization's currency and data coverage.
+export const connectionCosts = items(z.object({ connection_id: z.string(), cost: z.number(), days: z.number(), last_day: z.string() }));
+export type ConnectionCost = z.infer<typeof connectionCosts>[number];
 export type RegionIntensity = z.infer<typeof regions>[number];
 
 export const regionFootprint = items(z.object({

@@ -1502,6 +1502,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Billed cost and data coverage of every cloud connection
+         * @description Requires permission `usage:read`. A usage line belongs to the connection of its provider and account; the cost
+         *     is in the organization's reporting currency.
+         */
+        get: operations["dashboardConnections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/services": {
         parameters: {
             query?: never;
@@ -6584,6 +6605,45 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["ProviderShare"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    dashboardConnections: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            connection_id: string;
+                            cost: number;
+                            /** @description Days of the period that have data. */
+                            days: number;
+                            /** Format: date-time */
+                            last_day: string;
+                        }[];
                     };
                 };
             };

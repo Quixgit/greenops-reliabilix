@@ -5,6 +5,22 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.67] - 2026-10-11
+
+### Fixed
+- **Two accounts of one provider no longer overwrite each other's costs.** A usage line was keyed by provider, service,
+  region and day, so a second AWS account (or Azure subscription, or GCP project) in the same project replaced the first
+  one's lines on every sync. The account is part of the key now (migration 0051, existing lines get their account from
+  their connection). It is the account, not the connection, on purpose: deleting a connection keeps its history, and
+  connecting the same account again updates those lines instead of doubling them. Covered by an integration test.
+
+### Added
+- **Cost of every connection** (`GET /dashboard/connections`: billed cost in the organization's currency, days with data
+  and the newest day). The Connectors page shows it per connection; CO₂e is shown only where one connection is the whole
+  provider (carbon is stored per provider and region, a split would be invented).
+- The Electricity Maps tile on the Connectors page shows the live state of the grid data (fresh readings, or waiting when
+  the newest is older than a day) and when it was updated.
+
 ## [0.1.0-alpha.66] - 2026-10-11
 
 ### Changed

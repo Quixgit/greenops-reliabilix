@@ -550,6 +550,7 @@ type UsageUsageRecord struct {
 	Currency         string    `json:"currency"`
 	RecordedAt       time.Time `json:"recorded_at"`
 	ChargePeriodEnd  time.Time `json:"charge_period_end"`
+	AccountRef       string    `json:"account_ref"`
 }
 
 type UsageUsageRecordsDefault struct {
