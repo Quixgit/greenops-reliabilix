@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes } from "lucide-react";
+import { IconCluster as Boxes } from "@/components/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";

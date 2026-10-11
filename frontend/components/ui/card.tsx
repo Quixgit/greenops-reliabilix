@@ -1,5 +1,6 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { Info } from "./info";
 
 /**
  * White card with a soft shadow. `index` staggers the entrance animation (cards rise one after another);
@@ -15,10 +16,10 @@ export function Card({ className, index, interactive = true, style, ...p }: HTML
   );
 }
 
-export function CardHeader({ title, action, icon }: { title: ReactNode; action?: ReactNode; icon?: ReactNode }) {
+export function CardHeader({ title, action, icon, info }: { title: ReactNode; action?: ReactNode; icon?: ReactNode; info?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">{icon}{title}</h2>
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">{icon}{title}{info && <Info>{info}</Info>}</h2>
       {action}
     </div>
   );

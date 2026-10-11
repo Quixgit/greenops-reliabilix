@@ -1,9 +1,11 @@
 "use client";
 
-import { Gauge, Leaf, Wallet, Zap } from "lucide-react";
+import { IconBolt as Zap, IconGauge as Gauge, IconLeaf as Leaf, IconWallet as Wallet } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { MiniArea } from "@/components/charts/mini-area";
+import { AllowRegions } from "./allow-regions";
+import { Info } from "@/components/ui/info";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { DeltaBadge } from "@/components/ui/delta-badge";
@@ -15,8 +17,8 @@ import { rollup } from "@/lib/overview";
 import { regionName } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 
-function Kpi({ index, icon: Icon, tone, label, hint, value, unit, delta, spark, sparkColor, foot, loading, empty }: {
-  index: number; icon: typeof Leaf; tone: string; label: string; hint?: string; value: ReactNode | null; unit?: string; delta?: ReactNode;
+function Kpi({ index, icon: Icon, tone, label, info, value, unit, delta, spark, sparkColor, foot, loading, empty }: {
+  index: number; icon: typeof Leaf; tone: string; label: string; info?: string; value: ReactNode | null; unit?: string; delta?: ReactNode;
   spark?: number[]; sparkColor?: string; foot?: ReactNode; loading: boolean; empty?: ReactNode;
 }) {
   return (
@@ -26,7 +28,7 @@ function Kpi({ index, icon: Icon, tone, label, hint, value, unit, delta, spark, 
           <Icon className="size-5" strokeWidth={1.9} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-slate-600" title={hint}>{label}{hint && <span aria-hidden className="ml-1 cursor-help text-slate-400">ⓘ</span>}</p>
+          <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}{info && <Info>{info}</Info>}</p>
           {loading ? <Skeleton className="mt-1.5 h-8 w-28" /> : value === null ? (
             <p className="mt-0.5 text-2xl font-bold text-slate-300" aria-label="no data">—</p>
           ) : (
@@ -74,7 +76,7 @@ export function KpiStrip() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Kpi index={0} icon={Wallet} tone="bg-gradient-to-br from-sky-400 to-blue-600" label={t("ov2.kpi.cost")} loading={loading}
+      <Kpi index={0} icon={Wallet} tone="bg-gradient-to-br from-sky-400 to-blue-600" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading}
         value={f?.has_data ? <CountUp value={f.total_cost} format={(n) => formatCost(n, cur)} /> : null} spark={costSeries} sparkColor="#3b82f6" empty={empty}
         delta={trendBadge(roll.costTrend7, f?.previous_comparable ? 1 : null, f?.previous_comparable ? pctChange(f.total_cost, f.previous_total_cost) : null)}
         foot={<>
@@ -82,7 +84,7 @@ export function KpiStrip() {
           {roll.costTrend7 !== null && <span className="text-muted"> · {t("ov2.week_vs_week")}</span>}
           {f && f.excluded.length > 0 && <span className="block text-amber-700">{t("ov.kpi.excluded", { currencies: f.excluded.map((e) => e.currency).join(", "), rows: f.excluded.reduce((n, e) => n + e.rows, 0) })}</span>}
         </>} />
-      <Kpi index={1} icon={Leaf} tone="bg-gradient-to-br from-emerald-400 to-teal-600" label={t("ov.kpi.operational")} hint={t("ov.kpi.operational_hint")} loading={loading}
+      <Kpi index={1} icon={Leaf} tone="bg-gradient-to-br from-emerald-400 to-teal-600" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading}
         value={parts ? <CountUp value={parts.n} format={(n) => nf(1).format(n)} /> : null} unit={parts ? `${parts.unit} CO₂e` : undefined}
         spark={carbonSeries} sparkColor="#10b981" empty={empty}
         delta={trendBadge(roll.carbonTrend7, c?.comparable ? 1 : null, c?.comparable ? pctChange(c.carbon_kg_co2e, c.previous.carbon_kg_co2e) : null)}
@@ -90,7 +92,7 @@ export function KpiStrip() {
           <span className="font-semibold text-slate-800">{nf(roll.carbonPerDay < 10 ? 2 : 1).format(roll.carbonPerDay)} kg</span> {t("ov2.per_day")}
           <span className="block text-muted">{t("ov2.operational_only")}</span>
         </>} />
-      <Kpi index={2} icon={Zap} tone="bg-gradient-to-br from-amber-400 to-orange-500" label={t("ov2.kpi.intensity")} loading={loading}
+      <Kpi index={2} icon={Zap} tone="bg-gradient-to-br from-amber-400 to-orange-500" label={t("ov2.kpi.intensity")} info={t("info.kpi_intensity")} loading={loading}
         value={intensity !== null ? <CountUp value={intensity} format={(n) => nf(0).format(n)} /> : null} unit="gCO₂e/kWh" empty={empty}
         delta={intensity !== null ? <span className="text-xs font-semibold text-muted">{t(band)}</span> : null}
         foot={<>
@@ -101,10 +103,10 @@ export function KpiStrip() {
           )}
           {cleanest ? t("ov2.cleanest", { region: regionName(cleanest.region), g: nf(0).format(cleanest.g_per_kwh) }) : t("ov2.energy_weighted")}
         </>} />
-      <Kpi index={3} icon={Gauge} tone="bg-gradient-to-br from-violet-400 to-indigo-600" label={t("ov.kpi.potential")} hint={t("ov.kpi.potential_hint")} loading={loading}
+      <Kpi index={3} icon={Gauge} tone="bg-gradient-to-br from-violet-400 to-indigo-600" label={t("ov.kpi.potential")} info={t("info.optimization")} loading={loading}
         value={opt.data && opt.data.open_count + opt.data.approved_count > 0 ? <CountUp value={opt.data.potential_carbon_kg_month} format={(n) => `−${nf(1).format(n)}`} /> : null}
         unit="kg CO₂e/mo"
-        empty={<span>{t("ov2.opt.none")} <Link href="/settings#policies" className="font-semibold text-primary hover:underline">{t("ov2.opt.set_regions")}</Link></span>}
+        empty={<span>{t("ov2.opt.none")} <AllowRegions className="text-[12px]" /></span>}
         delta={opt.data ? <span className="text-xs font-semibold text-muted">{t("ov.kpi.open", { count: opt.data.open_count + opt.data.approved_count })}</span> : null}
         foot={opt.data?.potential_saving_month ? t("ov.kpi.potential_cost", { amount: formatCost(opt.data.potential_saving_month, cur) }) : t("ov.kpi.potential_nocost")} />
     </div>

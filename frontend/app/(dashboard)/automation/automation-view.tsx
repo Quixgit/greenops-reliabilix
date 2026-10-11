@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Workflow } from "lucide-react";
+import { IconFlow as Workflow } from "@/components/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";

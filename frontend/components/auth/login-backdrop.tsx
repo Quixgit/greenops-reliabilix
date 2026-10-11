@@ -39,14 +39,14 @@ export function LoginBackdrop() {
       const b = base.getContext("2d")!;
       b.setTransform(dpr, 0, 0, dpr, 0, 0);
       b.clearRect(0, 0, W, H);
-      b.fillStyle = "rgba(94, 234, 212, 0.20)";
+      b.fillStyle = "rgba(15, 118, 110, 0.20)";
       const r = Math.max(0.8, 0.5 * s);
       b.beginPath();
       for (const d of dots) { const x = ox + d.x * s, y = oy + d.y * s; b.moveTo(x + r, y); b.arc(x, y, r, 0, 6.2832); }
       b.fill();
     };
 
-    const COLORS = ["52,211,153", "125,211,252", "190,242,100", "167,139,250"];
+    const COLORS = ["13,148,136", "37,99,235", "101,163,13", "124,58,237"];
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (now - last < 33) return; // ~30 fps is plenty for a backdrop
@@ -60,7 +60,7 @@ export function LoginBackdrop() {
       for (const w of twinkle) {
         const d = dots[w.i]; if (!d) continue;
         const a = 0.5 + 0.5 * Math.sin(t * 0.9 + w.p * 6.28);
-        ctx.fillStyle = `rgba(167,243,208,${(0.12 + 0.45 * a).toFixed(3)})`;
+        ctx.fillStyle = `rgba(13,148,136,${(0.10 + 0.40 * a).toFixed(3)})`;
         ctx.beginPath(); ctx.arc(X(d.x), Y(d.y), Math.max(1.1, 0.8 * s), 0, 6.2832); ctx.fill();
       }
       // arcs and the light that travels along them
@@ -68,7 +68,7 @@ export function LoginBackdrop() {
         const x1 = X(a.a[0]), y1 = Y(a.a[1]), x2 = X(a.b[0]), y2 = Y(a.b[1]);
         const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - Math.hypot(x2 - x1, y2 - y1) * 0.28;
         const c = COLORS[a.hue];
-        ctx.strokeStyle = `rgba(${c},0.10)`; ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(${c},0.16)`; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke();
         const p = (t * a.speed + a.phase) % 1;
         const q = (k: number) => { const u = 1 - k; return [u * u * x1 + 2 * u * k * mx + k * k * x2, u * u * y1 + 2 * u * k * my + k * k * y2]; };
@@ -85,7 +85,7 @@ export function LoginBackdrop() {
         const c = COLORS[i % 4];
         ctx.strokeStyle = `rgba(${c},${((1 - ph) * 0.38).toFixed(3)})`; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(x, y, 2 + ph * 15 * Math.min(1.5, s / 3), 0, 6.2832); ctx.stroke();
-        ctx.fillStyle = `rgba(${c},0.75)`;
+        ctx.fillStyle = `rgba(${c},0.7)`;
         ctx.beginPath(); ctx.arc(x, y, Math.max(1.6, 1.2 * Math.min(1.5, s / 3)), 0, 6.2832); ctx.fill();
       });
     };
@@ -98,14 +98,14 @@ export function LoginBackdrop() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-[#06121c]">
-      <div className="aurora aurora-a absolute -left-[10%] -top-[20%] h-[70%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(16,185,129,0.30),transparent)] blur-3xl" />
-      <div className="aurora aurora-b absolute -right-[10%] top-[10%] h-[70%] w-[55%] rounded-full bg-[radial-gradient(closest-side,rgba(56,189,248,0.22),transparent)] blur-3xl" />
-      <div className="aurora aurora-c absolute bottom-[-25%] left-[20%] h-[60%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(99,102,241,0.18),transparent)] blur-3xl" />
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden bg-[#f3f8f7]">
+      <div className="aurora aurora-a absolute -left-[10%] -top-[25%] h-[75%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(110,231,183,0.55),transparent)] blur-3xl" />
+      <div className="aurora aurora-b absolute -right-[12%] top-[5%] h-[75%] w-[55%] rounded-full bg-[radial-gradient(closest-side,rgba(125,211,252,0.50),transparent)] blur-3xl" />
+      <div className="aurora aurora-c absolute bottom-[-30%] left-[15%] h-[65%] w-[65%] rounded-full bg-[radial-gradient(closest-side,rgba(196,181,253,0.40),transparent)] blur-3xl" />
       <canvas ref={ref} className="absolute inset-0 size-full" />
-      {/* keeps the left (the words) and the right (the form) calm and readable */}
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,18,28,0.78)_0%,rgba(6,18,28,0.35)_46%,rgba(6,18,28,0.55)_100%)]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_120%,rgba(6,18,28,0.9),transparent_55%)]" />
+      {/* keeps the words on the left and the form on the right calm and readable */}
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(243,248,247,0.88)_0%,rgba(243,248,247,0.45)_46%,rgba(243,248,247,0.62)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_115%,rgba(243,248,247,0.95),transparent_55%)]" />
     </div>
   );
 }

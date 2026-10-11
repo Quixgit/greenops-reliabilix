@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell } from "lucide-react";
+import { IconBell as Bell } from "@/components/ui/icons";
 import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";

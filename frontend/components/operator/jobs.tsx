@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, AlertTriangle, Clock, Layers } from "lucide-react";
+import { IconClock as Clock, IconDatabase as Layers, IconTrend as Activity, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";

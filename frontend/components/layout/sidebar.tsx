@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { IconShield as ShieldCheck } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { useRegions } from "@/hooks/use-overview";
 import Link from "next/link";

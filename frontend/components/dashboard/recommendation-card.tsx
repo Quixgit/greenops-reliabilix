@@ -1,4 +1,4 @@
-import { Lightbulb } from "lucide-react";
+import { IconBulb as Lightbulb } from "@/components/ui/icons";
 import { formatCarbon, formatCost } from "@/lib/formatters";
 
 export type RecommendationView = {

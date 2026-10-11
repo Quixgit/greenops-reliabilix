@@ -14,8 +14,9 @@ export function safeReturnTo(v: unknown, fallback = "/overview"): string {
 }
 
 /** Query string of the hosted sign-in (/auth/login is the Auth0 SDK's route). `connection` pre-selects a social provider. */
-export function loginUrl(opts: { connection?: "google-oauth2" | "github"; email?: string; returnTo?: string }): string {
+export function loginUrl(opts: { connection?: "google-oauth2" | "github"; email?: string; returnTo?: string; signup?: boolean }): string {
   const p = new URLSearchParams();
+  if (opts.signup) p.set("screen_hint", "signup");
   if (opts.connection) p.set("connection", opts.connection);
   if (opts.email && validEmail(opts.email)) p.set("login_hint", opts.email.trim());
   p.set("returnTo", safeReturnTo(opts.returnTo));

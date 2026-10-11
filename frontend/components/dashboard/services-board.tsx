@@ -1,6 +1,8 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Boxes, Database, HardDrive, Network, Server, Table2, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, HardDrive, Network, Server, Table2 } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconCluster as Boxes, IconDatabase as Database } from "@/components/ui/icons";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
@@ -39,7 +41,7 @@ export function ServicesBoard() {
 
   return (
     <Card index={10} interactive={false} id="services-table" className="min-w-0">
-      <CardHeader title={t("ov2.svc.title")} />
+      <CardHeader title={t("ov2.svc.title")} info={t("info.services")} />
       <div className="mb-3"><PillTabs value={tab} onChange={(v) => { setTab(v); pg.setPage(1); }} tabs={CATS.map((c) => ({ value: c, label: t(`ov2.cat.${c}`) }))} /></div>
       {q.isLoading ? <Skeleton className="h-64" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Table2} text={t("ov2.svc.empty")} /> : (
         <div key={tab}>

@@ -2,7 +2,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Locate, Maximize2, Minus, Plus, X } from "lucide-react";
+import { Locate, Maximize2, Minus, X } from "lucide-react";
+import { IconPlus as Plus } from "@/components/ui/icons";
 import type { RegionFootprint, RegionIntensity } from "@/lib/api/schemas";
 import { landDots, project, MAP_H, MAP_W } from "@/lib/dot-grid";
 import { REGION_GEO, REGION_LABEL, distanceKm, flag, regionProvider, rttMs } from "@/lib/regions";
@@ -299,7 +300,11 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
 }
 
 /** World map of grid carbon intensity. A small card version that opens into a full-screen explorer. */
-export function RegionMap({ regions, footprint = [] }: { regions: RegionIntensity[]; footprint?: RegionFootprint[] }) {
+export function RegionMap({ regions, footprint = [], selected = null, onSelect }: {
+  regions: RegionIntensity[]; footprint?: RegionFootprint[];
+  /** Controlled selection: a click on a marker selects it for the page's own detail panel instead of opening the modal. */
+  selected?: string | null; onSelect?: (region: string) => void;
+}) {
   const t = useT();
   const [mode, setMode] = useState<MapMode>("intensity");
   const [open, setOpen] = useState(false);
@@ -324,7 +329,7 @@ export function RegionMap({ regions, footprint = [] }: { regions: RegionIntensit
   return (
     <>
       <div className="relative">
-        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} selected={null} onSelect={(r) => { setSel(r); setOpen(true); }} />
+        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} selected={onSelect ? selected : null} onSelect={(r) => { if (onSelect) { onSelect(r); return; } setSel(r); setOpen(true); }} />
         <button type="button" onClick={() => setOpen(true)} aria-label={t("map.expand", undefined, "Expand map")}
           className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-xl border border-line bg-white/90 text-muted shadow-sm transition hover:scale-105 hover:text-ink">
           <Maximize2 className="size-4" />

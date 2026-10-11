@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { IconChevronRight as ChevronRight } from "@/components/ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";

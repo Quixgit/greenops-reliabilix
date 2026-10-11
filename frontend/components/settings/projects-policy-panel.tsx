@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, FolderKanban } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { IconFolder as FolderKanban } from "@/components/ui/icons";
 import { useState } from "react";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Pagination, usePaged } from "@/components/ui/pagination";

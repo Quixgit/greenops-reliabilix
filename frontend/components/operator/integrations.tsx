@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, KeyRound, TriangleAlert } from "lucide-react";
+import { CheckCircle2, TriangleAlert } from "lucide-react";
+import { IconKey as KeyRound } from "@/components/ui/icons";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api/client";

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { IconReport as FileText } from "@/components/ui/icons";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Field, input } from "@/components/forms/project-form";

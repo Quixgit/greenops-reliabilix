@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 

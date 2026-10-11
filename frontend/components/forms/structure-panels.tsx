@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layers, Network, Share2 } from "lucide-react";
+import { Network, Share2 } from "lucide-react";
+import { IconDatabase as Layers } from "@/components/ui/icons";
 import { useState } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";

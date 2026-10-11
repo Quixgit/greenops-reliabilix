@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Cloud } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { IconCloud as Cloud } from "@/components/ui/icons";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";

@@ -96,7 +96,8 @@ func TestRegionShiftPriceIndexIsForEC2ComputeOnly(t *testing.T) {
 		t.Errorf("EC2 compute: want +300 from a 10%% dearer region, got %v %s", r.CostImpact, r.CostBasis)
 	}
 	in.Workloads[0].Provider = "gcp"
-	if r := GenerateRegionShift(in)[0]; r.CostImpact != nil {
+	// a GCP workload is not moved into AWS regions at all; and if it ever were, an AWS price index must not price it
+	if rs := GenerateRegionShift(in); len(rs) > 0 && rs[0].CostImpact != nil {
 		t.Error("an AWS price index must not price another cloud")
 	}
 }

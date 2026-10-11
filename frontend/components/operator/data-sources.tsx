@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, CircleDashed, Database, Hourglass, KeyRound, Server, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CircleDashed, Hourglass, Server, TriangleAlert } from "lucide-react";
+import { IconArrowRight as ArrowRight, IconDatabase as Database, IconKey as KeyRound } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";

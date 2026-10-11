@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Globe2, List, Map as MapIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, List, Map as MapIcon } from "lucide-react";
+import { IconGlobe as Globe2 } from "@/components/ui/icons";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AllowRegions } from "./allow-regions";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,9 +61,9 @@ function RegionSummary({ rows, cur }: { rows: Row[]; cur: string }) {
                   <div className="h-1 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-blue-400" style={{ width: `${Math.max(3, (r.f!.cost / maxK) * 100)}%`, "--d": `${i * 70 + 60}ms` } as React.CSSProperties} /></div>
                 </div>
                 {blocked && (
-                  <Link href="/settings#policies" className="mt-2 block rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-900 ring-1 ring-amber-100 transition-colors hover:bg-amber-100">
-                    {t("ov2.reg.blocked")} →
-                  </Link>
+                  <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-900 ring-1 ring-amber-100">
+                    {t("ov2.reg.blocked")} <AllowRegions className="text-[11px]">{t("ov2.opt.set_regions")}</AllowRegions>
+                  </div>
                 )}
               </li>
             );

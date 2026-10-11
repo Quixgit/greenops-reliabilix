@@ -1,10 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  BarChart3, Bell, BellRing, Building2, ChevronRight, ClipboardList, Cloud, Clock, GitBranch, Globe2, Hash, KeyRound, Leaf, Lock, Mail,
-  Minimize2, Settings, Settings2, ShieldCheck, Target, Users, Webhook, type LucideIcon,
-} from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconBell as Bell, IconBell as BellRing, IconBranch as GitBranch, IconBuilding as Building2, IconChart as BarChart3, IconChevronRight as ChevronRight, IconClipboard as ClipboardList, IconClock as Clock, IconCloud as Cloud, IconGauge as Minimize2, IconGlobe as Globe2, IconKey as KeyRound, IconLeaf as Leaf, IconLock as Lock, IconMail as Mail, IconPlug as Webhook, IconSend as Hash, IconShield as ShieldCheck, IconSliders as Settings, IconSliders as Settings2, IconTarget as Target, IconUsers as Users } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { z } from "zod";
@@ -19,6 +17,8 @@ import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logos";
+import type { IconType } from "@/components/ui/icons";
+import { Info } from "@/components/ui/info";
 
 const policy = z.object({
   allowed_regions: z.array(z.string()), ci_carbon_block_kg: z.number().nullable(), ci_cost_block: z.number().nullable(),
@@ -27,15 +27,15 @@ const policy = z.object({
 const GREEN = "text-teal-700";
 
 /** The card of the design: an outlined green icon, a bold title with its one-line purpose, then rows. */
-export function Panel({ index = 0, icon: Icon, title, hint, children, foot, action, className }: {
-  index?: number; icon: LucideIcon; title: string; hint?: string; children: ReactNode; foot?: ReactNode; action?: ReactNode; className?: string;
+export function Panel({ index = 0, icon: Icon, title, hint, info, children, foot, action, className }: {
+  index?: number; icon: LucideIcon | IconType; title: string; hint?: string; info?: ReactNode; children: ReactNode; foot?: ReactNode; action?: ReactNode; className?: string;
 }) {
   return (
     <section className={cn("rise lift flex flex-col rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} style={{ "--i": index } as CSSProperties}>
       <div className="flex items-start gap-3">
         <Icon className={cn("mt-0.5 size-7 shrink-0", GREEN)} strokeWidth={1.5} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-[14px] font-semibold leading-tight text-ink">{title}</h3>
+          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold leading-tight text-ink">{title}{info && <Info>{info}</Info>}</h3>
           {hint && <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p>}
         </div>
         {action}
@@ -264,7 +264,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <Panel index={0} icon={Building2} title={t("settings.org.details")} hint={t("settings.org.details_hint")}>
+      <Panel index={0} icon={Building2} title={t("settings.org.details")} hint={t("settings.org.details_hint")} info={t("info.org_details")}>
         <div className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs text-slate-600">{t("settings.org.name")}</span>
@@ -293,11 +293,11 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
         </div>
       </Panel>
 
-      <Panel index={1} icon={Cloud} title={t("settings.org.clouds")} hint={t("settings.org.clouds_hint")} foot={<FootLink href="/connectors">{t("settings.org.all_connectors")}</FootLink>}>
+      <Panel index={1} icon={Cloud} title={t("settings.org.clouds")} hint={t("settings.org.clouds_hint")} info={t("info.org_clouds")} foot={<FootLink href="/connectors">{t("settings.org.all_connectors")}</FootLink>}>
         {cloud("aws", "AWS")}{cloud("azure", "Azure")}{cloud("gcp", "GCP")}{cloud("kubernetes", "Kubernetes")}
       </Panel>
 
-      <Panel index={2} icon={Leaf} title={t("settings.org.sources")} hint={t("settings.org.sources_hint")} foot={<FootLink href="/carbon">{t("settings.org.all_sources")}</FootLink>}>
+      <Panel index={2} icon={Leaf} title={t("settings.org.sources")} hint={t("settings.org.sources_hint")} info={t("info.org_sources")} foot={<FootLink href="/carbon">{t("settings.org.all_sources")}</FootLink>}>
         {gridSrc.isLoading ? <Skeleton className="my-3 h-24" /> : (gridSrc.data ?? []).length === 0
           ? <p className="border-t border-line/70 py-3 text-xs text-muted">{t("settings.org.no_sources")}</p>
           : (gridSrc.data ?? []).map((g) => sourceRow(g.provider, g.last_at, g.regions))}
@@ -308,7 +308,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
         </div>
       </Panel>
 
-      <Panel index={3} icon={ShieldCheck} title={t("settings.org.policy")} hint={t("settings.org.policy_hint")} foot={<FootLink onClick={() => go("policies")}>{t("settings.hub.manage_policies")}</FootLink>}>
+      <Panel index={3} icon={ShieldCheck} title={t("settings.org.policy")} hint={t("settings.org.policy_hint")} info={t("info.org_policy")} foot={<FootLink onClick={() => go("policies")}>{t("settings.hub.manage_policies")}</FootLink>}>
         <EditableRow icon={BarChart3} label={t("settings.org.monthly_budget")} canEdit={canEdit} unit={budgetTop?.currency ?? (cur && cur !== "auto" ? cur : "USD")} min={1}
           initial={budgetTop?.amount ?? 0} saving={monthlyBudget.isPending} error={monthlyBudget.isError ? monthlyBudget.error.message : null}
           hint={t("settings.org.monthly_budget_hint")}
@@ -328,7 +328,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
           value={pols.isLoading ? "…" : t("settings.org.of_projects", { n: withRegions, total: nProj })} />
       </Panel>
 
-      <Panel index={4} icon={Settings} title={t("settings.org.automation")} hint={t("settings.org.automation_hint")} foot={<FootLink onClick={() => go("automation")}>{t("settings.org.configure_automation")}</FootLink>}>
+      <Panel index={4} icon={Settings} title={t("settings.org.automation")} hint={t("settings.org.automation_hint")} info={t("info.org_automation")} foot={<FootLink onClick={() => go("automation")}>{t("settings.org.configure_automation")}</FootLink>}>
         <Row icon={Globe2} label={t("settings.auto.region_moves")} onClick={() => go("automation")} value={t("settings.auto.needs_person")} />
         <Row icon={Minimize2} label={t("settings.auto.rightsizing")} onClick={() => go("automation")} value={t("settings.auto.needs_person")} />
         <Row icon={Clock} label={t("settings.org.time_shift")} onClick={() => go("policies")}
@@ -336,14 +336,14 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
         <Row icon={GitBranch} label={t("settings.org.ci_gate")} onClick={() => go("policies")} value={pols.isLoading ? "…" : t("settings.org.of_projects", { n: gates, total: nProj })} />
       </Panel>
 
-      <Panel index={5} icon={Bell} title={t("settings.hub.notifications")} hint={t("settings.hub.notifications_hint")} foot={<FootLink onClick={() => go("notifications")}>{t("settings.hub.manage_notifications")}</FootLink>}>
+      <Panel index={5} icon={Bell} title={t("settings.hub.notifications")} hint={t("settings.hub.notifications_hint")} info={t("info.org_notifications")} foot={<FootLink onClick={() => go("notifications")}>{t("settings.hub.manage_notifications")}</FootLink>}>
         {sw("email", t("settings.org.email"), Mail)}
         {sw("slack", t("settings.org.slack"), Hash)}
         {sw("webhook", t("settings.org.webhook"), Webhook)}
         <Row icon={BellRing} label={t("settings.org.alerts_open")} href="/alerts" value={alerts.isLoading ? "…" : t("settings.org.alerts_count", { count: alerts.data?.length ?? 0 })} />
       </Panel>
 
-      <Panel index={6} icon={Lock} title={t("settings.hub.security")} hint={t("settings.org.security_hint")} className="lg:col-span-3"
+      <Panel index={6} icon={Lock} title={t("settings.hub.security")} hint={t("settings.org.security_hint")} info={t("info.org_security")} className="lg:col-span-3"
         foot={<div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted">{t("settings.org.provider_note")}</span>{canManage && <FootLink onClick={() => go("security")}>{t("settings.org.all_security")}</FootLink>}</div>}>
         <div className="grid gap-x-8 md:grid-cols-3 md:divide-x md:divide-line/70 [&>div]:md:pl-8 first:[&>div]:md:pl-0">
           <div>

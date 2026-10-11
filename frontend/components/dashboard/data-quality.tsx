@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { IconShield as ShieldCheck } from "@/components/ui/icons";
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ export function DataQuality() {
   const basis = (b: string) => t(`ov.basis.${b}`, undefined, b);
   return (
     <Card index={6} interactive={false}>
-      <CardHeader title={t("ov.dq.title")} icon={<ShieldCheck className="size-4 text-emerald-600" />}
+      <CardHeader title={t("ov.dq.title")} icon={<ShieldCheck className="size-4 text-emerald-600" />} info={t("info.quality")}
         action={<Link href="/methodology" className="text-xs font-semibold text-primary hover:underline">{t("ov.dq.methodology")}</Link>} />
       {carbon.isLoading || conns.isLoading ? <Skeleton className="h-24" /> : !c?.has_data ? (
         <p className="text-sm text-muted">{t("ov.dq.empty")}</p>

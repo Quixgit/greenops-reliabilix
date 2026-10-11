@@ -1,4 +1,5 @@
-import { Bell, Boxes, FileText, FolderKanban, GitBranch, LayoutDashboard, Leaf, Lightbulb, Plug, Settings, Workflow, type LucideIcon } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconBell as Bell, IconBranch as GitBranch, IconBulb as Lightbulb, IconCluster as Boxes, IconFlow as Workflow, IconFolder as FolderKanban, IconLeaf as Leaf, IconOverview as LayoutDashboard, IconPlug as Plug, IconReport as FileText, IconSliders as Settings } from "@/components/ui/icons";
 
 // The 12 items of the client workspace (docs/product/01-client-workspace.md). Every route exists, none 404s;
 // a page without a backend yet says so instead of showing invented numbers.

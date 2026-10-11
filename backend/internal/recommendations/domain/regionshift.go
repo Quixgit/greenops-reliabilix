@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -25,6 +26,26 @@ type RegionShiftInput struct {
 	MinReductionPct float64            // default 10
 	MinMonthlyKg    float64            // default 1
 	Now             time.Time
+}
+
+var (
+	awsRegionRe = regexp.MustCompile(`^[a-z]{2}(-[a-z]+)+-\d$`)
+	gcpRegionRe = regexp.MustCompile(`^[a-z]+(-[a-z]+)?\d+$`)
+	azRegionRe  = regexp.MustCompile(`^[a-z]+\d*$`)
+)
+
+// RegionCloud tells which cloud a region id belongs to from its shape: "eu-central-1" is aws, "europe-west6" is gcp,
+// "westeurope" is azure; "" when it is none of them. A workload is only ever moved within its own cloud.
+func RegionCloud(id string) string {
+	switch {
+	case awsRegionRe.MatchString(id):
+		return "aws"
+	case strings.Contains(id, "-") && gcpRegionRe.MatchString(id):
+		return "gcp"
+	case azRegionRe.MatchString(id):
+		return "azure"
+	}
+	return ""
 }
 
 // GenerateRegionShift proposes moving workloads to a cleaner region.
@@ -56,9 +77,12 @@ func GenerateRegionShift(in RegionShiftInput) []Recommendation {
 			continue
 		}
 		target, tIntensity := "", cur
-		for _, r := range in.AllowedRegions { // pick the cleanest allowed region
+		for _, r := range in.AllowedRegions { // pick the cleanest allowed region of the same cloud
 			if r == w.Region {
 				continue
+			}
+			if c := RegionCloud(r); c != "" && w.Provider != "" && c != strings.ToLower(w.Provider) {
+				continue // another cloud's region is not a move, it is a migration
 			}
 			if g, ok := in.Intensity[r]; ok && g < tIntensity {
 				target, tIntensity = r, g

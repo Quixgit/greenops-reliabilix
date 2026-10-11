@@ -1,9 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Activity, AlertTriangle, ArrowRight, Bell, Building2, CheckCircle2, Cloud, Cpu, Database, FolderKanban, Layers, Plug, Power, Users, UserPlus, Zap,
-} from "lucide-react";
+import { CheckCircle2, Cpu, Power, UserPlus } from "lucide-react";
+import { IconArrowRight as ArrowRight, IconBell as Bell, IconBolt as Zap, IconBuilding as Building2, IconCloud as Cloud, IconDatabase as Database, IconDatabase as Layers, IconFolder as FolderKanban, IconPlug as Plug, IconTrend as Activity, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";

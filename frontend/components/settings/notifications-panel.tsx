@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, History as HistoryIcon, Plus, Power, Send } from "lucide-react";
+import { History as HistoryIcon, Power } from "lucide-react";
+import { IconBell as Bell, IconPlus as Plus, IconSend as Send } from "@/components/ui/icons";
 import { Switch } from "@/components/operator/ui";
 import { useNotificationsEnabled } from "@/hooks/use-admin";
 import { settingsView } from "@/lib/api/schemas";

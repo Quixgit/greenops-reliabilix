@@ -5,6 +5,31 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.75] - 2026-10-11
+
+### Fixed
+- **A region move is only proposed inside the workload's own cloud.** The generator picked the cleanest allowed region
+  whatever its cloud, so an Azure workload could be told to move to an AWS region. A region's cloud is read from its
+  shape (`eu-central-1` AWS, `europe-west9` GCP, `westeurope` Azure) and other clouds' regions are skipped.
+
+### Added
+- **"Where may this project run?"** On the Overview, the empty recommendations, the optimization card and the regions
+  panel open a panel that lists the regions in use (selected) and cleaner regions of the same cloud with how much
+  cleaner they are; saving writes the project's allowed regions (the rest of the policy is kept) and queues a new
+  analysis. Recommendations needed exactly this and offered only a link to a text field before.
+- **ⓘ on every figure and block** of the Overview, Connectors and Organization: what it is and how it works, on
+  hover, focus or tap, drawn above the page so no card clips it.
+- **The platform's own icon set** (about forty hand-drawn icons, one pen and a soft second tone) in the menu, the
+  cards and the sign-in page, instead of stock glyphs.
+
+### Changed
+- **Regions on the Overview**: the map selects a region and a panel answers for it (grid now and over time, footprint
+  there, what a move would change, why no comparison is possible and how to enable it); the footprint ranking and the
+  cleanest grids sit under the map, so there is no empty space.
+- The carbon series on the trend chart is filled in green like the cost series is in blue.
+- **Sign-in** is light: a pale scene with the same dot-matrix world, regions and light travelling along arcs, and a
+  form with Google and GitHub, e-mail, "forgot your password" and "create an account" that slide into each other.
+
 ## [0.1.0-alpha.74] - 2026-10-11
 
 ### Changed

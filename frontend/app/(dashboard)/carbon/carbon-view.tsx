@@ -1,6 +1,6 @@
 "use client";
 
-import { Leaf } from "lucide-react";
+import { IconLeaf as Leaf } from "@/components/ui/icons";
 import { useState } from "react";
 import { IntensityChart, SOURCE_LABEL } from "@/components/charts/intensity-chart";
 import { Badge } from "@/components/ui/badge";

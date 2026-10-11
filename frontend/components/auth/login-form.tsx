@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, Mail } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import { useState } from "react";
 import { loginUrl, validEmail } from "@/lib/auth/login";
 import { cn } from "@/lib/utils";
@@ -23,17 +23,34 @@ function GitHubMark() {
   );
 }
 
-const input = "block h-11 w-full rounded-lg border border-slate-200 bg-white/90 px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-slate-50";
-const primary = "h-11 w-full rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(15,118,110,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:from-teal-600 hover:to-teal-800 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-teal-600/40 disabled:opacity-60";
-const social = "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/25";
+const field = "block h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 disabled:bg-slate-50";
+const primary = "relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(15,118,110,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:from-teal-600 hover:to-teal-800 active:translate-y-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-600/30 disabled:translate-y-0 disabled:opacity-60";
+const social = "flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-600/15 aria-disabled:pointer-events-none aria-disabled:opacity-50";
+
+type View = "signin" | "signup" | "forgot";
+
+function Input({ icon: Icon, ...p }: React.InputHTMLAttributes<HTMLInputElement> & { icon: typeof Mail }) {
+  return (
+    <div className="relative">
+      <Icon className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-slate-400" />
+      <input {...p} className={cn(field, p.className)} />
+    </div>
+  );
+}
+
+function Divider({ children }: { children: string }) {
+  return <div className="flex items-center gap-3 text-xs font-medium text-slate-400"><span className="h-px flex-1 bg-slate-200" />{children}<span className="h-px flex-1 bg-slate-200" /></div>;
+}
 
 /**
- * One calm form. In the test environment a user name and a password; with the identity provider an e-mail, with Google
- * and GitHub next to it. Passwords and second factors are only ever typed on the provider's own page.
+ * One calm form with three views that slide into one another: sign in, create an account, reset the password. In the
+ * test environment the user name and password are typed here; with the identity provider the e-mail goes on and the
+ * password and any second factor are only ever typed on the provider's own page.
  */
 export function LoginForm({ mode, returnTo, devLogin = false, error: loginError }: { mode: "auth0" | "dev"; returnTo: string; devLogin?: boolean; error?: string }) {
-  const [view, setView] = useState<"signin" | "forgot">("signin");
+  const [view, setView] = useState<View>("signin");
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [show, setShow] = useState(false);
   const [touched, setTouched] = useState(false);
   const [sent, setSent] = useState(false);
@@ -41,13 +58,13 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
   const [error, setError] = useState("");
   const auth0 = mode === "auth0";
   const emailOk = validEmail(email);
+  const go = (v: View) => { setView(v); setTouched(false); setSent(false); setError(""); };
 
   async function recover(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
     if (!emailOk) return;
-    setBusy(true);
-    setError("");
+    setBusy(true); setError("");
     try {
       const res = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) });
       if (res.status === 429) setError("Too many attempts. Please wait a minute and try again.");
@@ -60,97 +77,111 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
     }
   }
 
+  const back = (
+    <button type="button" onClick={() => go("signin")} className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900">
+      <ArrowLeft className="size-4" />Back to sign in
+    </button>
+  );
+
+  const socials = (verb: string) => (
+    <div className="space-y-3">
+      <a href={auth0 ? loginUrl({ connection: "google-oauth2", returnTo, signup: view === "signup" }) : undefined} aria-disabled={!auth0} className={social}><GoogleMark />{verb} with Google</a>
+      <a href={auth0 ? loginUrl({ connection: "github", returnTo, signup: view === "signup" }) : undefined} aria-disabled={!auth0} className={social}><GitHubMark />{verb} with GitHub</a>
+      {!auth0 && <p className="text-center text-xs text-slate-400">Social sign-in needs the identity provider and is off in this test environment.</p>}
+    </div>
+  );
+
   if (view === "forgot") {
     return (
-      <div className="space-y-5">
-        <button type="button" onClick={() => { setView("signin"); setSent(false); setError(""); }} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900">
-          <ArrowLeft className="size-4" />Back
-        </button>
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">Reset your password</h1>
-          <p className="mt-1.5 text-sm text-slate-500">We will send a link to choose a new one.</p>
+      <div key="forgot" className="form-swap">
+        {back}
+        <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Reset your password</h1>
+        <p className="mt-1.5 text-sm text-slate-500">Enter the e-mail of your account and we will send a link to choose a new password.</p>
+        <div className="mt-6">
+          {sent ? (
+            <p role="status" className="rounded-xl bg-teal-50 p-4 text-sm leading-relaxed text-teal-900 ring-1 ring-teal-200">
+              If an account exists for <b>{email.trim()}</b>, a reset link is on its way. It can take a few minutes.
+            </p>
+          ) : (
+            <form onSubmit={recover} noValidate className="space-y-4">
+              <Input icon={Mail} aria-label="E-mail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" disabled={!auth0} />
+              {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
+              {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+              {!auth0 && <p className="text-xs text-slate-500">Password recovery needs the identity provider and is off in this test environment.</p>}
+              <button type="submit" disabled={busy || !auth0} className={primary}>{busy ? "Sending…" : "Send reset link"}</button>
+            </form>
+          )}
         </div>
-        {sent ? (
-          <p role="status" className="rounded-lg bg-emerald-50 p-3.5 text-sm text-emerald-900 ring-1 ring-emerald-200">
-            If an account exists for <b>{email.trim()}</b>, a reset link is on its way. It can take a few minutes.
-          </p>
-        ) : (
-          <form onSubmit={recover} noValidate className="space-y-3">
-            <input aria-label="E-mail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={input} placeholder="you@company.com" disabled={!auth0} />
+      </div>
+    );
+  }
+
+  if (view === "signup") {
+    return (
+      <div key="signup" className="form-swap">
+        {back}
+        <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Create your account</h1>
+        <p className="mt-1.5 text-sm text-slate-500">Start measuring cost and carbon in minutes. Your organization is created for you.</p>
+        <div className="mt-6 space-y-5">
+          {socials("Sign up")}
+          <Divider>or with e-mail</Divider>
+          <form
+            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (auth0 && emailOk) window.location.assign(loginUrl({ email, returnTo, signup: true })); }}
+            noValidate className="space-y-4"
+          >
+            <Input icon={User} aria-label="Full name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" disabled={!auth0} />
+            <Input icon={Mail} aria-label="Work e-mail" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" disabled={!auth0} aria-invalid={touched && !emailOk} />
             {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
-            {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-            {!auth0 && <p className="text-xs text-slate-500">Password recovery needs the identity provider and is off in this test environment.</p>}
-            <button type="submit" disabled={busy || !auth0} className={primary}>{busy ? "Sending…" : "Send reset link"}</button>
+            <button type="submit" disabled={!auth0} className={primary}>Create account</button>
           </form>
-        )}
+          <p className="text-center text-xs leading-relaxed text-slate-500">You will choose your password on the identity provider's secure page.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">to your GreenOps and FinOps workspace</p>
-      </div>
+    <div key="signin" className="form-swap">
+      <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Welcome back</h1>
+      <p className="mt-1.5 text-sm text-slate-500">Sign in to your GreenOps and FinOps workspace.</p>
+      <div className="mt-6 space-y-5">
+        {socials("Continue")}
+        <Divider>or</Divider>
 
-      {mode === "dev" && devLogin ? (
-        <form method="post" action="/api/dev/login" className="space-y-3.5">
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <div className="space-y-1.5">
-            <label htmlFor="username" className="text-xs font-medium text-slate-600">User name</label>
-            <input id="username" name="username" autoComplete="username" required autoFocus className={input} />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="password" className="text-xs font-medium text-slate-600">Password</label>
+        {mode === "dev" && devLogin ? (
+          <form method="post" action="/api/dev/login" className="space-y-4">
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <Input icon={User} name="username" id="username" aria-label="User name" autoComplete="username" required autoFocus placeholder="User name" />
             <div className="relative">
-              <input id="password" name="password" type={show ? "text" : "password"} autoComplete="current-password" required className={cn(input, "pr-11")} />
+              <Input icon={Lock} name="password" id="password" aria-label="Password" type={show ? "text" : "password"} autoComplete="current-password" required placeholder="Password" className="pr-11" />
               <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:text-slate-700">
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 transition-colors hover:text-slate-700">
                 {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
-          </div>
-          {loginError && <p role="alert" className="text-xs text-red-600">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
-          <button type="submit" className={primary}>Sign in</button>
-          <p className="pt-1 text-center text-xs text-slate-500">Test environment</p>
-        </form>
-      ) : mode === "dev" ? (
-        <a href="/overview" className={cn(primary, "flex items-center justify-center")}>Continue as the development user</a>
-      ) : (
-        <>
-          <div className="flex gap-3">
-            <a href={loginUrl({ connection: "google-oauth2", returnTo })} className={social}><GoogleMark />Google</a>
-            <a href={loginUrl({ connection: "github", returnTo })} className={social}><GitHubMark />GitHub</a>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200" />or<span className="h-px flex-1 bg-slate-200" /></div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setTouched(true);
-              if (emailOk) window.location.assign(loginUrl({ email, returnTo }));
-            }}
-            noValidate className="space-y-3.5"
-          >
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="text-xs font-medium text-slate-600">Work e-mail</label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <input id="email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@company.com" className={cn(input, "pl-10")} aria-invalid={touched && !emailOk} />
-              </div>
-              {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
-            </div>
-            <button type="submit" className={primary}>Continue</button>
-            <div className="text-center">
-              <button type="button" onClick={() => setView("forgot")} className="text-sm font-medium text-teal-700 hover:underline">Forgot your password?</button>
-            </div>
+            {loginError && <p role="alert" className="text-xs text-red-600">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
+            <button type="submit" className={primary}>Sign in</button>
+            <p className="text-center text-xs text-slate-400">Test environment</p>
           </form>
-          <p className="text-center text-xs leading-relaxed text-slate-500">
-            Your password and, if turned on, your two-step code are entered on our identity provider's secure page.
-          </p>
-        </>
-      )}
+        ) : mode === "dev" ? (
+          <a href="/overview" className={cn(primary, "flex items-center justify-center")}>Continue as the development user</a>
+        ) : (
+          <form
+            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (emailOk) window.location.assign(loginUrl({ email, returnTo })); }}
+            noValidate className="space-y-4"
+          >
+            <Input icon={Mail} id="email" aria-label="Work e-mail" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" aria-invalid={touched && !emailOk} />
+            {touched && !emailOk && <p role="alert" className="-mt-2 text-xs text-red-600">Enter a valid e-mail address.</p>}
+            <button type="submit" className={primary}>Continue</button>
+          </form>
+        )}
+
+        <div className="flex items-center justify-between text-sm">
+          <button type="button" onClick={() => go("forgot")} className="font-medium text-teal-700 transition-colors hover:text-teal-900 hover:underline">Forgot your password?</button>
+          <button type="button" onClick={() => go("signup")} className="font-medium text-slate-600 transition-colors hover:text-slate-900">Create an account →</button>
+        </div>
+        {auth0 && <p className="text-center text-xs leading-relaxed text-slate-400">Your password and, if turned on, your two-step code are entered on our identity provider's secure page.</p>}
+      </div>
     </div>
   );
 }

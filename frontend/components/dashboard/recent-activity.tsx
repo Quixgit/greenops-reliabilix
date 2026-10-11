@@ -1,6 +1,7 @@
 "use client";
 
-import { Activity as ActivityIcon, Cloud, FileText, FolderPlus, Lightbulb, RefreshCw, type LucideIcon } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconBulb as Lightbulb, IconCloud as Cloud, IconFolder as FolderPlus, IconRefresh as RefreshCw, IconReport as FileText, IconTrend as ActivityIcon } from "@/components/ui/icons";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { content } from "@/content/schema";
 import { useActivity } from "@/hooks/use-overview";
+import { useT } from "@/i18n/provider";
 import { timeAgo } from "@/lib/formatters";
 
 // Only user-facing audit actions reach this list (allowlisted server-side).
@@ -30,10 +32,11 @@ function hrefOf(action: string): string {
 }
 
 export function RecentActivity() {
+  const t = useT();
   const q = useActivity();
   return (
     <Card index={8} interactive={false}>
-      <CardHeader title="Recent Activity" />
+      <CardHeader title="Recent Activity" info={t("info.activity")} />
       {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> :
         q.data!.length === 0 ? <EmptyState icon={ActivityIcon} text={content.empty.noActivity} /> : (
           <ul className="space-y-3">

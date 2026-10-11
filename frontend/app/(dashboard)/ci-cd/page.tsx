@@ -1,4 +1,4 @@
-import { GitBranch } from "lucide-react";
+import { IconBranch as GitBranch } from "@/components/ui/icons";
 import { ComingSoon } from "@/components/layout/coming-soon";
 
 export const metadata = { title: "CI/CD · Reliabilix GreenOps" };

@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronDown, Cloud, Loader2, Plus, RefreshCw, Search, Zap } from "lucide-react";
+import { ArrowUpRight, CheckCircle2, ChevronDown, Loader2, Search } from "lucide-react";
+import { IconBell as Bell, IconBolt as Zap, IconCloud as Cloud, IconPlus as Plus, IconRefresh as RefreshCw, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
@@ -11,6 +12,7 @@ import { HealthRing } from "@/components/connectors/health-ring";
 import { ProviderMark } from "@/components/connectors/provider-mark";
 import { RunBars } from "@/components/connectors/run-bars";
 import { Badge } from "@/components/ui/badge";
+import { Info } from "@/components/ui/info";
 import { Card, CardHeader } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
@@ -44,11 +46,11 @@ function StateBadge({ state, label }: { state: ConnectionState; label: string })
   );
 }
 
-function Kpi({ index, label, hint, children, ring }: { index: number; label: string; hint?: string; children: React.ReactNode; ring?: React.ReactNode }) {
+function Kpi({ index, label, hint, info, children, ring }: { index: number; label: string; hint?: string; info?: string; children: React.ReactNode; ring?: React.ReactNode }) {
   return (
     <Card index={index} className="flex items-center justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-sm text-muted">{label}</p>
+        <p className="flex items-center gap-1 text-sm text-muted">{label}{info && <Info>{info}</Info>}</p>
         <div className="mt-1 text-2xl font-bold tracking-tight">{children}</div>
         {hint && <p className="mt-0.5 truncate text-xs text-muted">{hint}</p>}
       </div>
@@ -134,21 +136,21 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi index={0} label={t("connectors.kpi.active")} hint={t("connectors.kpi.active_of", { total: k.total })}
+        <Kpi index={0} label={t("connectors.kpi.active")} info={t("info.connectors_active")} hint={t("connectors.kpi.active_of", { total: k.total })}
           ring={<span className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Zap className="size-5" /></span>}>
           {loading ? <Skeleton className="h-8 w-14" /> : <CountUp value={k.active} format={(n) => String(Math.round(n))} />}
         </Kpi>
-        <Kpi index={1} label={t("connectors.kpi.sources")} hint={k.sources.length ? undefined : t("connectors.kpi.sources_none")}
+        <Kpi index={1} label={t("connectors.kpi.sources")} info={t("info.connectors_sources")} hint={k.sources.length ? undefined : t("connectors.kpi.sources_none")}
           ring={<span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><Cloud className="size-5" /></span>}>
           {loading ? <Skeleton className="h-8 w-28" /> : k.sources.length ? (
             <span className="flex items-center -space-x-1.5">{k.sources.map((s) => <span key={s} className="rounded-xl ring-2 ring-white"><ProviderMark id={s} size="sm" /></span>)}</span>
           ) : <span className="text-muted">—</span>}
         </Kpi>
-        <Kpi index={2} label={t("connectors.kpi.health")} hint={d.runs.loading ? undefined : k.health === null ? t("connectors.kpi.no_data") : t("connectors.kpi.health_hint")}
+        <Kpi index={2} label={t("connectors.kpi.health")} info={t("info.connectors_health")} hint={d.runs.loading ? undefined : k.health === null ? t("connectors.kpi.no_data") : t("connectors.kpi.health_hint")}
           ring={<HealthRing value={d.runs.loading ? null : k.health} />}>
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.health === null ? <span className="text-muted">—</span> : <CountUp value={k.health} format={(n) => `${Math.round(n)}%`} />}
         </Kpi>
-        <Kpi index={3} label={t("connectors.kpi.sync_time")} hint={d.runs.loading ? undefined : k.avgSyncSeconds === null ? t("connectors.kpi.no_data") : t("connectors.kpi.sync_time_hint")}
+        <Kpi index={3} label={t("connectors.kpi.sync_time")} info={t("info.connectors_time")} hint={d.runs.loading ? undefined : k.avgSyncSeconds === null ? t("connectors.kpi.no_data") : t("connectors.kpi.sync_time_hint")}
           ring={<span className="flex size-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><RefreshCw className="size-5" /></span>}>
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.avgSyncSeconds === null ? <span className="text-muted">—</span> : formatDuration(k.avgSyncSeconds)}
         </Kpi>

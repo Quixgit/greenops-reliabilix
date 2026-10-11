@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Bell, Cloud, Users } from "lucide-react";
+import { IconBell as Bell, IconCloud as Cloud, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Badge, statusTone } from "@/components/ui/badge";

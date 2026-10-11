@@ -1,6 +1,6 @@
 "use client";
 
-import { Layers } from "lucide-react";
+import { IconDatabase as Layers } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -40,7 +40,7 @@ export function FootprintSplit() {
 
   return (
     <Card index={9} interactive={false} className="min-w-0">
-      <CardHeader icon={<Layers className="size-[18px] text-violet-500" />} title={t("ov2.split.title")}
+      <CardHeader icon={<Layers className="size-[18px] text-violet-500" />} title={t("ov2.split.title")} info={t("info.split")}
         action={
           <div role="tablist" className="flex rounded-lg bg-slate-100 p-0.5 text-xs">
             {(["provider", "region"] as const).map((k) => (

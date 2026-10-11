@@ -1,9 +1,12 @@
 "use client";
 
-import { ArrowRight, Leaf, Lightbulb, MapPin, Server, Sparkles, type LucideIcon } from "lucide-react";
+import { Server, Sparkles } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
+import { AllowRegions } from "./allow-regions";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { content } from "@/content/schema";
@@ -81,10 +84,10 @@ export function TopRecommendations() {
   const top = [...(q.data ?? [])].sort((a, b) => b.carbon_reduction_kg_month - a.carbon_reduction_kg_month).slice(0, 5);
   return (
     <Card index={2} interactive={false}>
-      <CardHeader icon={<Sparkles className="size-[18px] text-blue-500" />} title="Top Recommendations"
+      <CardHeader icon={<Sparkles className="size-[18px] text-blue-500" />} title="Top Recommendations" info={t("info.recs")}
         action={<Link href="/recommendations" className="text-xs font-semibold text-primary hover:underline">View all →</Link>} />
       <PotentialSummary />
-      {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : top.length === 0 ? <EmptyState icon={Lightbulb} text={t("ov2.recs.empty")} action={{ href: "/settings#policies", label: t("ov2.opt.set_regions") }} /> : (
+      {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : top.length === 0 ? <div><EmptyState icon={Lightbulb} text={t("ov2.recs.empty")} /><div className="-mt-3 mb-2 text-center"><AllowRegions /></div></div> : (
         <ul className="divide-y divide-line/70">
           {top.map((r, i) => {
             const m = ICONS[r.type] ?? FALLBACK, impact = impactOf(r);

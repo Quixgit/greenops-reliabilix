@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, FolderKanban } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { IconFolder as FolderKanban } from "@/components/ui/icons";
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";

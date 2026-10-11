@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import { IconTrend as Activity } from "@/components/ui/icons";
 import { useMemo, useRef, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -55,7 +55,7 @@ export function TrendPanel() {
 
   return (
     <Card index={8} interactive={false} className="flex min-w-0 flex-col">
-      <CardHeader icon={<Activity className="size-[18px] text-blue-500" />} title={t("ov2.trend.title")}
+      <CardHeader icon={<Activity className="size-[18px] text-blue-500" />} title={t("ov2.trend.title")} info={t("info.trend")}
         action={
           <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
             <input type="checkbox" className="peer sr-only" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} />
@@ -67,13 +67,14 @@ export function TrendPanel() {
         <>
           <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-blue-400" />{t("ov2.trend.cost", { cur })}</span>
-            <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-emerald-500" />{t("ov2.trend.carbon")}</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-400" />{t("ov2.trend.carbon")}</span>
             {spikeDays.size > 0 && <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-500 ring-2 ring-amber-200" />{t("ov2.trend.spike")}</span>}
           </div>
           <div ref={box} className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={t("ov2.trend.title")}>
               <defs>
-                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#60a5fa" stopOpacity=".38" /><stop offset="1" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient>
+                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#60a5fa" stopOpacity=".34" /><stop offset="1" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient>
+                <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#34d399" stopOpacity=".34" /><stop offset="1" stopColor="#34d399" stopOpacity="0.02" /></linearGradient>
               </defs>
               {ticks.map((k) => (
                 <g key={k}>
@@ -88,6 +89,7 @@ export function TrendPanel() {
                 </text>
               ))}
               <path d={`${line(costs, yC)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-cost)" className="fade-in" />
+              <path d={`${line(carbons, yK)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-carbon)" className="fade-in" />
               <path d={line(costs, yC)} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />
               <path d={line(carbons, yK)} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />
               {pts.map((p, i) => spikeDays.has(p.day.slice(0, 10)) && (

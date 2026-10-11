@@ -1,7 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Bell, BellRing, Database, FileText, Globe2, Leaf, Lock, RefreshCw, History, RotateCcw, Search, Settings2, type LucideIcon } from "lucide-react";
+import { History, RotateCcw, Search } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconBell as Bell, IconBell as BellRing, IconChart as BarChart3, IconDatabase as Database, IconGlobe as Globe2, IconLeaf as Leaf, IconLock as Lock, IconRefresh as RefreshCw, IconReport as FileText, IconSliders as Settings2 } from "@/components/ui/icons";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";

@@ -1,7 +1,9 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import { BellRing, Check, Cloud, FolderKanban, Gauge, MapPinned, PiggyBank, Rocket, type LucideIcon } from "lucide-react";
+import { Check } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconBell as BellRing, IconCloud as Cloud, IconFolder as FolderKanban, IconGauge as Gauge, IconPin as MapPinned, IconPlay as Rocket, IconWallet as PiggyBank } from "@/components/ui/icons";
 import Link from "next/link";
 import { useMemo, type CSSProperties } from "react";
 import { z } from "zod";
@@ -49,7 +51,7 @@ export function SetupGuide() {
 
   return (
     <Card index={1} interactive={false}>
-      <CardHeader icon={<FolderKanban className="size-[18px] text-teal-700" />} title={t("ov2.setup.title")}
+      <CardHeader icon={<FolderKanban className="size-[18px] text-teal-700" />} title={t("ov2.setup.title")} info={t("info.setup")}
         action={<span className="text-xs font-semibold tabular-nums text-muted">{done}/{steps.length}</span>} />
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-teal-600/80" style={{ width: `${Math.max(4, pct)}%` }} /></div>
       {loading ? <Skeleton className="h-48" /> : (

@@ -1,6 +1,8 @@
 "use client";
 
-import { Box, Cloud, Hexagon, type LucideIcon } from "lucide-react";
+import { Box, Hexagon } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import { IconCloud as Cloud } from "@/components/ui/icons";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -28,7 +30,7 @@ export function ConnectedAccounts() {
   const stateOf = (provider: string) => { const s = connectorSummary(provider, facts).state; return s === "available" ? null : s; };
   return (
     <Card index={9} interactive={false}>
-      <CardHeader title="Connected Accounts" action={<Link href="/connectors" className="text-xs font-semibold text-primary hover:underline">View all →</Link>} />
+      <CardHeader title="Connected Accounts" info={t("info.accounts")} action={<Link href="/connectors" className="text-xs font-semibold text-primary hover:underline">View all →</Link>} />
       {q.isLoading ? <Skeleton className="h-16" /> : q.isError ? <ErrorState /> : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {CLOUDS.map((c, i) => {

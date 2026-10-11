@@ -2,7 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Clock, UserPlus, Users } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import { IconClock as Clock, IconUsers as Users } from "@/components/ui/icons";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";

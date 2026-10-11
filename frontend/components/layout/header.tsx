@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, CalendarDays, Layers, LogOut, Menu, Search, Settings as SettingsIcon } from "lucide-react";
+import { CalendarDays, LogOut, Menu, Search } from "lucide-react";
+import { IconBell as Bell, IconDatabase as Layers, IconSliders as SettingsIcon } from "@/components/ui/icons";
 import Link from "next/link";
 import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot, DropdownTrigger } from "@/components/ui/dropdown";
 import { useProjects } from "@/hooks/use-overview";

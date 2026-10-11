@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList } from "lucide-react";
+import { IconClipboard as ClipboardList } from "@/components/ui/icons";
 import { useState } from "react";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Pagination, usePaged } from "@/components/ui/pagination";

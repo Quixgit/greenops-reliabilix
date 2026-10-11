@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import { ShieldCheck, Workflow } from "lucide-react";
+import { IconFlow as Workflow, IconShield as ShieldCheck } from "@/components/ui/icons";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/use-overview";

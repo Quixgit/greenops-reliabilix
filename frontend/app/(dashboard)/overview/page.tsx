@@ -5,7 +5,7 @@ import { FootprintSplit } from "@/components/dashboard/footprint-split";
 import { KpiStrip } from "@/components/dashboard/kpi-strip";
 import { OverviewHeader } from "@/components/dashboard/overview-header";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { RegionIntensity } from "@/components/dashboard/region-intensity";
+import { RegionExplorer } from "@/components/dashboard/region-explorer";
 import { TopRecommendations } from "@/components/dashboard/right-column";
 import { ServicesBoard } from "@/components/dashboard/services-board";
 import { SetupGuide } from "@/components/dashboard/setup-guide";
@@ -29,7 +29,7 @@ export default function OverviewPage() {
             <FootprintSplit />
           </div>
           <ServicesBoard />
-          <RegionIntensity />
+          <RegionExplorer />
           <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <WorkloadEfficiency />
             <DataQuality />

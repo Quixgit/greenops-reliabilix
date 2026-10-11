@@ -1,7 +1,8 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Check, CreditCard, Gauge, Minus, Repeat } from "lucide-react";
+import { Check, CreditCard, Minus, Repeat } from "lucide-react";
+import { IconGauge as Gauge } from "@/components/ui/icons";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/empty-state";

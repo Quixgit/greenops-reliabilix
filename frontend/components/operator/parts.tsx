@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 import { CountUp } from "@/components/ui/count-up";
 import { cn } from "@/lib/utils";

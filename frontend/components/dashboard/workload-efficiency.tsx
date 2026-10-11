@@ -1,6 +1,6 @@
 "use client";
 
-import { Gauge } from "lucide-react";
+import { IconGauge as Gauge } from "@/components/ui/icons";
 import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +17,7 @@ export function WorkloadEfficiency() {
   const unit = e?.unit ? e.unit.replace(/_/g, " ") : "";
   return (
     <Card index={4} interactive={false}>
-      <CardHeader title={t("ov.eff.title")} icon={<Gauge className="size-4 text-violet-500" />} />
+      <CardHeader title={t("ov.eff.title")} icon={<Gauge className="size-4 text-violet-500" />} info={t("info.efficiency")} />
       {q.isLoading ? <Skeleton className="h-24" /> : !e || !e.has_units ? (
         <div className="space-y-3">
           <p className="text-sm leading-relaxed text-muted">{t("ov.eff.no_units")}</p>
