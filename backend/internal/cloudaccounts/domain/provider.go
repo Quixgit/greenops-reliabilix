@@ -54,9 +54,16 @@ var (
 
 // PublicError is a failure whose text is safe to show the customer as it is (no secret, no provider internals beyond a
 // status code and the provider's own error code). Anything else is shown as a generic "will be retried".
-type PublicError struct{ Message string }
+//
+// Cause, when set, is the sentinel the failure belongs to (ErrAccessDenied, ...): errors.Is sees through it, so a
+// specific message does not lose the "retrying cannot help" classification.
+type PublicError struct {
+	Message string
+	Cause   error
+}
 
 func (e PublicError) Error() string { return e.Message }
+func (e PublicError) Unwrap() error { return e.Cause }
 
 // NeedsCustomerAction reports whether an error can only be fixed by the customer (permissions, export setup,
 // ownership proof). Retrying cannot help, so such errors are not retried and mark the connection as errored

@@ -9,6 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
@@ -48,6 +51,33 @@ const (
 type RESTClient struct {
 	HTTP *http.Client
 	Base string // overridden in tests
+	// Sleep waits between retries of a throttled or briefly failing request (replaced in tests); nil = time.Sleep.
+	Sleep func(context.Context, time.Duration)
+}
+
+const (
+	maxAttempts  = 4
+	maxRetryWait = 60 * time.Second
+)
+
+func (c *RESTClient) sleep(ctx context.Context, d time.Duration) {
+	if c.Sleep != nil {
+		c.Sleep(ctx, d)
+		return
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+	case <-t.C:
+	}
+}
+
+// retryable: BigQuery asks to retry rate limits (429, rateLimitExceeded) and answers 500/502/503/504 for transient
+// faults. Quota errors that need a day to clear (quotaExceeded on a daily quota) are not worth waiting for.
+func retryable(status int) bool {
+	return status == http.StatusTooManyRequests || status == http.StatusInternalServerError || status == http.StatusBadGateway ||
+		status == http.StatusServiceUnavailable || status == http.StatusGatewayTimeout
 }
 
 func (c *RESTClient) base() string {
@@ -58,37 +88,61 @@ func (c *RESTClient) base() string {
 }
 
 func (c *RESTClient) do(ctx context.Context, method, rawURL string, body any, out any) error {
-	var rdr io.Reader
+	var payload []byte
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
 			return err
 		}
-		rdr = bytes.NewReader(b)
+		payload = b
 	}
-	req, err := http.NewRequestWithContext(ctx, method, rawURL, rdr)
-	if err != nil {
-		return err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
-	if err != nil {
-		return err
-	}
-	if len(raw) > maxResponseBytes {
-		return errors.New("gcp: BigQuery response is too large")
-	}
-	if resp.StatusCode/100 != 2 {
+	for attempt := 1; ; attempt++ {
+		var rdr io.Reader
+		if payload != nil {
+			rdr = bytes.NewReader(payload)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, rawURL, rdr)
+		if err != nil {
+			return err
+		}
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := c.HTTP.Do(req)
+		if err != nil {
+			return err
+		}
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
+		_ = resp.Body.Close()
+		if err != nil {
+			return err
+		}
+		if len(raw) > maxResponseBytes {
+			return errors.New("gcp: BigQuery response is too large")
+		}
+		if resp.StatusCode/100 == 2 {
+			return json.Unmarshal(raw, out)
+		}
+		if retryable(resp.StatusCode) && attempt < maxAttempts {
+			wait := retryWait(resp.Header.Get("Retry-After"), attempt)
+			if wait <= maxRetryWait {
+				c.sleep(ctx, wait)
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				continue
+			}
+		}
 		return classify(resp.StatusCode, raw)
 	}
-	return json.Unmarshal(raw, out)
+}
+
+// retryWait is the server's Retry-After (seconds) or an exponential backoff of 2, 4, 8 seconds.
+func retryWait(header string, attempt int) time.Duration {
+	if n, err := strconv.Atoi(strings.TrimSpace(header)); err == nil && n >= 0 {
+		return time.Duration(n) * time.Second
+	}
+	return time.Duration(1<<attempt) * time.Second
 }
 
 // errAPIDisabled means "BigQuery API has not been used in project X or it is disabled". Whose project that is
@@ -117,13 +171,34 @@ func classify(status int, raw []byte) error {
 	case reasons["accessNotConfigured"] || reasons["SERVICE_DISABLED"] || reasons["serviceDisabled"]:
 		return errAPIDisabled
 	case reasons["bytesBilledLimitExceeded"]:
-		return errors.New("gcp: the query would scan more data than the configured limit")
+		return domain.PublicError{Message: "BigQuery refused the cost query: it would scan more data than the platform's per-query limit allows. The export table is unusually large; contact support."}
 	case status == http.StatusNotFound || reasons["notFound"]:
 		return domain.ErrExportNotFound
 	case status == http.StatusUnauthorized || status == http.StatusForbidden || reasons["accessDenied"] || reasons["billingNotEnabled"]:
 		return domain.ErrAccessDenied
 	}
-	return fmt.Errorf("gcp: BigQuery request failed (status %d)", status)
+	switch {
+	case status == http.StatusTooManyRequests || reasons["rateLimitExceeded"] || reasons["quotaExceeded"] || reasons["jobRateLimitExceeded"]:
+		return domain.PublicError{Message: "BigQuery is throttling requests (HTTP " + strconv.Itoa(status) + "); the sync is retried automatically."}
+	case status >= 500:
+		return domain.PublicError{Message: "BigQuery answered HTTP " + strconv.Itoa(status) + "; the sync is retried automatically."}
+	case reasons["invalidQuery"] || reasons["invalid"]:
+		return domain.PublicError{Message: "BigQuery rejected the cost query (invalidQuery): the export table does not have the columns of the standard Cloud Billing export (usage_start_time, cost, currency, service, sku, location, project, credits). Check that the connection points to the standard usage cost export table."}
+	}
+	return domain.PublicError{Message: "BigQuery answered HTTP " + strconv.Itoa(status) + ctxSuffix(reasons) + "; the sync is retried automatically."}
+}
+
+// ctxSuffix names Google's own reason codes (a short, fixed vocabulary) when there are any.
+func ctxSuffix(reasons map[string]bool) string {
+	var r []string
+	for k := range reasons {
+		r = append(r, k)
+	}
+	sort.Strings(r)
+	if len(r) == 0 {
+		return ""
+	}
+	return " (" + strings.Join(r, ", ") + ")"
 }
 
 func (c *RESTClient) DatasetLabels(ctx context.Context, project, dataset string) (map[string]string, error) {

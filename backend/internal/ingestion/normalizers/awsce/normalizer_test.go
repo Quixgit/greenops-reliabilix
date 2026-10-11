@@ -70,3 +70,22 @@ func TestCategoryFor(t *testing.T) {
 		}
 	}
 }
+
+// "NoRegion", "global" and "aws global" all become "global": one record per service and day, or the rows overwrote
+// each other when stored.
+func TestNormalizeMergesRegionsThatMapToGlobal(t *testing.T) {
+	payload := `{"ResultsByTime":[{"TimePeriod":{"Start":"2026-09-01","End":"2026-09-02"},"Estimated":false,"Groups":[
+	 {"Keys":["AWS Support","NoRegion"],"Metrics":{"UnblendedCost":{"Amount":"1.5","Unit":"USD"},"AmortizedCost":{"Amount":"1.5","Unit":"USD"}}},
+	 {"Keys":["AWS Support","global"],"Metrics":{"UnblendedCost":{"Amount":"2","Unit":"USD"},"AmortizedCost":{"Amount":"1","Unit":"USD"}}},
+	 {"Keys":["AWS Support","eu-central-1"],"Metrics":{"UnblendedCost":{"Amount":"4","Unit":"USD"}}}]}]}`
+	recs, err := Normalizer{}.Normalize(focus.RawBatch{Provider: "aws", Source: "cost_explorer", Payload: []byte(payload)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 2 {
+		t.Fatalf("got %d records, want 2 (global merged, eu-central-1): %+v", len(recs), recs)
+	}
+	if g := recs[0]; g.RegionID != "global" || g.BilledCost != 3.5 || g.EffectiveCost != 2.5 {
+		t.Errorf("merged global record: %+v", g)
+	}
+}

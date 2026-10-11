@@ -64,7 +64,10 @@ type Provider struct {
 // New builds the provider from the default AWS credential chain (the platform's own identity,
 // which only needs sts:AssumeRole on customer roles).
 func New(ctx context.Context) (*Provider, error) {
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"),
+		// Cost Explorer throttles bursts (a few requests a second per account): the SDK backs off and retries
+		// before the job fails and is retried later with a larger delay.
+		config.WithRetryMaxAttempts(6))
 	if err != nil {
 		return nil, fmt.Errorf("aws: load config: %w", err)
 	}
@@ -94,17 +97,41 @@ func New(ctx context.Context) (*Provider, error) {
 
 func (*Provider) Provider() domain.ProviderType { return domain.AWS }
 
-// classify maps AWS authorization failures to domain.ErrAccessDenied (not retryable). Throttling, expired
-// credentials and service errors stay ordinary errors: the job is retried with backoff.
+// classify turns AWS failures into errors the customer can act on. Authorization failures are domain.ErrAccessDenied
+// (not retryable) and say which step was refused; throttling and other API errors carry AWS's error code and are
+// retried. Messages from AWS are not passed on (they carry ARNs and account ids); the error code is.
 func classify(err error) error {
 	var ae smithy.APIError
-	if errors.As(err, &ae) {
-		switch ae.ErrorCode() {
-		case "AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "InvalidClientTokenId", "UnrecognizedClientException":
-			return fmt.Errorf("%w: %s", domain.ErrAccessDenied, ae.ErrorCode())
+	if !errors.As(err, &ae) {
+		if err != nil && strings.Contains(err.Error(), "failed to refresh cached credentials") {
+			// No answer from AWS at all: the platform's own identity (the one that assumes customer roles) has no
+			// usable credentials. Not the customer's doing, so say so instead of "retried automatically".
+			return domain.PublicError{Message: "The platform's own AWS identity could not be used to assume your role (platform configuration, not your account); the sync is retried automatically."}
 		}
+		return err
 	}
-	return err
+	code, msg := ae.ErrorCode(), strings.ToLower(ae.ErrorMessage())
+	switch code {
+	case "AccessDenied", "AccessDeniedException", "UnauthorizedOperation", "InvalidClientTokenId", "UnrecognizedClientException":
+		switch {
+		case strings.Contains(msg, "sts:assumerole"):
+			return domain.PublicError{Cause: domain.ErrAccessDenied, Message: "AWS refused to assume the role (" + code + "): check the role's trust policy (the platform's account and the ExternalId shown in the setup steps) and the role ARN."}
+		case strings.Contains(msg, "cost explorer"):
+			return domain.PublicError{Cause: domain.ErrAccessDenied, Message: "Cost Explorer is not enabled for this AWS account or not allowed for the role: enable Cost Explorer in the Billing console (the first data can take up to 24 hours), then verify again."}
+		case strings.Contains(msg, "s3:") || code == "AccessDenied":
+			return domain.PublicError{Cause: domain.ErrAccessDenied, Message: "AWS denied the request (" + code + "): check that the role has the read permissions of the setup steps (ce:GetCostAndUsage, or s3:GetObject and s3:ListBucket on the export bucket)."}
+		}
+		return domain.PublicError{Cause: domain.ErrAccessDenied, Message: "AWS denied the request (" + code + "): check the role and its read permissions from the setup steps."}
+	case "ThrottlingException", "Throttling", "LimitExceededException", "RequestLimitExceeded", "TooManyRequestsException", "SlowDown", "RequestThrottled":
+		return domain.PublicError{Message: "AWS is throttling requests (" + code + "); the sync is retried automatically."}
+	case "DataUnavailableException":
+		return domain.PublicError{Message: "Cost Explorer has no data for this account yet (it can take up to 24 hours after it was enabled); the sync is retried automatically."}
+	case "BillExpirationException":
+		return domain.PublicError{Message: "Cost Explorer could not return data for this account (BillExpirationException): the bill of the period is being finalized; the sync is retried automatically."}
+	case "NoSuchBucket":
+		return domain.PublicError{Cause: domain.ErrExportNotFound, Message: "The export bucket does not exist (NoSuchBucket): check the bucket name and region of the connection's export."}
+	}
+	return domain.PublicError{Message: "AWS answered " + code + "; the sync is retried automatically."}
 }
 
 // Validate proves the role can be assumed with the ExternalId and may read the data source of the connection:

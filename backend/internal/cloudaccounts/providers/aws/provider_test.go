@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -175,5 +176,50 @@ func TestAccessDeniedIsClassified(t *testing.T) {
 	other := &Provider{Assume: func(context.Context, string, string) (CEAPI, error) { return &fakeCE{err: errors.New("timeout")}, nil }}
 	if err := other.Validate(context.Background(), conn()); errors.Is(err, domain.ErrAccessDenied) || err == nil {
 		t.Errorf("transient error misclassified: %v", err)
+	}
+}
+
+func TestClassifyNamesTheCauseOfAnAwsFailure(t *testing.T) {
+	api := func(code, msg string) error { return &smithy.GenericAPIError{Code: code, Message: msg} }
+	for _, tc := range []struct {
+		name         string
+		err          error
+		wantDenied   bool
+		wantContains string
+	}{
+		{"assume role refused", api("AccessDenied", "User: arn:aws:sts::1:assumed-role/x is not authorized to perform: sts:AssumeRole"), true, "trust policy"},
+		{"cost explorer not enabled", api("AccessDeniedException", "User not enabled for cost explorer access"), true, "enable Cost Explorer"},
+		{"missing permission", api("AccessDeniedException", "not allowed"), true, "AccessDeniedException"},
+		{"throttled", api("ThrottlingException", "Rate exceeded"), false, "throttling"},
+		{"limit exceeded", api("LimitExceededException", "too many"), false, "throttling"},
+		{"data unavailable", api("DataUnavailableException", "no data"), false, "24 hours"},
+		{"other code", api("InternalServiceError", "boom"), false, "InternalServiceError"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := classify(tc.err)
+			var pe domain.PublicError
+			if !errors.As(err, &pe) {
+				t.Fatalf("not a public error: %v", err)
+			}
+			if !strings.Contains(pe.Message, tc.wantContains) {
+				t.Errorf("message %q lacks %q", pe.Message, tc.wantContains)
+			}
+			if errors.Is(err, domain.ErrAccessDenied) != tc.wantDenied || domain.NeedsCustomerAction(err) != tc.wantDenied {
+				t.Errorf("customer action = %v, want %v", domain.NeedsCustomerAction(err), tc.wantDenied)
+			}
+		})
+	}
+	// an error that is not from the AWS API (network, context) is left as it is
+	plain := errors.New("dial tcp: i/o timeout")
+	if classify(plain) != plain {
+		t.Error("a non-API error must pass through")
+	}
+}
+
+func TestClassifyBlamesThePlatformWhenItHasNoCredentials(t *testing.T) {
+	err := classify(errors.New("operation error STS: AssumeRole, get identity: get credentials: failed to refresh cached credentials, no EC2 IMDS role found"))
+	var pe domain.PublicError
+	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "platform's own AWS identity") || domain.NeedsCustomerAction(err) {
+		t.Fatalf("got %v", err)
 	}
 }

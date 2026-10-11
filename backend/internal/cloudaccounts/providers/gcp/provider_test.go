@@ -341,3 +341,64 @@ func TestControlTotalsRequireOwnershipAndSaneNumbers(t *testing.T) {
 		}
 	}
 }
+
+func fastClient(srv *httptest.Server) (*RESTClient, *[]time.Duration) {
+	var waits []time.Duration
+	return &RESTClient{HTTP: srv.Client(), Base: srv.URL, Sleep: func(_ context.Context, d time.Duration) { waits = append(waits, d) }}, &waits
+}
+
+func TestThrottledRequestIsRetriedAndHonoursRetryAfter(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls < 3 {
+			w.Header().Set("Retry-After", "7")
+			w.WriteHeader(429)
+			_, _ = w.Write([]byte(`{"error":{"code":429,"errors":[{"reason":"rateLimitExceeded"}]}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"labels":{"k":"1"}}`))
+	}))
+	defer srv.Close()
+	c, waits := fastClient(srv)
+	labels, err := c.DatasetLabels(context.Background(), "p", "d")
+	if err != nil || labels["k"] != "1" {
+		t.Fatalf("labels %v err %v", labels, err)
+	}
+	if calls != 3 || len(*waits) != 2 || (*waits)[0] != 7*time.Second {
+		t.Errorf("calls=%d waits=%v", calls, *waits)
+	}
+}
+
+func TestPersistentFailuresSayWhatBigQueryAnswered(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   string
+		denied bool
+	}{
+		{"throttled for good", 429, `{"error":{"errors":[{"reason":"rateLimitExceeded"}]}}`, "throttling", false},
+		{"unavailable", 503, `{}`, "HTTP 503", false},
+		{"schema differs", 400, `{"error":{"errors":[{"reason":"invalidQuery"}]}}`, "standard Cloud Billing export", false},
+		{"limit", 403, `{"error":{"errors":[{"reason":"bytesBilledLimitExceeded"}]}}`, "per-query limit", false},
+		{"other", 400, `{"error":{"errors":[{"reason":"badRequest"}]}}`, "badRequest", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+			c, _ := fastClient(srv)
+			_, err := c.DatasetLabels(context.Background(), "p", "d")
+			var pe domain.PublicError
+			if !errors.As(err, &pe) || !strings.Contains(pe.Message, tc.want) {
+				t.Fatalf("err = %v, want a public message containing %q", err, tc.want)
+			}
+			if domain.NeedsCustomerAction(err) != tc.denied {
+				t.Errorf("customer action = %v", domain.NeedsCustomerAction(err))
+			}
+		})
+	}
+}

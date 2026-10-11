@@ -25,11 +25,14 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: admin doctor|azure-check|recalc|recommend|refresh-grid|load-history|refresh-prices|refresh-fx|partitions")
+		fmt.Fprintln(os.Stderr, "usage: admin doctor|azure-check|aws-check|gcp-check|recalc|recommend|refresh-grid|load-history|refresh-prices|refresh-fx|partitions")
 		os.Exit(2)
 	}
 	if os.Args[1] == "azure-check" { // needs neither the database nor the platform configuration
 		os.Exit(runAzureCheck(os.Args[2:]))
+	}
+	if os.Args[1] == "aws-check" || os.Args[1] == "gcp-check" {
+		os.Exit(runCloudCheck(os.Args[1][:3], os.Args[2:]))
 	}
 	log := observability.Logger("admin")
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

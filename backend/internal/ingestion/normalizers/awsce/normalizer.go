@@ -32,7 +32,14 @@ func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 	if err := json.Unmarshal(raw.Payload, &env); err != nil {
 		return nil, fmt.Errorf("awsce: decode payload: %w", err)
 	}
-	var out []focus.Record
+	// Several raw regions map to one ("NoRegion", "global", "aws global" are all "global"): one record per final key,
+	// or the rows would overwrite each other when stored.
+	type key struct {
+		start, end, service, region, currency string
+	}
+	type sums struct{ billed, effective float64 }
+	merged := map[key]*sums{}
+	var order []key
 	for _, res := range env.ResultsByTime {
 		if res.Estimated {
 			continue
@@ -63,16 +70,29 @@ func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 					effective = v
 				}
 			}
-			if billed == 0 && effective == 0 {
-				continue // nothing charged: no row, keeps the table small
+			k := key{res.TimePeriod.Start, res.TimePeriod.End, g.Keys[0], regionOf(g.Keys[1]), strings.ToUpper(unblended.Unit)}
+			if merged[k] == nil {
+				merged[k] = &sums{}
+				order = append(order, k)
 			}
-			out = append(out, focus.Record{
-				Provider: "aws", Source: raw.Source,
-				ServiceName: g.Keys[0], ServiceCategory: CategoryFor(g.Keys[0]), RegionID: regionOf(g.Keys[1]),
-				BilledCost: billed, EffectiveCost: effective, Currency: strings.ToUpper(unblended.Unit),
-				ChargePeriodStart: start, ChargePeriodEnd: end,
-			})
+			merged[k].billed += billed
+			merged[k].effective += effective
 		}
+	}
+	out := make([]focus.Record, 0, len(order))
+	for _, k := range order {
+		s := merged[k]
+		if s.billed == 0 && s.effective == 0 {
+			continue // nothing charged: no row, keeps the table small
+		}
+		start, _ := time.Parse(time.DateOnly, k.start) // validated above
+		end, _ := time.Parse(time.DateOnly, k.end)
+		out = append(out, focus.Record{
+			Provider: "aws", Source: raw.Source,
+			ServiceName: k.service, ServiceCategory: CategoryFor(k.service), RegionID: k.region,
+			BilledCost: s.billed, EffectiveCost: s.effective, Currency: k.currency,
+			ChargePeriodStart: start, ChargePeriodEnd: end,
+		})
 	}
 	return out, nil
 }

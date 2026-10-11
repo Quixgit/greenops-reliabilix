@@ -5,6 +5,28 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.64] - 2026-10-11
+
+### Fixed
+- **AWS and GCP failures now say why**, as Azure's do since alpha.60. Until now everything that was not "access denied"
+  showed only "Sync failed; it will be retried automatically".
+  - AWS: a refused AssumeRole (check the role's trust policy and ExternalId), Cost Explorer not enabled for the account,
+    a missing permission, throttling, "no data yet", and any other API error with AWS's error code. When the platform's
+    own AWS identity has no usable credentials the message says so instead of blaming the account.
+  - GCP: BigQuery throttling and 5xx (with the status), an export table that lacks the standard columns, the per-query
+    byte limit, and any other status with Google's reason code.
+- **GCP: throttled or briefly failing BigQuery requests are retried** (429 and 5xx, up to four attempts, honouring
+  `Retry-After`, at most a minute) instead of failing the sync at the first answer. AWS: the SDK retries up to six
+  attempts for Cost Explorer throttling.
+- **AWS: regions that map to "global" are merged.** Cost Explorer's "NoRegion", "global" and "aws global" were stored as
+  separate rows of one key and overwrote each other, losing cost (the same defect Azure had in alpha.60).
+
+### Added
+- `admin aws-check <account id> <role arn> <external id>` and `admin gcp-check <project id> <bq://project/dataset/table>
+  <external id>`: verify, read the last seven days and read the control totals of one connection with this machine's
+  platform identity, printing the exact text the customer would see on failure and whether it needs their action.
+  They need neither the database nor the platform configuration.
+
 ## [0.1.0-alpha.63] - 2026-10-10
 
 ### Fixed
