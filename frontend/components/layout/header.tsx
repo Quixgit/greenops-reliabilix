@@ -186,8 +186,8 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
         </DropdownRoot>
 
         <DropdownRoot>
-          <DM.Trigger className="group flex items-center gap-2.5 rounded-2xl border border-line/80 bg-white py-1 pl-1 pr-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:-translate-y-px hover:border-leaf/50 hover:shadow-[0_8px_18px_-10px_rgba(47,143,120,0.5)] data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]">
-            <span className="btn-leaf flex size-9 items-center justify-center rounded-xl text-sm font-bold">{initials || "U"}</span>
+          <DM.Trigger className="group flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-3 outline-none transition-colors hover:bg-slate-100 data-[state=open]:bg-slate-100">
+            <span className="flex size-9 items-center justify-center rounded-lg bg-leaf-deep text-sm font-bold text-white">{initials || "U"}</span>
             <span className="hidden text-left leading-tight sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-xs capitalize text-muted">{user.role}</span></span>
           </DM.Trigger>
           <DropdownPanel align="end">

@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.82] - 2026-10-11
+
+### Changed
+- **Primary buttons and the user menu are flat**: one solid green with no gradient, sheen or shadow (the previous
+  release made them raised by mistake); the user menu is a plain avatar and name that gets a light fill on hover.
+
 ## [0.1.0-alpha.81] - 2026-10-11
 
 ### Changed
