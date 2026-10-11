@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.79] - 2026-10-11
+
+### Changed
+- **New project is a step-by-step wizard in the page itself**, not a side panel: name, functional unit (with presets),
+  team, review, then what to do next (connect a cloud, choose regions, report units). Animated steps and progress.
+
 ## [0.1.0-alpha.78] - 2026-10-11
 
 ### Changed

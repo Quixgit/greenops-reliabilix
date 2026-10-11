@@ -5,7 +5,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { PolicyPanel } from "@/components/forms/policy-panel";
-import { ProjectForm } from "@/components/forms/project-form";
+import { ProjectWizard } from "@/components/forms/project-wizard";
 import { AllocationReportCard, AllocationRulesCard, ProjectStructure, TeamsCard } from "@/components/forms/structure-panels";
 import { WorkUnits } from "@/components/forms/work-units";
 import { Drawer } from "@/components/connectors/drawer";
@@ -108,6 +108,10 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
   const open = projects.find((p) => p.id === openId) ?? null;
   const conns = (useConnections().data ?? []).filter((c) => c.project_id === openId);
 
+  if (adding) {
+    return <ProjectWizard onClose={() => setAdding(false)} onOpen={(id) => { setAdding(false); setTab("projects"); setOpenId(id); setDetailTab("overview"); }} />;
+  }
+
   return (
     <div className="page-enter space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -153,13 +157,6 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
         <div className="space-y-5"><AllocationReportCard /><div className="grid gap-5 lg:grid-cols-2"><TeamsCard canEdit={canCreate} /><AllocationRulesCard canEdit={canCreate} /></div></div>
       )}
       {tab === "budgets" && <BudgetsPanel canEdit={canBudget} currency={cur} />}
-
-      <Drawer open={adding} onClose={() => setAdding(false)} title={t("proj.new")} closeLabel={t("common.cancel")}>
-        <div className="space-y-4">
-          <p className="text-sm leading-relaxed text-slate-600">{t("proj.new_hint")}</p>
-          <ProjectForm />
-        </div>
-      </Drawer>
 
       <Drawer open={!!open} onClose={() => setOpenId(null)} title={open?.name ?? ""} closeLabel={t("common.cancel")}>
         {open && (
