@@ -11,7 +11,7 @@ import { formatCost, nf } from "@/lib/formatters";
 import { movingAverage } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
-const W = 600, H = 250, P = { l: 52, r: 46, t: 12, b: 26 };
+const W = 600, H = 330, P = { l: 52, r: 46, t: 12, b: 26 };
 
 /** A rounded-up axis maximum with four even steps (1, 2, 2.5, 5 times a power of ten). */
 function niceMax(v: number): number {
@@ -63,7 +63,7 @@ export function TrendPanel() {
             {t("ov2.trend.avg7")}
           </label>
         } />
-      {q.isLoading ? <Skeleton className="h-[250px]" /> : n === 0 ? <EmptyState icon={Activity} text={t("ov2.trend.empty")} /> : (
+      {q.isLoading ? <Skeleton className="h-[330px]" /> : n === 0 ? <EmptyState icon={Activity} text={t("ov2.trend.empty")} /> : (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-blue-400" />{t("ov2.trend.cost", { cur })}</span>

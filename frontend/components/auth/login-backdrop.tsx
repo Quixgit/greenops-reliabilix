@@ -39,7 +39,7 @@ export function LoginBackdrop() {
       const b = base.getContext("2d")!;
       b.setTransform(dpr, 0, 0, dpr, 0, 0);
       b.clearRect(0, 0, W, H);
-      b.fillStyle = "rgba(15, 118, 110, 0.20)";
+      b.fillStyle = "rgba(15, 118, 110, 0.28)";
       const r = Math.max(0.8, 0.5 * s);
       b.beginPath();
       for (const d of dots) { const x = ox + d.x * s, y = oy + d.y * s; b.moveTo(x + r, y); b.arc(x, y, r, 0, 6.2832); }
