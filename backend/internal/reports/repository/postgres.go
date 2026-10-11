@@ -206,3 +206,23 @@ func (r Postgres) SustainabilityTable(ctx context.Context, tenantID string, proj
 	})
 	return
 }
+
+// Delete removes a report's row and returns it, so the caller can remove the stored file.
+func (r Postgres) Delete(ctx context.Context, tenantID, id string) (domain.Report, error) {
+	var rep domain.Report
+	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		x, err := db.New(tx).GetReport(ctx, db.GetReportParams{TenantID: tenantID, ID: id})
+		if database.IsNotFound(err) {
+			return domain.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		rep = toDomain(db.ReportsReport(x))
+		if _, err := tx.Exec(ctx, `DELETE FROM reports.reports WHERE id = $1`, id); err != nil {
+			return err
+		}
+		return audit.Record(ctx, tx, "report.deleted", "report:"+id, map[string]any{"kind": rep.Kind, "format": rep.Format})
+	})
+	return rep, err
+}

@@ -292,3 +292,7 @@ li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) ro
 .card-gone { animation: card-gone .45s ease-in forwards; }
 @media (hover: none) { .del-btn { opacity: 1; transform: none; pointer-events: auto; } }
 @media (prefers-reduced-motion: reduce) { .del-wipe, .card-gone, .del-btn:hover .del-icon { animation: none; } }
+
+@keyframes report-bar { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
+.report-bar { animation: report-bar 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .report-bar { animation: none; } }

@@ -5,6 +5,20 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.88] - 2026-10-11
+
+### Added
+- **Report preview**: `GET /api/v1/reports/preview` returns the first rows and the row count of the table a report
+  would contain, built by the same dataset builders as the file.
+- **Report options**: `GET /api/v1/reports/options` lists the kinds, the formats the organization allows and the limits.
+- **Delete a report**: `DELETE /api/v1/reports/{id}` removes the row and its stored file (migration 0053 grants
+  DELETE on `reports.reports` to the API role).
+
+### Changed
+- **Reports page rebuilt**: summary tiles, a builder (kind cards, project scope, allowed formats only, period presets
+  with the platform calendar and a 400-day check, live preview of the first rows) and a list with kind and status
+  filters, progress while rendering, retry for failed reports and animated delete.
+
 ## [0.1.0-alpha.87] - 2026-10-11
 
 ### Changed

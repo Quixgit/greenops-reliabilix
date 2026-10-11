@@ -157,3 +157,64 @@ func (s Service) Open(ctx context.Context, tenantID, id string) (Download, error
 	return Download{Body: body, ContentType: r.Format.ContentType(),
 		Filename: fmt.Sprintf("reliabilix-%s-%s_%s.%s", r.Kind, r.PeriodStart.Format(time.DateOnly), r.PeriodEnd.Format(time.DateOnly), r.Format.Ext())}, nil
 }
+
+// PreviewRows is how many rows a preview returns.
+const PreviewRows = 8
+
+// Preview is the head of a report's table, built the same way the report itself is, without storing anything.
+type Preview struct {
+	Title     string     `json:"title"`
+	Period    string     `json:"period"`
+	Notes     []string   `json:"notes"`
+	Headers   []string   `json:"headers"`
+	Rows      [][]string `json:"rows"`
+	TotalRows int        `json:"total_rows"`
+}
+
+// Preview lets a person see what a report would contain before asking for it.
+func (s Service) Preview(ctx context.Context, tenantID string, r domain.Report) (Preview, error) {
+	r.Format = domain.CSV // the format is irrelevant to the content; validate the rest
+	if err := r.Validate(); err != nil {
+		return Preview{}, err
+	}
+	t, err := s.table(ctx, tenantID, r)
+	if err != nil {
+		return Preview{}, err
+	}
+	rows := t.Rows
+	if len(rows) > PreviewRows {
+		rows = rows[:PreviewRows]
+	}
+	if rows == nil {
+		rows = [][]string{}
+	}
+	return Preview{Title: t.Title, Period: t.Period, Notes: t.Notes, Headers: t.Headers, Rows: rows, TotalRows: len(t.Rows)}, nil
+}
+
+// Formats lists the formats the organization allows (all of them when no settings reader is wired).
+func (s Service) Formats(ctx context.Context, tenantID string) []string {
+	all := []string{string(domain.PDF), string(domain.CSV), string(domain.JSON)}
+	if s.Settings == nil {
+		return all
+	}
+	allowed := s.Settings.Strings(ctx, tenantID, settings.KeyReportFormats)
+	out := []string{}
+	for _, f := range all {
+		if slices.Contains(allowed, f) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// Delete removes a report and its stored file. A file that is already gone is not an error.
+func (s Service) Delete(ctx context.Context, tenantID, id string) error {
+	r, err := s.Repo.Delete(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if r.ObjectKey != nil {
+		_ = s.Store.Delete(ctx, *r.ObjectKey) // best effort: the row is the source of truth
+	}
+	return nil
+}

@@ -109,4 +109,6 @@ type Repository interface {
 	FinopsTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SCITable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SustainabilityTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
+	// Delete removes the metadata row and returns what it was (the caller removes the stored file).
+	Delete(ctx context.Context, tenantID, id string) (Report, error)
 }

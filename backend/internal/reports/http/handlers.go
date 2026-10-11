@@ -20,9 +20,12 @@ type Handlers struct{ Svc application.Service }
 func (h Handlers) Routes(r chi.Router) {
 	read, write := auth.Require(auth.PermReportRead), auth.Require(auth.PermReportWrite)
 	r.With(read).Get("/reports", h.list)
+	r.With(read).Get("/reports/options", h.options)
+	r.With(read).Get("/reports/preview", h.preview)
 	r.With(write).Post("/reports", h.create)
 	r.With(read).Get("/reports/{id}", h.get)
 	r.With(read).Get("/reports/{id}/download", h.download)
+	r.With(write).Delete("/reports/{id}", h.remove)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -32,7 +35,7 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, domain.ErrFormatNotAllowed):
 		httpx.WriteProblem(w, r, http.StatusForbidden, "report format not enabled", err.Error())
 	case errors.Is(err, domain.ErrInvalidReport):
-		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid report request", "kind carbon|sci|finops, format csv|json|pdf, period of at most 400 days")
+		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid report request", "kind carbon|sci|finops|sustainability, format csv|json|pdf, period of at most 400 days")
 	case errors.Is(err, domain.ErrNotReady):
 		httpx.WriteProblem(w, r, http.StatusConflict, "report is not ready", "")
 	default:
@@ -109,4 +112,54 @@ func (h Handlers) download(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+d.Filename+`"`)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = io.Copy(w, d.Body)
+}
+
+func (h Handlers) options(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"kinds":        []domain.Kind{domain.KindCarbon, domain.KindSCI, domain.KindFinops, domain.KindSustainability},
+		"formats":      h.Svc.Formats(r.Context(), c.TenantID),
+		"max_days":     400,
+		"pdf_rows":     2000,
+		"preview_rows": application.PreviewRows,
+	})
+}
+
+func (h Handlers) preview(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	q := r.URL.Query()
+	var project *string
+	if v := q.Get("project_id"); v != "" {
+		if !httpx.ParseUUID(v) {
+			httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid project", "")
+			return
+		}
+		project = &v
+	}
+	start, err1 := time.Parse(time.DateOnly, q.Get("period_start"))
+	end, err2 := time.Parse(time.DateOnly, q.Get("period_end"))
+	if err1 != nil || err2 != nil {
+		fail(w, r, domain.ErrInvalidReport)
+		return
+	}
+	p, err := h.Svc.Preview(r.Context(), c.TenantID, domain.Report{ProjectID: project, Kind: domain.Kind(q.Get("kind")), PeriodStart: start, PeriodEnd: end})
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, p)
+}
+
+func (h Handlers) remove(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := httpx.PathUUID(r, "id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	if err := h.Svc.Delete(r.Context(), c.TenantID, id); err != nil {
+		fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
