@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.83] - 2026-10-11
+
+### Changed
+- **New project wizard opens inside the Projects page**: it slides out above the summary and the cards stay where they
+  are; a labelled stepper (name, unit, team, review) with a progress line, in the platform's card style.
+- **Overview KPI cards**: the sparkline area and the footer have a fixed height, so the footer text of the four cards sits
+  on one level.
+- **Connected accounts is a list**: one row per platform with its own drawn mark (AWS, Azure, Google Cloud,
+  Kubernetes, each in its own soft colours), the state with the last sync and a Connect / Open action.
+
 ## [0.1.0-alpha.82] - 2026-10-11
 
 ### Changed

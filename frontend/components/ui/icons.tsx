@@ -171,21 +171,49 @@ export const IconClose = make("close", null, <><path d="M6.2 6.4c3.8 3.6 7.6 7.4
 export const IconSearch = make("search", <circle cx="10.6" cy="10.6" r="6.4" />, <><circle cx="10.6" cy="10.6" r="6.3" /><path d="M15.4 15.5l4.6 4.5" /></>);
 
 // ---- The four platforms, drawn with the same pen as the rest, bare (no tile, no frame) -----------------------------
-export const IconAws = make("aws",
-  <path d="M5.2 9.4c0-1.3 1-2.2 2.3-2.2h9c1.3 0 2.3.9 2.3 2.2v4.1c0 1.3-1 2.2-2.3 2.2h-9c-1.3 0-2.3-.9-2.3-2.2z" />,
-  <><path d="M5 9.3c0-1.4 1.1-2.4 2.5-2.4h9c1.4 0 2.5 1 2.5 2.4v4.1c0 1.4-1.1 2.4-2.5 2.4h-9C6.1 15.8 5 14.8 5 13.4z" /><path d="M8.4 10.3v2.4M8.4 11h1.6a.9.9 0 0 1 0 1.8H8.4M12 12.8l.9-2.4.9 2.4M14.9 10.3l1.4 2.6 1.1-2.6" /><path d="M5.6 18.6c3.9 2.1 9.1 2.1 12.8-.2" /><path d="M16.7 17.2l1.8 1.2-.9 1.9" /></>);
+/* Platform marks: our own drawings (not the vendors' logos), each in its own soft colours so they read at a glance. */
+function mark(name: string, body: ReactNode): IconType {
+  const Icon = ({ className }: IconProps) => (
+    <svg viewBox="0 0 32 32" fill="none" strokeLinecap="round" strokeLinejoin="round" className={cn("size-10 shrink-0", className)} aria-hidden>{body}</svg>
+  );
+  Icon.displayName = `Icon(${name})`;
+  return Icon;
+}
 
-export const IconAzure = make("azure",
-  <path d="M10.3 4.4L4.2 18.8h4.6l3.4-8.6z" />,
-  <><path d="M10.4 4.3L3.9 19h5l1.9-4.8 4.6 4.9H20L10.4 4.3z" /><path d="M10.2 14.2l4.9 4.9" /></>);
+export const IconAws = mark("aws",
+  <>
+    <path d="M16 3.6l10.6 5.2v10.4L16 24.4 5.4 19.2V8.8z" fill="#fbe3b0" />
+    <path d="M16 3.6l10.6 5.2L16 14 5.4 8.8z" fill="#f6c768" />
+    <path d="M16 14v10.4l10.6-5.2V8.8z" fill="#eaa93f" />
+    <path d="M16 14v10.4L5.4 19.2V8.8z" fill="#f4bd5a" />
+    <path d="M7.4 26.2c5.6 2.6 12.4 2.4 17.6-.6" stroke="#c9852a" strokeWidth="1.8" />
+    <path d="M22.6 25.2l2.6.4-.6 2.6" stroke="#c9852a" strokeWidth="1.8" />
+  </>);
 
-export const IconGcp = make("gcp",
-  <path d="M7.3 18a4.4 4.4 0 0 1-.7-8.7 5.6 5.6 0 0 1 10.9 1.1A3.8 3.8 0 0 1 17 18z" />,
-  <><path d="M7.4 18.2a4.5 4.5 0 0 1-.8-8.9 5.7 5.7 0 0 1 11 1.2 3.9 3.9 0 0 1-.6 7.7z" /><path d="M9.2 12.6l2.8-1.6 2.8 1.6v3.1L12 17.3l-2.8-1.6z" /></>);
+export const IconAzure = mark("azure",
+  <>
+    <path d="M13.2 4.6 3.6 26.4h7.2L21.4 6.2z" fill="#9fc3f5" />
+    <path d="M17 11.4 28.4 27.4H11.2l5.4-3.6 4 .4z" fill="#5b8fdc" />
+    <path d="M13.2 4.6l8.2 1.6L11 26.4H3.6z" fill="#7aa7ea" opacity=".85" />
+  </>);
 
-export const IconKubernetes = make("kubernetes",
-  <path d="M12 3.3l7.2 3.5 1.8 7.8-5 6.2H8l-5-6.2 1.8-7.8z" />,
-  <><path d="M12 3.1l7.5 3.6 1.9 8.1-5.2 6.5H7.8l-5.2-6.5 1.9-8.1z" /><circle cx="12" cy="12.4" r="2.2" /><path d="M12 10.2V6.4M13.9 11.2l3.3-1.9M13.8 13.6l3 2.4M10.2 13.6l-3 2.4M10.1 11.2L6.8 9.3" /></>);
+export const IconGcp = mark("gcp",
+  <>
+    <path d="M9.4 24.8a6.4 6.4 0 0 1-1.2-12.6 8.4 8.4 0 0 1 16 1.6 5.5 5.5 0 0 1-1.4 11z" fill="#e6f0fd" stroke="#8db4ee" strokeWidth="1.6" />
+    <path d="M16 12.4l4.2 2.4v4.8L16 22l-4.2-2.4v-4.8z" fill="#fff" stroke="#8db4ee" strokeWidth="1.4" />
+    <path d="M16 12.4l4.2 2.4L16 17.2z" fill="#eba7b3" />
+    <path d="M20.2 14.8v4.8L16 17.2z" fill="#f2cf8a" />
+    <path d="M16 22l-4.2-2.4L16 17.2z" fill="#8bd0b4" />
+    <path d="M11.8 14.8 16 17.2l-4.2 2.4z" fill="#8db4ee" />
+  </>);
+
+export const IconKubernetes = mark("kubernetes",
+  <>
+    <path d="M16 3.4l10.2 4.9 2.5 11-7 8.8H10.3l-7-8.8 2.5-11z" fill="#c9d7f7" />
+    <path d="M16 3.4l10.2 4.9 2.5 11-7 8.8H10.3l-7-8.8 2.5-11z" stroke="#6f8fe0" strokeWidth="1.6" />
+    <circle cx="16" cy="16.4" r="3.2" fill="#fff" stroke="#6f8fe0" strokeWidth="1.6" />
+    <path d="M16 13.2V8.6M18.8 14.8l4-2.2M18.6 18.2l3.6 3M13.4 18.2l-3.6 3M13.2 14.8l-4-2.2" stroke="#6f8fe0" strokeWidth="1.8" />
+  </>);
 
 /* Second batch: the glyphs the operator console and the rarer forms still took from the stock set. */
 export const IconServer = make("server",

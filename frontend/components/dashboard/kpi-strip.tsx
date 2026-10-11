@@ -37,8 +37,8 @@ function Kpi({ index, icon: Icon, tone, label, info, value, unit, delta, spark, 
           )}
         </div>
       </div>
-      <div className="px-4 pb-1">{!loading && value !== null && spark && <MiniArea values={spark} stroke={sparkColor} />}</div>
-      <div className="mt-auto border-t border-line/70 bg-slate-50/60 px-4 py-2 text-xs text-slate-600">
+      <div className="h-12 px-4">{!loading && value !== null && spark && <MiniArea values={spark} stroke={sparkColor} />}</div>
+      <div className="mt-auto flex min-h-[3.75rem] flex-col justify-center border-t border-line/70 bg-slate-50/60 px-4 py-2 text-xs leading-snug text-slate-600">
         {loading ? <Skeleton className="h-4 w-40" /> : value === null ? (empty ?? "") : foot}
       </div>
     </Card>

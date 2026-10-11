@@ -990,5 +990,11 @@
   "wiz.done.connect": "Connect a cloud account",
   "wiz.done.regions": "Choose the regions it may run in",
   "wiz.done.units": "Report the units it served",
-  "wiz.done.close": "Back to projects"
+  "wiz.done.close": "Back to projects",
+  "wiz.step.name": "Name",
+  "wiz.step.unit": "Unit",
+  "wiz.step.team": "Team",
+  "wiz.step.review": "Review",
+  "ov2.accounts.open": "Open",
+  "ov2.accounts.connect": "Connect"
 }

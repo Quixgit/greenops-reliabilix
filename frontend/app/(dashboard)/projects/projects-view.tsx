@@ -108,10 +108,6 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
   const open = projects.find((p) => p.id === openId) ?? null;
   const conns = (useConnections().data ?? []).filter((c) => c.project_id === openId);
 
-  if (adding) {
-    return <ProjectWizard onClose={() => setAdding(false)} onOpen={(id) => { setAdding(false); setTab("projects"); setOpenId(id); setDetailTab("overview"); }} />;
-  }
-
   return (
     <div className="page-enter space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -119,11 +115,19 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
           <h1 className="text-2xl font-bold tracking-tight">{t("proj.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("proj.subtitle")}</p>
         </div>
-        {canCreate && (
+        {canCreate && !adding && (
           <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white ">
             <IconPlus className="size-4" strokeWidth={2.2} />{t("proj.new")}
           </button>
         )}
+      </div>
+
+      <div className={cn("grid transition-[grid-template-rows,opacity] duration-500 ease-out", adding ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")} aria-hidden={!adding}>
+        <div className="overflow-hidden">
+          <div className="pb-1">
+            {adding && <ProjectWizard onClose={() => setAdding(false)} onOpen={(id) => { setAdding(false); setTab("projects"); setOpenId(id); setDetailTab("overview"); }} />}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

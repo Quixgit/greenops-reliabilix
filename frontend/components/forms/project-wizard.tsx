@@ -51,30 +51,32 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
   const teamName = teams.find((x) => x.id === teamId)?.name;
 
   return (
-    <div className="page-enter mx-auto w-full max-w-3xl">
-      <div className="relative overflow-hidden rounded-3xl border border-line bg-white shadow-[0_20px_60px_-30px_rgba(47,143,120,0.35)]">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-leaf-soft blur-2xl" />
-        <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 size-64 rounded-full bg-[#eef3fd] blur-2xl" />
-
-        <div className="relative px-6 pt-6 sm:px-10 sm:pt-8">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-leaf-deep">{created ? t("wiz.done_tag") : t("wiz.of", { n: step + 1, total: STEPS.length })}</p>
-            {!created && <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-ink">{t("common.cancel")}</button>}
-          </div>
-          <ol className="mt-4 flex gap-2" aria-hidden>
-            {STEPS.map((s, i) => (
-              <li key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <span className="block h-full origin-left rounded-full bg-leaf transition-transform duration-500 ease-out" style={{ transform: `scaleX(${created || i < step ? 1 : i === step ? 0.5 : 0})` }} />
-              </li>
-            ))}
+    <div className="glass overflow-hidden">
+      <div className="px-6 pt-5 sm:px-8">
+        <div className="flex items-center justify-between gap-4">
+          <ol className="flex flex-1 items-center gap-2 text-[13px]">
+            {STEPS.map((s, i) => {
+              const on = !created && i === step, done = !!created || i < step;
+              return (
+                <li key={s} className="flex flex-1 items-center gap-2">
+                  <span className={cn("grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold transition-colors duration-300", done ? "bg-leaf text-white" : on ? "bg-leaf-soft text-leaf-deep ring-2 ring-leaf" : "bg-slate-100 text-slate-400")}>
+                    {done ? <IconCheck className="size-3.5" strokeWidth={3} /> : i + 1}
+                  </span>
+                  <span className={cn("hidden whitespace-nowrap font-medium transition-colors sm:inline", on ? "text-ink" : "text-slate-400")}>{t(`wiz.step.${s}`)}</span>
+                  {i < STEPS.length - 1 && <span className="h-0.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full origin-left bg-leaf transition-transform duration-500" style={{ transform: `scaleX(${done ? 1 : 0})` }} /></span>}
+                </li>
+              );
+            })}
           </ol>
+          {!created && <button type="button" onClick={onClose} className="shrink-0 rounded-lg px-2 py-1 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-ink">{t("common.cancel")}</button>}
         </div>
+      </div>
 
-        <div className="relative min-h-[360px] px-6 py-8 sm:px-10">
+        <div className="min-h-[300px] px-6 py-6 sm:px-8">
           <div key={key} className={dir > 0 ? "form-swap" : "form-swap-back"}>
             {key === "name" && (
               <div>
-                <IconFolder className="size-14 text-leaf-deep" strokeWidth={1.3} />
+                <IconFolder className="size-12 text-leaf-deep" strokeWidth={1.3} />
                 <h2 className="mt-4 text-2xl font-bold tracking-tight">{t("wiz.name.title")}</h2>
                 <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{t("wiz.name.body")}</p>
                 <input ref={first} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && next()} maxLength={120} placeholder={t("wiz.name.placeholder")} className={cn(field, "mt-6")} aria-label={t("wiz.name.title")} />
@@ -87,7 +89,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
             )}
             {key === "unit" && (
               <div>
-                <IconGauge className="size-14 text-leaf-deep" strokeWidth={1.3} />
+                <IconGauge className="size-12 text-leaf-deep" strokeWidth={1.3} />
                 <h2 className="mt-4 text-2xl font-bold tracking-tight">{t("wiz.unit.title")}</h2>
                 <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{t("wiz.unit.body")}</p>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -103,7 +105,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
             )}
             {key === "team" && (
               <div>
-                <IconUsers className="size-14 text-leaf-deep" strokeWidth={1.3} />
+                <IconUsers className="size-12 text-leaf-deep" strokeWidth={1.3} />
                 <h2 className="mt-4 text-2xl font-bold tracking-tight">{t("wiz.team.title")}</h2>
                 <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{t("wiz.team.body")}</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -120,7 +122,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
             )}
             {key === "review" && (
               <div>
-                <IconLeaf className="size-14 text-leaf-deep" strokeWidth={1.3} />
+                <IconLeaf className="size-12 text-leaf-deep" strokeWidth={1.3} />
                 <h2 className="mt-4 text-2xl font-bold tracking-tight">{t("wiz.review.title")}</h2>
                 <dl className="mt-6 divide-y divide-line/70 rounded-2xl border border-line bg-white/70 text-sm">
                   {[[t("wiz.review.name"), name.trim(), 0], [t("wiz.review.unit"), unit.trim(), 1], [t("wiz.review.team"), teamName ?? t("wiz.team.none"), 2]].map(([k, v, i]) => (
@@ -156,7 +158,7 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
           </div>
         </div>
 
-        <div className="relative flex items-center justify-between border-t border-line/70 bg-slate-50/60 px-6 py-4 sm:px-10">
+        <div className="flex items-center justify-between border-t border-line/70 bg-slate-50/60 px-6 py-3.5 sm:px-8">
           {created ? (
             <>
               <span />
@@ -176,7 +178,6 @@ export function ProjectWizard({ onClose, onOpen }: { onClose: () => void; onOpen
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }

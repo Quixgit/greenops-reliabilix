@@ -1042,5 +1042,11 @@
   "wiz.done.connect": "Подключить облачный аккаунт",
   "wiz.done.regions": "Выбрать разрешённые регионы",
   "wiz.done.units": "Передать объём работы",
-  "wiz.done.close": "К проектам"
+  "wiz.done.close": "К проектам",
+  "wiz.step.name": "Название",
+  "wiz.step.unit": "Единица",
+  "wiz.step.team": "Команда",
+  "wiz.step.review": "Проверка",
+  "ov2.accounts.open": "Открыть",
+  "ov2.accounts.connect": "Подключить"
 }
