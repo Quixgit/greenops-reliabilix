@@ -331,3 +331,20 @@ export const IconMerge = make("merge",
 
 export const IconLoader = make("loader", null,
   <path d="M12 3.6a8.4 8.4 0 1 0 8.4 8.4" />);
+
+/* Sign-in page: one drawn picture per promise, larger, with a second tone. */
+export const IconCostCarbon = make("cost-carbon",
+  <><circle cx="8.6" cy="12.4" r="6" /><path d="M13.6 8.2c3.4-.2 6 1.6 6.2 5.2-3.2.7-6-.4-6.2-5.2z" /></>,
+  <><circle cx="8.6" cy="12.4" r="5.8" /><path d="M8.6 9.6v5.6M10.4 10.8c-.4-.7-1.1-1-1.8-1-1 0-1.7.5-1.7 1.3 0 1.8 3.7.8 3.7 2.6 0 .8-.8 1.4-1.9 1.4-.8 0-1.6-.4-1.9-1.1" /><path d="M13.4 8.4c3.4-.4 6.2 1.4 6.5 5.1-3.3.7-6.2-.5-6.5-5.1z" /><path d="M13.6 8.7c1.6.7 3 2.2 4.2 4.4" /></>);
+
+export const IconGridMeasure = make("grid-measure",
+  <path d="M4 18.4a8.6 8.6 0 0 1 16 0z" />,
+  <><path d="M3.8 18.4a8.7 8.7 0 0 1 16.4 0" /><path d="M3.8 18.4h16.4" /><path d="M12 18.4l3.6-6.4" /><circle cx="12" cy="18.4" r="1.1" /><path d="M6.4 11.2l1 .9M12 8.2v1.3M17.6 11.2l-1 .9" /><path d="M5 21h14" /></>);
+
+export const IconInsightAction = make("insight-action",
+  <path d="M3.8 15.6l5-5.2 3.4 3.4 7-7.4v9.2z" />,
+  <><path d="M3.6 16.2l5.2-5.4 3.4 3.4 6.6-7" /><path d="M14.6 7.2h4.4v4.4" /><path d="M4 20h16" /><path d="M7 18.2v1.8M12 17.2v2.8M17 16.2v3.8" /></>);
+
+export const IconTrust = make("trust",
+  <path d="M12 3.4l7 2.6v5.6c0 4-2.9 7.2-7 9-4.1-1.8-7-5-7-9V6z" />,
+  <><path d="M12 3.2l7.2 2.7v5.8c0 4.1-3 7.4-7.2 9.2-4.2-1.8-7.2-5.1-7.2-9.2V5.9z" /><path d="M8.6 12.2l2.5 2.6 4.4-5" /></>);

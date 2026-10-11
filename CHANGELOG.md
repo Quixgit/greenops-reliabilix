@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.80] - 2026-10-11
+
+### Changed
+- **Sign-in page promises** have their own drawn pictures (cost and carbon, grid measurement, insight to action,
+  trust): larger, with a second tone, no white tile or frame, gently floating.
+
 ## [0.1.0-alpha.79] - 2026-10-11
 
 ### Changed

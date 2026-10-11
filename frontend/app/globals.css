@@ -269,3 +269,7 @@ html { scrollbar-gutter: stable; }
 @keyframes pop-in { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
 .pop { animation: pop-in 0.5s var(--ease-out-soft) 0.1s both; }
 @media (prefers-reduced-motion: reduce) { .form-swap-back, .pop { animation: none; } }
+
+@keyframes login-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.login-float { animation: login-float 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .login-float { animation: none; } }

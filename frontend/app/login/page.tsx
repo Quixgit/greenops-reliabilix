@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { IconChart as BarChart3, IconFlow as Workflow, IconLeaf as Leaf, IconShield as ShieldCheck } from "@/components/ui/icons";
+import { IconCostCarbon, IconGridMeasure, IconInsightAction, IconTrust } from "@/components/ui/icons";
 import { LoginBackdrop } from "@/components/auth/login-backdrop";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/layout/logo";
@@ -12,10 +12,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in · Reliabilix GreenOps" };
 
 const POINTS = [
-  { icon: BarChart3, title: "Cost and carbon, side by side", text: "Every service, region and workload on one bill and one footprint." },
-  { icon: Leaf, title: "Measured against the grid", text: "Emissions from real grid intensity, with the basis shown, not hidden." },
-  { icon: Workflow, title: "From insight to action", text: "Region moves, rightsizing and time shifting, approved by people." },
-  { icon: ShieldCheck, title: "Built to be trusted", text: "Isolated per organization; secrets sealed; every change on the record." },
+  { icon: IconCostCarbon, tone: "text-leaf-deep", title: "Cost and carbon, side by side", text: "Every service, region and workload on one bill and one footprint." },
+  { icon: IconGridMeasure, tone: "text-[#d9a441]", title: "Measured against the grid", text: "Emissions from real grid intensity, with the basis shown, not hidden." },
+  { icon: IconInsightAction, tone: "text-[#5b8fdc]", title: "From insight to action", text: "Region moves, rightsizing and time shifting, approved by people." },
+  { icon: IconTrust, tone: "text-[#8a78d8]", title: "Built to be trusted", text: "Isolated per organization; secrets sealed; every change on the record." },
 ];
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; preview?: string; error?: string }> }) {
@@ -44,8 +44,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </p>
           <ul className="mt-9 grid max-w-xl gap-4 sm:grid-cols-2">
             {POINTS.map((p, i) => (
-              <li key={p.title} className="login-reveal flex gap-3" style={{ "--i": i + 3 } as React.CSSProperties}>
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-leaf-deep shadow-sm ring-1 ring-slate-200 backdrop-blur"><p.icon className="size-[18px]" strokeWidth={1.8} /></span>
+              <li key={p.title} className="login-reveal flex items-start gap-3.5" style={{ "--i": i + 3 } as React.CSSProperties}>
+                <p.icon className={`login-float size-12 shrink-0 ${p.tone}`} strokeWidth={1.3} />
                 <span>
                   <span className="block text-sm font-semibold text-slate-900">{p.title}</span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-slate-500">{p.text}</span>
