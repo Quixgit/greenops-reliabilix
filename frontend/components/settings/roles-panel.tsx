@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lock, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronDown, Lock, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
@@ -11,6 +11,7 @@ import { useRoles } from "@/hooks/use-admin";
 import { useT } from "@/i18n/provider";
 import { api, apiVoid } from "@/lib/api/client";
 import { customRole, type CustomRole, type RolesView } from "@/lib/api/schemas";
+import { cn } from "@/lib/utils";
 import { Panel } from "./organization-tab";
 
 const field = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
@@ -71,6 +72,7 @@ export function RolesPanel() {
   const qc = useQueryClient();
   const q = useRoles();
   const [editing, setEditing] = useState<Draft | null>(null);
+  const [openRole, setOpenRole] = useState<string | null>(null);
   const remove = useMutation({
     mutationFn: (id: string) => apiVoid(`roles/${id}`, { method: "DELETE" }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["roles"] }); void qc.invalidateQueries({ queryKey: ["members"] }); },
@@ -109,12 +111,22 @@ export function RolesPanel() {
 
       <Panel index={1} icon={Lock} title={t("roles.builtin")} hint={t("settings.roles.builtin_hint")}>
         <ul className="text-sm">
-          {view.builtin.map((b) => (
-            <li key={b.role} className="border-t border-line/70 py-3">
-              <p className="font-medium capitalize">{b.role}</p>
-              <p className="mt-1 flex flex-wrap gap-1">{b.permissions.map((p) => <code key={p} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">{p}</code>)}</p>
-            </li>
-          ))}
+          {view.builtin.map((b) => {
+            const isOpen = openRole === b.role;
+            return (
+              <li key={b.role} className="border-t border-line/70">
+                <button type="button" aria-expanded={isOpen} onClick={() => setOpenRole(isOpen ? null : b.role)}
+                  className="group flex w-full items-center justify-between gap-3 py-2.5 text-left transition-colors hover:bg-slate-50/70">
+                  <span className="font-medium capitalize">{b.role}</span>
+                  <span className="flex items-center gap-2 text-xs text-muted">{t("settings.roles.permissions", { count: b.permissions.length })}
+                    <ChevronDown className={cn("size-4 transition-transform duration-300", isOpen && "rotate-180")} /></span>
+                </button>
+                <div className="expand" data-open={isOpen}>
+                  <div><p className="flex flex-wrap gap-1 pb-3">{b.permissions.map((p) => <code key={p} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">{p}</code>)}</p></div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </Panel>
     </div>

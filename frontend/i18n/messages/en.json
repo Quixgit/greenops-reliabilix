@@ -522,6 +522,8 @@
   "settings.prefs.unit_hint": "Automatic switches between kg and tonnes by size.",
   "settings.roles.builtin_hint": "Fixed by the platform; they cannot be changed.",
   "settings.roles.custom_hint": "Roles you define for this organization.",
+  "settings.roles.permissions.one": "{count} permission",
+  "settings.roles.permissions.other": "{count} permissions",
   "settings.subtitle": "Configure your organization, integrations, policies and preferences.",
   "settings.tab.automation": "Automation",
   "settings.tab.data": "Data & integrations",
