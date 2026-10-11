@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.63] - 2026-10-10
+
+### Fixed
+- **A sync failed for good when the database already held rows of a month that had no partition.** PostgreSQL refuses to
+  create a monthly partition while the DEFAULT partition holds rows of that month ("updated partition constraint for
+  default partition ... would be violated"), so every sync that touched the month (any backfill reaching back into it)
+  failed on every retry, with only "Sync failed; it will be retried automatically" to show for it. Rows land in the
+  default partition when data of a month arrives before its partition exists (a seed, a manual load). The function that
+  creates partitions now moves such rows into the new partition in the same transaction. Migration 0050; covered by an
+  integration test that reproduces the exact error before the change.
+- Found by running the Azure connection against a real subscription: the cost read itself (1203 records over 60 days,
+  all valid, totals reconciled) was never the problem.
+
 ## [0.1.0-alpha.62] - 2026-10-10
 
 ### Fixed
