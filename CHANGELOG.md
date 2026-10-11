@@ -5,6 +5,544 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.141] - 2026-10-11
+
+### Fixed
+- The collapsed menus' icons were still a few pixels left of centre: the rule that reserves a scrollbar gutter is unlayered CSS and beat the
+  utility that removed it. A dedicated class now outranks it, in the client menu and in the console menu.
+
+## [0.1.0-alpha.140] - 2026-10-11
+
+### Added
+- **Diagnostics** in the operator console: self-tests of the platform's own services, run all at once or one by one, with how long each took
+  and what it found. Core (database round trip and clock, row-level security on every table that has a `tenant_id`, partitions, queue, workers
+  and scheduler, stuck tasks, object-storage write/read/delete), Security (production configuration, sealed secrets), Services (mail server),
+  Data sources (each integration's own test, and a reachability probe of the keyless public endpoints), Data (fresh readings, origin of
+  figures, sources agree) and Customers (failing connections, undelivered notifications). Each test is bounded to 15 s, a crash is a failure
+  of that test only, and one run goes at a time. `GET /api/v1/operator/diagnostics`, `POST /api/v1/operator/diagnostics/run` (API 0.39.0).
+
+### Found by the diagnostics on the stand
+- `platform.erasure_log` has a `tenant_id` and no row-level security. It is deliberate (the proof that an organization was erased, written
+  by one role, with no grant to the API role), so the check looks only at tables the API role can read.
+
+### Fixed
+- **A collapsed menu's icons sat left of centre**: the scroll gutter of the list stayed reserved. They are centred, in both the client menu and
+  the console menu.
+- **Adding an e-mail destination**: the free field said "the address must belong to a member of your organization" after the fact. The form now
+  offers the members to choose from and says that others are invited under Members first.
+
+## [0.1.0-alpha.138] - 2026-10-11
+
+### Security
+- **Go toolchain 1.27.2** (go.mod `toolchain`, build images `golang:1.27.2`): `govulncheck` reported eleven vulnerabilities of the standard
+  library in 1.27.1 that the services reach (net/http and its HTTP/2, net/textproto, crypto/tls, html/template). None is left.
+- Response headers add `Strict-Transport-Security` (takes effect where TLS is terminated in front of the app), `Permissions-Policy`
+  (camera, microphone, geolocation, payment, USB off) and `Cross-Origin-Opener-Policy`. The CSP still allows inline scripts until nonces
+  are wired (marked TODO in `next.config.ts`).
+
+### Fixed
+- The six-hour turn of a region of the catalog in the hourly grid refresh came from its place in a list, so a region could wait two
+  cycles when another one started to be used; it now comes from the region's own name.
+- The annual inventory figures were requested again by every grid-history job (about 360 requests each); they are now refreshed at most
+  once in twelve hours per process.
+
+### Checked, nothing to fix
+- `go vet`, `go test -race ./...`, no SQL built from input (the two `Sprintf` queries take identifiers validated by regular expressions
+  and constants), no `InsecureSkipVerify`, no `dangerouslySetInnerHTML`, webhooks go through the address-validating client (`safehttp`),
+  session cookies are `httpOnly`, `sameSite=lax` and `secure` over https.
+- Stand data: no negative or implausible carbon or intensity rows, no duplicates by natural key, no recommendation to the same region,
+  no currency without a rate, every calculation row has its source recorded.
+
+## [0.1.0-alpha.137] - 2026-10-11
+
+### Changed
+- **Access & security is redrawn**: a summary band with counted figures; every operator as a card (avatar, "you" and "last admin" marks,
+  when added and last active, a bar of the actions of the last 30 days, a role switch and a two-step withdraw); a form to add one that says
+  what the chosen role means; a table of what each role can do; and three notes on how this is separated and recorded.
+
+## [0.1.0-alpha.136] - 2026-10-11
+
+### Added
+- **Cost estimates for managed PostgreSQL and Redis on Azure.** Two more region price indexes from Microsoft's Retail Prices API (no key):
+  Azure Database for PostgreSQL Flexible Server compute per vCore (general-purpose and memory-optimized series) and Azure Cache for Redis
+  (Basic, Standard and Premium tiers). A move recommendation for these services now carries a cost change from "region price index"
+  instead of "not estimated", and the Overview's region card adds their effect to the virtual machines' (each service is priced by its
+  own index, never by another's). Storage, backup, IOPS, networking and everything else stay "not estimated". Like the VM index it is a
+  ratio of list prices: reservations, data transfer and the migration itself are outside it. A region where the service is not offered
+  has no index and no estimate.
+
+## [0.1.0-alpha.135] - 2026-10-11
+
+### Added
+- **Cost estimates for Azure and Google Cloud moves**, as for AWS EC2: a relative price index per region from list prices of a fixed basket
+  of virtual machines (Azure: Microsoft's Retail Prices API, Linux pay-as-you-go, no key; Google Cloud: Compute Engine N2 core and RAM from
+  the Cloud Billing Catalog, which needs a free API key, entered in Integrations → "Google Cloud price list"). A move recommendation for
+  Azure Virtual Machines or Compute Engine now says "region price index" with a cost change instead of "awaiting price data"; the same
+  figure is on the Overview's region card. It is a ratio of list prices: discounts, reservations, data transfer and the migration itself
+  are outside it, and it is for VM compute only, as for AWS. Without a Google key nothing is guessed for Google Cloud.
+
+### Changed
+- The Overview's region card says what its number is: "now" is the middle of the last six hours, while recommendations compare the typical
+  value of the last 7 days.
+
+## [0.1.0-alpha.134] - 2026-10-11
+
+### Changed
+- **The map has no grey countries left where a figure can be derived.** A country with neither a cloud region nor an Ember monthly figure
+  is painted, faint and small, from the Climate TRACE inventory: its power-sector emissions of the newest year divided by its generation
+  (Ember). That is direct emissions, so it is a lower bound of the life-cycle figure; the legend says so and the dots are drawn so it
+  cannot be read as a measured value. `GET /api/v1/dashboard/countries` carries `source` (`ember` | `inventory`), API 0.38.0.
+
+## [0.1.0-alpha.133] - 2026-10-11
+
+### Changed
+- **The world map colours every country, not only those with a cloud region.** A country with a region is painted by its regions as before;
+  any other country with a figure is painted a little softer by Ember's newest monthly national average (about 70 countries, one request
+  for the whole world, stored under its own id so no calculation takes it). New `GET /api/v1/dashboard/countries` (API 0.37.0). The legend
+  says what the lighter dots are. The Climate TRACE inventory is not used for colours: it is direct emissions, a different quantity.
+
+## [0.1.0-alpha.132] - 2026-10-11
+
+### Added
+- **Climate TRACE is connected** (it was "planned" since ADR-0039, because its API has emissions in tonnes and no generation, so no intensity
+  can come from it alone). It now supplies an independent reference: the national power-sector emissions of the last three completed years
+  divided by the same year's generation from Ember (needs the Ember key) gives a direct-emission intensity per country. It is stored
+  with resolution `annual` under its own id, which is not a source in the policy, so **no calculation ever takes it**. Aggregation → Source
+  divergence shows it beside the monthly national figure ("inventory · 2024, direct"), so a person can see which hourly source is
+  closer to the inventory. Direct emissions have no life-cycle share, so the figure sits below life-cycle values by design. Migration 0066.
+- Integrations: "Climate TRACE (emissions inventory)" with its address and a test.
+
+## [0.1.0-alpha.131] - 2026-10-11
+
+### Changed
+- **Data sources**: the search box is gone; the access filter is the console's own soft segmented control with a count per choice (as on the
+  other pages) instead of blue pill tabs; the state and access marks are the console's pastel pills; the colored edge on the left of a
+  card is removed.
+
+## [0.1.0-alpha.130] - 2026-10-11
+
+### Changed
+- **The Overview step "Report what your work produces" now leads somewhere you can act.** It said "Requests, builds or jobs give cost and CO₂e
+  per unit" and opened the plain project list. It is now "Say what your project delivers", with a sentence saying what to enter (how many
+  requests, builds or jobs a project served in a period, for example 1,200,000 in a month), and the link opens the first project on its
+  work-units tab, where three short steps explain the form (pick the period, enter the number, save).
+
+## [0.1.0-alpha.129] - 2026-10-11
+
+### Fixed
+- Data sources: the AWS, Google Cloud, Azure and Kubernetes cards show their own marks instead of the generic database one.
+
+## [0.1.0-alpha.128] - 2026-10-11
+
+### Changed
+- **Data sources is regrouped and redrawn.** Sources are no longer in one mixed list: they sit in sections by what they are for (grid carbon
+  intensity, emissions inventory, cloud billing, Kubernetes, methodology), each with a heading, a line about its purpose and how many work;
+  inside a section the ones that need a person come first. A card is one clickable tile with the source's mark, its state and access,
+  what it covers and whether its key is in place, and a colored edge by state. A search box finds a source by name, region or metric.
+
+## [0.1.0-alpha.127] - 2026-10-11
+
+### Fixed
+- **Source divergence showed an arbitrary month as the national figure** (the newest month was not selected) and called a region a
+  "disagreement" from a few evening hours of one source. The national figure is the newest month; a source needs a full day of readings
+  to be compared at all and two days to be held against the national figure alone.
+
+## [0.1.0-alpha.126] - 2026-10-11
+
+### Changed
+- **Data sources**: a grid source's card has its mark, says "No key needed" where none is needed (it said "Settings complete"), and its
+  page shows what matters for a grid source instead of customer connections: its place in the order, the regions it has data for, the
+  newest reading with the accepted age, and whether its key is in place. An empty key field says "Paste the key here".
+
+## [0.1.0-alpha.125] - 2026-10-11
+
+### Fixed
+- **The hourly refresh used the whole daily request cap by the afternoon.** It asked the main provider for every region of the catalog
+  (126, two requests each) every hour, about 3,000 requests a day against a cap of 2,000, so from the afternoon on regions in use got no new
+  readings and a day's mean rested on the morning only. Now every region in use is refreshed every hour and each other region of the catalog
+  once every six hours (about 1,100 requests a day with a few regions in use). More regions in use need a higher cap in Aggregation.
+
+## [0.1.0-alpha.124] - 2026-10-11
+
+### Added
+- **Aggregation → Sources & keys**: every grid source on one page, in the platform's style: whether it is a published intensity or computed from
+  the generation mix, its freshness, its place in the order, whether its key is in place, and its key and address (sealed, with a test) in
+  the card itself. A source without a key says it is skipped.
+- **Aggregation → Source divergence**: per region, each source's typical figure (the median of its hourly readings of the last 7 days), how far
+  they are from each other, the independent monthly national figure (Ember) as an anchor, and which source the policy uses. Covers regions
+  nobody runs in yet, which are the ones a client considers moving to. Migration 0065 (`carbon.operator_source_divergence`).
+
+### Changed
+- **One spike no longer moves a figure**: the value used to compare regions (recommendations) is the MEDIAN of the last 7 days, not the mean;
+  the Overview map shows the median of the last six hours of the chosen source, not a single hour; and in a day's mean an hourly reading more
+  than 2.5 times above or below that day's median is left out (the number of readings still counts every one).
+- The monthly national figure (Ember) is now loaded for the whole region catalog, one request per country, not only for regions in use, so
+  the anchor exists for candidate regions too.
+
+## [0.1.0-alpha.123] - 2026-10-11
+
+### Fixed
+- **A stale source no longer wins a region comparison.** When regions are compared (the cleaner-region recommendations and the Overview
+  map) the most trusted source was taken even if its newest reading was months old, so a fresh reading of another source was ignored.
+  Now a source whose newest reading is older than its accepted age (the per-source setting, else the common 72 hours) ranks behind every
+  fresh one and is used only when nothing fresher exists. This matches what calculations already did (migration 0064,
+  `carbon.source_max_age`).
+- **São Paulo and Rio regions had readings from the wrong zone.** Electricity Maps readings stored for sa-east-1, southamerica-east1,
+  brazilsouth and brazilsoutheast came from the South zone (BR-S) and would have been averaged with the right ones (BR-CS). They were
+  removed and re-fetched (296 rows on the stand).
+
+### Known
+- For São Paulo the two hourly sources differ a lot: Electricity Maps says 319 gCO2e/kWh now (forecast 111-252 over the next day), ONS's
+  computed figure averaged 87 over the last 30 days. The policy keeps preferring the measured source; the Aggregation page's "Why this
+  figure" shows both. A move to sa-east-1 is also about 58% dearer than us-east-1 by the EC2 price index, so São Paulo is neither
+  cleaner nor cheaper than the US East by these figures.
+
+## [0.1.0-alpha.122] - 2026-10-11
+
+### Added
+- `admin backfill <region>[,<region>...] [days]`: loads the past grid readings of any regions (also ones nobody uses yet) from every
+  source that can supply them. Used to load 30 days of ONS for São Paulo (AWS sa-east-1, GCP southamerica-east1, Azure brazilsouth) on the
+  stand: 682 hourly readings each, 87 gCO2e/kWh on average. A main provider without history on its key no longer fails the command.
+
+## [0.1.0-alpha.121] - 2026-10-11
+
+### Added
+- **Two more grid sources**, both computed from the published generation mix and ranked behind sources that publish a measured intensity
+  (migration 0063 sets the new default order: Electricity Maps, UK Carbon Intensity, EIA, Energy-Charts, ENTSO-E, IESO, Hydro-Québec, ONS, Ember):
+  - **ENTSO-E Transparency Platform** (Europe, about 27 countries and Nordic sub-zones; not Great Britain): actual generation per production
+    type, with history. It needs a free personal **security token** (register at transparency.entsoe.eu, then ask transparency@entsoe.eu for
+    web API access): enter it in the operator console under Integrations → ENTSO-E (sealed; there is a "Test" button). Without a token the
+    source is skipped. All 32 area codes were checked against the public ENTSO-E area list as used by the entsoe-py library; the connector itself has not run against a live token yet.
+  - **ONS** (Brazil, the four subsystems of the national grid): the open hourly energy balance (hydro, thermal, wind, solar), with history,
+    no key. Checked live: all four subsystems return data, one day behind. The dataset does not split thermal generation by fuel, so one
+    assumed factor (420 g/kWh) stands for Brazil's thermal mix.
+- Both appear on the operator's Aggregation page, Data sources and Integrations, on the methodology page and in the intensity chart legend.
+
+### Fixed
+- The zone map put São Paulo regions (AWS sa-east-1, GCP southamerica-east1, Azure brazilsouth and brazilsoutheast) in the South
+  subsystem (BR-S); they are in Southeast/Centre-West (BR-CS).
+
+### Known limits
+- Extra sources load only for regions in use. "0 regions, nothing stored" on the Aggregation page means no region in use maps to that source
+  (UK Carbon Intensity needs a Great Britain region; ENTSO-E needs the token), not a failed collection.
+- OpenElectricity (Australia) was not added: its data is CC BY-NC, not usable in a commercial product.
+
+## [0.1.0-alpha.120] - 2026-10-11
+
+### Added
+- **The sign-in page follows the visitor's time of day.** The page is unchanged by day; in the evening the background darkens slowly like a
+  sunset (a warm glow on the horizon, then deep blue with stars), and at dawn it brightens again the same way. The text turns light on the
+  dark sky. It uses the visitor's own clock and time zone, so no location is requested and nothing leaves the browser; it is re-evaluated every
+  minute and fades over a few seconds. `?sky=21:30` previews a time. It stands still for people who asked for reduced motion.
+
+## [0.1.0-alpha.119] - 2026-10-11
+
+### Changed
+- **Latency between regions is measured where a measurement is published** (ADR-0046): Microsoft's inter-region table for Azure pairs and
+  CloudPing's matrix (median over a year) for AWS pairs. Anything else (Google Cloud, between clouds) is estimated from the distance with a line
+  fitted to 3,200 measured pairs, and says how far off it typically is (±24% for 80% of the pairs). Every figure on the map, in the Move
+  check, in the options table and in a recommendation names its source; a measured figure is not written with "≈".
+- **Some moves are no longer proposed at the default 60 ms limit**: measured us-east-1 to us-west-2 is 68 ms (the estimate was about 60). The
+  limit is in Settings → Cost & carbon policies.
+- API 0.36.0: the dashboard's region alternative carries `latency_ms`, `distance_km`, `latency_basis`, `latency_error_pct` and
+  `latency_budget_ms`; `relocation_blocked` may be `latency`; recommendation details carry `latency_basis` and `latency_error_pct`.
+
+### Known limit
+- There is still no measurement for Google Cloud or across clouds, and the figure is region to region, not from your users. CloudPing's
+  endpoint is not a documented API; the generator (`scripts/gen-latency.py`) may need a fix if it changes.
+
+## [0.1.0-alpha.118] - 2026-10-11
+
+### Changed
+- **The green wave is back on the menu's promo card**, redrawn: three layers of seamless flowing curves in soft green and teal that slide
+  at different speeds (no seam in the loop), with a gentle bob and a few specks rising from the water. It stops with the system's
+  "reduce motion" preference.
+
+## [0.1.0-alpha.117] - 2026-10-11
+
+### Changed
+- **Latency is on the map**: selecting a region draws a line from it to each of the places you run, labelled with the estimated round trip
+  ("≈ 11 ms · Québec"); a line beyond your latency limit is rose, within it sky. It works on the Overview map and in the full-screen map.
+- **The region panel's comparison block is redone** as one "Move check" section: for a region you run in, the cleaner option with its saving
+  and a latency bar against your limit; for another region, a verdict ("Realistic to move from X: about 11 ms away, 64% cleaner") and one
+  line per region you run with the grid difference and a latency bar. Latency is still an estimate from distance, and says so.
+
+## [0.1.0-alpha.116] - 2026-10-11
+
+### Added
+- **Two more free grid sources, for Canada**, both open and keyless, with history: **IESO** (Ontario, zone CA-ON: Azure `canadacentral`) and
+  **Hydro-Québec** (Quebec, zone CA-QC: Azure `canadaeast`, AWS `ca-central-1`, GCP `northamerica-northeast1`). Each COMPUTES the intensity
+  from the published generation by source with generic life-cycle factors (imports are not accounted for), so they rank behind a source that
+  publishes a measured value; they are never averaged with another source. The default order is now Electricity Maps, UK Carbon Intensity,
+  EIA, Energy-Charts, IESO, Hydro-Québec, Ember (migration 0062 for the database default). Both have an entry in the integrations catalog
+  (address), the operator's Aggregation page and Data sources, the methodology page and the intensity chart legend.
+- Known limit: Hydro-Québec's open history ends on 2025-12-31; later days come from its live feed (the last two days) as they are collected.
+
+## [0.1.0-alpha.115] - 2026-10-11
+
+### Changed
+- The "Greener today" card is hidden on a window shorter than 940 px, so the plan card, the gear and the whole menu fit; the comparison in the
+  region card says "this one is 175% dirtier" (it was unclear which of the two regions the figure was about).
+
+## [0.1.0-alpha.114] - 2026-10-11
+
+### Added
+- **The selected region on the Overview says how it relates to where you run**: for each of your largest regions, the estimated round trip
+  and distance to it ("about 24 ms, neighbouring, 1,100 km") and how much cleaner or dirtier its grid is.
+
+### Changed
+- **The menu**: "Settings & alerts" sits above the plan card, and the "Greener today" card is drawn like the plan card (no separate gradient
+  or waves), so it no longer stands out.
+- The data-quality card names the basis of every share in words ("Latest known value (estimate)", "Day's own readings"), not by its code.
+
+### Fixed
+- **A source that publishes with a delay stopped for good**: the hourly refresh of the additional sources (EIA, UK Carbon Intensity, Energy-Charts)
+  asked only for the last 6 hours, and EIA's generation data is a day or two behind, so the region in use (eastus2) had no reading after 5 October and
+  the source showed as stale. The window is 72 hours now; a stored reading is never overwritten and a range is one request, so it costs nothing more.
+
+## [0.1.0-alpha.113] - 2026-10-11
+
+### Fixed
+- The cross-site check of the proxy compared a browser's Origin with the request's Host only. Behind a reverse proxy the Host can be an
+  internal name, which would have refused the site's own writes. It now accepts every name the site goes by: the arrival host, the
+  forwarded one and the public address of the configuration.
+
+## [0.1.0-alpha.112] - 2026-10-11
+
+### Security
+- The API proxy refuses a state-changing request that a browser says came from another site (`Sec-Fetch-Site`, `Origin`) with 403. The
+  session cookie is already `SameSite=Lax`; this is the second wall, because the proxy sends every body as JSON whatever the client
+  declared. Clients that send neither header (scripts) are unaffected.
+
+### Fixed
+- **A dashboard left open went stale** (data was read once and never again until a reload): it is now read again when the person returns
+  to the tab and every five minutes while the tab is in front. Sources sync every few hours and the grid every hour.
+
+## [0.1.0-alpha.111] - 2026-10-11
+
+### Fixed
+- A generated report did not say for whom it was made: the worker may not read the organizations table. Migration 0061 gives it the
+  organization's `id` and `name` columns and nothing else of the row (the row policy still limits it to the job's organization), so the title
+  block and the footer of a PDF read "Prepared for Dev Organization | Project production".
+
+## [0.1.0-alpha.110] - 2026-10-11
+
+### Added
+- **Recent Activity is a timeline**: grouped by day (Today, Yesterday, a date), each event with an icon, a title, the one fact that
+  matters (the project's name, "SCI report ready" with its format, the records a sync read, the type of a recommendation, a budget's
+  amount) and its time, six at first and all twenty on request. `GET /api/v1/dashboard/activity` returns a `detail` object made only
+  of an allowlist of the audit entry's own facts; budgets set, projects deleted and policies updated now appear too. A report's kind
+  and format are recorded with the event.
+
+### Changed
+- **A recommendation the analysis no longer finds is closed**, by the system and not a person, instead of staying open and stale (a
+  move to a region that is now beyond the latency limit); it opens again by itself if the finding returns. With no workloads or no
+  grid data nothing is closed: an empty result then means "cannot tell".
+- The label of the fullest plan limit in the menu's plan card is the readable name, not the key; the list of events in a notification
+  destination is one column.
+
+## [0.1.0-alpha.109] - 2026-10-11
+
+### Added
+- **Recommendations weigh latency** (`recommendations.max_latency_ms`, an organization setting, 60 ms by default; set in Settings → Cost & carbon
+  policies). A cleaner region is proposed only if the estimated round trip to it from where the workload runs now fits the limit, so a
+  workload in Toronto is told to move to Québec (about 8 ms, 64% cleaner) and not across the Atlantic to Paris or Oslo. The estimate comes
+  from the distance between the regions (a new `platform/geo` package holds the places, the same table the console's map uses), and
+  every recommendation says so. Each one lists its **options side by side**: carbon, estimated latency and, where the price index knows
+  both regions, cost, tagged "lowest carbon", "closest" and "cheapest", with the farther regions shown as beyond the limit and never
+  proposed. The recommendations page, the Overview's Top Recommendations and the region card show the latency.
+- **PDF reports are documents**: a running header with the product's mark and the report's name, a title block (for whom, scope, period,
+  date), headline figures, the largest services and regions as ranked bars, a plain account of what the figures are and how they were made, the
+  data in a table that repeats its header on every page with striped rows and right-aligned figures, and a footer with the date,
+  the organization and "Page N of M". The sustainability summary is laid out as findings under headings.
+
+### Changed
+- **Recommendations no longer flip between regions**: the cleanest region is judged by the mean of its last 7 days, not its newest hour, and a
+  recommendation is identified by what it is about (kind, project, service and where it runs), not by the region it proposes. An open
+  recommendation follows the data (a better target, new figures) instead of a second, contradicting one appearing beside it; a
+  decided one is left as the person saw it. Migration 0060 collapses the duplicates the old behaviour had created.
+- The relocation saving on the Overview is the grids' relative improvement applied to the region's real emissions of the period: it
+  used the last reading times the period's energy and could promise more than the region emitted (49 kg for a 46 kg region).
+- CSV reports start with the header row; the caveats follow the table as footnotes (they were comment lines above it and broke
+  spreadsheets and data-frame readers).
+
+## [0.1.0-alpha.108] - 2026-10-11
+
+QA pass over the client workspace and the data behind it.
+
+### Added
+- **The plan is visible and one click from an upgrade**: a card above the gear in the client menu (the plan, what is left of
+  the period or the trial, the fullest limit as a meter, and a button that says Upgrade, Renew or Plan and billing and opens
+  Settings → Billing, where the plan is bought), and a plan chip beside the title of the Overview.
+- **How much of the energy is an estimate from cost** (`energy_cost_based_share_pct` in `GET /api/v1/carbon/summary`): the Energy
+  tile says "Estimated from cost (100% of it), not metered" for an account whose bill carries no quantities, instead of the
+  wrong "estimated from usage".
+
+### Changed
+- **The Settings & alerts menu** is the menu's own dark navy and no longer a white card; it holds Alerts, Settings, Plan and billing
+  and, for a platform operator, the Operator console under "Platform administration" (the console left the client's main menu:
+  it is the platform administrator's place, not a part of a client's workspace).
+- Every `<select>` of the client's forms is the platform's own drop-down (`SelectField`, a drop-in with the same value, onChange
+  and `<option>` children), except the connect wizard's form library field.
+- CI/CD: a planned change is a small card of two rows of fields instead of five cramped columns, and a decision shows its cost
+  in the organization's currency (it was a bare "+38").
+- The KPI cards of the Overview fit their numbers at any width (the icon moves above the figure when the card is narrow).
+- The Recent Activity list says "Project created: production" or just "Project created" for a project that was deleted (it showed
+  the raw id), and "SCI report generated" instead of five identical "Report generated".
+- The grid refresh puts the regions customers run in first, so when the provider's daily request cap runs out late in the day it
+  is regions nobody uses that wait.
+
+### Fixed
+- **Hydration error on Projects and Alerts** (React #418): the value of a Projects tile sat in a `<p>` next to a placeholder `<div>`,
+  and an Alerts tile was a button holding the ⓘ button. Both are valid HTML now; a scan of every client and console page finds no
+  such nesting left.
+- **Money in the wrong currency**: Connectors and an account's page showed "$1,556" for a bill in Canadian dollars, because the
+  default currency was set only by a page that loaded the cost summary. The layout now tells the formatters the organization's
+  currency before any page renders.
+- **The account page said "No synchronization has been checked yet"** over a history of checked syncs: the connection row carried
+  the reconciliation, but the API never returned it (`data_quality` was always null). It is returned now, with a test.
+- **A sync run that never finished stayed "running" for ever** (the worker was stopped by a deploy): the next sync of the
+  connection closes a run that began over an hour ago as interrupted.
+- The grid-intensity chart left out today, the freshest day, with its 16 readings; every day the API returns is on the axis now.
+
+## [0.1.0-alpha.107] - 2026-10-11
+
+### Changed
+- Errors: the "Latest error" tile is drawn like the others.
+
+## [0.1.0-alpha.106] - 2026-10-11
+
+### Changed
+- System: the uptime and the database round trip are tiles like the others (the round trip with a decimal, not rounded to 0).
+  Jobs: a single queue uses the full width.
+
+## [0.1.0-alpha.105] - 2026-10-11
+
+### Added
+- **Failed background tasks can be dealt with from the console**: `POST /api/v1/operator/jobs/{queue}/{id}/retry` runs a task
+  that is waiting for a retry or gave up again now, `.../delete` removes it. Only a failed task can be touched (a running one
+  answers 409), admin operators only, and the access log records it. Jobs & scheduler shows each failed task with what the job
+  does, its error and the two actions, and the periodic schedule in words ("Every day at 08:10", "next in 5 min").
+- **Paging**: every console table has the client's paging bar when it is longer than a page; Audit log pages by 25 and can be
+  filtered by area.
+
+### Changed
+- **No vertical scroll and no torn grey bar in tables**: a table is one card that scrolls sideways only when the screen is too
+  narrow; long lists are paged instead of scrolled.
+- **Lists in the platform's list style** (a large drawn icon, a title with a line under it, state and actions on the right, a
+  soft hover, paged, an empty state that says what is good): Organizations, Errors, Notifications, Connections and the failed
+  tasks and schedule of Jobs. Summary tiles are drawn like the client's cards (a large icon beside the number). System shows
+  the API, the database (with its connection pool) and the job queue as three cards, and the external services as cards,
+  those that need setting up first.
+- **Platform settings** reads like the client's Settings: groups on the left with what each holds, one group at a time on the
+  right, a search across all of them, and a save bar that appears only when there is something to save. Nothing is set in
+  two places any more: the order of sources, a source for one region and the two thresholds are on Aggregation & policies
+  (their group says so and links there), and "Organization status" is no longer listed among platform defaults (suspending is
+  done on an organization's own page).
+- **The bell in the console**: "mark all as read" works for what needs attention on the platform (it is remembered for that
+  line in this browser, and the line is unread again when its text changes); "All notifications" and "Settings" lead to the
+  console, not to the client's pages; and the chime no longer sounds when a page loads (nothing counts as new until everything
+  the bell shows has loaded).
+
+### Fixed
+- **A healthy connection was reported as failing on the organization's page** (migration 0059): the overview counted every status
+  except `'ok'`, which does not exist, while the list counted `'error'`. Both count `'error'` now.
+- A grid-history load that the provider's key or plan cannot serve is no longer retried five times: it says so once and stops.
+  The three old "gave up" tasks (a partition constraint fixed by migration 0050, and that history load) can be removed from
+  the console.
+
+## [0.1.0-alpha.104] - 2026-10-11
+
+### Changed
+- The console menu now shows every item on a 900-pixel screen (tighter items and spacing, a one-line version label).
+
+## [0.1.0-alpha.103] - 2026-10-11
+
+### Changed
+- **The console header is the client's header, not a copy of it**: the same search (`QuickSearchBox`, now one shared component:
+  a drop-down of matches with hints, arrows, Enter, `⌘K`), the same bell (messages and alerts, the chime and its switch,
+  "mark all as read", the same labels) with what needs attention on the platform added at the top for an operator, and the
+  person as on the dashboard (initials and name from the signed-in account, "DU / Dev User", the role under the name).
+  The console search also finds organizations.
+- The menu fits a normal screen: Announcements moved under Overview (no group of its own), items are tighter, and "Back to
+  app" and the version share one compact block at the foot.
+
+### Removed
+- The console's own page-search palette and bell (replaced by the shared ones).
+
+## [0.1.0-alpha.102] - 2026-10-11
+
+### Changed
+- **Access & security, Audit log and Methodology & SCI rebuilt** in the console's style. Access: tiles, operators with an
+  avatar and a role drop-down, an add form, and the two roles as cards. Audit: tiles, search, kind filter with counts, a
+  drop-down for how many lines, the operator with an avatar, change and read marks. Methodology: one card per version,
+  the active one open and the others folded, coefficients as bars, the checksum with a Copy button, the long text of
+  sources and derivations behind "Read the sources and derivations".
+- **Softer colors everywhere in the console**: warm amber instead of brown-orange for warnings and for the numbers in tiles,
+  rose instead of red for errors and for the status labels (also the shared `Badge`), a calmer blue for information.
+- The two-step button (`ConfirmButton`) is soft too; it has a `primary` tone for deliberate actions that reach other
+  people, so "Send announcement" no longer looks like a deletion.
+- The console menu is tighter and fades at the bottom when it scrolls, so the Governance group is not hidden unnoticed.
+
+## [0.1.0-alpha.101] - 2026-10-11
+
+### Added
+- **System page has real content.** `GET /api/v1/operator/system` now also answers, at the moment of the request, how long the
+  API process has run, the Go version, memory, goroutines and CPUs (`runtime`), and the state of the database: whether it
+  answers, the time of one round trip and the connection pool in use (`database`). The page shows health of the API, the
+  database and the job queue, the pool as a meter, and every external service with its state.
+
+### Changed
+- **Errors, Notifications and Connections rebuilt** in the console's style: summary tiles, search, segmented filters with
+  counts and drop-down lists instead of the browser's own, tables with the soft look, empty states that say what is good,
+  organization names that open the organization, the drawn mark of each provider and channel.
+- The menu item is "Aggregation" so it is not cut off.
+
+## [0.1.0-alpha.100] - 2026-10-11
+
+### Added
+- **Aggregation & policies** is built (ADR-0045; it was a planned page): the priority of grid sources as an ordered list
+  with a switch and an accepted age per source, the thresholds, a pin per region, a recalculation and the loading of the
+  past, **why this figure** (pick a region and a day: what every source has, the verdict on each and the reason the engine
+  chose one), the provenance of the last 30 days by source and basis with a warning when much rests on an estimate, and the
+  rules the engine applies. `/operator/planned/aggregation` redirects to `/operator/aggregation`.
+
+### Changed
+- Data sources lost its "Which source is used" tab (moved to Aggregation & policies, with a link left behind).
+- The engine's intensity reference carries JSON names (`g_per_kwh`, `source`, `basis`).
+
+## [0.1.0-alpha.99] - 2026-10-11
+
+### Added
+- **Why a figure has the intensity it has** (`GET /api/v1/operator/aggregation/explain?region=&day=`): for a region and a day,
+  what every trusted grid source has (hourly readings, monthly figure, latest reading and its age), the order the policy
+  tries them in, a verdict on each (chosen, outranked, too few readings, backup, stale, no data) and the source the engine
+  uses. The decision is the one `ResolveDay` takes, asked of the engine rather than re-implemented; stored readings only,
+  no provider is called.
+- **Aggregation overview** (`GET /api/v1/operator/aggregation`, migration 0058): the policy in force, every grid source
+  with its place in it, licence, kind (published or computed, hourly or monthly) and freshness, the share of calculation
+  rows by the source and basis of their intensity over 30 days (counts only), and the rules the engine applies when it
+  combines sources.
+- **Oldest reading per source** (`carbon.source_max_age_hours`, entries `source=hours`): a feed that publishes monthly
+  tolerates a long age, an hourly one should not be trusted after a day; a source not listed uses the common limit.
+- Operator console controls shared by every page: a drop-down list, search field, segmented filter, buttons and an
+  avatar in the platform's soft style.
+
+### Changed
+- **Console header** is the client's: the page title with a tinted icon and its purpose, search with `⌘K`, the language
+  pill, a bell with what needs attention (the same list as the Overview, from one definition) and the person with their
+  role. The Operator Overview no longer repeats that list's logic.
+- **Organizations** rebuilt: summary tiles, search, filters by plan and state with counts, one table with the cost of
+  serving next to what each organization has, and a Resource use tab. **An organization's page** has a header with its plan
+  and state, the counts, and tabs: overview with a readable timeline, plan and access, settings and limits, change history
+  and erasure. **A data source's page** has a header with its mark and state, tiles, settings as one card per field with the
+  environment variable and where the value comes from, and an "about" panel.
+- Softer colors in the console: no orange or red fills, rose and amber tints like the client.
+
+### Fixed
+- The growth charts on the Overview and Metrics showed "Invalid Date" under every chart (the server sends a full time,
+  the label added a second one).
+
 ## [0.1.0-alpha.98] - 2026-10-11
 
 ### Added
