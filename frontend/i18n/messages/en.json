@@ -774,7 +774,7 @@
   "ov2.trend.spike": "Cost spike",
   "ov2.trend.spike_tip": "Unusually high for this day.",
   "ov2.trend.empty": "No daily data in this period yet.",
-  "ov2.split.title": "Where it comes from",
+  "ov2.split.title": "Breakdown",
   "ov2.split.by_provider": "By cloud",
   "ov2.split.by_region": "By region",
   "ov2.split.cost": "Cost",

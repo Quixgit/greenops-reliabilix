@@ -128,8 +128,7 @@ export function RegionExplorer() {
   const places = useMemo(() => {
     const m = new Map<string, { first: Row; clouds: Set<string> }>();
     for (const r of ranked) {
-      const geo = REGION_GEO[r.region];
-      const key = geo ? `${geo.city}|${geo.country}` : r.region;
+      const key = regionName(r.region); // the label a person reads: two regions with the same label are one place
       const e = m.get(key);
       if (e) e.clouds.add(regionProvider(r.region)); else m.set(key, { first: r, clouds: new Set([regionProvider(r.region)]) });
     }

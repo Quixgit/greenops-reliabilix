@@ -377,8 +377,7 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
   const groups = useMemo(() => {
     const m = new Map<string, { key: string; first: RegionIntensity; regions: string[]; clouds: string[] }>();
     for (const r of rows) {
-      const geo = REGION_GEO[r.region];
-      const key = geo ? `${geo.city}|${geo.country}` : r.region;
+      const key = REGION_LABEL[r.region] ?? r.region;
       const cloud = regionProvider(r.region);
       const e = m.get(key);
       if (e) { e.regions.push(r.region); if (!e.clouds.includes(cloud)) e.clouds.push(cloud); } else m.set(key, { key, first: r, regions: [r.region], clouds: [cloud] });

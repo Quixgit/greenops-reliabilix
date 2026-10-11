@@ -818,7 +818,7 @@
   "ov2.trend.spike": "Всплеск затрат",
   "ov2.trend.spike_tip": "Необычно высокие для этого дня.",
   "ov2.trend.empty": "Дневных данных за период пока нет.",
-  "ov2.split.title": "Откуда берётся",
+  "ov2.split.title": "Структура",
   "ov2.split.by_provider": "По облакам",
   "ov2.split.by_region": "По регионам",
   "ov2.split.cost": "Затраты",
