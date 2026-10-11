@@ -1611,5 +1611,13 @@
   "bs.type.billing.renewal_due": "Скоро продление",
   "bs.type.billing.payment_received": "Платёж получен",
   "bs.type.billing.payment_failed": "Платёж не прошёл",
-  "bs.type.billing.plan_ended": "Тариф закончился"
+  "bs.type.billing.plan_ended": "Тариф закончился",
+  "nav.expand": "Развернуть меню",
+  "nav.collapse": "Свернуть меню",
+  "nav.more": "Уведомления и настройки",
+  "nav.more_short": "Настройки и уведомления",
+  "nc.area.platform": "Платформа",
+  "operator.nav.metrics": "Метрики",
+  "operator.nav.announcements": "Рассылка",
+  "operator.group.communication": "Коммуникации"
 }

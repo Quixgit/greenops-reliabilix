@@ -16,3 +16,6 @@ export const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/alerts", label: "Alerts", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+/** The main menu: the two secondary places (alerts, settings) live in the gear at the foot of the menu. */
+export const MAIN_NAV = NAV.filter((i) => i.href !== "/alerts" && i.href !== "/settings");

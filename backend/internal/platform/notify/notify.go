@@ -49,6 +49,7 @@ const (
 	TypeBillingPlanEnded       = "billing.plan_ended"
 	TypeAutomationResult       = "automation.result_reported"
 	TypeNotificationTest       = "notification.test" // only ever sent by the "send a test" action
+	TypePlatformAnnouncement   = "platform.announcement" // an operator's notice to every organization; reaches the inbox, not the destinations
 )
 
 // Wildcard subscribes a destination to every event type.
@@ -116,7 +117,7 @@ var ErrInvalidEvent = errors.New("invalid notification event")
 // Validate bounds the event so one producer cannot flood a channel.
 func (e Event) Validate() error {
 	switch {
-	case e.Type != TypeNotificationTest && (!KnownType(e.Type) || e.Type == Wildcard):
+	case e.Type != TypeNotificationTest && e.Type != TypePlatformAnnouncement && (!KnownType(e.Type) || e.Type == Wildcard):
 		return fmt.Errorf("%w: unknown type %q", ErrInvalidEvent, e.Type)
 	case e.Severity.Rank() == 0:
 		return fmt.Errorf("%w: unknown severity %q", ErrInvalidEvent, e.Severity)
@@ -142,6 +143,12 @@ type Notifier interface {
 // sent by e-mail to the given people (members of the organization, chosen by the producer). The key makes it once only.
 type CopyPublisher interface {
 	PublishWithCopy(ctx context.Context, tenantID string, e Event, to []string) error
+}
+
+// Mailer e-mails an event to the given people and does nothing else: no destinations, no inbox. The operator console uses
+// it for platform announcements, which it puts in the inboxes itself.
+type Mailer interface {
+	MailCopy(ctx context.Context, tenantID string, e Event, to []string) error
 }
 
 // Noop drops every event (tests, and processes where notifications are not configured).

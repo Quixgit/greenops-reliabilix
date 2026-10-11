@@ -4,7 +4,7 @@ import { DateField } from "@/components/ui/date-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconBell as Bell, IconCloud as Cloud, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
   useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorOrgUsage, useOperatorPlans, useOperatorStats, useOperatorSubscription, useOperatorSystem, useOperatorTenants,
 } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
+import { useErasure, useOrgOverview } from "@/hooks/use-operator-extra";
 import { changed, settingsView, type OperatorTenant } from "@/lib/api/schemas";
 import { useQuery } from "@tanstack/react-query";
 import { shortTime } from "@/lib/format-time";
@@ -314,6 +315,7 @@ function PlanPanel({ id, current, canAct }: { id: string; current: string; canAc
   const plans = useOperatorPlans();
   const sub = useOperatorSubscription(id);
   const [plan, setPlan] = useState("");
+  useEffect(() => { const p = new URLSearchParams(window.location.search).get("plan"); if (p) setPlan(p); }, []);
   const [reason, setReason] = useState("");
   const [status, setStatus] = useState("active");
   const [until, setUntil] = useState("");
@@ -361,6 +363,69 @@ function PlanPanel({ id, current, canAct }: { id: string; current: string; canAc
   );
 }
 
+function OrgOverviewPanel({ id, canAct }: { id: string; canAct: boolean }) {
+  const q = useOrgOverview(id);
+  const er = useErasure(id);
+  const [reason, setReason] = useState("");
+  const [grace, setGrace] = useState(14);
+  const [typed, setTyped] = useState("");
+  if (q.isLoading) return <Skeleton className="h-40" />;
+  if (q.isError || !q.data) return null;
+  const o = q.data.overview;
+  const tiles: [string, number][] = [["Members", o.members], ["Open invitations", o.invitations_open], ["API keys", o.api_keys], ["Projects", o.projects], ["Cloud connections", o.connections], ["Reports", o.reports], ["Destinations", o.destinations], ["Gate checks", o.gate_checks]];
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-4 xl:grid-cols-8">
+        {tiles.map(([label, v], i) => (
+          <div key={label} className="glass rise p-3" style={{ "--i": i } as React.CSSProperties}>
+            <p className="text-[11px] font-medium text-muted">{label}</p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums">{v}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-sm text-muted">Created {shortTime(o.created_at)} · last activity {o.last_activity ? shortTime(o.last_activity) : "never"}{o.connections_failing > 0 ? ` · ${o.connections_failing} connection(s) failing` : ""}</p>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <Card interactive={false}>
+          <CardHeader title="What happened" />
+          {q.data.timeline.length === 0 ? <p className="text-sm text-muted">No recorded actions yet.</p> : (
+            <ol className="relative max-h-96 space-y-3 overflow-y-auto border-l border-line pl-5">
+              {q.data.timeline.map((e, i) => (
+                <li key={i} className="relative text-sm">
+                  <span className="absolute -left-[26px] top-1.5 size-2.5 rounded-full bg-leaf ring-4 ring-white" />
+                  <p className="font-medium"><code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{e.action}</code> <span className="font-normal text-muted">{e.target}</span></p>
+                  <p className="text-xs text-muted">{shortTime(e.at)} · {e.actor.length > 28 ? `${e.actor.slice(0, 28)}…` : e.actor}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
+        <Card interactive={false}>
+          <CardHeader title="Erasure" action={o.erasure_requested ? <Badge tone="bad">Scheduled</Badge> : <Badge>None</Badge>} />
+          {o.erasure_requested ? (
+            <>
+              <p className="text-sm text-slate-700">Scheduled by <b>{o.erasure_requested.by.replace("operator:", "operator ")}</b>; the organization and everything in it is erased on <b>{shortTime(o.erasure_requested.execute_after)}</b> unless cancelled.</p>
+              {canAct && <div className="mt-3"><ConfirmButton label="Cancel the erasure" confirmLabel="Cancel erasure" disabled={er.cancel.isPending} onConfirm={() => er.cancel.mutate("cancelled in the console")} /></div>}
+            </>
+          ) : canAct ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted">Schedules the erasure of the organization and all its data after a grace period; it can be cancelled until it runs. The reason is kept in the organization&apos;s audit log.</p>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Reason (required)" aria-label="Reason" className={`${selectCls} w-full`} />
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2 text-sm text-muted">Grace
+                  <select value={grace} onChange={(e) => setGrace(Number(e.target.value))} className={selectCls}>{[7, 14, 30, 60, 90].map((d) => <option key={d} value={d}>{d} days</option>)}</select></label>
+                <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={`Type ${o.name}`} aria-label="Type the organization name" className={`${selectCls} min-w-0 flex-1`} />
+              </div>
+              <ConfirmButton label="Schedule erasure" confirmLabel="Erase after the grace period" disabled={er.request.isPending || reason.trim().length < 5 || typed.trim() !== o.name}
+                onConfirm={() => er.request.mutate({ grace_days: grace, reason: reason.trim() })} />
+            </div>
+          ) : <p className="text-sm text-muted">Only an operator with the admin role can schedule an erasure.</p>}
+          {(er.request.isError || er.cancel.isError) && <p role="alert" className="mt-2 text-sm text-bad">{(er.request.error ?? er.cancel.error)?.message}</p>}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export function OrganizationView({ id }: { id: string }) {
   const me = useOperatorMe();
   const tenants = useOperatorTenants();
@@ -378,6 +443,7 @@ export function OrganizationView({ id }: { id: string }) {
           </p>
         )}
       </div>
+      <OrgOverviewPanel id={id} canAct={me.data?.role === "admin"} />
       <div className="grid gap-4 xl:grid-cols-2">
         <PlanPanel id={id} current={org?.plan ?? "free"} canAct={me.data?.role === "admin"} />
         <StatusPanel id={id} canAct={me.data?.role === "admin"} />

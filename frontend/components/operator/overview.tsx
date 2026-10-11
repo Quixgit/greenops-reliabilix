@@ -1,5 +1,6 @@
 "use client";
 
+import { MetricsBoard } from "./metrics";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconCheckCircle as CheckCircle2, IconCpu as Cpu, IconPower as Power, IconUserPlus as UserPlus, IconArrowRight as ArrowRight, IconBell as Bell, IconBolt as Zap, IconBuilding as Building2, IconCloud as Cloud, IconDatabase as Database, IconDatabase as Layers, IconFolder as FolderKanban, IconPlug as Plug, IconTrend as Activity, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
@@ -132,6 +133,11 @@ export function OverviewView() {
         <Tile index={6} label="Queue backlog" value={backlog} icon={Layers} color="lavender" note="pending and retrying jobs" tone={backlog && backlog > 50 ? "warn" : undefined} />
         <Tile index={7} label="Failed jobs today" value={failedJobs} icon={Zap} color="peach" tone={failedJobs ? "bad" : undefined} />
       </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between"><h2 className="text-[15px] font-semibold tracking-tight">Growth, last 30 days</h2><Link href="/operator/metrics" className="text-sm font-semibold text-primary hover:underline">All metrics →</Link></div>
+        <MetricsBoard compact />
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <PlatformControls canAct={me.data?.role === "admin"} />

@@ -1547,5 +1547,13 @@
   "bs.type.billing.renewal_due": "Renewal due",
   "bs.type.billing.payment_received": "Payment received",
   "bs.type.billing.payment_failed": "Payment failed",
-  "bs.type.billing.plan_ended": "Plan ended"
+  "bs.type.billing.plan_ended": "Plan ended",
+  "nav.expand": "Expand the menu",
+  "nav.collapse": "Collapse the menu",
+  "nav.more": "Notifications and settings",
+  "nav.more_short": "Settings & alerts",
+  "nc.area.platform": "Platform",
+  "operator.nav.metrics": "Metrics",
+  "operator.nav.announcements": "Announcements",
+  "operator.group.communication": "Communication"
 }

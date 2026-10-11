@@ -159,7 +159,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
-		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM,
+		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM,
 	}
 	c.Settings = cfgr
 	c.jobs = []queue.JobRegistrar{cloudM, carbonM, finopsM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}

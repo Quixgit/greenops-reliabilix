@@ -6,7 +6,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { IconBell, IconCard, IconCheck, IconCluster, IconFlow, IconLeaf, IconReport, IconSend, IconTrend, IconWarning, type IconType } from "@/components/ui/icons";
+import { IconBell, IconCard, IconSparkles, IconCheck, IconCluster, IconFlow, IconLeaf, IconReport, IconSend, IconTrend, IconWarning, type IconType } from "@/components/ui/icons";
 import { Info } from "@/components/ui/info";
 import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = ["messages", "alerts", "anomalies", "delivery"] as const;
 type Tab = (typeof TABS)[number];
-const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, other: IconBell };
+const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, platform: IconSparkles, other: IconBell };
 const SEV_TEXT = { critical: "text-[#d9707f]", warning: "text-[#d9a441]", info: "text-[#5b8fdc]" } as const;
 const SEV_CHIP = { critical: "bg-[#fdecef] text-[#c25667]", warning: "bg-[#fdf3dc] text-[#a9741a]", info: "bg-[#eef3fd] text-[#4a6fb0]" } as const;
 const STATUS_CHIP: Record<string, string> = { new: "bg-[#eef3fd] text-[#4a6fb0]", acknowledged: "bg-slate-100 text-slate-600", muted: "bg-slate-100 text-slate-400", resolved: "bg-leaf-soft text-leaf-deep" };

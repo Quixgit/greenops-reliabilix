@@ -4,7 +4,7 @@ import * as DM from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { DropdownPanel, DropdownRoot } from "@/components/ui/dropdown";
-import { IconBell, IconCard, IconCheck, IconCluster, IconFlow, IconLeaf, IconReport, IconWarning, type IconType } from "@/components/ui/icons";
+import { IconBell, IconCard, IconSparkles, IconCheck, IconCluster, IconFlow, IconLeaf, IconReport, IconWarning, type IconType } from "@/components/ui/icons";
 import { Switch } from "@/components/operator/ui";
 import { eventArea, useInbox, useMarkInboxRead, type InboxItem } from "@/hooks/use-inbox";
 import { useAlerts } from "@/hooks/use-overview";
@@ -13,7 +13,7 @@ import { timeAgo } from "@/lib/formatters";
 import { playChime, readSoundPref, writeSoundPref } from "@/lib/chime";
 import { cn } from "@/lib/utils";
 
-const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, other: IconBell };
+const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, platform: IconSparkles, other: IconBell };
 const SEV_DOT = { critical: "bg-[#e08b98]", warning: "bg-pastel-amber", info: "bg-pastel-blue" } as const;
 
 type Row = { key: string; title: string; body: string; severity: "info" | "warning" | "critical"; at: string; href: string; unread: boolean; area: string };

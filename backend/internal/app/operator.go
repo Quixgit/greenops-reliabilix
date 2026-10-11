@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,11 +25,11 @@ const (
 
 // buildOperator wires the operator console. The integration list is the one place that says, for the whole
 // platform, which external services are real, which are stubs and which are not set up yet.
-func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store, q queue.Enqueuer) *operator.Module {
+func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store, q queue.Enqueuer, mail notify.Mailer) *operator.Module {
 	return operator.New(operator.Deps{Pool: pool, System: func() domain.System { return systemInfo(cfg, ints) }, Settings: st,
 		Integrations: integrationsPort{store: ints, allowPlain: cfg.IsDev() && cfg.SMTPAllowPlain},
 		Sources:      func(ctx context.Context) []domain.DataSource { return dataSources(ctx, cfg, ints) },
-		Jobs:         queue.NewInspector(cfg.RedisAddr), Queue: q})
+		Jobs:         queue.NewInspector(cfg.RedisAddr), Queue: q, Mail: mail})
 }
 
 // dataSources is the registry of what the platform reads (ADR-0032). It is a catalog in code, because a source exists

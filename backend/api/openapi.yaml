@@ -4073,6 +4073,199 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/operator/metrics:
+    get:
+      operationId: getOperatorMetrics
+      summary: Growth of the platform day by day, totals and the plan distribution
+      tags:
+      - operator
+      description: Platform operators only. Counts only (organizations, users, projects, connections, reports, gate checks, recommendations, deliveries, errors, active organizations).
+      parameters:
+      - {name: days, in: query, schema: {type: integer, minimum: 7, maximum: 180, default: 30}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days: {type: integer}
+                  series: {type: array, items: {type: object, additionalProperties: true}}
+                  totals: {type: object, additionalProperties: true}
+                  plans: {type: array, items: {type: object, additionalProperties: true}}
+                  subscriptions: {type: array, items: {type: object, additionalProperties: true}}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/announcements:
+    get:
+      operationId: listOperatorAnnouncements
+      summary: Announcements sent to the organizations
+      tags:
+      - operator
+      description: Platform operators only. `read_by` counts the organizations where somebody has seen it.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {type: object, additionalProperties: true}}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+    post:
+      operationId: createOperatorAnnouncement
+      summary: Send an announcement (a platform update, maintenance, a notice, an incident) to the organizations
+      tags:
+      - operator
+      description: |
+        Operator admins only. It goes into the inbox of every matching organization (all, or the listed plans), whatever
+        that organization's notification switches say, and optionally by e-mail to its owners and admins.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, severity, title]
+              properties:
+                kind: {type: string, enum: [update, maintenance, notice, incident]}
+                severity: {type: string, enum: [info, warning, critical]}
+                title: {type: string, minLength: 3, maxLength: 200}
+                body: {type: string, maxLength: 2000}
+                path: {type: string, description: An app-relative link, e.g. /settings#plan}
+                audience_plans: {type: array, items: {type: string}, description: Empty means every organization}
+                email_copy: {type: boolean}
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                  recipients: {type: integer}
+                  mailed_organizations: {type: integer}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/announcements/{id}/withdraw:
+    post:
+      operationId: withdrawOperatorAnnouncement
+      summary: Take an announcement back (it disappears from the inboxes)
+      tags:
+      - operator
+      description: Operator admins only. Mail that was already sent cannot be recalled.
+      parameters:
+      - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed: {type: integer}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/overview:
+    get:
+      operationId: getOperatorTenantOverview
+      summary: One organization - what it has, when it started, when it was last active - and the trail of what happened
+      tags:
+      - operator
+      description: Platform operators only. Counts and audit metadata, never the organization's data.
+      parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overview: {type: object, additionalProperties: true}
+                  timeline: {type: array, items: {type: object, additionalProperties: true}}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/erasure:
+    post:
+      operationId: requestOperatorTenantErasure
+      summary: Schedule the erasure of an organization (grace period, cancellable)
+      tags:
+      - operator
+      description: Operator admins only. Same erasure and the same grace period logic as the owner's own request; recorded in the organization's audit trail with the reason.
+      parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [grace_days, reason]
+              properties:
+                grace_days: {type: integer, minimum: 1, maximum: 90}
+                reason: {type: string, minLength: 5, maxLength: 300}
+      responses:
+        '202':
+          description: Scheduled
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '422':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/tenants/{tenant_id}/erasure/cancel:
+    post:
+      operationId: cancelOperatorTenantErasure
+      summary: Cancel a scheduled erasure
+      tags:
+      - operator
+      description: Operator admins only.
+      parameters:
+      - {name: tenant_id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: {type: string, maxLength: 300}
+      responses:
+        '200':
+          description: Cancelled
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
   /api/v1/operator/api-usage:
     get:
       operationId: getOperatorApiUsage

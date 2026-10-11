@@ -461,7 +461,7 @@ func (s Service) InboxFeed(ctx context.Context, tenantID, userID string, limit i
 		if it.Type == notify.TypeAlertOpened || muted[it.Type] {
 			continue
 		}
-		essential := strings.HasPrefix(it.Type, "billing.")
+		essential := strings.HasPrefix(it.Type, "billing.") || strings.HasPrefix(it.Type, "platform.")
 		if !essential && it.Severity.Rank() < min.Rank() {
 			continue
 		}
@@ -486,3 +486,33 @@ func (s Service) InboxRead(ctx context.Context, tenantID, userID string) error {
 
 // Setting exposes the settings reader the service uses (the bell reads the sound switch through it).
 func (s Service) Setting() settings.Reader { return s.cfg() }
+
+// MailCopy e-mails an event to the given addresses through the e-mail channel (nothing else is done with the event).
+func (s Service) MailCopy(ctx context.Context, tenantID string, e notify.Event, to []string) error {
+	if err := e.Validate(); err != nil {
+		return err
+	}
+	ch, err := s.Channels.Get(domain.KindEmail)
+	if err != nil {
+		return nil // e-mail is not available on this deployment
+	}
+	if a, ok := ch.(domain.AvailableChannel); ok && !a.Available(ctx) {
+		return nil
+	}
+	if e.Path != "" && s.BaseURL != "" && e.Link == "" {
+		e.Link = strings.TrimRight(s.BaseURL, "/") + e.Path
+	}
+	for _, addr := range to {
+		norm, _, err := ch.Prepare(addr)
+		if err != nil {
+			continue
+		}
+		sctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		err = ch.Send(sctx, domain.Target{Address: norm}, domain.Message{TenantID: tenantID, Attempt: 1, CreatedAt: s.now(), Event: e})
+		cancel()
+		if err != nil {
+			s.logger().Warn("announcement mail not sent", "tenant", tenantID, "err", err)
+		}
+	}
+	return nil
+}

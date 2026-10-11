@@ -64,7 +64,7 @@ function BillingEvents() {
               <td className="whitespace-nowrap py-2 pr-3 text-muted">{shortTime(e.at)}</td><td className="pr-3">{e.provider}</td>
               <td className="pr-3"><Badge tone={e.kind === "requested" ? "warn" : "good"}>{e.kind === "requested" ? "asked to pay" : "applied"}</Badge></td>
               <td className="pr-3">{e.organization_id ? <Link href={`/operator/organizations/${e.organization_id}`} className="text-primary hover:underline">{e.organization_name || e.organization_id}</Link> : "—"}</td>
-              <td className="pr-3">{e.plan}</td><td className="max-w-xs break-words text-xs text-muted">{e.detail}</td>
+              <td className="pr-3">{e.plan}</td><td className="max-w-xs break-words text-xs text-muted">{e.detail}{e.kind === "requested" && e.organization_id && <Link href={`/operator/organizations/${e.organization_id}?plan=${encodeURIComponent(e.plan)}`} className="ml-2 font-semibold text-primary hover:underline">Assign the plan →</Link>}</td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -145,7 +145,7 @@ export function PlansView() {
           <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted">
             <li>Usage-based billing and the cost of paid APIs per organization.</li>
             <li>Invoices and tax documents (the payment providers issue receipts; the platform keeps no payment data).</li>
-            <li>Plan prices in the catalog: prices live at the payment providers.</li>
+            <li>Plan prices in the catalog: LiqPay and WayForPay amounts are shown to customers; Stripe and Paddle keep the price at the provider.</li>
           </ul>
         </Card>
       </div>

@@ -3,7 +3,8 @@
 import { IconArrowLeft as ArrowLeft, IconLogOut as LogOut, IconMenu as Menu, IconSearch as Search, IconShield as ShieldCheck } from "@/components/ui/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
+import { CollapseToggle } from "@/components/layout/collapse-toggle";
 import { Logo } from "@/components/layout/logo";
 import { Badge } from "@/components/ui/badge";
 import { DropdownItem, DropdownPanel, DropdownRoot, DropdownTrigger } from "@/components/ui/dropdown";
@@ -18,7 +19,8 @@ import { PageSearch } from "./palette";
 /** The console uses the same frame as the client workspace: dark left panel, white header, white content. */
 export function OperatorShell({ operator, children }: { operator: { email: string; subject: string; role: string }; children: ReactNode }) {
   const path = usePathname();
-  const { navOpen, setNavOpen } = useUi();
+  const { navOpen, setNavOpen, navCollapsed } = useUi();
+  const slim = navCollapsed;
   const [search, setSearch] = useState(false);
   const t = useT();
   const current = activeItem(path);
@@ -26,29 +28,33 @@ export function OperatorShell({ operator, children }: { operator: { email: strin
   const initials = (who.match(/[A-Za-z0-9]/g) ?? ["O"]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="min-h-screen lg:pl-[236px]">
+    <div className="sb-shell min-h-screen" style={{ "--sb": slim ? "76px" : "236px" } as CSSProperties}>
       {navOpen && <button aria-label="Close menu" className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} />}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-[236px] flex-col bg-gradient-to-b from-navy to-navy-2 text-slate-300 shadow-[4px_0_24px_rgba(8,15,30,0.18)] transition-transform duration-300 ease-[var(--ease-out-soft)] lg:translate-x-0",
+        "sb-aside fixed inset-y-0 left-0 z-40 flex w-[236px] flex-col overflow-hidden bg-gradient-to-b from-navy to-navy-2 text-slate-300 shadow-[4px_0_24px_rgba(8,15,30,0.18)] lg:translate-x-0",
         navOpen ? "translate-x-0" : "-translate-x-full")}>
-        <Link href="/operator" onClick={() => setNavOpen(false)} className="flex items-center gap-3 px-5 pb-4 pt-5">
-          <Logo className="size-10" />
-          <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs text-slate-400">{t("nav.operator")}</span></span>
-        </Link>
-        <nav aria-label="Operator" className="thin-scroll flex min-h-0 flex-1 flex-col gap-4 px-2 pb-3 pl-3 pt-1">
+        <div className={cn("flex items-center pb-4 pt-5", slim ? "flex-col gap-3 px-0" : "justify-between pl-5 pr-3")}>
+          <Link href="/operator" onClick={() => setNavOpen(false)} className="flex items-center gap-3" title="Reliabilix">
+            <Logo className="size-10 shrink-0" />
+            {!slim && <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs text-slate-400">{t("nav.operator")}</span></span>}
+          </Link>
+          <CollapseToggle className="hidden lg:grid" />
+        </div>
+        <nav aria-label="Operator" className={cn("thin-scroll flex min-h-0 flex-1 flex-col pb-3 pt-1", slim ? "items-center gap-2 px-2" : "gap-4 px-2 pl-3")}>
           {OPERATOR_NAV.map((g) => (
             <div key={g.title}>
-              <p className="mb-1 px-3.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t(`operator.group.${g.title.toLowerCase()}`, undefined, g.title)}</p>
-              <ul className="space-y-0.5">
+              <p className={cn("mb-1 px-3.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500", slim && "hidden")}>{t(`operator.group.${g.title.toLowerCase()}`, undefined, g.title)}</p>
+              <ul className={cn("space-y-0.5", slim && "flex flex-col items-center")}>
                 {g.items.map(({ href, label, icon: Icon, planned }) => {
                   const active = current?.href === href;
                   return (
                     <li key={href}>
                       <Link href={href} onClick={() => setNavOpen(false)} aria-current={active ? "page" : undefined}
-                        className={cn("nav-link flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[14.5px] font-medium", active ? "bg-navy-active text-white" : "text-slate-300")}>
-                        <Icon className="nav-icon size-[18px] shrink-0" strokeWidth={1.8} />
-                        <span className="truncate">{t(navKey(href), undefined, label)}</span>
-                        {planned && <span className="ml-auto rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold text-violet-300">{t("operator.planned")}</span>}
+                        title={slim ? t(navKey(href), undefined, label) : undefined} aria-label={slim ? t(navKey(href), undefined, label) : undefined}
+                        className={cn("nav-link flex items-center rounded-xl text-[14.5px] font-medium", slim ? "size-11 justify-center" : "gap-3.5 px-3.5 py-2.5", active ? "bg-navy-active text-white" : "text-slate-300")}>
+                        <Icon className={cn("nav-icon shrink-0", slim ? "size-[21px]" : "size-[18px]")} strokeWidth={1.8} />
+                        {!slim && <span className="truncate">{t(navKey(href), undefined, label)}</span>}
+                        {planned && !slim && <span className="ml-auto rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold text-violet-300">{t("operator.planned")}</span>}
                       </Link>
                     </li>
                   );
@@ -57,10 +63,11 @@ export function OperatorShell({ operator, children }: { operator: { email: strin
             </div>
           ))}
         </nav>
-        <Link href="/overview" onClick={() => setNavOpen(false)} className="nav-link mx-3 mb-2 flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[14.5px] font-medium text-slate-300">
-          <ArrowLeft className="nav-icon size-[18px]" strokeWidth={1.8} />{t("nav.back_to_app")}
+        <Link href="/overview" onClick={() => setNavOpen(false)} title={slim ? t("nav.back_to_app") : undefined}
+          className={cn("nav-link mb-2 flex items-center rounded-xl text-[14.5px] font-medium text-slate-300", slim ? "mx-auto size-11 justify-center" : "mx-3 gap-3.5 px-3.5 py-2.5")}>
+          <ArrowLeft className="nav-icon size-[18px]" strokeWidth={1.8} />{!slim && t("nav.back_to_app")}
         </Link>
-        <div className="px-5 pb-4 text-[11px] leading-snug text-slate-500">
+        <div className={cn("px-5 pb-4 text-[11px] leading-snug text-slate-500", slim && "hidden")}>
           <p className="font-medium text-slate-400">Reliabilix GreenOps Platform</p>
           <p className="flex items-center gap-1.5" title={`Platform release ${BUILD_VERSION.full}`}>
             v{BUILD_VERSION.number}

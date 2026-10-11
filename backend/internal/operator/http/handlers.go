@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/application"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
@@ -20,11 +21,18 @@ import (
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
-type Handlers struct{ Svc application.Service }
+type Handlers struct {
+	Svc application.Service
+	// Pool serves the console's cross-organization functions (metrics, announcements, organization overview).
+	Pool *pgxpool.Pool
+	// Mail e-mails an announcement to the owners and admins of the organizations that should hear of it; optional.
+	Mail notify.Mailer
+}
 
 type opKey struct{}
 
@@ -69,6 +77,7 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 	r.With(write).Post("/operator/tenants/{tenant_id}/deliveries/{id}/retry", h.retry)
 	r.With(write).Post("/operator/tenants/{tenant_id}/destinations/{id}/enable", h.setEnabled(true))
 	r.With(write).Post("/operator/tenants/{tenant_id}/destinations/{id}/disable", h.setEnabled(false))
+	h.extraRoutes(r)
 }
 
 // operator authorizes the caller as a platform operator and logs the access. Anyone else gets a plain 403.

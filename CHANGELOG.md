@@ -5,6 +5,27 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.98] - 2026-10-11
+
+### Added
+- **Announcements to every organization** (migration 0057, `platform.announcements`): an operator sends a platform update,
+  planned maintenance, a notice or an incident to all organizations or to the chosen plans. It lands in each
+  organization's bell and Notifications page whatever its notification switches say, optionally also by e-mail to owners
+  and admins, and can be withdrawn (it leaves the inboxes; mail cannot be recalled). The console shows how many
+  organizations have seen it. `GET/POST /api/v1/operator/announcements`, `POST .../{id}/withdraw`.
+- **Platform metrics**: `GET /api/v1/operator/metrics` gives totals and, day by day, what was created (organizations,
+  users, projects, connections, reports, gate checks, recommendations, deliveries and failures, errors) and how many
+  organizations were active, with the plan and subscription distribution. Counts only.
+- **Organization overview and timeline**: `GET /api/v1/operator/tenants/{id}/overview` (what it has, when it started, last
+  activity, the trail of recorded actions) and an operator-scheduled **erasure** with a grace period and a reason that can be
+  cancelled (`POST .../erasure`, `.../erasure/cancel`), recorded in the organization's audit log.
+
+### Changed
+- **Menus collapse**: the client and operator menus fold to icons and the logo with two animated chevrons; Alerts and
+  Settings moved into a gear in a circle at the foot of the client menu.
+- **Operator console**: a Metrics page and a growth strip on the Overview, an Announcements page, the organization page
+  with its overview, timeline and erasure controls; payment requests link straight to assigning the plan.
+
 ## [0.1.0-alpha.97] - 2026-10-11
 
 ### Added

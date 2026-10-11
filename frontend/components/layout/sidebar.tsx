@@ -13,7 +13,9 @@ import { BUILD_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
 import { LeafOutline } from "@/components/ui/brand-icons";
 import { Logo } from "./logo";
-import { NAV } from "./nav";
+import { MAIN_NAV } from "./nav";
+import { CollapseToggle } from "./collapse-toggle";
+import { GearMenu } from "./gear-menu";
 
 /** Flowing curves for the promo card. Static, smooth shapes that gently breathe: there is no repeating tile, so no seam. */
 function Waves() {
@@ -76,39 +78,49 @@ function PromoCard() {
 
 export function Sidebar({ isOperator = false }: { isOperator?: boolean }) {
   const path = usePathname();
-  const { navOpen, setNavOpen } = useUi();
+  const { navOpen, setNavOpen, navCollapsed } = useUi();
   const t = useT();
-  const items = [...NAV, ...(isOperator ? [{ href: "/operator", label: "Operator console", icon: ShieldCheck }] : [])];
+  const items = [...MAIN_NAV, ...(isOperator ? [{ href: "/operator", label: "Operator console", icon: ShieldCheck }] : [])];
   const slug = (href: string) => (href === "/operator" ? "operator" : href.slice(1).replace(/\W+/g, "_"));
+  // The collapsed menu is a desktop state: on a phone the drawer is always the full menu.
+  const slim = navCollapsed;
   return (
     <>
       {navOpen && <button aria-label="Close menu" className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} />}
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-[236px] flex-col bg-gradient-to-b from-navy to-navy-2 text-slate-300 shadow-[4px_0_24px_rgba(8,15,30,0.18)] transition-transform duration-300 ease-[var(--ease-out-soft)] lg:translate-x-0",
+        "sb-aside fixed inset-y-0 left-0 z-40 flex w-[236px] flex-col overflow-hidden bg-gradient-to-b from-navy to-navy-2 text-slate-300 shadow-[4px_0_24px_rgba(8,15,30,0.18)] lg:translate-x-0",
         navOpen ? "translate-x-0" : "-translate-x-full")}>
-        <Link href="/overview" onClick={() => setNavOpen(false)} className="flex items-center gap-3 px-5 pb-5 pt-5">
-          <Logo className="h-11 w-9" />
-          <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.18em] text-leaf/80">Systems</span></span>
-        </Link>
-        <nav aria-label="Main" className="thin-scroll flex min-h-0 flex-1 flex-col gap-1 px-2 pl-3 pt-1">
+        <div className={cn("flex items-center pb-4 pt-5", slim ? "flex-col gap-3 px-0" : "justify-between pl-5 pr-3")}>
+          <Link href="/overview" onClick={() => setNavOpen(false)} className={cn("flex items-center gap-3", slim && "justify-center")} title="Reliabilix">
+            <Logo className="h-11 w-9 shrink-0" />
+            {!slim && <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.18em] text-leaf/80">Systems</span></span>}
+          </Link>
+          <CollapseToggle className="hidden lg:grid" />
+        </div>
+        <nav aria-label="Main" className={cn("thin-scroll flex min-h-0 flex-1 flex-col gap-1 pt-1", slim ? "items-center px-2" : "px-2 pl-3")}>
           {items.map(({ href, label, icon: Icon }) => {
             const active = path === href || path.startsWith(`${href}/`);
+            const text = t(`nav.${slug(href)}`, undefined, label);
             return (
-              <Link key={href} href={href} onClick={() => setNavOpen(false)} aria-current={active ? "page" : undefined}
-                className={cn("nav-link flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-medium", active ? "bg-navy-active text-white" : "text-slate-300")}>
-                <Icon className="nav-icon size-[19px]" strokeWidth={1.8} />{t(`nav.${slug(href)}`, undefined, label)}
+              <Link key={href} href={href} onClick={() => setNavOpen(false)} aria-current={active ? "page" : undefined} aria-label={slim ? text : undefined} title={slim ? text : undefined}
+                className={cn("nav-link flex items-center rounded-xl text-[15px] font-medium", slim ? "size-11 justify-center" : "gap-3.5 px-3.5 py-3", active ? "bg-navy-active text-white" : "text-slate-300")}>
+                <Icon className={cn("nav-icon shrink-0", slim ? "size-[22px]" : "size-[19px]")} strokeWidth={1.8} />{!slim && text}
               </Link>
             );
           })}
         </nav>
-        <PromoCard />
-        <div className="px-5 pb-4 text-[11px] leading-snug text-slate-500">
-          <p className="font-medium text-slate-400">Reliabilix GreenOps Platform</p>
-          <p className="flex items-center gap-1.5" title={`Platform release ${BUILD_VERSION.full}`}>
-            v{BUILD_VERSION.number}
-            {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-leaf">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
-          </p>
-        </div>
+        <GearMenu collapsed={slim} />
+        {!slim && <PromoCard />}
+        {!slim && (
+          <div className="px-5 pb-4 text-[11px] leading-snug text-slate-500">
+            <p className="font-medium text-slate-400">Reliabilix GreenOps Platform</p>
+            <p className="flex items-center gap-1.5" title={`Platform release ${BUILD_VERSION.full}`}>
+              v{BUILD_VERSION.number}
+              {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-leaf">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
+            </p>
+          </div>
+        )}
+        {slim && <p className="pb-3 text-center text-[10px] font-semibold text-slate-500" title={`Platform release ${BUILD_VERSION.full}`}>v{BUILD_VERSION.number}</p>}
       </aside>
     </>
   );

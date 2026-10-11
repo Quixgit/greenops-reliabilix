@@ -302,3 +302,18 @@ li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) ro
 @keyframes bell-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
 .bell-ring { animation: bell-ring 1s ease-in-out; }
 @media (prefers-reduced-motion: reduce) { .bell-ring { animation: none; } }
+
+/* ---- Collapsible menu: two chevrons that slide when hovered ------------------------------------------------------ */
+.chev { transition: transform .35s var(--ease-out-soft), opacity .35s; }
+.chev-toggle:hover .chev-a { animation: chev-slide .9s ease-in-out infinite; }
+.chev-toggle:hover .chev-b { animation: chev-slide .9s ease-in-out .15s infinite; }
+@keyframes chev-slide { 0%, 100% { transform: translateX(0); opacity: 1; } 50% { transform: translateX(-3px); opacity: .45; } }
+.sb-shell { padding-left: 0; transition: padding-left .3s var(--ease-out-soft); }
+@media (min-width: 1024px) { .sb-shell { padding-left: var(--sb, 236px); } }
+.sb-aside { transition: transform .3s var(--ease-out-soft), width .3s var(--ease-out-soft); }
+@media (min-width: 1024px) { .sb-aside { width: var(--sb, 236px); } }
+@media (prefers-reduced-motion: reduce) { .chev-toggle:hover .chev-a, .chev-toggle:hover .chev-b, .sb-shell, .sb-aside { animation: none; transition: none; } }
+
+@keyframes bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bar-rise { animation: bar-rise .6s var(--ease-out-soft) both; transform-box: fill-box; }
+@media (prefers-reduced-motion: reduce) { .bar-rise { animation: none; } }

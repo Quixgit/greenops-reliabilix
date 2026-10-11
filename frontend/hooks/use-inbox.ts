@@ -23,12 +23,13 @@ export function useMarkInboxRead() {
 }
 
 /** Which area an event type belongs to, for grouping and for the icon. */
-export function eventArea(type: string): "billing" | "reports" | "automation" | "recommendations" | "connections" | "other" {
+export function eventArea(type: string): "billing" | "reports" | "automation" | "recommendations" | "connections" | "platform" | "other" {
   const head = type.split(".")[0];
   if (head === "billing") return "billing";
   if (head === "report") return "reports";
   if (head === "automation") return "automation";
   if (head === "recommendation") return "recommendations";
   if (head === "connection") return "connections";
+  if (head === "platform") return "platform";
   return "other";
 }

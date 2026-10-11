@@ -13,6 +13,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
 	ohttp "github.com/quixgit/greenops-reliabilix/backend/internal/operator/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/repository"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 )
 
@@ -31,12 +32,14 @@ type Deps struct {
 	Jobs domain.JobsPort
 	// Queue starts background jobs such as the grid-history backfill (optional).
 	Queue queue.Enqueuer
+	// Mail e-mails announcements (optional: without it an announcement reaches the bell only).
+	Mail notify.Mailer
 }
 
 type Module struct{ h ohttp.Handlers }
 
 func New(d Deps) *Module {
-	return &Module{h: ohttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings, Integrations: d.Integrations, Sources: d.Sources, Jobs: d.Jobs, Queue: d.Queue}}}
+	return &Module{h: ohttp.Handlers{Pool: d.Pool, Mail: d.Mail, Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings, Integrations: d.Integrations, Sources: d.Sources, Jobs: d.Jobs, Queue: d.Queue}}}
 }
 
 func (*Module) Name() string                  { return "operator" }

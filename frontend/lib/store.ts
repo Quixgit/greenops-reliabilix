@@ -21,6 +21,8 @@ type UiState = {
   setFocusService: (s: string | null) => void;
   navOpen: boolean; // mobile sidebar
   setNavOpen: (o: boolean) => void;
+  navCollapsed: boolean; // desktop sidebar shows only icons
+  setNavCollapsed: (c: boolean) => void;
 };
 
 /** UI state only (server state lives in TanStack Query). */
@@ -35,10 +37,12 @@ export const useUi = create<UiState>()(persist((set) => ({
   setFocusService: (focusService) => set({ focusService }),
   navOpen: false,
   setNavOpen: (navOpen) => set({ navOpen }),
+  navCollapsed: false,
+  setNavCollapsed: (navCollapsed) => set({ navCollapsed }),
 }), {
   // The filters follow the user between sections and reloads (a chart that links to a detail page keeps them).
   name: "rlx-filters", skipHydration: true, // restored after mount (providers.tsx): the server render never knows the filters
-   partialize: (s) => ({ projectId: s.projectId, period: s.period, custom: s.custom }),
+   partialize: (s) => ({ projectId: s.projectId, period: s.period, custom: s.custom, navCollapsed: s.navCollapsed }),
   storage: { getItem: (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
     setItem: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
     removeItem: (k) => { try { localStorage.removeItem(k); } catch { /* private mode */ } } },
