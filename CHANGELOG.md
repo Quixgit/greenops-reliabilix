@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.89] - 2026-10-11
+
+### Fixed
+- **The SCI report (and its preview) failed with an internal error** when no functional units had been reported: the
+  per-day query returned NULL units and could not be read into a number. Days without units now carry 0, which the
+  report already shows as an empty cell.
+
 ## [0.1.0-alpha.88] - 2026-10-11
 
 ### Added

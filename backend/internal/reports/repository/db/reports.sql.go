@@ -258,7 +258,7 @@ func (q *Queries) ReportCostDaily(ctx context.Context, arg ReportCostDailyParams
 
 const reportSCIDaily = `-- name: ReportSCIDaily :many
 SELECT p.name AS project, p.functional_unit, date_trunc('day', c.period_start)::timestamptz AS day,
-       sum(c.carbon_kg_co2e)::float8 AS carbon_kg_co2e, max(c.functional_units)::float8 AS functional_units,
+       sum(c.carbon_kg_co2e)::float8 AS carbon_kg_co2e, coalesce(max(c.functional_units), 0)::float8 AS functional_units,
        c.methodology_version
 FROM carbon.calculations c JOIN projects.projects p ON p.id = c.project_id AND p.tenant_id = c.tenant_id
 WHERE c.tenant_id = $1 AND ($2::uuid IS NULL OR c.project_id = $2)
