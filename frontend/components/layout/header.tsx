@@ -9,7 +9,8 @@ import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, Dro
 import * as DM from "@radix-ui/react-dropdown-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { NAV } from "@/components/layout/nav";
-import { useAlerts, useConnections, useProjects } from "@/hooks/use-overview";
+import { useConnections, useProjects } from "@/hooks/use-overview";
+import { NotificationBell } from "@/components/layout/bell";
 import { useT } from "@/i18n/provider";
 import { timeAgo } from "@/lib/formatters";
 import type { Role } from "@/lib/permissions";
@@ -124,10 +125,8 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
   const { projectId, setProject, setNavOpen } = useUi();
   const t = useT();
   const projects = useProjects();
-  const alerts = useAlerts("new");
   const selected = projects.data?.find((p) => p.id === projectId);
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-  const count = Math.max(unread, alerts.data?.length ?? 0);
 
   return (
     <header className="sticky top-0 z-30 flex h-[68px] items-center gap-3 border-b border-line/70 bg-white/85 px-4 backdrop-blur-xl lg:px-6">
@@ -153,37 +152,7 @@ export function Header({ user, unread = 0 }: { user: { name: string; email: stri
         <QuickSearch />
         <LanguageSwitcher className={pill} />
 
-        <DropdownRoot>
-          <DM.Trigger aria-label={count ? `${count} new alerts` : t("header.notifications")} className="group relative grid size-10 place-items-center rounded-xl border border-line/80 bg-white text-slate-600 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:border-slate-300 hover:text-ink data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]">
-            <IconBell className="size-[20px] transition-transform duration-300 group-hover:rotate-[-8deg]" />
-            {count > 0 && <span className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-pastel-rose px-1 text-[10px] font-bold leading-[18px] text-rose-900 ring-2 ring-white">{count > 9 ? "9+" : count}</span>}
-          </DM.Trigger>
-          <DropdownPanel align="end">
-            <div className="w-[340px]">
-              <div className="flex items-center justify-between px-3 pb-2 pt-2.5">
-                <p className="text-sm font-semibold">{t("header.notifications")}</p>
-                <Link href="/alerts" className="text-xs font-semibold text-leaf-deep hover:underline">{t("header.all_alerts")}</Link>
-              </div>
-              {(alerts.data ?? []).length === 0 ? (
-                <p className="px-3 pb-4 pt-1 text-sm text-muted">{t("header.no_alerts")}</p>
-              ) : (
-                <ul className="max-h-80 overflow-y-auto">
-                  {alerts.data!.slice(0, 6).map((a) => (
-                    <li key={a.id}>
-                      <Link href="/alerts" className="flex gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50">
-                        <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.severity === "critical" ? "bg-pastel-rose" : a.severity === "warning" ? "bg-pastel-amber" : "bg-pastel-blue")} />
-                        <span className="min-w-0"><span className="block truncate text-sm font-medium">{a.title}</span><span className="block truncate text-xs text-muted">{a.detail}</span><span className="text-[11px] text-slate-400">{timeAgo(a.last_seen_at)}</span></span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="border-t border-line/70 px-3 py-2.5">
-                <Link href="/settings#notifications" className="text-xs font-semibold text-leaf-deep hover:underline">{t("header.delivery")}</Link>
-              </div>
-            </div>
-          </DropdownPanel>
-        </DropdownRoot>
+        <NotificationBell />
 
         <DropdownRoot>
           <DM.Trigger className="group flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-3 outline-none transition-colors hover:bg-slate-100 data-[state=open]:bg-slate-100">

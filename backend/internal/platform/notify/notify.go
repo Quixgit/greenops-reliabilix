@@ -43,6 +43,10 @@ const (
 	TypeRecommendationVerified = "recommendation.verified"
 	TypeAlertOpened            = "alert.opened"
 	TypeAutomationApproved     = "automation.plan_approved"
+	TypeBillingRenewalDue      = "billing.renewal_due"
+	TypeBillingPaymentReceived = "billing.payment_received"
+	TypeBillingPaymentFailed   = "billing.payment_failed"
+	TypeBillingPlanEnded       = "billing.plan_ended"
 	TypeAutomationResult       = "automation.result_reported"
 	TypeNotificationTest       = "notification.test" // only ever sent by the "send a test" action
 )
@@ -66,6 +70,10 @@ func Catalog() []TypeInfo {
 		{TypeConnectionDataQuality, "Stored cost data differs from the totals the cloud reports for some days", Warning},
 		{TypeAlertOpened, "A budget or connection alert was opened", Warning},
 		{TypeRecommendationVerified, "The measured result of an applied recommendation is available", Info},
+		{TypeBillingRenewalDue, "The paid period of your plan ends soon: renew it so nothing is interrupted", Warning},
+		{TypeBillingPaymentReceived, "A payment was received and the plan is active", Info},
+		{TypeBillingPaymentFailed, "A payment did not go through", Warning},
+		{TypeBillingPlanEnded, "The paid period ended and the organization is back on the Free plan", Warning},
 		{TypeAutomationApproved, "A change plan was approved and is ready to be applied", Info},
 		{TypeAutomationResult, "The result of applying a change plan was reported (applied, failed or rolled back)", Info},
 	}
@@ -128,6 +136,12 @@ func (e Event) Validate() error {
 // notify must never fail the business operation, so callers log the error and carry on.
 type Notifier interface {
 	Publish(ctx context.Context, tenantID string, e Event) error
+}
+
+// CopyPublisher is implemented by the notifications module: besides the destinations and the in-product inbox, the event is
+// sent by e-mail to the given people (members of the organization, chosen by the producer). The key makes it once only.
+type CopyPublisher interface {
+	PublishWithCopy(ctx context.Context, tenantID string, e Event, to []string) error
 }
 
 // Noop drops every event (tests, and processes where notifications are not configured).

@@ -298,3 +298,7 @@ li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) ro
 @media (prefers-reduced-motion: reduce) { .report-bar { animation: none; } }
 
 .progress-glow { box-shadow: 0 0 10px rgba(111,195,168,.7); }
+
+@keyframes bell-ring { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+.bell-ring { animation: bell-ring 1s ease-in-out; }
+@media (prefers-reduced-motion: reduce) { .bell-ring { animation: none; } }

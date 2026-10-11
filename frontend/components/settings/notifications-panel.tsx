@@ -22,6 +22,7 @@ import { createdDestination, destination, testQueued, type NotificationCatalog }
 import { shortTime } from "@/lib/format-time";
 import { useT } from "@/i18n/provider";
 import { Panel } from "./organization-tab";
+import { BellSettings } from "./bell-settings";
 
 const PLACEHOLDER: Record<string, string> = {
   email: "someone@yourcompany.com (must be a member of this organization)",
@@ -179,6 +180,7 @@ export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
   const cat = useNotificationCatalog();
   return (
     <div className="space-y-5">
+      <BellSettings canEdit={canEdit} />
       {cat.data && !cat.data.configured && (
         <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">
           Notifications are not set up on this deployment: the platform has no encryption key for destination addresses, so none can be added yet. Ask the platform operator to set <code>NOTIFICATIONS_SECRET_KEY</code>.

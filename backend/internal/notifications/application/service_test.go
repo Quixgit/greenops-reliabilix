@@ -16,6 +16,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/secretbox"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 // ---- fakes -------------------------------------------------------------------------------------------------
@@ -537,5 +538,94 @@ func TestSweepQueuesEveryDueDelivery(t *testing.T) {
 	n, err := e.svc.Sweep(context.Background())
 	if err != nil || n != 1 || len(e.q.tasks) != 1 {
 		t.Errorf("Sweep = %d, %v, queued %d", n, err, len(e.q.tasks))
+	}
+}
+
+type memInbox struct {
+	items []domain.InboxItem
+	read  time.Time
+	keys  map[string]bool
+}
+
+func (m *memInbox) InboxAdd(_ context.Context, _ string, e notify.Event) (bool, error) {
+	if m.keys == nil {
+		m.keys = map[string]bool{}
+	}
+	if e.DedupeKey != "" && m.keys[e.DedupeKey] {
+		return false, nil
+	}
+	m.keys[e.DedupeKey] = true
+	m.items = append(m.items, domain.InboxItem{ID: e.Title, Type: e.Type, Severity: e.Severity, Title: e.Title, CreatedAt: time.Now()})
+	return true, nil
+}
+func (m *memInbox) InboxList(context.Context, string, string, int) ([]domain.InboxItem, time.Time, error) {
+	return m.items, m.read, nil
+}
+func (m *memInbox) InboxMarkRead(context.Context, string, string) error {
+	m.read = time.Now().Add(time.Minute)
+	return nil
+}
+
+type bellSettings struct {
+	settings.Reader
+	min   string
+	muted []string
+	on    bool
+}
+
+func (b bellSettings) Bool(_ context.Context, _, key string) bool {
+	if key == settings.KeyInboxEnabled {
+		return b.on
+	}
+	return true
+}
+func (b bellSettings) String(_ context.Context, _, key string) string {
+	if key == settings.KeyInboxMinSeverity {
+		return b.min
+	}
+	return ""
+}
+func (b bellSettings) Strings(_ context.Context, _, key string) []string {
+	if key == settings.KeyInboxMutedTypes {
+		return b.muted
+	}
+	return nil
+}
+
+func TestBellShowsWhatTheOrganizationChose(t *testing.T) {
+	ctx := context.Background()
+	in := &memInbox{}
+	for _, e := range []notify.Event{
+		{Type: notify.TypeReportReady, Severity: notify.Info, Title: "report"},
+		{Type: notify.TypeAutomationApproved, Severity: notify.Info, Title: "plan"},
+		{Type: notify.TypeConnectionError, Severity: notify.Warning, Title: "connection"},
+		{Type: notify.TypeBillingRenewalDue, Severity: notify.Info, Title: "renew"},
+		{Type: notify.TypeAlertOpened, Severity: notify.Warning, Title: "alert"},
+	} {
+		_, _ = in.InboxAdd(ctx, "t", e)
+	}
+	titles := func(s Service) map[string]bool {
+		items, _, err := s.InboxFeed(ctx, "t", "u", 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]bool{}
+		for _, i := range items {
+			m[i.Title] = true
+		}
+		return m
+	}
+	// Warnings and up: routine info is hidden, but a billing reminder is never hidden, and alerts have their own list.
+	got := titles(Service{Inbox: in, Settings: bellSettings{on: true, min: "warning"}})
+	if got["report"] || got["plan"] || !got["connection"] || !got["renew"] || got["alert"] {
+		t.Fatalf("min severity: %v", got)
+	}
+	// A muted type disappears; the bell switched off shows nothing.
+	got = titles(Service{Inbox: in, Settings: bellSettings{on: true, min: "info", muted: []string{notify.TypeReportReady}}})
+	if got["report"] || !got["plan"] {
+		t.Fatalf("muted: %v", got)
+	}
+	if got = titles(Service{Inbox: in, Settings: bellSettings{on: false, min: "info"}}); len(got) != 0 {
+		t.Fatalf("off: %v", got)
 	}
 }

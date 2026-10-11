@@ -154,7 +154,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc}, Carbon: alertCarbon{carbon: carbonM.Svc}, ProjectsCarbon: alertProjectCarbon{projects: projectsM.Svc, carbon: carbonM.Svc}, Settings: cfgr,
 		Tenants: alertTenants{projects: projectsM.Svc}, Notify: notifyM.Svc, Log: log})
 	lifecycleM := lifecycle.New(lifecycle.Deps{Pool: pool, Store: store, Settings: cfgr, Log: log})
-	licensingM := licensing.New(licensing.Deps{Pool: pool, Settings: cfgr, Log: log, Billing: buildBilling(ints), ReturnURL: strings.TrimRight(cfg.PublicBaseURL, "/") + "/settings"})
+	licensingM := licensing.New(licensing.Deps{Pool: pool, Settings: cfgr, Log: log, Billing: buildBilling(ints), Notify: notifyM.Svc, ReturnURL: strings.TrimRight(cfg.PublicBaseURL, "/") + "/settings"})
 
 	c := &Container{}
 	c.modules = []httpx.Module{

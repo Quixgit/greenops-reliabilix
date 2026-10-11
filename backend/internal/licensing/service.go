@@ -9,7 +9,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +24,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/billing"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/plans"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
@@ -33,6 +36,8 @@ type Deps struct {
 	Log      *slog.Logger
 	// Billing is the payment providers (optional: without it the plan page has no way to buy).
 	Billing *billing.Registry
+	// Notify announces renewals and payments (the bell, the destinations and an e-mail copy); optional.
+	Notify notify.Notifier
 	// ReturnURL is where a payment provider sends the person afterwards (the web app's settings page).
 	ReturnURL string
 }
@@ -56,6 +61,13 @@ func (m *Module) PublicRoutes(r chi.Router) {
 
 // RegisterJobs implements queue.JobRegistrar.
 func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
+	mux.HandleFunc(queue.TaskBillingReminders, func(ctx context.Context, _ *asynq.Task) error {
+		n, err := m.Remind(ctx, time.Now())
+		if n > 0 {
+			m.d.Log.Info("billing reminders sent", "organizations", n)
+		}
+		return err
+	})
 	mux.HandleFunc(queue.TaskExpireSubscriptions, func(ctx context.Context, _ *asynq.Task) error {
 		n, err := m.Expire(ctx)
 		if n > 0 {
@@ -365,6 +377,9 @@ func (m *Module) webhook(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteProblem(w, r, http.StatusInternalServerError, "internal error", "")
 				return // not acknowledged: the provider delivers it again
 			}
+			if applied {
+				m.paymentMessage(r.Context(), prov.ID(), ev.ID, ev.OrganizationID, plan, ev.Status, ev.PeriodEnd)
+			}
 		}
 	}
 	if ack, ok := prov.(billing.Acknowledger); ok {
@@ -372,4 +387,113 @@ func (m *Module) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+// announce publishes a billing event, with an e-mail copy to the organization's billing contacts when the organization
+// wants it. It never fails the caller: money has been handled, the message is a courtesy.
+func (m *Module) announce(ctx context.Context, tenantID string, e notify.Event, contacts []string) {
+	if m.d.Notify == nil {
+		return
+	}
+	var to []string
+	if m.d.Settings != nil && m.d.Settings.Bool(ctx, tenantID, settings.KeyBillingEmailCopy) {
+		to = contacts
+	}
+	if cp, ok := m.d.Notify.(notify.CopyPublisher); ok {
+		if err := cp.PublishWithCopy(ctx, tenantID, e, to); err != nil {
+			m.d.Log.Warn("billing message not sent", "tenant", tenantID, "type", e.Type, "err", err)
+		}
+		return
+	}
+	_ = m.d.Notify.Publish(ctx, tenantID, e)
+}
+
+// ReminderEvent builds the renewal message for a period that ends in daysLeft days. A period that has just ended
+// gets one message saying so. The key repeats for the same period and the same distance, so a reminder goes once.
+func ReminderEvent(planName string, periodEnd time.Time, daysLeft int) notify.Event {
+	day := periodEnd.UTC().Format("2006-01-02")
+	switch {
+	case daysLeft < 0:
+		return notify.Event{Type: notify.TypeBillingPlanEnded, Severity: notify.Warning, Title: planName + ": the paid period has ended",
+			Body: "Renew the plan to keep its limits and modules. Existing data is kept.", Path: "/settings#plan", DedupeKey: "billing:ended:" + day}
+	case daysLeft <= 1:
+		return notify.Event{Type: notify.TypeBillingRenewalDue, Severity: notify.Critical, Title: planName + " ends tomorrow",
+			Body: "The paid period ends on " + day + ". Renew now so nothing is interrupted.", Path: "/settings#plan", DedupeKey: "billing:renew:" + day + ":1"}
+	case daysLeft <= 3:
+		return notify.Event{Type: notify.TypeBillingRenewalDue, Severity: notify.Warning, Title: planName + " ends in " + itoa(daysLeft) + " days",
+			Body: "The paid period ends on " + day + ". Renew to keep the plan.", Path: "/settings#plan", DedupeKey: "billing:renew:" + day + ":3"}
+	default:
+		return notify.Event{Type: notify.TypeBillingRenewalDue, Severity: notify.Info, Title: planName + " ends in " + itoa(daysLeft) + " days",
+			Body: "The paid period ends on " + day + ". You can renew it on the Billing page.", Path: "/settings#plan", DedupeKey: "billing:renew:" + day + ":n"}
+	}
+}
+
+func itoa(n int) string { return strconv.Itoa(n) }
+
+// Remind sends the renewal reminders that are due and reports how many organizations were told something.
+func (m *Module) Remind(ctx context.Context, now time.Time) (int, error) {
+	rows, err := m.d.Pool.Query(ctx, `SELECT tenant_id::text, plan, status, period_end, emails FROM platform.billing_reminder_candidates($1)`, 30)
+	if err != nil {
+		return 0, err
+	}
+	type cand struct {
+		tenant, plan, status string
+		end                  time.Time
+		emails               []string
+	}
+	var list []cand
+	for rows.Next() {
+		var c cand
+		if err := rows.Scan(&c.tenant, &c.plan, &c.status, &c.end, &c.emails); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		list = append(list, c)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, c := range list {
+		window := int(m.d.Settings.Int(ctx, c.tenant, settings.KeyBillingReminderDays))
+		days := int(math.Ceil(c.end.Sub(now).Hours() / 24))
+		if window <= 0 || (days > window && days >= 0) {
+			continue
+		}
+		name := c.plan
+		if p, ok := plans.Lookup(c.plan); ok {
+			name = p.Name
+		}
+		m.announce(ctx, c.tenant, ReminderEvent(name, c.end, days), c.emails)
+		n++
+	}
+	return n, nil
+}
+
+// paymentMessage tells the organization what the provider confirmed: a payment and the new period, a failed payment,
+// or the end of the plan. The event id makes it once only.
+func (m *Module) paymentMessage(ctx context.Context, provider, eventID, tenantID string, plan plans.Plan, status string, end *time.Time) {
+	var contacts []string
+	_ = m.d.Pool.QueryRow(ctx, `SELECT platform.tenant_billing_contacts($1::uuid)`, tenantID).Scan(&contacts)
+	until := ""
+	if end != nil {
+		until = end.UTC().Format("2006-01-02")
+	}
+	e := notify.Event{Path: "/settings#plan", DedupeKey: "billing:event:" + provider + ":" + eventID, Attrs: map[string]string{"plan": plan.ID, "provider": provider}}
+	switch {
+	case status == "past_due":
+		e.Type, e.Severity, e.Title = notify.TypeBillingPaymentFailed, notify.Warning, "A payment for "+plan.Name+" did not go through"
+		e.Body = "Update the payment method on the Billing page to keep the plan."
+	case status == "canceled" || plan.ID == "free":
+		e.Type, e.Severity, e.Title = notify.TypeBillingPlanEnded, notify.Warning, "Your paid plan has ended"
+		e.Body = "The organization is back on the Free plan. Existing data is kept."
+	default:
+		e.Type, e.Severity, e.Title = notify.TypeBillingPaymentReceived, notify.Info, "Payment received: "+plan.Name+" is active"
+		e.Body = "Thank you."
+		if until != "" {
+			e.Body = "The plan is paid until " + until + ". Thank you."
+		}
+	}
+	m.announce(ctx, tenantID, e, contacts)
 }

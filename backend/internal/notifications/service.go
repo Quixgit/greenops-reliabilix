@@ -46,7 +46,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Channels: d.Channels, Box: d.Box, Queue: d.Queue,
+	svc := application.Service{Inbox: repository.Postgres{Pool: d.Pool}, Repo: repository.Postgres{Pool: d.Pool}, Channels: d.Channels, Box: d.Box, Queue: d.Queue,
 		Directory: d.Directory, BaseURL: d.BaseURL, Log: d.Log, Stubbed: d.Stubbed, Errors: d.Errors, Settings: d.Settings, Limits: d.Limits}
 	return &Module{h: nhttp.Handlers{Svc: svc}, Svc: svc, log: d.Log}
 }

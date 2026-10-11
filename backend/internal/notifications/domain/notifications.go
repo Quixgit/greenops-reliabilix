@@ -255,3 +255,15 @@ type Repository interface {
 
 // DueRef identifies a delivery the sweep should queue.
 type DueRef struct{ TenantID, DeliveryID string }
+
+// InboxItem is one message in the in-product inbox (the bell).
+type InboxItem struct {
+	ID        string          `json:"id"`
+	Type      string          `json:"type"`
+	Severity  notify.Severity `json:"severity"`
+	Title     string          `json:"title"`
+	Body      string          `json:"body"`
+	Path      string          `json:"path"`
+	CreatedAt time.Time       `json:"created_at"`
+	Unread    bool            `json:"unread"`
+}

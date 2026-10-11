@@ -20,6 +20,12 @@ const (
 	KeyDeletionGraceDays       = "lifecycle.deletion_grace_days"
 
 	KeyNotifEnabled        = "notifications.enabled"
+	KeyInboxEnabled        = "notifications.inbox_enabled"
+	KeyInboxMinSeverity    = "notifications.inbox_min_severity"
+	KeyInboxMutedTypes     = "notifications.inbox_muted_types"
+	KeyNotifSound          = "notifications.sound"
+	KeyBillingReminderDays = "billing.reminder_days"
+	KeyBillingEmailCopy    = "billing.email_copy"
 	KeyInviteExpiryDays    = "security.invitation_expiry_days"
 	KeyInviteAllowedDomain = "security.invitation_allowed_domains"
 	KeyAPIKeysMaxActive    = "security.api_keys_max_active"
@@ -189,6 +195,17 @@ func definitions() []Def {
 
 		// ---- notifications ----
 		boolDef(KeyNotifEnabled, "notifications", "Send notifications", "Master switch: when off, events are not queued for any destination.", ScopeTenant, true, "Events published while it is off are not delivered later."),
+		boolDef(KeyInboxEnabled, "notifications", "Show events in the bell", "People of the organization see important events in the product, in the bell and on the Notifications page.", ScopeTenant, true,
+			"Applies to what is already there: turning it back on shows the kept events again."),
+		{Key: KeyInboxMinSeverity, Group: "notifications", Title: "Show from severity", Description: "Events below this severity are not shown in the bell.", Scope: ScopeTenant, Type: Enum,
+			Default: "info", Enum: []string{"info", "warning", "critical"}, Note: "Billing messages are always shown: a payment reminder is never hidden by this."},
+		{Key: KeyInboxMutedTypes, Group: "notifications", Title: "Muted event types", Description: "Event types that are not shown in the bell.", Scope: ScopeTenant, Type: List,
+			Default: []string{}, MaxItems: 50, MaxLen: 80, Pattern: `^[a-z_]+(\.[a-z_]+)+$`},
+		boolDef(KeyNotifSound, "notifications", "Sound for new events", "A short sound when a new event arrives while the page is open. People can switch it off for themselves.", ScopeTenant, false,
+			"Browsers play a sound only after the person has used the page."),
+		intDef(KeyBillingReminderDays, "notifications", "Renewal reminder", "Days before the paid period ends to start reminding (then again closer to the end). 0 turns reminders off.", ScopeTenant, 7, 0, 30, "days", ""),
+		boolDef(KeyBillingEmailCopy, "notifications", "E-mail copy of billing messages", "Reminders and payment receipts are also e-mailed to owners, admins and billing users.", ScopeTenant, true,
+			"Needs e-mail to be set up on the platform."),
 		intDef(KeyNotifMaxAttempts, "notifications", "Delivery attempts", "How many times a delivery is tried before it is marked failed.", ScopePlatform, 8, 1, 20, "attempts", ""),
 		intDef(KeyNotifRetryBaseSeconds, "notifications", "First retry delay", "Delay before the second attempt; it doubles each time up to one hour.", ScopePlatform, 30, 5, 600, "seconds", ""),
 		intDef(KeyNotifSendTimeoutSeconds, "notifications", "Send timeout", "How long one send may take.", ScopePlatform, 20, 5, 60, "seconds", ""),

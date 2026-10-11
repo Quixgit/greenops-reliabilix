@@ -49,7 +49,15 @@ const (
 	maxErrorLen   = 300
 )
 
+// Inbox keeps the in-product copy of every event and the per-person read mark. Optional: without it there is no bell feed.
+type Inbox interface {
+	InboxAdd(ctx context.Context, tenantID string, e notify.Event) (created bool, err error)
+	InboxList(ctx context.Context, tenantID, userID string, limit int) ([]domain.InboxItem, time.Time, error)
+	InboxMarkRead(ctx context.Context, tenantID, userID string) error
+}
+
 type Service struct {
+	Inbox     Inbox
 	Repo      domain.Repository
 	Channels  *domain.Registry
 	Box       Sealer
@@ -94,6 +102,11 @@ var _ notify.Notifier = Service{}
 // Publish implements notify.Notifier: it stores one pending delivery per matching destination, then queues them.
 // Rows are written first, so an enqueue failure is harmless: the sweep picks them up.
 func (s Service) Publish(ctx context.Context, tenantID string, e notify.Event) error {
+	return s.publish(ctx, tenantID, e, false)
+}
+
+// publish keeps the event in the inbox (unless the caller already did) and queues it for the matching destinations.
+func (s Service) publish(ctx context.Context, tenantID string, e notify.Event, inboxDone bool) error {
 	if tenantID == "" {
 		return errors.New("notifications: empty tenant id")
 	}
@@ -102,6 +115,14 @@ func (s Service) Publish(ctx context.Context, tenantID string, e notify.Event) e
 	}
 	if !s.cfg().Bool(ctx, tenantID, settings.KeyNotifEnabled) {
 		return nil // the organization switched notifications off: events are not queued, not delivered later
+	}
+	if s.Inbox != nil && !inboxDone {
+		created, err := s.Inbox.InboxAdd(ctx, tenantID, e)
+		if err != nil {
+			s.logger().Warn("inbox: item not kept", "tenant", tenantID, "type", e.Type, "err", err)
+		} else if !created && e.DedupeKey != "" {
+			return nil // this event was announced before: nothing goes out a second time
+		}
 	}
 	if e.Path != "" && s.BaseURL != "" {
 		e.Link = strings.TrimRight(s.BaseURL, "/") + e.Path
@@ -365,3 +386,103 @@ func (s Service) Catalog(ctx context.Context) Catalog {
 	}
 	return Catalog{Channels: s.Channels.KindsAvailable(ctx), EventTypes: notify.Catalog(), Configured: s.Box.Configured(), Stubbed: stubbed}
 }
+
+// PublishWithCopy publishes the event (destinations and inbox) and, the first time only, e-mails it to the given
+// members. A person who is not on the list never gets it, and an address is never taken from the event.
+func (s Service) PublishWithCopy(ctx context.Context, tenantID string, e notify.Event, to []string) error {
+	if err := e.Validate(); err != nil {
+		return err
+	}
+	if !s.cfg().Bool(ctx, tenantID, settings.KeyNotifEnabled) {
+		return nil
+	}
+	if s.Inbox != nil {
+		created, err := s.Inbox.InboxAdd(ctx, tenantID, e)
+		if err != nil {
+			return err
+		}
+		if !created && e.DedupeKey != "" {
+			return nil // announced before: neither the destinations nor the mail go out again
+		}
+	}
+	if err := s.publish(ctx, tenantID, e, true); err != nil {
+		return err
+	}
+	if len(to) == 0 {
+		return nil
+	}
+	ch, err := s.Channels.Get(domain.KindEmail)
+	if err != nil {
+		return nil // e-mail is not available on this deployment
+	}
+	if a, ok := ch.(domain.AvailableChannel); ok && !a.Available(ctx) {
+		return nil
+	}
+	if e.Path != "" && s.BaseURL != "" && e.Link == "" {
+		e.Link = strings.TrimRight(s.BaseURL, "/") + e.Path
+	}
+	for _, addr := range to {
+		norm, _, err := ch.Prepare(addr)
+		if err != nil {
+			continue
+		}
+		sctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		err = ch.Send(sctx, domain.Target{Address: norm}, domain.Message{TenantID: tenantID, Attempt: 1, CreatedAt: s.now(), Event: e})
+		cancel()
+		if err != nil {
+			s.logger().Warn("billing copy not sent", "tenant", tenantID, "err", err)
+		}
+	}
+	return nil
+}
+
+// InboxFeed is what the bell shows: the kept items filtered by the organization's display settings, with the
+// unread mark of this person.
+func (s Service) InboxFeed(ctx context.Context, tenantID, userID string, limit int) (items []domain.InboxItem, unread int, err error) {
+	items = []domain.InboxItem{}
+	if s.Inbox == nil {
+		return items, 0, nil
+	}
+	cfg := s.cfg()
+	if !cfg.Bool(ctx, tenantID, settings.KeyInboxEnabled) {
+		return items, 0, nil
+	}
+	min := notify.Severity(cfg.String(ctx, tenantID, settings.KeyInboxMinSeverity))
+	muted := map[string]bool{}
+	for _, t := range cfg.Strings(ctx, tenantID, settings.KeyInboxMutedTypes) {
+		muted[t] = true
+	}
+	all, readUntil, err := s.Inbox.InboxList(ctx, tenantID, userID, 200)
+	if err != nil {
+		return nil, 0, err
+	}
+	for _, it := range all {
+		// An alert is shown by the alerts feed, with its own acknowledge and mute: not twice.
+		if it.Type == notify.TypeAlertOpened || muted[it.Type] {
+			continue
+		}
+		essential := strings.HasPrefix(it.Type, "billing.")
+		if !essential && it.Severity.Rank() < min.Rank() {
+			continue
+		}
+		it.Unread = it.CreatedAt.After(readUntil)
+		if it.Unread {
+			unread++
+		}
+		if len(items) < limit {
+			items = append(items, it)
+		}
+	}
+	return items, unread, nil
+}
+
+// InboxRead marks everything seen for this person.
+func (s Service) InboxRead(ctx context.Context, tenantID, userID string) error {
+	if s.Inbox == nil {
+		return nil
+	}
+	return s.Inbox.InboxMarkRead(ctx, tenantID, userID)
+}
+
+// Setting exposes the settings reader the service uses (the bell reads the sound switch through it).
+func (s Service) Setting() settings.Reader { return s.cfg() }

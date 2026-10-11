@@ -5,6 +5,29 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.97] - 2026-10-11
+
+### Added
+- **The bell has an inbox** (migration 0056): every event the platform publishes is kept once in the organization's
+  inbox (a repeated key is dropped) and shown in the bell next to open alerts, with a per-person unread mark
+  (`GET /api/v1/inbox`, `POST /api/v1/inbox/read`). What is shown is decided at read time by new organization settings:
+  show in the bell (`notifications.inbox_enabled`), from which severity (`inbox_min_severity`), muted event types
+  (`inbox_muted_types`), a chime for new messages (`notifications.sound`; each person can switch it off for themselves).
+- **Billing reminders and receipts**: a daily job (`licensing:remind`) tells the organization when a paid period ends
+  (the number of days is `billing.reminder_days`, 7 by default, 0 turns it off; then again at 3 days and the day before,
+  each once per period) and when it has ended; a confirmed payment, a failed payment and the end of a plan are announced
+  by the provider's webhook. Billing messages always show in the bell and, with `billing.email_copy` (on by default),
+  are e-mailed to owners, admins and billing users - once, never repeated. New event types: `billing.renewal_due`,
+  `billing.payment_received`, `billing.payment_failed`, `billing.plan_ended`.
+
+### Changed
+- **Notifications page rebuilt** (was Alerts): unread messages, open alerts, cost anomalies and delivery issues as
+  clickable counts, messages grouped by area with "mark all as read", and alerts with acknowledge and mute.
+- **The header bell works as one feed**: messages and alerts together, an honest unread count that clears when read,
+  a ring animation and the optional chime, links that open the thing the message is about.
+- **Settings, Notifications** start with a "bell" panel: on or off, severity, which kinds of message, sound, renewal
+  reminder days and the e-mail copy.
+
 ## [0.1.0-alpha.96] - 2026-10-11
 
 ### Added

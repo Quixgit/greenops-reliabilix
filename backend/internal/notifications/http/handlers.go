@@ -15,6 +15,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
 
 type Handlers struct{ Svc application.Service }
@@ -29,6 +30,29 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(write).Post("/notifications/destinations/{id}/disable", h.setEnabled(false))
 	r.With(write).Post("/notifications/destinations/{id}/test", h.test)
 	r.With(read).Get("/notifications/deliveries", h.deliveries)
+	// The bell: for every member, whatever role; the organization's display settings decide what is in it.
+	r.With(auth.Require(auth.PermProjectRead)).Get("/inbox", h.inbox)
+	r.With(auth.Require(auth.PermProjectRead)).Post("/inbox/read", h.inboxRead)
+}
+
+func (h Handlers) inbox(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	items, unread, err := h.Svc.InboxFeed(r.Context(), c.TenantID, c.Subject, 30)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "unread": unread,
+		"sound": h.Svc.Setting().Bool(r.Context(), c.TenantID, settings.KeyNotifSound)})
+}
+
+func (h Handlers) inboxRead(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	if err := h.Svc.InboxRead(r.Context(), c.TenantID, c.Subject); err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {

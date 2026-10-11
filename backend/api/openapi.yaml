@@ -1937,6 +1937,58 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/inbox:
+    get:
+      operationId: getInbox
+      summary: The bell feed - what the platform tells the people of the organization inside the product
+      tags:
+      - notifications
+      description: |
+        Requires permission `project:read` (every member). Items are filtered by the organization's display settings
+        (`notifications.inbox_enabled`, `inbox_min_severity`, `inbox_muted_types`); billing messages are always shown.
+        `unread` counts items newer than the person's last `POST /inbox/read`. `sound` is the organization's default.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, unread, sound]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string, format: uuid}
+                        type: {type: string}
+                        severity: {type: string, enum: [info, warning, critical]}
+                        title: {type: string}
+                        body: {type: string}
+                        path: {type: string}
+                        created_at: {type: string, format: date-time}
+                        unread: {type: boolean}
+                  unread: {type: integer}
+                  sound: {type: boolean}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/inbox/read:
+    post:
+      operationId: markInboxRead
+      summary: Mark everything in the bell as seen, for the caller
+      tags:
+      - notifications
+      description: Requires permission `project:read`.
+      responses:
+        '204':
+          description: Marked
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/plan:
     get:
       operationId: getPlan

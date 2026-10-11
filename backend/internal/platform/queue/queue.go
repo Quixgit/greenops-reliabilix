@@ -36,6 +36,7 @@ const (
 	TaskEvaluateAlerts      = "alerts:evaluate_all"                   // reconcile budget and connection alerts (hourly)
 	TaskEraseDue            = "lifecycle:erase_due"                   // erase organizations whose grace period is over (hourly)
 	TaskEnforceRetention    = "platform:enforce_retention"            // drop usage and carbon partitions past retention (daily)
+	TaskBillingReminders    = "licensing:remind"                      // renewal reminders before a paid period ends (daily)
 	TaskExpireSubscriptions = "licensing:expire"                      // return organizations whose period ended to the Free plan (hourly)
 	TaskRecalculateWindow   = "carbon:recalculate_window"             // operator-started: redo the calculations of every project over a window
 	TaskAutoLoadHistory     = "carbon:auto_load_history"              // load the past of regions with gaps and redo their calculations (daily)
