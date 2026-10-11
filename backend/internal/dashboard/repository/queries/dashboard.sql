@@ -165,3 +165,9 @@ JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
 GROUP BY c.id;
+
+-- name: DashboardGridSources :many
+-- Reference data (no tenant): every source of grid carbon intensity the platform has readings from, with the newest
+-- reading and how many regions it covers. A source without readings is not listed.
+SELECT provider, max(ts)::timestamptz AS last_at, count(DISTINCT region_id)::int AS regions
+FROM carbon.grid_intensity WHERE NOT is_forecast GROUP BY provider ORDER BY max(ts) DESC;

@@ -2513,6 +2513,36 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/grid-sources:
+    get:
+      operationId: dashboardGridSources
+      summary: Sources of grid carbon intensity the platform has readings from
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`. Reference data, the same for every organization.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [provider, last_at, regions]
+                      properties:
+                        provider: {type: string}
+                        last_at: {type: string, format: date-time}
+                        regions: {type: integer}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/dashboard/services:
     get:
       operationId: dashboardServices

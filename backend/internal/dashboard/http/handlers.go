@@ -20,6 +20,7 @@ func (h Handlers) Routes(r chi.Router) {
 	read.Get("/dashboard/providers", h.providers)
 	read.Get("/dashboard/services", h.services)
 	read.Get("/dashboard/connections", h.connections)
+	read.Get("/dashboard/grid-sources", h.gridSources)
 	read.Get("/dashboard/regions", h.regions)
 	read.Get("/dashboard/regions/footprint", h.footprint)
 	read.Get("/dashboard/optimization", h.optimization)
@@ -51,6 +52,11 @@ func (h Handlers) connections(w http.ResponseWriter, r *http.Request) {
 		v, err := h.Repo.ConnectionCosts(r.Context(), f)
 		respond(w, r, v, err)
 	}
+}
+
+func (h Handlers) gridSources(w http.ResponseWriter, r *http.Request) {
+	v, err := h.Repo.GridSources(r.Context())
+	respond(w, r, v, err)
 }
 
 func (h Handlers) trend(w http.ResponseWriter, r *http.Request) {

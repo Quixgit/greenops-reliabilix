@@ -49,6 +49,18 @@ func (r Postgres) Providers(ctx context.Context, f domain.Filter) ([]domain.Prov
 	return out, err
 }
 
+func (r Postgres) GridSources(ctx context.Context) ([]domain.GridSource, error) {
+	rows, err := db.New(r.Pool).DashboardGridSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.GridSource, 0, len(rows))
+	for _, x := range rows {
+		out = append(out, domain.GridSource{Provider: x.Provider, LastAt: x.LastAt, Regions: int(x.Regions)})
+	}
+	return out, nil
+}
+
 func (r Postgres) ConnectionCosts(ctx context.Context, f domain.Filter) ([]domain.ConnectionCost, error) {
 	out := []domain.ConnectionCost{}
 	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {

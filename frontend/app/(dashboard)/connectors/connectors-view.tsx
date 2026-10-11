@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronDown, Cloud, Loader2, Plus, RefreshCw, Search, Zap } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { z } from "zod";
 import { ConnectionForm } from "@/components/forms/connection-form";
 import { Drawer } from "@/components/connectors/drawer";
@@ -67,6 +67,11 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]["id"]>("all");
   const [connectAs, setConnectAs] = useState<Provider | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  // /connectors?connect=aws opens the connect panel for that cloud (the Settings page links here)
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("connect");
+    if (p === "aws" || p === "gcp" || p === "azure") setConnectAs(p);
+  }, []);
 
   const notifOn = useNotificationsEnabled();
   const conns = d.connections.data ?? [];

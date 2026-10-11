@@ -10,10 +10,11 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { z } from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiKeys, useDestinations, useMembers, useNotificationsEnabled, useRoles, useTenant } from "@/hooks/use-admin";
-import { useAlerts, useBudgets, useCarbonSummary, useConnections, useK8sClusters, useProjects, useRegions } from "@/hooks/use-overview";
+import { useAlerts, useBudgets, useCarbonSummary, useConnections, useGridSources, useK8sClusters, useProjects, useRegions } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
-import { settingsView, tenantInfo } from "@/lib/api/schemas";
+import { apiVoid } from "@/lib/api/client";
+import { budget, settingsView, tenantInfo } from "@/lib/api/schemas";
 import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,55 @@ export function Status({ ok, children }: { ok: boolean | null; children: ReactNo
 
 const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-slate-50 disabled:text-slate-500";
 
+/** A row whose value is edited in place: click it, change the number, save. The editor opens under the row. */
+function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, max, canEdit, saving, error, onOpen }: {
+  icon: LucideIcon; label: string; display: ReactNode; initial: number; unit?: string; hint?: string; min?: number; max?: number;
+  canEdit: boolean; saving?: boolean; error?: string | null; onSave: (v: number) => Promise<unknown> | void; onOpen?: () => void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState(String(initial));
+  useEffect(() => { if (!open) setV(String(initial)); }, [initial, open]);
+  const n = Number(v.replace(",", "."));
+  const valid = v.trim() !== "" && Number.isFinite(n) && (min === undefined || n >= min) && (max === undefined || n <= max);
+  return (
+    <div className="border-t border-line/70">
+      <button type="button" disabled={!canEdit} onClick={() => { setOpen((o) => !o); onOpen?.(); }} aria-expanded={open}
+        className="group flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-slate-50/70 disabled:cursor-default disabled:hover:bg-transparent">
+        {(() => { const Icon = icon; return <Icon className="size-4 shrink-0 text-slate-500" strokeWidth={1.6} />; })()}
+        <span className="min-w-0 flex-1 truncate text-[13px] text-slate-700">{label}</span>
+        <span className="shrink-0 text-xs tabular-nums text-muted">{display}</span>
+        {canEdit && <ChevronRight className={cn("size-4 shrink-0 text-slate-400 transition-transform duration-300", open && "rotate-90")} />}
+      </button>
+      <div className="expand" data-open={open}>
+        <div>
+          <div className="pb-3">
+            {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
+            <div className="flex items-center gap-2">
+              <input value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" aria-label={label}
+                className="w-32 rounded-lg border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" />
+              {unit && <span className="text-xs text-muted">{unit}</span>}
+              <button type="button" disabled={!valid || saving}
+                onClick={async () => { await onSave(n); setOpen(false); }}
+                className="ml-auto rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
+            </div>
+            {error && <p role="alert" className="mt-1 text-xs text-bad">{error}</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The sources of grid carbon intensity as the platform has them: how many regions each covers and how fresh it is. */
+const GRID_NAME: Record<string, { name: string; desc: string; fresh: number }> = {
+  electricitymaps: { name: "Electricity Maps", desc: "Real-time grid intensity worldwide", fresh: 36 },
+  eia: { name: "EIA", desc: "United States, from the generation mix", fresh: 72 },
+  energy_charts: { name: "Energy-Charts", desc: "Europe, from the generation mix", fresh: 72 },
+  uk_carbon_intensity: { name: "UK Carbon Intensity", desc: "Great Britain, measured and forecast", fresh: 36 },
+  ember: { name: "Ember", desc: "Monthly generation data, worldwide", fresh: 24 * 50 },
+};
+
 /** The Organization tab: every area of the organization in the order and shape of the design, filled from real data. */
 export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) => void; canManage: boolean; canEdit: boolean }) {
   const t = useT();
@@ -92,6 +142,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
   const grid = useRegions();
   const summary = useCarbonSummary();
   const projects = useProjects();
+  const gridSrc = useGridSources();
   const budgets = useBudgets();
   const alerts = useAlerts("new");
   const members = useMembers();
@@ -129,6 +180,22 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     },
   });
 
+  // ---- policy rows edited in place
+  const patchSetting = useMutation({
+    mutationFn: (v: { key: string; value: number }) => api("settings", settingsView, undefined, { method: "PATCH", body: JSON.stringify({ values: { [v.key]: v.value } }) }),
+    onSuccess: (view) => qc.setQueryData(["settings", "settings"], view),
+  });
+  const monthlyBudget = useMutation({
+    mutationFn: async (amount: number) => {
+      const cur = (budgets.data ?? []).find((b) => b.project_id === null && b.period === "monthly");
+      if (cur) await apiVoid(`finops/budgets/${cur.id}`, { method: "DELETE" });
+      return api("finops/budgets", budget, undefined, {
+        method: "POST", body: JSON.stringify({ project_id: null, amount, currency: cur?.currency ?? (currency ? String(currency.value) === "auto" ? "USD" : String(currency.value) : "USD"), period: "monthly" }),
+      });
+    },
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["budgets"] }); void qc.invalidateQueries({ queryKey: ["alerts"] }); },
+  });
+
   // ---- channels: shown as a state, never as a second switch (the switch is on the Notifications tab)
   const notifOn = useNotificationsEnabled();
   const channel = (kind: string) => {
@@ -140,7 +207,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
   const carbonLimit = setting("alerts.carbon_monthly_kg");
   const warn = setting("alerts.warn_pct");
   const withRegions = (pols.data ?? []).filter((p) => p.allowed_regions.length > 0).length;
-  const autoOn = (pols.data ?? []).filter((p) => p.auto_apply_types.length > 0).length;
+  const autoOn = (pols.data ?? []).filter((p) => p.auto_apply_types.includes("time_shift")).length;
   const gates = (pols.data ?? []).filter((p) => p.ci_carbon_block_kg != null || p.ci_cost_block != null).length;
   const nProj = projects.data?.length ?? 0;
   const origins = summary.data?.intensity_origins ?? [];
@@ -155,12 +222,12 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     const list = (conns.data ?? []).filter((c) => c.provider === id);
     const connected = s.state !== "available";
     return (
-      <Link key={id} href="/connectors" className="group flex items-center gap-3 border-t border-line/70 py-2.5 transition-colors hover:bg-slate-50/70">
+      <Link key={id} href={connected ? "/connectors" : id === "kubernetes" ? "/kubernetes" : `/connectors?connect=${id}`} className="group flex items-center gap-3 border-t border-line/70 py-2.5 transition-colors hover:bg-slate-50/70">
         <BrandLogo id={id} className="size-9 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-ink">{name}</span>
           <span className="block truncate text-[11px] text-muted">
-            {!connected ? t("settings.org.connect_hint", { name })
+            {!connected ? (id === "kubernetes" ? t("settings.org.k8s_hint") : t("settings.org.connect_hint", { name }))
               : id === "kubernetes" ? `${t("connectors.k8s.clusters", { count: s.count })}${s.lastAt ? ` · ${timeAgo(s.lastAt)}` : ""}`
               : `${t("settings.org.accounts", { count: list.length })}${s.lastAt ? ` · ${t("settings.org.last_sync", { ago: timeAgo(s.lastAt) })}` : ""}`}
           </span>
@@ -171,16 +238,23 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     );
   };
 
-  const source = (id: "watttime" | "ember" | "entsoe", name: string, desc: string, connected: boolean | null) => (
-    <div key={id} className="flex items-center gap-3 border-t border-line/70 py-2.5">
-      <BrandLogo id={id} className="size-9 shrink-0" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-medium text-ink">{name}</span>
-        <span className="block truncate text-[11px] text-muted">{desc}</span>
-      </span>
-      <Status ok={connected}>{connected === null ? t("settings.org.planned") : connected ? t("connection.state.synced") : t("connection.state.none")}</Status>
-    </div>
-  );
+  const sourceRow = (provider: string, lastAt: string, regions: number) => {
+    const meta = GRID_NAME[provider] ?? { name: provider, desc: "", fresh: 72 };
+    const live = Date.now() - Date.parse(lastAt) <= meta.fresh * 3600_000;
+    const share = origins.filter((o) => o.source === provider).reduce((n, o) => n + o.share_pct, 0);
+    return (
+      <div key={provider} className="flex items-center gap-3 border-t border-line/70 py-2.5">
+        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-xs font-bold text-teal-800">{meta.name.slice(0, 2).toUpperCase()}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-medium text-ink">{meta.name}</span>
+          <span className="block truncate text-[11px] text-muted">
+            {t("settings.org.regions", { count: regions })} · {timeAgo(lastAt)}{share > 0 ? ` · ${t("settings.org.in_use", { pct: Math.round(share) })}` : ""}
+          </span>
+        </span>
+        <Status ok={live}>{live ? t("settings.hub.live") : t("settings.hub.stale")}</Status>
+      </div>
+    );
+  };
 
   const sw = (kind: string, label: string, icon: LucideIcon) => {
     const c = channel(kind);
@@ -224,28 +298,42 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
       </Panel>
 
       <Panel index={2} icon={Leaf} title={t("settings.org.sources")} hint={t("settings.org.sources_hint")} foot={<FootLink href="/carbon">{t("settings.org.all_sources")}</FootLink>}>
-        {source("watttime", "WattTime", t("settings.org.watttime"), null)}
-        {source("ember", "Ember", t("settings.org.ember"), used("ember") || grd.state !== "available" ? true : false)}
-        {source("entsoe", "ENTSO-E", t("settings.org.entsoe"), used("entso") || used("energy-charts") || used("energy_charts") ? true : false)}
+        {gridSrc.isLoading ? <Skeleton className="my-3 h-24" /> : (gridSrc.data ?? []).length === 0
+          ? <p className="border-t border-line/70 py-3 text-xs text-muted">{t("settings.org.no_sources")}</p>
+          : (gridSrc.data ?? []).map((g) => sourceRow(g.provider, g.last_at, g.regions))}
+        <div className="flex items-center gap-3 border-t border-line/70 py-2.5 opacity-70">
+          <BrandLogo id="watttime" className="size-9 shrink-0" />
+          <span className="min-w-0 flex-1"><span className="block text-[13px] font-medium text-ink">WattTime</span><span className="block truncate text-[11px] text-muted">{t("settings.org.watttime")}</span></span>
+          <Status ok={null}>{t("settings.org.planned")}</Status>
+        </div>
       </Panel>
 
       <Panel index={3} icon={ShieldCheck} title={t("settings.org.policy")} hint={t("settings.org.policy_hint")} foot={<FootLink onClick={() => go("policies")}>{t("settings.hub.manage_policies")}</FootLink>}>
-        <Row icon={BarChart3} label={t("settings.org.monthly_budget")} href="/projects"
-          value={budgets.isLoading ? "…" : budgetTop ? formatCost(budgetTop.amount, budgetTop.currency) : t("settings.org.not_set")} />
-        <Row icon={Target} label={t("settings.org.carbon_budget")} onClick={() => go("data")}
-          value={settings.isLoading ? "…" : typeof carbonLimit?.value === "number" && carbonLimit.value > 0 ? formatCarbon(carbonLimit.value) : t("settings.org.no_limit")} />
-        <Row icon={BellRing} label={t("settings.org.alert_thresholds")} onClick={() => go("data")}
-          value={settings.isLoading ? "…" : warn ? `${String(warn.value)}%` : t("settings.org.configured")} />
+        <EditableRow icon={BarChart3} label={t("settings.org.monthly_budget")} canEdit={canEdit} unit={budgetTop?.currency ?? (cur && cur !== "auto" ? cur : "USD")} min={1}
+          initial={budgetTop?.amount ?? 0} saving={monthlyBudget.isPending} error={monthlyBudget.isError ? monthlyBudget.error.message : null}
+          hint={t("settings.org.monthly_budget_hint")}
+          display={budgets.isLoading ? "…" : budgetTop ? formatCost(budgetTop.amount, budgetTop.currency) : t("settings.org.not_set")}
+          onSave={(v) => monthlyBudget.mutateAsync(v)} />
+        <EditableRow icon={Target} label={t("settings.org.carbon_budget")} canEdit={canEdit} unit="kg CO₂e" min={0} max={carbonLimit?.max}
+          initial={typeof carbonLimit?.value === "number" ? carbonLimit.value : 0} saving={patchSetting.isPending} error={patchSetting.isError ? patchSetting.error.message : null}
+          hint={t("settings.org.carbon_budget_hint")}
+          display={settings.isLoading ? "…" : typeof carbonLimit?.value === "number" && carbonLimit.value > 0 ? formatCarbon(carbonLimit.value) : t("settings.org.no_limit")}
+          onSave={(v) => patchSetting.mutateAsync({ key: "alerts.carbon_monthly_kg", value: Math.round(v) })} />
+        <EditableRow icon={BellRing} label={t("settings.org.alert_thresholds")} canEdit={canEdit} unit="%" min={warn?.min ?? 1} max={warn?.max ?? 100}
+          initial={typeof warn?.value === "number" ? warn.value : 80} saving={patchSetting.isPending} error={patchSetting.isError ? patchSetting.error.message : null}
+          hint={t("settings.org.alert_thresholds_hint")}
+          display={settings.isLoading ? "…" : warn ? `${String(warn.value)}%` : t("settings.org.configured")}
+          onSave={(v) => patchSetting.mutateAsync({ key: "alerts.warn_pct", value: Math.round(v) })} />
         <Row icon={Settings2} label={t("settings.org.optimization")} onClick={() => go("policies")}
           value={pols.isLoading ? "…" : t("settings.org.of_projects", { n: withRegions, total: nProj })} />
       </Panel>
 
       <Panel index={4} icon={Settings} title={t("settings.org.automation")} hint={t("settings.org.automation_hint")} foot={<FootLink onClick={() => go("automation")}>{t("settings.org.configure_automation")}</FootLink>}>
         <Row icon={Globe2} label={t("settings.auto.region_moves")} onClick={() => go("automation")} value={t("settings.auto.needs_person")} />
-        <Row icon={Minimize2} label={t("settings.auto.rightsizing")} onClick={() => go("automation")}
-          value={pols.isLoading ? "…" : autoOn > 0 ? t("settings.hub.projects_count", { count: autoOn }) : t("settings.auto.approval")} />
+        <Row icon={Minimize2} label={t("settings.auto.rightsizing")} onClick={() => go("automation")} value={t("settings.auto.needs_person")} />
+        <Row icon={Clock} label={t("settings.org.time_shift")} onClick={() => go("policies")}
+          value={pols.isLoading ? "…" : autoOn > 0 ? t("settings.org.auto_in", { n: autoOn, total: nProj }) : t("settings.auto.approval")} />
         <Row icon={GitBranch} label={t("settings.org.ci_gate")} onClick={() => go("policies")} value={pols.isLoading ? "…" : t("settings.org.of_projects", { n: gates, total: nProj })} />
-        <Row icon={ShieldCheck} label={t("settings.org.approval_required")} value={t("settings.org.always")} />
       </Panel>
 
       <Panel index={5} icon={Bell} title={t("settings.hub.notifications")} hint={t("settings.hub.notifications_hint")} foot={<FootLink onClick={() => go("notifications")}>{t("settings.hub.manage_notifications")}</FootLink>}>
@@ -256,19 +344,22 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
       </Panel>
 
       <Panel index={6} icon={Lock} title={t("settings.hub.security")} hint={t("settings.org.security_hint")} className="lg:col-span-3"
-        foot={canManage ? <div className="text-right"><FootLink onClick={() => go("security")}>{t("settings.org.all_security")}</FootLink></div> : undefined}>
+        foot={<div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-muted">{t("settings.org.provider_note")}</span>{canManage && <FootLink onClick={() => go("security")}>{t("settings.org.all_security")}</FootLink>}</div>}>
         <div className="grid gap-x-8 md:grid-cols-3 md:divide-x md:divide-line/70 [&>div]:md:pl-8 first:[&>div]:md:pl-0">
           <div>
             <Row icon={Users} label={t("settings.hub.members")} onClick={canManage ? () => go("users") : undefined} value={members.isLoading ? "…" : t("settings.org.members_count", { count: members.data?.length ?? 0 })} />
-            <Row icon={ShieldCheck} label={t("settings.org.roles")} onClick={canManage ? () => go("users") : undefined} value={roles.isLoading ? "…" : customRoles > 0 ? t("settings.org.custom_roles", { count: customRoles }) : t("settings.org.configured")} />
+            <Row icon={ShieldCheck} label={t("settings.org.roles")} onClick={canManage ? () => go("users") : undefined} value={roles.isLoading ? "…" : t("settings.org.roles_count", { builtin: roles.data?.builtin.length ?? 0, custom: customRoles })} />
           </div>
           <div>
             <Row icon={KeyRound} label={t("settings.org.keys")} onClick={canManage ? () => go("security") : undefined} value={keys.isLoading ? "…" : t("settings.org.keys_count", { count: activeKeys })} />
             <Row icon={ClipboardList} label={t("settings.org.audit")} onClick={canManage ? () => go("security") : undefined} value={t("settings.org.enabled")} />
           </div>
           <div>
-            <Row icon={ShieldCheck} label={t("settings.org.mfa")} value={t("settings.org.by_provider")} />
-            <Row icon={Clock} label={t("settings.org.session")} value={t("settings.org.by_provider")} />
+            <Row icon={Clock} label={t("settings.org.invite_lifetime")} onClick={canManage ? () => go("data") : undefined}
+              value={settings.isLoading ? "…" : t("settings.org.days", { count: Number(setting("security.invitation_expiry_days")?.value ?? 7) })} />
+            <Row icon={Mail} label={t("settings.org.invite_domains")} onClick={canManage ? () => go("data") : undefined}
+              value={settings.isLoading ? "…" : ((setting("security.invitation_allowed_domains")?.value as string[] | undefined)?.length ?? 0) > 0
+                ? ((setting("security.invitation_allowed_domains")?.value as string[]).join(", ")) : t("settings.org.any_domain")} />
           </div>
         </div>
       </Panel>

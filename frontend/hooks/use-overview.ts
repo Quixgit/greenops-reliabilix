@@ -36,6 +36,7 @@ export const useServices = (category: string) => {
     queryFn: () => api("dashboard/services", s.services, { ...f, category: category === "all" ? undefined : category }),
   });
 };
+export const useGridSources = () => useQuery({ queryKey: ["grid-sources"], queryFn: () => api("dashboard/grid-sources", s.gridSources), staleTime: 5 * 60_000 });
 export const useConnectionCosts = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["connection-costs", f], queryFn: () => api("dashboard/connections", s.connectionCosts, f) });

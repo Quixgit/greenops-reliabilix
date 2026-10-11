@@ -178,6 +178,39 @@ func (q *Queries) DashboardEfficiency(ctx context.Context, arg DashboardEfficien
 	return i, err
 }
 
+const dashboardGridSources = `-- name: DashboardGridSources :many
+SELECT provider, max(ts)::timestamptz AS last_at, count(DISTINCT region_id)::int AS regions
+FROM carbon.grid_intensity WHERE NOT is_forecast GROUP BY provider ORDER BY max(ts) DESC
+`
+
+type DashboardGridSourcesRow struct {
+	Provider string    `json:"provider"`
+	LastAt   time.Time `json:"last_at"`
+	Regions  int32     `json:"regions"`
+}
+
+// Reference data (no tenant): every source of grid carbon intensity the platform has readings from, with the newest
+// reading and how many regions it covers. A source without readings is not listed.
+func (q *Queries) DashboardGridSources(ctx context.Context) ([]DashboardGridSourcesRow, error) {
+	rows, err := q.db.Query(ctx, dashboardGridSources)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DashboardGridSourcesRow{}
+	for rows.Next() {
+		var i DashboardGridSourcesRow
+		if err := rows.Scan(&i.Provider, &i.LastAt, &i.Regions); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dashboardPotential = `-- name: DashboardPotential :one
 SELECT count(*) FILTER (WHERE r.status = 'open')::int AS open_count,
        count(*) FILTER (WHERE status = 'approved')::int AS approved_count,

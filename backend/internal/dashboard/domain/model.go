@@ -122,7 +122,15 @@ type ConnectionCost struct {
 	LastDay      time.Time `json:"last_day"`
 }
 
+// GridSource is one provider of grid carbon intensity the platform has readings from.
+type GridSource struct {
+	Provider string    `json:"provider"`
+	LastAt   time.Time `json:"last_at"`
+	Regions  int       `json:"regions"`
+}
+
 type Repository interface {
+	GridSources(ctx context.Context) ([]GridSource, error)
 	ConnectionCosts(ctx context.Context, f Filter) ([]ConnectionCost, error)
 	Trend(ctx context.Context, f Filter) ([]TrendPoint, error)
 	Providers(ctx context.Context, f Filter) ([]ProviderShare, error)

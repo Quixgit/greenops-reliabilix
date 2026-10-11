@@ -5,6 +5,22 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.72] - 2026-10-11
+
+### Added
+- **The Organization tab works end to end.** Monthly budget, carbon budget and the alert threshold open in place and
+  save (the budget creates or replaces the organization's monthly budget); a cloud that is not connected links to the
+  connect panel of that cloud (`/connectors?connect=aws`), Kubernetes to the agent setup.
+- **Real grid data sources** (`GET /dashboard/grid-sources`): the sources the platform has readings from, how many
+  regions each covers, how fresh it is and what share of the organization's own figures it supplied. Replaces a fixed
+  list that named sources the platform does not use (WattTime stays, marked planned).
+
+### Changed
+- Automation rows say what is true: region moves and rightsizing always need a person; **time shifting** is the one
+  type a project may let the platform apply on its own, counted per project (it was shown as "rightsizing").
+- Security shows the invitation lifetime and the allowed e-mail domains (settings that exist) and says plainly that
+  two-factor authentication and session length belong to the sign-in provider; roles show built-in and custom counts.
+
 ## [0.1.0-alpha.71] - 2026-10-11
 
 ### Changed

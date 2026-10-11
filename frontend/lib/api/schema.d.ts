@@ -1527,6 +1527,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/grid-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sources of grid carbon intensity the platform has readings from
+         * @description Requires permission `usage:read`. Reference data, the same for every organization.
+         */
+        get: operations["dashboardGridSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/services": {
         parameters: {
             query?: never;
@@ -6681,6 +6701,35 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    dashboardGridSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            provider: string;
+                            /** Format: date-time */
+                            last_at: string;
+                            regions: number;
+                        }[];
+                    };
+                };
+            };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
         };
