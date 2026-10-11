@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { api } from "@/lib/api/client";
 import { automationJob, recommendation, type ImpactVerification, type Recommendation } from "@/lib/api/schemas";
 import { useRecommendations } from "@/hooks/use-overview";
@@ -115,6 +116,7 @@ function VerifiedImpact({ v }: { v: ImpactVerification }) {
 export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean; canPlan: boolean }) {
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("open");
   const q = useRecommendations(status);
+  const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
@@ -127,8 +129,9 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
       <Card>
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
           <EmptyState icon={Lightbulb} text="No recommendations here yet. They appear after a cloud account is synced and carbon is calculated. Moves to a cleaner region are only proposed into regions you allow: set the allowed regions in a project's policy." action={{ href: "/settings", label: "Open project policy" }} /> : (
-            <ul className="divide-y divide-line/70">{q.data!.map((r) => <Row key={r.id} r={r} canDecide={canDecide} canPlan={canPlan} />)}</ul>
+            <ul className="divide-y divide-line/70">{pg.slice.map((r) => <Row key={r.id} r={r} canDecide={canDecide} canPlan={canPlan} />)}</ul>
           )}
+        <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
       </Card>
     </div>
   );

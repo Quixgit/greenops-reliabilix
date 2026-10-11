@@ -13,6 +13,7 @@ export const useDeliveries = () =>
     refetchInterval: (q) => (q.state.data?.some((d) => d.status === "pending") ? 4000 : false), // follow a test message until it is delivered
   });
 export const useTenant = () => useQuery({ queryKey: ["tenant"], queryFn: () => api("tenant", s.tenantInfo) });
+export const useAuditLog = (limit = 50) => useQuery({ queryKey: ["audit-log", limit], queryFn: () => api("audit-log", s.auditLog, { limit: String(limit) }) });
 export const useMembers = () => useQuery({ queryKey: ["members"], queryFn: () => api("members", s.members) });
 export const useRoles = () => useQuery({ queryKey: ["roles"], queryFn: () => api("roles", s.rolesView) });
 export const useInvitations = () => useQuery({ queryKey: ["invitations"], queryFn: () => api("invitations", s.invitations) });

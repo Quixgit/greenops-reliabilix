@@ -2,7 +2,10 @@
 
 import { Bell, Building2, CreditCard, Database, KeyRound, Palette, Settings as SettingsIcon, SlidersHorizontal, Users, Workflow, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AuditPanel } from "@/components/settings/audit-panel";
 import { AutomationTab } from "@/components/settings/automation-tab";
+import { BudgetsPanel } from "@/components/forms/budgets-panel";
+import { useFinopsSummary } from "@/hooks/use-overview";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { DataPanel } from "@/components/settings/data-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
@@ -86,6 +89,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
   };
   const current = tabs.find((x) => x.id === active) ?? tabs[0];
   const edit = canWrite(user.role);
+  const cost = useFinopsSummary();
 
   const body: Record<string, ReactNode> = {
     organization: <OrganizationTab go={go} canManage={canManageTenant(user.role)} canEdit={edit} />,
@@ -96,12 +100,18 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
         {user.role === "owner" && <DataPanel />}
       </div>
     ),
-    policies: <ProjectsPolicyPanel canEdit={edit} />,
+    policies: (
+      <div className="space-y-4">
+        <ProjectsPolicyPanel canEdit={edit} />
+        <BudgetsPanel canEdit={canManageTenant(user.role) || edit} currency={cost.data?.currency ?? "USD"} />
+      </div>
+    ),
     automation: <AutomationTab go={go} />,
     notifications: <NotificationsPanel canEdit={edit} />,
     security: (
       <div className="space-y-4">
         <ApiKeysPanel />
+        <AuditPanel />
         {canSeeSettings(user.role) && <SettingsHistory path="settings/history?limit=100" />}
       </div>
     ),

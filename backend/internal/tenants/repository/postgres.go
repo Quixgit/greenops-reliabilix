@@ -77,6 +77,29 @@ func (r Postgres) Organization(ctx context.Context, tenantID string) (o domain.O
 	return
 }
 
+func (r Postgres) Rename(ctx context.Context, tenantID, name string) (o domain.Organization, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		before, err := q.GetOrganization(ctx, tenantID)
+		if database.IsNotFound(err) {
+			return domain.ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if _, err := q.RenameOrganization(ctx, name); err != nil {
+			return domain.ErrInvalidInput
+		}
+		after, err := q.GetOrganization(ctx, tenantID)
+		if err != nil {
+			return err
+		}
+		o = domain.Organization{ID: after.ID, Name: after.Name, Plan: after.Plan, CreatedAt: after.CreatedAt}
+		return audit.Record(ctx, tx, "organization.renamed", "organization:"+tenantID, map[string]any{"from": before.Name, "to": after.Name})
+	})
+	return
+}
+
 func (r Postgres) Members(ctx context.Context, tenantID string) ([]domain.Member, error) {
 	out := []domain.Member{}
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {

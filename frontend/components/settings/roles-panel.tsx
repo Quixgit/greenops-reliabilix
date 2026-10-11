@@ -1,10 +1,9 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { Lock, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +11,7 @@ import { useRoles } from "@/hooks/use-admin";
 import { useT } from "@/i18n/provider";
 import { api, apiVoid } from "@/lib/api/client";
 import { customRole, type CustomRole, type RolesView } from "@/lib/api/schemas";
+import { Panel } from "./organization-tab";
 
 const field = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
 
@@ -34,8 +34,7 @@ function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClo
   });
   const toggle = (k: string) => setD((x) => { const n = new Set(x.permissions); if (n.has(k)) n.delete(k); else n.add(k); return { ...x, permissions: n }; });
   return (
-    <Card interactive={false}>
-      <CardHeader title={d.id ? t("roles.edit") : t("roles.new")} />
+    <Panel icon={ShieldCheck} title={d.id ? t("roles.edit") : t("roles.new")} className="lg:col-span-2">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm"><span className="mb-1 block font-medium">{t("roles.name")}</span><input value={d.name} maxLength={60} onChange={(e) => setD({ ...d, name: e.target.value })} className={field} /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium">{t("roles.description")}</span><input value={d.description} maxLength={200} onChange={(e) => setD({ ...d, description: e.target.value })} className={field} /></label>
@@ -59,10 +58,10 @@ function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClo
       {save.isError && <p role="alert" className="mt-2 text-sm text-bad">{save.error.message}</p>}
       <div className="mt-4 flex gap-2">
         <button type="button" disabled={save.isPending || d.name.trim().length < 2 || d.permissions.size === 0} onClick={() => save.mutate()}
-          className="brand-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t("common.save")}</button>
-        <button type="button" onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium ring-1 ring-line hover:bg-white">{t("common.cancel")}</button>
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 disabled:opacity-50">{t("common.save")}</button>
+        <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium ring-1 ring-line hover:bg-white">{t("common.cancel")}</button>
       </div>
-    </Card>
+    </Panel>
   );
 }
 
@@ -81,16 +80,15 @@ export function RolesPanel() {
   const view = q.data;
   const start = (r?: CustomRole) => setEditing({ id: r?.id, name: r?.name ?? "", description: r?.description ?? "", permissions: new Set(r?.permissions ?? []) });
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-4 lg:grid-cols-2">
       {editing && <Editor view={view} draft={editing} onClose={() => setEditing(null)} />}
-      <Card interactive={false}>
-        <CardHeader title={t("roles.custom")} action={!editing && (
-          <button type="button" onClick={() => start()} className="inline-flex items-center gap-1.5 rounded-xl bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/15"><Plus className="size-4" aria-hidden />{t("roles.new")}</button>
-        )} />
-        {view.custom.length === 0 ? <p className="text-sm text-muted">{t("roles.none")}</p> : (
-          <ul className="divide-y divide-line/70 text-sm">
+      <Panel index={0} icon={ShieldCheck} title={t("roles.custom")} hint={t("settings.roles.custom_hint")} action={!editing && (
+        <button type="button" onClick={() => start()} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"><Plus className="size-4" aria-hidden />{t("roles.new")}</button>
+      )}>
+        {view.custom.length === 0 ? <p className="border-t border-line/70 pt-3 text-sm text-muted">{t("roles.none")}</p> : (
+          <ul className="text-sm">
             {view.custom.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+              <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 border-t border-line/70 py-3">
                 <div className="min-w-0">
                   <p className="font-medium">{r.name} <Badge className="ml-1">{t("roles.members", { count: r.members })}</Badge></p>
                   {r.description && <p className="text-xs text-muted">{r.description}</p>}
@@ -107,19 +105,18 @@ export function RolesPanel() {
         )}
         {remove.isError && <p role="alert" className="mt-2 text-sm text-bad">{remove.error.message}</p>}
         <p className="mt-3 text-xs text-muted">{t("roles.assign_hint")}</p>
-      </Card>
+      </Panel>
 
-      <Card interactive={false}>
-        <CardHeader title={t("roles.builtin")} icon={<Lock className="size-4 text-muted" aria-hidden />} />
-        <ul className="divide-y divide-line/70 text-sm">
+      <Panel index={1} icon={Lock} title={t("roles.builtin")} hint={t("settings.roles.builtin_hint")}>
+        <ul className="text-sm">
           {view.builtin.map((b) => (
-            <li key={b.role} className="py-3">
+            <li key={b.role} className="border-t border-line/70 py-3">
               <p className="font-medium capitalize">{b.role}</p>
               <p className="mt-1 flex flex-wrap gap-1">{b.permissions.map((p) => <code key={p} className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">{p}</code>)}</p>
             </li>
           ))}
         </ul>
-      </Card>
+      </Panel>
     </div>
   );
 }

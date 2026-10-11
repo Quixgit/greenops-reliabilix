@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, FolderKanban } from "lucide-react";
 import { useState } from "react";
-import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/operator/ui";
 import { PolicyPanel } from "@/components/forms/policy-panel";
@@ -12,6 +12,7 @@ import { useProjects } from "@/hooks/use-overview";
 import { api } from "@/lib/api/client";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { Panel } from "./organization-tab";
 
 const policy = z.object({
   allowed_regions: z.array(z.string()), alert_carbon_monthly_kg: z.number().nullable().optional(),
@@ -48,10 +49,9 @@ function ProjectRow({ id, name, unit, canEdit }: { id: string; name: string; uni
 /** Every project's residency, automation, carbon limit and CI gate in one place; a row opens the full policy. */
 export function ProjectsPolicyPanel({ canEdit }: { canEdit: boolean }) {
   const q = useProjects();
+  const pg = usePaged(q.data ?? [], 10);
   return (
-    <Card interactive={false}>
-      <CardHeader title="Projects & policies" icon={<FolderKanban className="size-4 text-emerald-600" />} />
-      <p className="-mt-2 mb-4 text-xs text-muted">Where each project may run (data residency), what the platform may apply on its own, its monthly carbon limit and the CI gate. Open a row to change it.</p>
+    <Panel icon={FolderKanban} title="Projects & policies" hint="Where each project may run (data residency), what the platform may apply on its own, its monthly carbon limit and the CI gate. Open a row to change it.">
       {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={FolderKanban} text="No projects yet." /> : (
         <div className="overflow-hidden rounded-2xl ring-1 ring-line">
           <div className="overflow-x-auto">
@@ -63,11 +63,12 @@ export function ProjectsPolicyPanel({ canEdit }: { canEdit: boolean }) {
                   <th className="hidden border-b border-line px-4 py-2.5 lg:table-cell">Carbon limit</th><th className="hidden border-b border-line px-4 py-2.5 lg:table-cell">CI gate</th><th className="border-b border-line px-4 py-2.5" />
                 </tr>
               </thead>
-              <tbody>{q.data!.map((p) => <ProjectRow key={p.id} id={p.id} name={p.name} unit={p.functional_unit} canEdit={canEdit} />)}</tbody>
+              <tbody>{pg.slice.map((p) => <ProjectRow key={p.id} id={p.id} name={p.name} unit={p.functional_unit} canEdit={canEdit} />)}</tbody>
             </table>
           </div>
+          <div className="px-4 pb-3"><Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} /></div>
         </div>
       )}
-    </Card>
+    </Panel>
   );
 }

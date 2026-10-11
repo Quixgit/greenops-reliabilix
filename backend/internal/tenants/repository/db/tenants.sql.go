@@ -393,6 +393,16 @@ func (q *Queries) Onboard(ctx context.Context, arg OnboardParams) (string, error
 	return tenant_id, err
 }
 
+const renameOrganization = `-- name: RenameOrganization :one
+SELECT tenants.rename_organization($1::text)::text AS name
+`
+
+func (q *Queries) RenameOrganization(ctx context.Context, name string) (string, error) {
+	row := q.db.QueryRow(ctx, renameOrganization, name)
+	err := row.Scan(&name)
+	return name, err
+}
+
 const revokeAPIKey = `-- name: RevokeAPIKey :execrows
 UPDATE tenants.api_keys SET revoked_at = now() WHERE organization_id = $1 AND id = $2 AND revoked_at IS NULL
 `

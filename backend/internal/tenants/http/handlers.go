@@ -27,6 +27,7 @@ func (h Handlers) IdentityRoutes(r chi.Router) {
 func (h Handlers) Routes(r chi.Router) {
 	admin := auth.Require(auth.PermTenantAdmin)
 	r.With(auth.Require(auth.PermProjectRead)).Get("/tenant", h.organization)
+	r.With(admin).Patch("/tenant", h.rename)
 	r.With(admin).Get("/members", h.members)
 	r.With(admin).Patch("/members/{id}", h.changeRole)
 	r.With(admin).Delete("/members/{id}", h.removeMember)
@@ -104,6 +105,24 @@ func (h Handlers) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 func (h Handlers) organization(w http.ResponseWriter, r *http.Request) {
 	c, _ := auth.FromContext(r.Context())
 	o, err := h.Svc.Organization(r.Context(), c.TenantID)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, o)
+}
+
+// rename takes {"name": "..."}; the database function validates the length again.
+func (h Handlers) rename(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := httpx.DecodeJSON(r, &in); err != nil {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
+		return
+	}
+	o, err := h.Svc.Rename(r.Context(), c.TenantID, in.Name)
 	if err != nil {
 		fail(w, r, err)
 		return

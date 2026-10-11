@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
-import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { api, apiVoid } from "@/lib/api/client";
 import { shortTime } from "@/lib/format-time";
+import { useT } from "@/i18n/provider";
+import { Panel } from "./organization-tab";
 
 const deletion = z.object({
   scheduled: z.boolean(),
@@ -18,6 +19,7 @@ const deletion = z.object({
 
 /** Export and erasure of the whole organization. Owners only: the Go API enforces it again. */
 export function DataPanel() {
+  const t = useT();
   const qc = useQueryClient();
   const org = useQuery({ queryKey: ["tenant"], queryFn: () => api("tenant", z.object({ name: z.string() })), staleTime: 5 * 60_000 });
   const orgName = org.data?.name ?? "";
@@ -33,9 +35,8 @@ export function DataPanel() {
   });
   const scheduled = q.data?.scheduled;
   return (
-    <div className="space-y-5">
-      <Card>
-        <CardHeader title="Export your data" />
+    <div className="grid items-start gap-4 lg:grid-cols-2">
+      <Panel index={0} icon={Download} title={t("settings.data.export")} hint={t("settings.data.export_hint")}>
         <p className="text-sm text-muted">
           Everything the organization stores — projects, connections, usage, carbon results, recommendations, members and the audit
           log — as one NDJSON file. Secrets (API key hashes, notification targets, AWS ExternalIds) and generated report files are not included.
@@ -44,9 +45,8 @@ export function DataPanel() {
           className="mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-primary ring-1 ring-line hover:bg-slate-50">
           <Download className="size-4" />Download export
         </a>
-      </Card>
-      <Card>
-        <CardHeader title="Delete this organization" />
+      </Panel>
+      <Panel index={1} icon={Trash2} title={t("settings.data.erase")} hint={t("settings.data.erase_hint")}>
         {scheduled ? (
           <div className="space-y-3 text-sm">
             <p role="status" className="rounded-lg bg-red-50 p-3 text-bad ring-1 ring-red-200">
@@ -75,7 +75,7 @@ export function DataPanel() {
             {schedule.isError && <p role="alert" className="text-xs text-bad">{schedule.error.message}</p>}
           </div>
         )}
-      </Card>
+      </Panel>
     </div>
   );
 }

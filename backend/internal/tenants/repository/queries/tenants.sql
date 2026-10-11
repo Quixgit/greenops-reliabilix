@@ -7,6 +7,9 @@ SELECT tenants.accept_invitation(sqlc.arg(token_hash)::text, sqlc.arg(sub)::text
 -- name: GetOrganization :one
 SELECT id, name, plan, created_at FROM tenants.organizations WHERE id = sqlc.arg(tenant_id);
 
+-- name: RenameOrganization :one
+SELECT tenants.rename_organization(sqlc.arg(name)::text)::text AS name;
+
 -- name: ListMembers :many
 SELECT m.id, m.user_id, u.auth_sub, u.email, m.role, m.created_at
 FROM tenants.memberships m JOIN tenants.users u ON u.id = m.user_id

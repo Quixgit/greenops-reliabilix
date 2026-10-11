@@ -9,6 +9,7 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConnection, useConnectionCosts, useProjects, useSyncRuns } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
@@ -51,6 +52,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
   const router = useRouter();
   const projects = useProjects();
   const costs = useConnectionCosts();
+  const pg = usePaged(runs.data ?? [], 10);
   const disconnect = useMutation({
     mutationFn: () => apiVoid(`cloud-accounts/${id}`, { method: "DELETE" }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["connections"] }); router.push("/connectors"); },
@@ -111,7 +113,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
                 <table className="w-full text-left text-sm">
                   <thead className="text-xs text-muted"><tr><th className="py-2 pr-3 font-medium">Started</th><th className="pr-3 font-medium">Status</th><th className="pr-3 font-medium">Records</th><th className="pr-3 font-medium">Data quality</th><th className="font-medium">Error</th></tr></thead>
                   <tbody className="divide-y divide-line/70">
-                    {runs.data!.map((r) => (
+                    {pg.slice.map((r) => (
                       <tr key={r.id}>
                         <td className="py-2 pr-3 whitespace-nowrap">{shortTime(r.started_at)}</td>
                         <td className="pr-3"><Badge tone={statusTone(r.status)}>{r.status}</Badge></td>
@@ -122,6 +124,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
                     ))}
                   </tbody>
                 </table>
+                <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
               </div>
             )}
           </Card>

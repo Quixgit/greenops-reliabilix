@@ -5,6 +5,7 @@ import { Wallet } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Panel } from "@/components/settings/organization-tab";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBudgets, useProjects } from "@/hooks/use-overview";
@@ -96,13 +97,11 @@ export function BudgetsPanel({ canEdit, currency }: { canEdit: boolean; currency
   if (q.isError) return null; // no billing access (403): the page simply has no budgets section
   const name = (id: string | null) => (id === null ? t("budgets.scope_org") : projects.data?.find((p) => p.id === id)?.name ?? t("budgets.project_unknown"));
   return (
-    <Card index={1}>
-      <CardHeader title={t("budgets.title")} />
-      <p className="mb-3 text-sm text-muted">{t("budgets.intro")}</p>
+    <Panel index={1} icon={Wallet} title={t("budgets.title")} hint={t("budgets.intro")}>
       {canEdit && <div className="mb-4"><NewBudget currency={currency} /></div>}
       {q.isLoading ? <Skeleton className="h-24" /> : q.data!.length === 0 ? (
         <EmptyState icon={Wallet} text={t("budgets.empty")} />
       ) : <ul className="divide-y divide-line/70">{q.data!.map((b) => <Row key={b.id} b={b} scope={name(b.project_id)} canEdit={canEdit} />)}</ul>}
-    </Card>
+    </Panel>
   );
 }

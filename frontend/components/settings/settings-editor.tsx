@@ -1,10 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Lock, RotateCcw, Search } from "lucide-react";
+import { BarChart3, Bell, BellRing, Database, FileText, Globe2, Leaf, Lock, RefreshCw, History, RotateCcw, Search, Settings2, type LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Pagination, usePaged } from "@/components/ui/pagination";
+import { Panel } from "./organization-tab";
 import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, api } from "@/lib/api/client";
@@ -21,6 +23,9 @@ import { cn } from "@/lib/utils";
  */
 export type EditorMode = "tenant" | "platform" | "operator-tenant";
 
+const GROUP_ICON: Record<string, LucideIcon> = {
+  reporting: BarChart3, alerts: BellRing, retention: Database, security: Lock, notifications: Bell, carbon: Leaf, sync: RefreshCw, reports: FileText, i18n: Globe2,
+};
 const inputCls = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary disabled:opacity-60";
 
 const SOURCE_LABEL: Record<string, { text: string; tone: "neutral" | "good" | "stub" | "warn" }> = {
@@ -133,15 +138,14 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Setting groups">
           {[{ id: "all", title: "All" }, ...groups].map((g) => (
             <button key={g.id} type="button" role="tab" aria-selected={active === g.id} onClick={() => setActive(g.id)}
-              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-primary/10 text-primary" : "text-muted hover:text-ink")}>{g.title}</button>
+              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-emerald-50 text-emerald-700" : "text-muted hover:text-ink")}>{g.title}</button>
           ))}
         </div>
       </div>}
 
-      {groups.filter((g) => shown.some((i) => i.group === g.id)).map((g) => (
-        <Card key={g.id}>
-          <h2 className="text-[15px] font-semibold tracking-tight">{g.title}</h2>
-          <p className="mb-3 text-xs text-muted">{g.description}</p>
+      <div className={cn("grid items-start gap-4", onlyGroup ? "" : "lg:grid-cols-2")}>
+      {groups.filter((g) => shown.some((i) => i.group === g.id)).map((g, gi) => (
+        <Panel key={g.id} index={gi} icon={GROUP_ICON[g.id] ?? Settings2} title={g.title} hint={g.description}>
           <ul className="divide-y divide-line/70">
             {shown.filter((i) => i.group === g.id).map((i) => {
               const value = i.key in draft ? draft[i.key] : i.value;
@@ -173,15 +177,16 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
               );
             })}
           </ul>
-        </Card>
+        </Panel>
       ))}
+      </div>
       {shown.length === 0 && <p className="py-6 text-center text-sm text-muted">No settings match.</p>}
 
       {canEdit && (
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={dirty.length === 0 || save.isPending}
             onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="brand-gradient rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
           {dirty.length > 0 && <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">Discard</button>}
           {saved && dirty.length === 0 && <span role="status" className="text-sm text-emerald-700">Saved.</span>}
           {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-bad">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}
@@ -194,17 +199,18 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
 
 export function SettingsHistory({ path }: { path: string }) {
   const q = useQuery({ queryKey: ["settings-history", path], queryFn: () => api(path, settingChanges), staleTime: 0 });
+  const pg = usePaged(q.data ?? [], 10);
   if (q.isLoading) return <Skeleton className="h-32" />;
   if (q.isError) return <ErrorState />;
-  if (q.data!.length === 0) return <Card><p className="py-6 text-center text-sm text-muted">No changes yet.</p></Card>;
+  if (q.data!.length === 0) return <Panel icon={History} title="Change history" hint="Who changed which setting"><p className="py-4 text-center text-sm text-muted">No changes yet.</p></Panel>;
   const show = (v: unknown) => (v === null || v === undefined ? "—" : Array.isArray(v) ? `[${v.join(", ")}]` : String(v));
   return (
-    <Card>
+    <Panel icon={History} title="Change history" hint="Who changed which setting, and when">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead><tr className="text-left text-xs text-muted"><th className="py-1.5 pr-3 font-medium">When</th><th className="pr-3 font-medium">Setting</th><th className="pr-3 font-medium">Change</th><th className="pr-3 font-medium">By</th></tr></thead>
           <tbody className="divide-y divide-line/70">
-            {q.data!.map((h, n) => (
+            {pg.slice.map((h, n) => (
               <tr key={n}>
                 <td className="whitespace-nowrap py-2 pr-3 text-muted" title={h.at}>{shortTime(h.at)}</td>
                 <td className="pr-3"><code className="text-xs">{h.key}</code></td>
@@ -215,6 +221,7 @@ export function SettingsHistory({ path }: { path: string }) {
           </tbody>
         </table>
       </div>
-    </Card>
+      <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
+    </Panel>
   );
 }

@@ -183,6 +183,8 @@ type Repository interface {
 	AcceptInvitation(ctx context.Context, tokenHash, subject, email string) (tenantID string, err error)
 	// tenant data
 	Organization(ctx context.Context, tenantID string) (Organization, error)
+	// Rename changes the organization's name (2-100 characters) and audits the change.
+	Rename(ctx context.Context, tenantID, name string) (Organization, error)
 	Members(ctx context.Context, tenantID string) ([]Member, error)
 	ChangeRole(ctx context.Context, tenantID, memberID string, newRole auth.Role, actor auth.Claims) (Member, error)
 	// Custom roles.

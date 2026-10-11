@@ -5,6 +5,26 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.70] - 2026-10-11
+
+### Added
+- **Rename the organization** (`PATCH /tenant`, administrators; the name is 2-100 characters; audited as
+  `organization.renamed`). The Organization tab saves the name together with the reporting currency. Migration 0052: the
+  change is a database function, because the api role has no UPDATE on organizations.
+- **Audit log in the console** (API & security): who did what, filterable by area (members, connections, API keys,
+  recommendations, settings, organization).
+
+- **Paging wherever a list can grow**: one paging bar (range "11–20 of 57", page size 10/25/50, previous and next,
+  numbers with gaps collapsed) on the audit log, change history, deliveries, members, API keys, project policies,
+  recommendations, alerts, reports, Kubernetes workloads and a connection's sync history. It hides when one page is enough.
+
+### Changed
+- **Every Settings tab follows the Organization layout** (cards with an outlined icon, a purpose line, rows and hover):
+  Users (members with initials, role and removal, invitations, pending invitations; custom and built-in roles),
+  Data & integrations (every settings group is a card; export and erasure), Cost & carbon policies (projects and their
+  policies, budgets), Automation, Notifications (destinations, add, deliveries), API & security (keys, audit log, change
+  history), Billing (plan, usage, change) and Preferences.
+
 ## [0.1.0-alpha.69] - 2026-10-11
 
 ### Changed

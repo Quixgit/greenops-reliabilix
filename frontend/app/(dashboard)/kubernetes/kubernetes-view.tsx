@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useK8sClusters, useK8sWorkloads } from "@/hooks/use-overview";
 import { carbonParts, nf } from "@/lib/formatters";
@@ -26,6 +27,7 @@ export function KubernetesView() {
   const [cluster, setCluster] = useState("");
   const clusters = useK8sClusters();
   const workloads = useK8sWorkloads(cluster);
+  const pg = usePaged(workloads.data ?? [], 10);
   return (
     <div className="space-y-5">
       <div>
@@ -68,7 +70,7 @@ export function KubernetesView() {
               <table className="w-full text-left text-sm">
                 <thead className="text-xs text-muted"><tr><th className="py-2 pr-3 font-medium">Workload</th><th className="pr-3 font-medium">Namespace</th><th className="pr-3 font-medium">Kind</th><th className="pr-3 text-right font-medium">Energy</th><th className="pr-3 text-right font-medium">CO₂e</th><th className="pr-3 text-right font-medium" title="CPU used / CPU requested">CPU use</th><th className="pr-3 text-right font-medium" title="Memory used / memory requested">Memory use</th><th className="text-right font-medium">Hours</th></tr></thead>
                 <tbody className="divide-y divide-line/70">
-                  {workloads.data!.map((w) => (
+                  {pg.slice.map((w) => (
                     <tr key={`${w.cluster}/${w.namespace}/${w.workload}`}>
                       <td className="py-2 pr-3 font-medium">{w.workload}{!cluster && <span className="ml-2 text-xs font-normal text-muted">{w.cluster}</span>}</td>
                       <td className="pr-3">{w.namespace}</td><td className="pr-3 text-muted">{w.kind}</td>
@@ -83,6 +85,7 @@ export function KubernetesView() {
               </table>
             </div>
           )}
+          <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
           <p className="mt-3 text-xs text-muted">
             Measured energy (Kepler) × PUE × grid intensity of that hour. “Use” is what the workload consumed of what it requested over the hours the agent reported both; it is the base for right-sizing, which is not automated yet. A dash means some hours had no grid reading yet; the energy is
             kept and the carbon appears once a reading exists. <Link href="/carbon" className="text-primary hover:underline">How figures are calculated</Link>.

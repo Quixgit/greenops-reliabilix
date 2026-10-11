@@ -14,7 +14,7 @@ import { useApiKeys, useDestinations, useMembers, useRoles, useTenant } from "@/
 import { useAlerts, useBudgets, useCarbonSummary, useConnections, useK8sClusters, useProjects, useRegions } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
-import { settingsView, type SettingsView } from "@/lib/api/schemas";
+import { settingsView, tenantInfo } from "@/lib/api/schemas";
 import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -27,17 +27,18 @@ const policy = z.object({
 const GREEN = "text-emerald-600";
 
 /** The card of the design: an outlined green icon, a bold title with its one-line purpose, then rows. */
-export function Panel({ index, icon: Icon, title, hint, children, foot, className }: {
-  index: number; icon: LucideIcon; title: string; hint: string; children: ReactNode; foot?: ReactNode; className?: string;
+export function Panel({ index = 0, icon: Icon, title, hint, children, foot, action, className }: {
+  index?: number; icon: LucideIcon; title: string; hint?: string; children: ReactNode; foot?: ReactNode; action?: ReactNode; className?: string;
 }) {
   return (
     <section className={cn("rise lift flex flex-col rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} style={{ "--i": index } as CSSProperties}>
       <div className="flex items-start gap-3">
         <Icon className={cn("mt-0.5 size-7 shrink-0", GREEN)} strokeWidth={1.5} />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="text-[14px] font-semibold leading-tight text-ink">{title}</h3>
-          <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p>
+          {hint && <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p>}
         </div>
+        {action}
       </div>
       <div className="mt-3 flex-1">{children}</div>
       {foot && <div className="mt-3">{foot}</div>}
@@ -111,10 +112,22 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
   // ---- Organization details: the name is read-only (no rename in the API); the reporting currency is a real setting
   const currency = setting("finops.reporting_currency");
   const [cur, setCur] = useState("");
+  const [nm, setNm] = useState("");
   useEffect(() => { if (currency) setCur(String(currency.value)); }, [currency]);
+  useEffect(() => { if (tenant.data) setNm(tenant.data.name); }, [tenant.data]);
+  const nameChanged = !!tenant.data && nm.trim() !== tenant.data.name;
+  const currencyChanged = !!currency && cur !== String(currency.value);
   const save = useMutation({
-    mutationFn: () => api("settings", settingsView, undefined, { method: "PATCH", body: JSON.stringify({ values: { "finops.reporting_currency": cur } }) }),
-    onSuccess: (v: SettingsView) => { qc.setQueryData(["settings", "settings"], v); void qc.invalidateQueries({ queryKey: ["finops-summary"] }); },
+    mutationFn: async () => {
+      if (nameChanged) await api("tenant", tenantInfo, undefined, { method: "PATCH", body: JSON.stringify({ name: nm.trim() }) });
+      if (currencyChanged) return api("settings", settingsView, undefined, { method: "PATCH", body: JSON.stringify({ values: { "finops.reporting_currency": cur } }) });
+      return null;
+    },
+    onSuccess: (v) => {
+      if (v) qc.setQueryData(["settings", "settings"], v);
+      void qc.invalidateQueries({ queryKey: ["tenant"] });
+      void qc.invalidateQueries({ queryKey: ["finops-summary"] });
+    },
   });
 
   // ---- channels: the switch enables or disables every destination of that kind
@@ -191,7 +204,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
         <div className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs text-slate-600">{t("settings.org.name")}</span>
-            {tenant.isLoading ? <Skeleton className="h-9" /> : <input className={field} value={tenant.data?.name ?? ""} readOnly aria-readonly />}
+            {tenant.isLoading ? <Skeleton className="h-9" /> : <input className={field} value={nm} maxLength={100} disabled={!canManage} onChange={(e) => setNm(e.target.value)} />}
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
@@ -208,7 +221,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
           <div className="flex items-center justify-end gap-3 pt-1">
             {save.isSuccess && <span role="status" className="text-xs text-emerald-600">{t("settings.org.saved")}</span>}
             {save.isError && <span role="alert" className="text-xs text-bad">{save.error.message}</span>}
-            <button type="button" onClick={() => save.mutate()} disabled={!canEdit || !currency || cur === String(currency?.value) || save.isPending}
+            <button type="button" onClick={() => save.mutate()} disabled={!canEdit || (!nameChanged && !currencyChanged) || nm.trim().length < 2 || save.isPending}
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50">
               {save.isPending ? t("settings.org.saving") : t("settings.org.save")}
             </button>

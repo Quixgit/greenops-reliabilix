@@ -2,21 +2,23 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, Send } from "lucide-react";
+import { Bell, History as HistoryIcon, Plus, Send } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Field, input } from "@/components/forms/project-form";
 import { Badge, statusTone } from "@/components/ui/badge";
-import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { SecretOnce } from "@/components/ui/secret-once";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeliveries, useDestinations, useNotificationCatalog } from "@/hooks/use-admin";
 import { api, apiVoid } from "@/lib/api/client";
 import { createdDestination, destination, testQueued, type NotificationCatalog } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
+import { useT } from "@/i18n/provider";
+import { Panel } from "./organization-tab";
 
 const PLACEHOLDER: Record<string, string> = {
   email: "someone@yourcompany.com (must be a member of this organization)",
@@ -72,7 +74,7 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
         <div className="sm:col-span-1"><Field label="Minimum severity">
           <select {...register("min_severity")} className={input}><option value="info">info</option><option value="warning">warning</option><option value="critical">critical</option></select>
         </Field></div>
-        <button disabled={m.isPending} className="brand-gradient mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:col-span-1">{m.isPending ? "Adding…" : "Add"}</button>
+        <button disabled={m.isPending} className="bg-emerald-600 hover:bg-emerald-700 mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:col-span-1">{m.isPending ? "Adding…" : "Add"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad sm:col-span-6">{m.error.message}</p>}
       </form>
     </div>
@@ -97,7 +99,7 @@ function DestinationList({ canEdit, catalog }: { canEdit: boolean; catalog: Noti
     <>
       <ul className="divide-y divide-line/70 text-sm">
         {q.data!.map((d) => (
-          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+          <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line/70 py-3 transition-colors hover:bg-slate-50/70">
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-2 font-medium">{d.name}
                 <Badge>{d.kind}</Badge>{catalog.stubbed.includes(d.kind) && <Badge tone="stub">stub</Badge>}{!d.enabled && <Badge tone="warn">paused</Badge>}</p>
@@ -120,6 +122,7 @@ function DestinationList({ canEdit, catalog }: { canEdit: boolean; catalog: Noti
 
 function DeliveryHistory() {
   const q = useDeliveries();
+  const pg = usePaged(q.data ?? [], 10);
   if (q.isLoading) return <Skeleton className="h-24" />;
   if (q.isError) return <ErrorState />;
   if (q.data!.length === 0) return <EmptyState icon={Send} text="Nothing has been delivered yet. Use “Test” on a destination to send a first message." />;
@@ -128,7 +131,7 @@ function DeliveryHistory() {
       <table className="w-full text-left text-sm">
         <thead className="text-xs text-muted"><tr><th className="py-1.5 pr-3 font-medium">When</th><th className="pr-3 font-medium">Destination</th><th className="pr-3 font-medium">Event</th><th className="pr-3 font-medium">Status</th><th className="font-medium">Detail</th></tr></thead>
         <tbody className="divide-y divide-line/70">
-          {q.data!.map((d) => (
+          {pg.slice.map((d) => (
             <tr key={d.id}>
               <td className="whitespace-nowrap py-2 pr-3 text-muted" title={d.created_at}>{shortTime(d.created_at)}</td>
               <td className="pr-3">{d.destination_name} <span className="text-xs text-muted">{d.kind}</span></td>
@@ -139,11 +142,13 @@ function DeliveryHistory() {
           ))}
         </tbody>
       </table>
+      <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
     </div>
   );
 }
 
 export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
+  const t = useT();
   const cat = useNotificationCatalog();
   return (
     <div className="space-y-5">
@@ -157,12 +162,15 @@ export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
           Running on a development stand-in: <b>{cat.data.stubbed.join(", ")}</b>. Messages on {cat.data.stubbed.length > 1 ? "these channels are" : "this channel is"} only written to the server log, nothing is actually sent.
         </p>
       )}
-      {canEdit && cat.data?.configured && <Card><CardHeader title="Add a destination" /><AddDestination catalog={cat.data} /></Card>}
-      <Card>
-        <CardHeader title="Destinations" />
-        {cat.isLoading ? <Skeleton className="h-24" /> : cat.isError ? <ErrorState /> : <DestinationList canEdit={canEdit && cat.data!.configured} catalog={cat.data!} />}
-      </Card>
-      <Card><CardHeader title="Recent deliveries" /><DeliveryHistory /></Card>
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <Panel index={0} icon={Bell} title={t("settings.notif.destinations")} hint={t("settings.notif.destinations_hint")} className="lg:col-span-2">
+          {cat.isLoading ? <Skeleton className="h-24" /> : cat.isError ? <ErrorState /> : <DestinationList canEdit={canEdit && cat.data!.configured} catalog={cat.data!} />}
+        </Panel>
+        {canEdit && cat.data?.configured ? (
+          <Panel index={1} icon={Plus} title={t("settings.notif.add")} hint={t("settings.notif.add_hint")}><AddDestination catalog={cat.data} /></Panel>
+        ) : <span />}
+      </div>
+      <Panel index={2} icon={HistoryIcon} title={t("settings.notif.deliveries")} hint={t("settings.notif.deliveries_hint")}><DeliveryHistory /></Panel>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { useAlerts, useAnomalies } from "@/hooks/use-overview";
 import { useDeliveries } from "@/hooks/use-admin";
 import { api } from "@/lib/api/client";
@@ -50,6 +51,7 @@ function AlertRow({ a, canAct }: { a: Alert; canAct: boolean }) {
 export function AlertsView({ canAct = false }: { canAct?: boolean }) {
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("new");
   const stored = useAlerts(status);
+  const pg = usePaged(stored.data ?? [], 10);
   const anomalies = useAnomalies();
   const deliveries = useDeliveries();
   const failed = (deliveries.data ?? []).filter((d) => d.status === "failed");
@@ -62,13 +64,14 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
         <CardHeader title="Alerts" />
         <div role="tablist" className="mb-2 flex flex-wrap gap-2">
           {FILTERS.map((f) => (
-            <button key={f} role="tab" aria-selected={f === status} onClick={() => setStatus(f)}
+            <button key={f} role="tab" aria-selected={f === status} onClick={() => { setStatus(f); }}
               className={`rounded-full px-3 py-1 text-xs font-medium capitalize ring-1 ring-line ${f === status ? "bg-primary text-white" : "bg-white"}`}>{f}</button>
           ))}
         </div>
         {stored.isLoading ? <Skeleton className="h-16" /> : stored.isError ? <ErrorState /> : stored.data!.length === 0 ?
           <EmptyState icon={Bell} text="No alerts here. Budgets and connections are checked every hour." /> :
-          <ul className="divide-y divide-line/70">{stored.data!.map((a) => <AlertRow key={a.id} a={a} canAct={canAct} />)}</ul>}
+          <ul className="divide-y divide-line/70">{pg.slice.map((a) => <AlertRow key={a.id} a={a} canAct={canAct} />)}</ul>}
+        <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
       </Card>
       {loading ? <Skeleton className="h-24" /> : anomalies.isError ? <ErrorState /> : empty && (
         <Card><EmptyState icon={Bell} text="No cost anomalies and no undelivered notifications." /></Card>

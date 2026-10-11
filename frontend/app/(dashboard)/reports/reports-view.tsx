@@ -9,6 +9,7 @@ import { Field, input } from "@/components/forms/project-form";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Pagination, usePaged } from "@/components/ui/pagination";
 import { api } from "@/lib/api/client";
 import { report } from "@/lib/api/schemas";
 import { useReports } from "@/hooks/use-overview";
@@ -46,6 +47,7 @@ function ReportForm() {
 
 export function ReportsView({ canCreate }: { canCreate: boolean }) {
   const q = useReports();
+  const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
@@ -55,7 +57,7 @@ export function ReportsView({ canCreate }: { canCreate: boolean }) {
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
           <EmptyState icon={FileText} text="No reports yet. Generated reports are listed here and can be downloaded when ready." /> : (
             <ul className="divide-y divide-line/70 text-sm">
-              {q.data!.map((r) => (
+              {pg.slice.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <span className="font-medium capitalize">{r.kind} · {r.format.toUpperCase()} <span className="font-normal text-muted">{r.period_start} → {r.period_end}</span></span>
                   {r.status === "ready" ? <a className="font-medium text-primary" href={`/api/proxy/reports/${r.id}/download`} download>Download</a>
@@ -65,6 +67,7 @@ export function ReportsView({ canCreate }: { canCreate: boolean }) {
               ))}
             </ul>
           )}
+        <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
       </Card>
     </div>
   );

@@ -74,6 +74,11 @@ func (s Service) AcceptInvitation(ctx context.Context, who auth.Claims, token st
 	return s.Repo.AcceptInvitation(ctx, auth.HashAPIKey(token), who.Subject, strings.ToLower(who.Email))
 }
 
+// Rename changes the organization's name. Only administrators reach it (the route requires tenant:admin).
+func (s Service) Rename(ctx context.Context, tenantID, name string) (domain.Organization, error) {
+	return s.Repo.Rename(ctx, tenantID, name)
+}
+
 func (s Service) Organization(ctx context.Context, tenantID string) (domain.Organization, error) {
 	return s.Repo.Organization(ctx, tenantID)
 }

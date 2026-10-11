@@ -165,6 +165,8 @@ export const setup = z.object({
 });
 export const connectResponse = z.object({ connection: connection, setup });
 export type ConnectResponse = z.infer<typeof connectResponse>;
+export const auditEntry = z.object({ id: z.number(), actor_user_id: z.string(), action: z.string(), target: z.string(), created_at: z.string() });
+export const auditLog = items(auditEntry);
 export const tenantInfo = z.object({ id: z.string(), name: z.string(), plan: z.string(), created_at: z.string() });
 export const tenantRef = z.object({ tenant_id: z.string() });
 export type Connection = z.infer<typeof connection>;
