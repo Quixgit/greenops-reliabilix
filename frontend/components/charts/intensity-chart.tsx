@@ -6,7 +6,7 @@ import type { IntensityPoint } from "@/lib/api/schemas";
 import { Chart } from "./chart";
 
 export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed from generation mix)", energy_charts: "Energy-Charts (computed from generation mix)" };
-const OTHER_COLORS = ["#8b5cf6", "#f59e0b", "#06b6d4"];
+const OTHER_COLORS = ["#8b5cf6", "#f2cf8a", "#06b6d4"];
 
 /**
  * Daily grid carbon intensity of one region. The line is the source the platform trusts for each day; the band is that

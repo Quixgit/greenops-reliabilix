@@ -82,7 +82,7 @@ function Content({ onClose }: { onClose: () => void }) {
       <p className="text-sm leading-relaxed text-slate-600">{t("allow.intro")}</p>
       {(projects.data?.length ?? 0) > 1 && (
         <label className="block text-sm"><span className="mb-1 block text-xs font-medium text-slate-600">{t("allow.project")}</span>
-          <select value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-teal-600">
+          <select value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-leaf-deep">
             {projects.data!.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </label>
@@ -96,8 +96,8 @@ function Content({ onClose }: { onClose: () => void }) {
               <li key={o.region} className="rise" style={{ "--i": Math.min(i, 12) } as React.CSSProperties}>
                 <button type="button" onClick={() => toggle(o.region)} aria-pressed={on}
                   className={cn("flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all duration-200",
-                    on ? "border-teal-600/60 bg-teal-50/70 shadow-sm" : "border-line bg-white hover:border-slate-300 hover:bg-slate-50")}>
-                  <span className={cn("grid size-5 shrink-0 place-items-center rounded-md border transition-colors", on ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300 bg-white")}>
+                    on ? "border-leaf-deep/60 bg-leaf-soft/70 shadow-sm" : "border-line bg-white hover:border-slate-300 hover:bg-slate-50")}>
+                  <span className={cn("grid size-5 shrink-0 place-items-center rounded-md border transition-colors", on ? "border-leaf-deep bg-leaf-deep text-white" : "border-slate-300 bg-white")}>
                     {on && <IconCheck className="size-3.5" strokeWidth={2.6} />}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -106,7 +106,7 @@ function Content({ onClose }: { onClose: () => void }) {
                   </span>
                   <span className="flex shrink-0 flex-col items-end text-xs tabular-nums">
                     <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: o.g === null ? "#e4eaf3" : intensityColor(o.g) }} />{o.g === null ? "—" : `${nf(0).format(o.g)} g`}</span>
-                    {better !== null && better > 0 && <span className="font-semibold text-emerald-700">−{better}%</span>}
+                    {better !== null && better > 0 && <span className="font-semibold text-leaf-deep">−{better}%</span>}
                   </span>
                 </button>
               </li>
@@ -118,7 +118,7 @@ function Content({ onClose }: { onClose: () => void }) {
       {save.isError && <p role="alert" className="text-sm text-bad">{save.error.message}</p>}
       <div className="sticky bottom-0 -mx-1 flex items-center gap-3 bg-white/95 px-1 py-3 backdrop-blur">
         <button type="button" disabled={save.isPending || selected.size === 0 || !pol.data} onClick={() => save.mutate()}
-          className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">
+          className="rounded-xl bg-leaf-deep px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">
           {save.isPending ? t("allow.saving") : t("allow.save", { count: selected.size })}
         </button>
         <span className="text-xs text-muted">{t("allow.then")}</span>

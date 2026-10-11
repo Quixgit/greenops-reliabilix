@@ -64,13 +64,13 @@ export function SciCalculator({ summary }: { summary: CarbonSummary }) {
           <p className="text-xs text-muted">{t("carbon.sci.reported_hint")} <Link href="/projects" className="font-medium text-primary hover:underline">{t("carbon.sci.open_projects")}</Link></p>
         </div>
 
-        <div className="rounded-xl bg-emerald-50 px-4 py-4 ring-1 ring-emerald-100" aria-live="polite">
-          <p className="font-mono text-xs text-emerald-900/80">SCI = ((E × I) + M) / R</p>
+        <div className="rounded-xl bg-leaf-soft px-4 py-4 ring-1 ring-leaf-soft" aria-live="polite">
+          <p className="font-mono text-xs text-leaf-deep/80">SCI = ((E × I) + M) / R</p>
           {now ? (
             <>
               <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{grams(now.perUnitG)}<span className="ml-1 text-sm font-medium text-slate-600">{t("carbon.sci.per", { unit: name })}</span></p>
               {delta !== null && (
-                <p className="mt-1 text-sm text-emerald-900">{t("carbon.sci.change", { pct: `${delta > 0 ? "+" : ""}${nf(1).format(delta)}%` })}</p>
+                <p className="mt-1 text-sm text-leaf-deep">{t("carbon.sci.change", { pct: `${delta > 0 ? "+" : ""}${nf(1).format(delta)}%` })}</p>
               )}
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
                 <dt className="text-muted">E</dt><dd className="tabular-nums">{nf(1).format(summary.energy_kwh)} kWh</dd>

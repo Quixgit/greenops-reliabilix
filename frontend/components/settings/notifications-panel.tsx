@@ -70,7 +70,7 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
           <div className="grid grid-cols-1 gap-y-1.5 sm:grid-cols-2">
             {catalog.event_types.map((t) => (
               <label key={t.type} className="flex items-center gap-1.5 text-sm" title={t.description}>
-                <input type="checkbox" value={t.type} {...register("event_types")} className="size-4 accent-teal-700" />{t.type}
+                <input type="checkbox" value={t.type} {...register("event_types")} className="size-4 accent-leaf-deep" />{t.type}
               </label>
             ))}
           </div>
@@ -78,7 +78,7 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
         <div><Field label="Minimum severity">
           <select {...register("min_severity")} className={input}><option value="info">info</option><option value="warning">warning</option><option value="critical">critical</option></select>
         </Field></div>
-        <button disabled={m.isPending} className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Adding…" : "Add"}</button>
+        <button disabled={m.isPending} className="rounded-lg bg-leaf-deep px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Adding…" : "Add"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>

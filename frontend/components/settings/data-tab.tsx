@@ -80,7 +80,7 @@ export function DataTab({ canEdit, isOwner }: { canEdit: boolean; isOwner: boole
         {c.id === "sources" && (
           <div className="mb-3 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-[13px]">
             <span className="text-slate-600">{t("settings.data.connections")}</span>
-            <Link href="/connectors" className="font-semibold text-teal-700 hover:underline">{conns.data?.length ?? 0} →</Link>
+            <Link href="/connectors" className="font-semibold text-leaf-deep hover:underline">{conns.data?.length ?? 0} →</Link>
           </div>
         )}
         {rows.map((i) => (
@@ -106,14 +106,14 @@ export function DataTab({ canEdit, isOwner }: { canEdit: boolean; isOwner: boole
       {canEdit && dirty.length > 0 && (
         <div className="rise sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-white/95 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={save.isPending} onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">
+            className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">
             {save.isPending ? t("settings.org.saving") : t("settings.data.save", { count: dirty.length })}
           </button>
           <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">{t("settings.data.discard")}</button>
           {Object.keys(errors).length > 0 && <span role="alert" className="text-sm text-bad">{t("settings.data.rejected")}</span>}
         </div>
       )}
-      {saved && dirty.length === 0 && <p role="status" className="text-sm text-teal-700">{t("settings.org.saved")}</p>}
+      {saved && dirty.length === 0 && <p role="status" className="text-sm text-leaf-deep">{t("settings.org.saved")}</p>}
       {save.isError && Object.keys(errors).length === 0 && <p role="alert" className="text-sm text-bad">{save.error.message}</p>}
     </div>
   );

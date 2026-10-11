@@ -65,7 +65,7 @@ export function OperatorShell({ operator, children }: { operator: { email: strin
           <p className="font-medium text-slate-400">Reliabilix GreenOps Platform</p>
           <p className="flex items-center gap-1.5" title={`Platform release ${BUILD_VERSION.full}`}>
             v{BUILD_VERSION.number}
-            {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-emerald-300">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
+            {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-leaf">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
           </p>
         </div>
       </aside>

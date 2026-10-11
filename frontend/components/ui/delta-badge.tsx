@@ -13,7 +13,7 @@ export function DeltaBadge({ pct, better = "lower" }: { pct: number | null; bett
   const good = better === "lower" ? pct <= 0 : pct >= 0;
   const Arrow = pct <= 0 ? ArrowDown : ArrowUp;
   return (
-    <span className={cn("pop inline-flex items-center gap-0.5 text-xs font-semibold", good ? "text-emerald-600" : "text-bad")}>
+    <span className={cn("pop inline-flex items-center gap-0.5 text-xs font-semibold", good ? "text-leaf-deep" : "text-bad")}>
       <Arrow className="size-3" strokeWidth={2.5} />{formatPct(pct)}
     </span>
   );

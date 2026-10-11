@@ -48,7 +48,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
             return (
               <li key={l.key} className="text-sm">
                 <div className="mb-1 flex justify-between"><span>{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted">{l.used} / {l.limit === 0 ? t("plan.unlimited") : l.limit}</span></div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%` }} /></div>
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf"}`} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%` }} /></div>
               </li>
             );
           })}
@@ -57,7 +57,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
         <ul className="grid gap-1.5 sm:grid-cols-2">
           {p.modules.map((m) => (
             <li key={m.key} className="flex items-center gap-2 text-sm">
-              {m.enabled ? <Check className="size-4 text-teal-700" aria-hidden /> : <Minus className="size-4 text-slate-400" aria-hidden />}
+              {m.enabled ? <Check className="size-4 text-leaf-deep" aria-hidden /> : <Minus className="size-4 text-slate-400" aria-hidden />}
               <span className={m.enabled ? "" : "text-muted"}>{t(`plan.module.${m.key.replace("modules.", "")}`, undefined, m.key)}</span>
             </li>
           ))}
@@ -84,7 +84,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
             <p className="text-xs text-muted">{t("plan.wallets_note")}</p>
           </div>
         )}
-        {note && <p role="status" className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900 ring-1 ring-emerald-200">{note}</p>}
+        {note && <p role="status" className="mt-3 rounded-xl bg-leaf-soft px-3 py-2 text-sm text-leaf-deep ring-1 ring-leaf-soft">{note}</p>}
         {buy.isError && <p role="alert" className="mt-3 text-sm text-bad">{buy.error.message}</p>}
       </Panel>
     </div>

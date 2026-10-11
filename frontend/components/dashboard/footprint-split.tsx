@@ -62,13 +62,13 @@ export function FootprintSplit() {
                 <span className="shrink-0 text-xs tabular-nums text-muted">{formatCost(r.cost, cur)} · {formatCarbon(r.carbon)}</span>
               </div>
               <div className="mt-1.5 space-y-1">
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-blue-400" style={{ width: `${Math.max(2, share(r.cost, totalCost))}%`, "--d": `${i * 60}ms` } as CSSProperties} /></div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(2, share(r.carbon, totalCarbon))}%`, "--d": `${i * 60 + 80}ms` } as CSSProperties} /></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-pastel-blue" style={{ width: `${Math.max(2, share(r.cost, totalCost))}%`, "--d": `${i * 60}ms` } as CSSProperties} /></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-leaf" style={{ width: `${Math.max(2, share(r.carbon, totalCarbon))}%`, "--d": `${i * 60 + 80}ms` } as CSSProperties} /></div>
               </div>
             </li>
           ))}
           <li className="flex items-center justify-between border-t border-line/70 pt-3 text-xs text-muted">
-            <span className="flex items-center gap-3"><span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded bg-blue-400" />{t("ov2.split.cost")}</span><span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded bg-emerald-400" />CO₂e</span></span>
+            <span className="flex items-center gap-3"><span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded bg-pastel-blue" />{t("ov2.split.cost")}</span><span className="flex items-center gap-1.5"><span className="h-1.5 w-4 rounded bg-leaf" />CO₂e</span></span>
             <Link href="/carbon" className="font-semibold text-primary hover:underline">{t("ov2.split.details")}</Link>
           </li>
         </ul>

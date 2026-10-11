@@ -16,7 +16,7 @@ import { PERIODS, useUi } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const TONE = {
-  green: "bg-gradient-to-br from-emerald-50 to-emerald-100 ring-emerald-100",
+  green: "bg-gradient-to-br from-leaf-soft to-leaf-soft ring-leaf-soft",
   blue: "bg-gradient-to-br from-sky-50 to-blue-100 ring-blue-100",
   purple: "bg-gradient-to-br from-violet-50 to-violet-100 ring-violet-100",
 } as const;

@@ -84,7 +84,7 @@ export function PolicyPanel({ projectId, canEdit }: { projectId: string; canEdit
           ))}
         </ul>
       </div>
-      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-emerald-700" : "text-bad"}`}>{msg.text}</p>}
+      {msg && <p role="status" className={`text-sm ${msg.ok ? "text-leaf-deep" : "text-bad"}`}>{msg.text}</p>}
       {canEdit && <button disabled={save.isPending} onClick={() => save.mutate()} className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-white disabled:opacity-60">Save policy</button>}
     </div>
   );

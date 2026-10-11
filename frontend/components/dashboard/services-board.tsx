@@ -18,11 +18,11 @@ import { useUi } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<string, { icon: LucideIcon; tile: string }> = {
-  compute: { icon: Server, tile: "from-orange-300 to-orange-500" },
-  storage: { icon: HardDrive, tile: "from-teal-300 to-teal-500" },
-  database: { icon: Database, tile: "from-indigo-300 to-violet-500" },
-  networking: { icon: Network, tile: "from-sky-300 to-blue-500" },
-  other: { icon: Boxes, tile: "from-amber-300 to-orange-400" },
+  compute: { icon: Server, tile: "from-pastel-amber to-pastel-amber" },
+  storage: { icon: HardDrive, tile: "from-leaf to-leaf" },
+  database: { icon: Database, tile: "from-pastel-violet to-pastel-violet" },
+  networking: { icon: Network, tile: "from-pastel-blue to-pastel-blue" },
+  other: { icon: Boxes, tile: "from-pastel-amber to-pastel-amber" },
 };
 const CATS = ["all", "compute", "storage", "database", "networking", "other"] as const;
 
@@ -65,14 +65,14 @@ export function ServicesBoard() {
                     </span>
                   </span>
                   <span className="space-y-1" aria-label={t("ov2.svc.shares")}>
-                    <span className="flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-blue-400" style={{ width: `${Math.max(2, sc)}%`, "--d": `${i * 50}ms` } as CSSProperties} /></span><span className="w-10 text-right text-[11px] tabular-nums text-muted">{sc.toFixed(sc < 10 ? 1 : 0)}%</span></span>
-                    <span className="flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(2, sk)}%`, "--d": `${i * 50 + 60}ms` } as CSSProperties} /></span><span className="w-10 text-right text-[11px] tabular-nums text-muted">{sk.toFixed(sk < 10 ? 1 : 0)}%</span></span>
+                    <span className="flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-pastel-blue" style={{ width: `${Math.max(2, sc)}%`, "--d": `${i * 50}ms` } as CSSProperties} /></span><span className="w-10 text-right text-[11px] tabular-nums text-muted">{sc.toFixed(sc < 10 ? 1 : 0)}%</span></span>
+                    <span className="flex items-center gap-2"><span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-leaf" style={{ width: `${Math.max(2, sk)}%`, "--d": `${i * 50 + 60}ms` } as CSSProperties} /></span><span className="w-10 text-right text-[11px] tabular-nums text-muted">{sk.toFixed(sk < 10 ? 1 : 0)}%</span></span>
                   </span>
                   <span className="whitespace-nowrap text-sm tabular-nums lg:text-right">{formatCost(r.cost, cur)}</span>
                   <span className="whitespace-nowrap text-sm tabular-nums lg:text-right">{formatCarbon(r.carbon_kg_co2e)}</span>
                   <span className="flex items-center gap-2">
                     {trend !== null && (
-                      <span title={t("ov2.svc.trend_tip")} className={cn("inline-flex w-14 shrink-0 items-center text-xs font-semibold", good ? "text-emerald-600" : "text-bad")}>
+                      <span title={t("ov2.svc.trend_tip")} className={cn("inline-flex w-14 shrink-0 items-center text-xs font-semibold", good ? "text-leaf-deep" : "text-bad")}>
                         {trend <= 0 ? <ArrowDown className="size-3" strokeWidth={2.5} /> : <ArrowUp className="size-3" strokeWidth={2.5} />}{formatPct(trend)}
                       </span>
                     )}

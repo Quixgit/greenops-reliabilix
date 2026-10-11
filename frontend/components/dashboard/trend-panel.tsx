@@ -59,28 +59,28 @@ export function TrendPanel() {
         action={
           <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
             <input type="checkbox" className="peer sr-only" checked={smooth} onChange={(e) => setSmooth(e.target.checked)} />
-            <span className="relative h-5 w-9 rounded-full bg-slate-200 transition-colors peer-checked:bg-teal-700/75 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4" />
+            <span className="relative h-5 w-9 rounded-full bg-slate-200 transition-colors peer-checked:bg-leaf-deep/75 after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4" />
             {t("ov2.trend.avg7")}
           </label>
         } />
       {q.isLoading ? <Skeleton className="h-[330px]" /> : n === 0 ? <EmptyState icon={Activity} text={t("ov2.trend.empty")} /> : (
         <>
           <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-blue-400" />{t("ov2.trend.cost", { cur })}</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-400" />{t("ov2.trend.carbon")}</span>
-            {spikeDays.size > 0 && <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-500 ring-2 ring-amber-200" />{t("ov2.trend.spike")}</span>}
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-pastel-blue" />{t("ov2.trend.cost", { cur })}</span>
+            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-leaf" />{t("ov2.trend.carbon")}</span>
+            {spikeDays.size > 0 && <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-pastel-amber ring-2 ring-amber-200" />{t("ov2.trend.spike")}</span>}
           </div>
           <div ref={box} className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={t("ov2.trend.title")}>
               <defs>
-                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#60a5fa" stopOpacity=".34" /><stop offset="1" stopColor="#60a5fa" stopOpacity="0.02" /></linearGradient>
-                <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#34d399" stopOpacity=".34" /><stop offset="1" stopColor="#34d399" stopOpacity="0.02" /></linearGradient>
+                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8db4ee" stopOpacity=".34" /><stop offset="1" stopColor="#8db4ee" stopOpacity="0.02" /></linearGradient>
+                <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fc3a8" stopOpacity=".34" /><stop offset="1" stopColor="#6fc3a8" stopOpacity="0.02" /></linearGradient>
               </defs>
               {ticks.map((k) => (
                 <g key={k}>
                   <line x1={P.l} x2={W - P.r} y1={yC(maxC * k)} y2={yC(maxC * k)} stroke="#e6ecf5" strokeDasharray={k === 0 ? "" : "3 4"} />
                   <text x={P.l - 8} y={yC(maxC * k) + 4} textAnchor="end" className="fill-slate-400 text-[11px]">{formatCost(maxC * k, cur)}</text>
-                  <text x={W - P.r + 8} y={yK(maxK * k) + 4} className="fill-emerald-600/80 text-[11px]">{fmtK(maxK * k)}</text>
+                  <text x={W - P.r + 8} y={yK(maxK * k) + 4} className="fill-leaf-deep/80 text-[11px]">{fmtK(maxK * k)}</text>
                 </g>
               ))}
               {xLabels.map((i) => (
@@ -90,16 +90,16 @@ export function TrendPanel() {
               ))}
               <path d={`${line(costs, yC)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-cost)" className="fade-in" />
               <path d={`${line(carbons, yK)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-carbon)" className="fade-in" />
-              <path d={line(costs, yC)} fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />
-              <path d={line(carbons, yK)} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />
+              <path d={line(costs, yC)} fill="none" stroke="#7aa7ea" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />
+              <path d={line(carbons, yK)} fill="none" stroke="#6fc3a8" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />
               {pts.map((p, i) => spikeDays.has(p.day.slice(0, 10)) && (
-                <circle key={p.day} cx={x(i)} cy={yC(costs[i])} r="4" className="fill-amber-500 stroke-amber-200" strokeWidth="3" />
+                <circle key={p.day} cx={x(i)} cy={yC(costs[i])} r="4" className="fill-pastel-amber stroke-amber-200" strokeWidth="3" />
               ))}
               {hover !== null && (
                 <g>
                   <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#94a3b8" strokeDasharray="3 3" />
-                  <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#3b82f6" strokeWidth="2" />
-                  <circle cx={x(hover)} cy={yK(carbons[hover])} r="4.5" fill="#fff" stroke="#10b981" strokeWidth="2" />
+                  <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#7aa7ea" strokeWidth="2" />
+                  <circle cx={x(hover)} cy={yK(carbons[hover])} r="4.5" fill="#fff" stroke="#6fc3a8" strokeWidth="2" />
                 </g>
               )}
             </svg>
@@ -108,7 +108,7 @@ export function TrendPanel() {
                 style={{ ["--x" as string]: `${(x(hover) / W) * 100}%` }}>
                 <p className="font-semibold text-ink">{new Date(h.day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
                 <p className="mt-1 flex justify-between gap-4"><span className="text-blue-600">{t("ov2.trend.cost_short")}</span><span className="tabular-nums">{formatCost(h.cost, cur)}</span></p>
-                <p className="flex justify-between gap-4"><span className="text-emerald-600">CO₂e</span><span className="tabular-nums">{nf(h.carbon_kg_co2e < 10 ? 2 : 1).format(h.carbon_kg_co2e)} kg</span></p>
+                <p className="flex justify-between gap-4"><span className="text-leaf-deep">CO₂e</span><span className="tabular-nums">{nf(h.carbon_kg_co2e < 10 ? 2 : 1).format(h.carbon_kg_co2e)} kg</span></p>
                 {spikeDays.has(h.day.slice(0, 10)) && <p className="mt-1 text-amber-700">{t("ov2.trend.spike_tip")}</p>}
               </div>
             )}

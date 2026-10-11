@@ -13,7 +13,7 @@ export function Switch({ checked, onChange, disabled, label, size = "md" }: {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
       className={cn("relative inline-flex shrink-0 items-center rounded-full transition-colors duration-300 ease-[var(--ease-out-soft)] focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50",
-        sm ? "h-5 w-9" : "h-6 w-11", checked ? "bg-teal-700/75" : "bg-slate-200")}>
+        sm ? "h-5 w-9" : "h-6 w-11", checked ? "bg-leaf-deep/75" : "bg-slate-200")}>
       <span className={cn("inline-block rounded-full bg-white shadow-[0_1px_3px_rgba(15,27,51,.25)] transition-transform duration-300 ease-[var(--ease-out-soft)]",
         sm ? "size-4" : "size-5", checked ? (sm ? "translate-x-[18px]" : "translate-x-[22px]") : "translate-x-0.5")} />
     </button>
@@ -27,7 +27,7 @@ export function Check_({ checked, onChange, disabled, label, children }: {
   return (
     <label className={cn("inline-flex cursor-pointer items-center gap-2 text-sm", disabled && "cursor-not-allowed opacity-50")}>
       <input type="checkbox" className="peer sr-only" aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span className="grid size-[18px] place-items-center rounded-[6px] bg-white ring-1 ring-slate-300 transition-all duration-200 peer-checked:bg-teal-700/80 peer-checked:ring-teal-700/80 peer-focus-visible:outline-2 [&>svg]:scale-0 peer-checked:[&>svg]:scale-100">
+      <span className="grid size-[18px] place-items-center rounded-[6px] bg-white ring-1 ring-slate-300 transition-all duration-200 peer-checked:bg-leaf-deep/80 peer-checked:ring-leaf-deep/80 peer-focus-visible:outline-2 [&>svg]:scale-0 peer-checked:[&>svg]:scale-100">
         <Check className="size-3 text-white transition-transform duration-200" strokeWidth={3.5} />
       </span>
       {children}
@@ -36,7 +36,7 @@ export function Check_({ checked, onChange, disabled, label, children }: {
 }
 
 const TONES = {
-  good: "bg-emerald-50 text-emerald-700 ring-emerald-200", warn: "bg-amber-50 text-amber-800 ring-amber-200",
+  good: "bg-leaf-soft text-leaf-deep ring-leaf-soft", warn: "bg-amber-50 text-amber-800 ring-amber-200",
   bad: "bg-rose-50 text-rose-700 ring-rose-200", info: "bg-sky-50 text-sky-700 ring-sky-200",
   neutral: "bg-slate-100 text-slate-600 ring-slate-200", violet: "bg-violet-50 text-violet-700 ring-violet-200",
 } as const;
@@ -44,7 +44,7 @@ export type PillTone = keyof typeof TONES;
 
 /** A status with a dot; a live status (`pulse`) breathes softly. */
 export function Pill({ tone = "neutral", children, pulse }: { tone?: PillTone; children: ReactNode; pulse?: boolean }) {
-  const dot = { good: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-rose-500", info: "bg-sky-500", neutral: "bg-slate-400", violet: "bg-violet-500" }[tone];
+  const dot = { good: "bg-leaf", warn: "bg-pastel-amber", bad: "bg-pastel-rose", info: "bg-pastel-blue", neutral: "bg-slate-400", violet: "bg-pastel-violet" }[tone];
   return (
     <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", TONES[tone])}>
       <span className={cn("size-1.5 rounded-full", dot, pulse && "animate-pulse")} />{children}
@@ -55,7 +55,7 @@ export function Pill({ tone = "neutral", children, pulse }: { tone?: PillTone; c
 /** A horizontal meter (a quota, a share): turns amber then rose as it fills. */
 export function Meter({ value, max, label }: { value: number; max: number; label?: string }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const tone = pct >= 90 ? "from-rose-300 to-rose-400" : pct >= 70 ? "from-amber-300 to-amber-400" : "from-emerald-300 to-emerald-400";
+  const tone = pct >= 90 ? "from-pastel-rose to-pastel-rose" : pct >= 70 ? "from-pastel-amber to-pastel-amber" : "from-leaf to-leaf";
   return (
     <div className="flex min-w-24 items-center gap-2" title={label}>
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100"><div className={cn("h-full rounded-full bg-gradient-to-r transition-[width] duration-700", tone)} style={{ width: `${pct}%` }} /></div>

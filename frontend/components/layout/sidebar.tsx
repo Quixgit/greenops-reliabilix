@@ -20,8 +20,8 @@ function Waves() {
   return (
     <svg viewBox="0 0 212 130" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-0 h-[118px] w-full" aria-hidden>
       <defs>
-        <linearGradient id="wf1" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#1f8f6e" stopOpacity="0" /><stop offset=".5" stopColor="#2fb985" stopOpacity=".22" /><stop offset="1" stopColor="#5be3b1" stopOpacity=".42" /></linearGradient>
-        <linearGradient id="wf2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#3ddc97" stopOpacity="0" /><stop offset=".45" stopColor="#52e0a8" stopOpacity=".55" /><stop offset="1" stopColor="#9bf5d3" stopOpacity=".95" /></linearGradient>
+        <linearGradient id="wf1" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#2f8f78" stopOpacity="0" /><stop offset=".5" stopColor="#6fc3a8" stopOpacity=".22" /><stop offset="1" stopColor="#8fd4bf" stopOpacity=".42" /></linearGradient>
+        <linearGradient id="wf2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#6fc3a8" stopOpacity="0" /><stop offset=".45" stopColor="#8fd4bf" stopOpacity=".55" /><stop offset="1" stopColor="#b7e6d8" stopOpacity=".95" /></linearGradient>
         <linearGradient id="wf3" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#38bdf8" stopOpacity="0" /><stop offset=".6" stopColor="#4cc3d8" stopOpacity=".35" /><stop offset="1" stopColor="#7de0e8" stopOpacity=".7" /></linearGradient>
       </defs>
       <g className="wave wave-a">
@@ -67,7 +67,7 @@ function PromoCard() {
         <p className="mt-1.5 text-xs leading-snug text-slate-300/80">{slide.text}</p>
       </div>
       <div className="absolute right-3 top-3 z-10 flex gap-1" aria-hidden>
-        {slides.map((s2, n) => <span key={s2.key} className={cn("h-1 rounded-full transition-all duration-500", n === i % slides.length ? "w-4 bg-emerald-300" : "w-1.5 bg-white/25")} />)}
+        {slides.map((s2, n) => <span key={s2.key} className={cn("h-1 rounded-full transition-all duration-500", n === i % slides.length ? "w-4 bg-leaf" : "w-1.5 bg-white/25")} />)}
       </div>
       <Waves />
     </div>
@@ -88,7 +88,7 @@ export function Sidebar({ isOperator = false }: { isOperator?: boolean }) {
         navOpen ? "translate-x-0" : "-translate-x-full")}>
         <Link href="/overview" onClick={() => setNavOpen(false)} className="flex items-center gap-3 px-5 pb-5 pt-5">
           <Logo className="h-11 w-9" />
-          <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.18em] text-emerald-300/80">Systems</span></span>
+          <span className="leading-tight"><span className="block text-[20px] font-bold tracking-tight text-white">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.18em] text-leaf/80">Systems</span></span>
         </Link>
         <nav aria-label="Main" className="thin-scroll flex min-h-0 flex-1 flex-col gap-1 px-2 pl-3 pt-1">
           {items.map(({ href, label, icon: Icon }) => {
@@ -106,7 +106,7 @@ export function Sidebar({ isOperator = false }: { isOperator?: boolean }) {
           <p className="font-medium text-slate-400">Reliabilix GreenOps Platform</p>
           <p className="flex items-center gap-1.5" title={`Platform release ${BUILD_VERSION.full}`}>
             v{BUILD_VERSION.number}
-            {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-emerald-300">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
+            {BUILD_VERSION.stage !== "stable" && <span className="rounded bg-white/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-leaf">{BUILD_VERSION.full.split("-").slice(1).join("-") || BUILD_VERSION.stage}</span>}
           </p>
         </div>
       </aside>

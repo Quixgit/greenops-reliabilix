@@ -51,16 +51,16 @@ export function SetupGuide() {
 
   return (
     <Card index={1} interactive={false}>
-      <CardHeader icon={<FolderKanban className="size-[18px] text-teal-700" />} title={t("ov2.setup.title")} info={t("info.setup")}
+      <CardHeader icon={<FolderKanban className="size-[18px] text-leaf-deep" />} title={t("ov2.setup.title")} info={t("info.setup")}
         action={<span className="text-xs font-semibold tabular-nums text-muted">{done}/{steps.length}</span>} />
-      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-teal-600/80" style={{ width: `${Math.max(4, pct)}%` }} /></div>
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-leaf-deep/80" style={{ width: `${Math.max(4, pct)}%` }} /></div>
       {loading ? <Skeleton className="h-48" /> : (
         <ul className="space-y-1">
           {steps.map((s, i) => (
             <li key={s.id} className="rise" style={{ "--i": i } as CSSProperties}>
               <Link href={s.href} className={cn("group flex items-start gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50", s.done && "opacity-60")}>
                 <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110",
-                  s.done ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500")}>
+                  s.done ? "bg-leaf-soft text-leaf-deep" : "bg-slate-100 text-slate-500")}>
                   {s.done ? <Check className="size-4" strokeWidth={2.6} /> : <s.icon className="size-4" strokeWidth={1.8} />}
                 </span>
                 <span className="min-w-0">

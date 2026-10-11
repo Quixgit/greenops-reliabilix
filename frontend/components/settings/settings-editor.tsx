@@ -43,7 +43,7 @@ export function Control({ item, value, onChange, disabled }: { item: SettingItem
       return (
         <span className="inline-flex items-center gap-3">
           <Switch label={item.title} checked={value === true} disabled={disabled} onChange={onChange} />
-          <span className={cn("text-sm font-medium", value === true ? "text-teal-700" : "text-muted")}>{value === true ? "On" : "Off"}</span>
+          <span className={cn("text-sm font-medium", value === true ? "text-leaf-deep" : "text-muted")}>{value === true ? "On" : "Off"}</span>
         </span>
       );
     case "int":
@@ -69,7 +69,7 @@ export function Control({ item, value, onChange, disabled }: { item: SettingItem
             const cur = Array.isArray(value) ? (value as string[]) : [];
             const on = cur.includes(o);
             return (
-              <span key={o} className={cn("rounded-xl px-2.5 py-1.5 ring-1 transition", on ? "bg-emerald-50 ring-emerald-200" : "bg-white ring-line")}>
+              <span key={o} className={cn("rounded-xl px-2.5 py-1.5 ring-1 transition", on ? "bg-leaf-soft ring-leaf-soft" : "bg-white ring-line")}>
                 <Check_ label={o} disabled={disabled} checked={on} onChange={(v) => onChange(v ? [...cur, o] : cur.filter((x) => x !== o))}>{o}</Check_>
               </span>
             );
@@ -140,7 +140,7 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Setting groups">
           {[{ id: "all", title: "All" }, ...groups].map((g) => (
             <button key={g.id} type="button" role="tab" aria-selected={active === g.id} onClick={() => setActive(g.id)}
-              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-emerald-50 text-teal-700" : "text-muted hover:text-ink")}>{g.title}</button>
+              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-leaf-soft text-leaf-deep" : "text-muted hover:text-ink")}>{g.title}</button>
           ))}
         </div>
       </div>}
@@ -188,9 +188,9 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={dirty.length === 0 || save.isPending}
             onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
+            className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
           {dirty.length > 0 && <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">Discard</button>}
-          {saved && dirty.length === 0 && <span role="status" className="text-sm text-teal-700">Saved.</span>}
+          {saved && dirty.length === 0 && <span role="status" className="text-sm text-leaf-deep">Saved.</span>}
           {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-bad">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}
           {otherError && <span role="alert" className="text-sm text-bad">{otherError}</span>}
         </div>

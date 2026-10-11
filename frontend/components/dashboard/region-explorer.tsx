@@ -27,7 +27,7 @@ type Row = { region: string; g: number | null; change: number | null; fp?: Regio
 
 function band(g: number | null): { key: string; tone: string } {
   if (g === null) return { key: "unknown", tone: "text-slate-500 bg-slate-100" };
-  if (g < 150) return { key: "clean", tone: "text-emerald-700 bg-emerald-50" };
+  if (g < 150) return { key: "clean", tone: "text-leaf-deep bg-leaf-soft" };
   if (g < 300) return { key: "moderate", tone: "text-lime-700 bg-lime-50" };
   if (g < 450) return { key: "high", tone: "text-amber-700 bg-amber-50" };
   return { key: "very_high", tone: "text-rose-700 bg-rose-50" };
@@ -60,16 +60,16 @@ function Detail({ row, rows, cur }: { row: Row; rows: Row[]; cur: string }) {
       <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-white p-4 ring-1 ring-line">
         <div className="flex items-end justify-between gap-3">
           <p className="text-4xl font-bold leading-none tracking-tight tabular-nums">{row.g === null ? "—" : nf(0).format(row.g)}<span className="ml-1.5 text-sm font-medium text-muted">gCO₂e/kWh</span></p>
-          {row.change !== null && <span className={cn("text-xs font-semibold", row.change <= 0 ? "text-emerald-600" : "text-bad")}>{row.change <= 0 ? "↓" : "↑"} {nf(1).format(Math.abs(row.change))}% · 24h</span>}
+          {row.change !== null && <span className={cn("text-xs font-semibold", row.change <= 0 ? "text-leaf-deep" : "text-bad")}>{row.change <= 0 ? "↓" : "↑"} {nf(1).format(Math.abs(row.change))}% · 24h</span>}
         </div>
-        <div className="relative mt-3 h-2 rounded-full bg-gradient-to-r from-emerald-300 via-amber-300 to-rose-300">
+        <div className="relative mt-3 h-2 rounded-full bg-gradient-to-r from-leaf via-pastel-amber to-pastel-rose">
           {row.g !== null && <span className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-slate-800 shadow transition-all duration-700" style={{ left: `${Math.min(100, (g / 600) * 100)}%` }} />}
         </div>
         <div className="mt-1 flex justify-between text-[10px] text-muted"><span>0</span><span>300</span><span>600+</span></div>
         {series.length > 1 && (
           <div className="mt-3">
             <p className="mb-1 text-[11px] font-medium text-muted">{t("ov2.reg.history", { days: hist.data?.days_with_data ?? series.length })}</p>
-            <MiniArea values={series} stroke={row.g !== null ? "#0f766e" : "#94a3b8"} height={40} />
+            <MiniArea values={series} stroke={row.g !== null ? "#2f8f78" : "#94a3b8"} height={40} />
           </div>
         )}
       </div>
@@ -88,7 +88,7 @@ function Detail({ row, rows, cur }: { row: Row; rows: Row[]; cur: string }) {
 
       <div className="mt-auto space-y-2 text-sm">
         {alt ? (
-          <div className="rounded-xl bg-emerald-50 px-3 py-3 text-emerald-900 ring-1 ring-emerald-100">
+          <div className="rounded-xl bg-leaf-soft px-3 py-3 text-leaf-deep ring-1 ring-leaf-soft">
             <p className="font-semibold">{t("ov2.reg.move", { to: regionName(alt.region), pct: nf(0).format(alt.carbon_saving_pct) })}</p>
             <p className="mt-0.5 text-xs">{t("ov2.reg.move_detail", { kg: formatCarbon(alt.carbon_saving_kg) })}</p>
           </div>
@@ -124,12 +124,22 @@ export function RegionExplorer() {
   useEffect(() => { if (!sel && used[0]) setSel(used[0].region); }, [used, sel]);
   const current = rows.find((r) => r.region === sel) ?? used[0] ?? ranked[0] ?? null;
 
-  const chips: Row[] = [...used, ...ranked.slice(0, 3).filter((r) => !used.some((u) => u.region === r.region))];
+  // one entry per place: Paris is one grid whichever cloud has a region there
+  const places = useMemo(() => {
+    const m = new Map<string, { first: Row; clouds: Set<string> }>();
+    for (const r of ranked) {
+      const geo = REGION_GEO[r.region];
+      const key = geo ? `${geo.city}|${geo.country}` : r.region;
+      const e = m.get(key);
+      if (e) e.clouds.add(regionProvider(r.region)); else m.set(key, { first: r, clouds: new Set([regionProvider(r.region)]) });
+    }
+    return [...m.values()];
+  }, [ranked]);
   const maxCarbon = Math.max(1, ...used.map((r) => r.fp!.carbon_kg_co2e));
 
   return (
     <Card index={11} interactive={false}>
-      <CardHeader icon={<Globe2 className="size-[18px] text-teal-700" />} title={t("ov.reg.title")}
+      <CardHeader icon={<Globe2 className="size-[18px] text-leaf-deep" />} title={t("ov.reg.title")}
         info={t("info.regions")}
         action={<Link href="/carbon" className="text-xs font-semibold text-primary hover:underline">{t("ov.svc.link")}</Link>} />
       {q.isLoading ? <Skeleton className="h-80" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Globe2} text={t("ov.reg.empty")} /> : (
@@ -144,12 +154,12 @@ export function RegionExplorer() {
                     <li key={r.region} className="rise" style={{ "--i": i } as CSSProperties}>
                       <button type="button" onClick={() => setSel(r.region)} aria-pressed={current?.region === r.region}
                         className={cn("w-full rounded-xl border px-3 py-2 text-left transition-all duration-200 hover:-translate-y-0.5",
-                          current?.region === r.region ? "border-teal-600/60 bg-teal-50/60 shadow-sm" : "border-line bg-white hover:border-slate-300 hover:shadow-sm")}>
+                          current?.region === r.region ? "border-leaf-deep/60 bg-leaf-soft/60 shadow-sm" : "border-line bg-white hover:border-slate-300 hover:shadow-sm")}>
                         <span className="flex items-center justify-between gap-2 text-sm">
                           <span className="flex min-w-0 items-center gap-2 font-medium"><span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/5" style={{ background: r.g === null ? "#e4eaf3" : intensityColor(r.g) }} /><span className="truncate">{regionName(r.region)}</span></span>
                           <span className="shrink-0 tabular-nums text-xs text-muted">{formatCarbon(r.fp!.carbon_kg_co2e)}</span>
                         </span>
-                        <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(4, (r.fp!.carbon_kg_co2e / maxCarbon) * 100)}%`, "--d": `${i * 60}ms` } as CSSProperties} /></span>
+                        <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-leaf" style={{ width: `${Math.max(4, (r.fp!.carbon_kg_co2e / maxCarbon) * 100)}%`, "--d": `${i * 60}ms` } as CSSProperties} /></span>
                       </button>
                     </li>
                   ))}
@@ -160,7 +170,7 @@ export function RegionExplorer() {
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span className="font-medium">{t("ov2.reg.cleanest_now")}</span>
                 {ranked.slice(0, 3).map((r) => (
-                  <button key={r.region} type="button" onClick={() => setSel(r.region)} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 font-medium text-slate-700 ring-1 ring-line transition-colors hover:bg-emerald-50">
+                  <button key={r.region} type="button" onClick={() => setSel(r.region)} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 font-medium text-slate-700 ring-1 ring-line transition-colors hover:bg-leaf-soft">
                     <span className="size-2 rounded-full" style={{ background: intensityColor(r.g!) }} />{regionName(r.region)} · {nf(0).format(r.g!)}
                   </button>
                 ))}
@@ -172,7 +182,6 @@ export function RegionExplorer() {
           </div>
         </div>
       )}
-      <span className="sr-only">{chips.length}</span>
-    </Card>
+          </Card>
   );
 }

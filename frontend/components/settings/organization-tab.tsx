@@ -24,7 +24,7 @@ const policy = z.object({
   allowed_regions: z.array(z.string()), ci_carbon_block_kg: z.number().nullable(), ci_cost_block: z.number().nullable(),
   auto_apply_types: z.array(z.string()).default([]),
 });
-const GREEN = "text-teal-700";
+const GREEN = "text-leaf-deep";
 
 /** The card of the design: an outlined green icon, a bold title with its one-line purpose, then rows. */
 export function Panel({ index = 0, icon: Icon, title, hint, info, children, foot, action, className }: {
@@ -74,13 +74,13 @@ export function Row({ icon: Icon, label, value, onClick, href, toggle, last }: {
 export function Status({ ok, children }: { ok: boolean | null; children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs">
-      <span className={cn("size-1.5 rounded-full", ok === true ? "bg-emerald-500" : "bg-slate-300")} />
-      <span className={ok === true ? "text-teal-700" : "text-muted"}>{children}</span>
+      <span className={cn("size-1.5 rounded-full", ok === true ? "bg-leaf" : "bg-slate-300")} />
+      <span className={ok === true ? "text-leaf-deep" : "text-muted"}>{children}</span>
     </span>
   );
 }
 
-const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-slate-50 disabled:text-slate-500";
+const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20 disabled:bg-slate-50 disabled:text-slate-500";
 
 /** A row whose value is edited in place: click it, change the number, save. The editor opens under the row. */
 function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, max, canEdit, saving, error, onOpen }: {
@@ -108,11 +108,11 @@ function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, m
             {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
             <div className="flex items-center gap-2">
               <input value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" aria-label={label}
-                className="w-32 rounded-lg border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20" />
+                className="w-32 rounded-lg border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20" />
               {unit && <span className="text-xs text-muted">{unit}</span>}
               <button type="button" disabled={!valid || saving}
                 onClick={async () => { await onSave(n); setOpen(false); }}
-                className="ml-auto rounded-lg bg-teal-700 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
+                className="ml-auto rounded-lg bg-leaf-deep px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
             </div>
             {error && <p role="alert" className="mt-1 text-xs text-bad">{error}</p>}
           </div>
@@ -244,7 +244,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     const share = origins.filter((o) => o.source === provider).reduce((n, o) => n + o.share_pct, 0);
     return (
       <div key={provider} className="flex items-center gap-3 border-t border-line/70 py-2.5">
-        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-teal-50 text-xs font-bold text-teal-800">{meta.name.slice(0, 2).toUpperCase()}</span>
+        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-leaf-soft text-xs font-bold text-leaf-deep">{meta.name.slice(0, 2).toUpperCase()}</span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-ink">{meta.name}</span>
           <span className="block truncate text-[11px] text-muted">
@@ -283,10 +283,10 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
             </label>
           </div>
           <div className="flex items-center justify-end gap-3 pt-1">
-            {save.isSuccess && <span role="status" className="text-xs text-teal-700">{t("settings.org.saved")}</span>}
+            {save.isSuccess && <span role="status" className="text-xs text-leaf-deep">{t("settings.org.saved")}</span>}
             {save.isError && <span role="alert" className="text-xs text-bad">{save.error.message}</span>}
             <button type="button" onClick={() => save.mutate()} disabled={!canEdit || (!nameChanged && !currencyChanged) || nm.trim().length < 2 || save.isPending}
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">
+              className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep active:scale-[0.98] disabled:opacity-50">
               {save.isPending ? t("settings.org.saving") : t("settings.org.save")}
             </button>
           </div>

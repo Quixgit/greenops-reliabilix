@@ -39,7 +39,7 @@ function PlatformControls({ canAct }: { canAct: boolean }) {
   const value = (k: string) => q.data?.items.find((i) => i.key === k)?.value === true;
   return (
     <Card index={4} interactive={false}>
-      <CardHeader title="Platform controls" icon={<Power className="size-4 text-emerald-600" />}
+      <CardHeader title="Platform controls" icon={<Power className="size-4 text-leaf-deep" />}
         action={<Link href="/operator/settings" className="text-xs font-semibold text-primary hover:underline">All settings →</Link>} />
       {q.isLoading ? <Skeleton className="h-32" /> : (
         <ul className="divide-y divide-line/70">
@@ -54,7 +54,7 @@ function PlatformControls({ canAct }: { canAct: boolean }) {
                   {confirm === s.key && (
                     <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
                       Every organization will be unable to make changes until you turn this off.
-                      <button type="button" onClick={() => save.mutate({ [s.key]: true })} className="rounded-lg bg-amber-500 px-2.5 py-1 font-semibold text-white">Turn on</button>
+                      <button type="button" onClick={() => save.mutate({ [s.key]: true })} className="rounded-lg bg-pastel-amber px-2.5 py-1 font-semibold text-white">Turn on</button>
                       <button type="button" onClick={() => setConfirm(null)} className="font-medium underline">Cancel</button>
                     </p>
                   )}
@@ -139,8 +139,8 @@ export function OverviewView() {
         <Card index={5} className="xl:col-span-2" interactive={false}>
           <CardHeader title="Needs attention" />
           {loading ? <Skeleton className="h-28" /> : attention.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-5">
-              <CheckCircle2 className="size-6 text-emerald-600" aria-hidden />
+            <div className="flex items-center gap-3 rounded-2xl bg-leaf-soft px-4 py-5">
+              <CheckCircle2 className="size-6 text-leaf-deep" aria-hidden />
               <p className="text-sm font-medium">Nothing needs attention: no open errors, failing connections, failed deliveries or missing integrations.</p>
             </div>
           ) : (
@@ -160,7 +160,7 @@ export function OverviewView() {
       </div>
 
       <Card index={6} interactive={false}>
-        <CardHeader title="Organizations" icon={<Building2 className="size-4 text-emerald-600" />}
+        <CardHeader title="Organizations" icon={<Building2 className="size-4 text-leaf-deep" />}
           action={<Link href="/operator/organizations" className="text-xs font-semibold text-primary hover:underline">All organizations →</Link>} />
         {tenants.isLoading ? <Skeleton className="h-40" /> : (
           <DataTable columns={orgCols} rows={tenants.data ?? []} rowKey={(t) => t.id} href={(t) => `/operator/organizations/${t.id}`}
@@ -204,7 +204,7 @@ export function OverviewView() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Card index={9} interactive={false} className="xl:col-span-2">
-          <CardHeader title="Data sources" icon={<Database className="size-4 text-emerald-600" />} action={<Link href="/operator/data-sources" className="text-xs font-semibold text-primary hover:underline">Manage →</Link>} />
+          <CardHeader title="Data sources" icon={<Database className="size-4 text-leaf-deep" />} action={<Link href="/operator/data-sources" className="text-xs font-semibold text-primary hover:underline">Manage →</Link>} />
           {sources.isLoading ? <Skeleton className="h-40" /> : (
             <DataTable dense rowKey={(s) => s.id} rows={sources.data ?? []} href={(s) => `/operator/data-sources/${s.id}`}
               initialSort={{ key: "state", dir: "asc" }}
@@ -266,7 +266,7 @@ export function OverviewView() {
                 const d = describe(e.action);
                 return (
                   <li key={e.id} className="flex items-start gap-2">
-                    <span className={`mt-1.5 size-2 shrink-0 rounded-full ${d.write ? "bg-amber-400" : "bg-slate-300"}`} aria-hidden />
+                    <span className={`mt-1.5 size-2 shrink-0 rounded-full ${d.write ? "bg-pastel-amber" : "bg-slate-300"}`} aria-hidden />
                     <span className="min-w-0"><span className="font-medium">{d.area}</span> <span className="text-muted">· {d.write ? "change" : "read"} · {e.operator_email || e.operator_sub}</span>
                       <span className="block text-xs text-muted">{shortTime(e.at)}</span></span>
                   </li>

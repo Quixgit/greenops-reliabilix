@@ -1,14 +1,14 @@
 import { cn } from "@/lib/utils";
 
 const MARKS: Record<string, { label: string; tile: string }> = {
-  aws: { label: "AWS", tile: "from-amber-400 to-orange-500" },
-  azure: { label: "Az", tile: "from-sky-400 to-blue-600" },
-  gcp: { label: "GC", tile: "from-emerald-400 to-teal-600" },
-  kubernetes: { label: "K8s", tile: "from-indigo-400 to-blue-600" },
+  aws: { label: "AWS", tile: "from-pastel-amber to-pastel-amber" },
+  azure: { label: "Az", tile: "from-pastel-blue to-blue-600" },
+  gcp: { label: "GC", tile: "from-leaf to-leaf-deep" },
+  kubernetes: { label: "K8s", tile: "from-pastel-violet to-blue-600" },
   email: { label: "@", tile: "from-slate-400 to-slate-600" },
-  slack: { label: "#", tile: "from-fuchsia-400 to-violet-600" },
+  slack: { label: "#", tile: "from-pastel-violet to-violet-600" },
   webhook: { label: "{ }", tile: "from-cyan-400 to-sky-600" },
-  teams: { label: "T", tile: "from-indigo-400 to-violet-600" },
+  teams: { label: "T", tile: "from-pastel-violet to-violet-600" },
 };
 
 /** One tile per connector: the same shape and weight for every provider, so a list of mixed sources reads evenly. */

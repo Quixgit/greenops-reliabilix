@@ -5,7 +5,7 @@ export const tokens = {
   color: {
     primary: "#3b7cf4",
     violet: "#7c5cf0",
-    carbon: "#2fb985",
+    carbon: "#6fc3a8",
     carbonSoft: "#bff0dc",
     cost: "#3b7cf4",
     warn: "#f59e0b",

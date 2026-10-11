@@ -35,7 +35,7 @@ export function PromoBanner() {
 }
 
 const ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
-  region_shift: { icon: MapPin, tone: "bg-emerald-50 text-emerald-600" },
+  region_shift: { icon: MapPin, tone: "bg-leaf-soft text-leaf-deep" },
   rightsizing: { icon: Server, tone: "bg-violet-50 text-violet-600" },
 };
 const FALLBACK = { icon: Lightbulb, tone: "bg-amber-50 text-amber-600" };
@@ -106,7 +106,7 @@ export function TopRecommendations() {
                     {r.estimated_cost_impact === null
                       ? <span className="block text-xs text-muted" title={t(`ov.rec.reason.${r.type}`, undefined, t("ov.rec.reason.other"))}>{t("ov.rec.cost_waiting")}</span>
                       : <span className="block text-sm font-semibold">{r.estimated_cost_impact <= 0 ? "−" : "+"}{formatCost(Math.abs(r.estimated_cost_impact))}/mo</span>}
-                    <span className="mt-0.5 flex items-center justify-end gap-1 text-xs font-medium text-emerald-600"><Leaf className="size-3" />−{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo</span>
+                    <span className="mt-0.5 flex items-center justify-end gap-1 text-xs font-medium text-leaf-deep"><Leaf className="size-3" />−{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo</span>
                   </span>
                 </Link>
               </li>
@@ -119,5 +119,5 @@ export function TopRecommendations() {
 }
 
 export const Tagline = () => (
-  <p className="flex items-center justify-end gap-1.5 pt-1 text-xs text-muted">{content.tagline}<Leaf className="size-3.5 text-emerald-500" /></p>
+  <p className="flex items-center justify-end gap-1.5 pt-1 text-xs text-muted">{content.tagline}<Leaf className="size-3.5 text-leaf-deep" /></p>
 );

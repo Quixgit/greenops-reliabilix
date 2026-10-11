@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 const CLOUDS: { key: string; label: string; icon: LucideIcon; tile: string }[] = [
   { key: "aws", label: "AWS", icon: Cloud, tile: "bg-orange-100 text-orange-600" },
   { key: "azure", label: "Azure", icon: Hexagon, tile: "bg-blue-100 text-blue-600" },
-  { key: "gcp", label: "GCP", icon: Cloud, tile: "bg-emerald-100 text-emerald-600" },
+  { key: "gcp", label: "GCP", icon: Cloud, tile: "bg-leaf-soft text-leaf-deep" },
   { key: "kubernetes", label: "Kubernetes", icon: Box, tile: "bg-sky-100 text-sky-600" },
 ];
 
@@ -42,8 +42,8 @@ export function ConnectedAccounts() {
                   <span className="text-sm font-medium">{c.label}</span>
                   {st === "attention" ? <span className="flex items-center gap-1 text-[11px] font-medium text-bad"><span className="size-1.5 rounded-full bg-bad" />{t("connection.state.attention")}</span>
                     : st === "failing" ? <span className="flex items-center gap-1 text-[11px] font-medium text-bad"><span className="size-1.5 rounded-full bg-bad" />{t("connection.state.failing")}</span>
-                    : st === "waiting" ? <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600"><span className="size-1.5 animate-pulse rounded-full bg-amber-500" />{t("connection.state.waiting")}</span>
-                    : st === "synced" ? <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />{t("connection.state.synced")}</span>
+                    : st === "waiting" ? <span className="flex items-center gap-1 text-[11px] font-medium text-amber-600"><span className="size-1.5 animate-pulse rounded-full bg-pastel-amber" />{t("connection.state.waiting")}</span>
+                    : st === "synced" ? <span className="flex items-center gap-1 text-[11px] font-medium text-leaf-deep"><span className="size-1.5 animate-pulse rounded-full bg-leaf" />{t("connection.state.synced")}</span>
                     : <span className="whitespace-nowrap text-[11px] text-muted">{t("connection.state.none")}</span>}
                 </Link>
               </li>

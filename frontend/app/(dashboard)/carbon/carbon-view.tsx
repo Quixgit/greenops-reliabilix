@@ -92,13 +92,13 @@ function ScheduleCard() {
         </div>
         <div className="mt-4">
           {q.isLoading ? <Skeleton className="h-12" /> : q.isError || !q.data ? <p className="text-sm text-muted">{t("schedule.none")}</p> : (
-            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm ring-1 ring-emerald-200">
-              <p className="font-semibold text-emerald-900">{t("schedule.best", { start: hhmm(q.data.window.start) })}</p>
-              <p className="mt-1 text-emerald-900/80">
+            <div className="rounded-2xl bg-leaf-soft px-4 py-3 text-sm ring-1 ring-leaf-soft">
+              <p className="font-semibold text-leaf-deep">{t("schedule.best", { start: hhmm(q.data.window.start) })}</p>
+              <p className="mt-1 text-leaf-deep/80">
                 {t("schedule.avg", { best: Math.round(q.data.window.average_g_per_kwh), now: Math.round(q.data.window.now_average_g_per_kwh) })}
                 {q.data.window.saving_pct >= 1 && <> · <b>{t("schedule.saving", { pct: Math.round(q.data.window.saving_pct) })}</b></>}
               </p>
-              <p className="mt-1 text-xs text-emerald-900/70">{t("schedule.basis", { source: SOURCE_LABEL[q.data.source] ?? q.data.source })}</p>
+              <p className="mt-1 text-xs text-leaf-deep/70">{t("schedule.basis", { source: SOURCE_LABEL[q.data.source] ?? q.data.source })}</p>
             </div>
           )}
         </div>
@@ -121,7 +121,7 @@ function IntensityOriginCard({ origins, measured }: { origins: { source: string;
         {origins.map((o) => (
           <li key={o.source + o.basis} className="flex items-center gap-3">
             <span className="w-52 shrink-0 truncate">{o.source ? (SOURCE_LABEL[o.source] ?? o.source) : "Before origin was recorded"}</span>
-            <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(2, o.share_pct)}%` }} /></span>
+            <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-leaf" style={{ width: `${Math.max(2, o.share_pct)}%` }} /></span>
             <span className="w-14 shrink-0 text-right tabular-nums">{o.share_pct.toFixed(0)}%</span>
             <span className="hidden w-64 shrink-0 text-xs text-muted md:block">{o.basis ? BASIS[o.basis] ?? o.basis : "unknown basis"}</span>
           </li>

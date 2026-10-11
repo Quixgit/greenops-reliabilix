@@ -4,7 +4,7 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 /** A small filled line that draws itself in: the shape of the last days behind a KPI. Needs two points to say anything. */
-export function MiniArea({ values, className, stroke = "#3b82f6", height = 44 }: { values: number[]; className?: string; stroke?: string; height?: number }) {
+export function MiniArea({ values, className, stroke = "#7aa7ea", height = 44 }: { values: number[]; className?: string; stroke?: string; height?: number }) {
   const id = useId();
   if (values.length < 2) return null;
   const W = 200, H = height, min = Math.min(...values), max = Math.max(...values), span = max - min || 1;

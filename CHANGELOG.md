@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.76] - 2026-10-11
+
+### Changed
+- **One green and one set of soft tones for the whole platform.** Charts, bars, tiles, switches, buttons, the phoenix, the
+  menu card and the sign-in scene now share a single green (`leaf`, with a soft and a deep shade) and four pastel tones
+  (blue, amber, rose, violet), defined once as theme colours; the several greens and saturated bar colours that had
+  grown in different places are gone.
+- **The map**: clicking a point opens a small window anchored to it (city, country, cloud, region id, grid intensity
+  with its band, and your CO₂e and cost there) with a close cross; the enlarged map's zoom and navigation buttons work
+  again (the map captured the pointer and swallowed their clicks) and gain pan arrows; the region list is one line per
+  place with its clouds (Paris was listed three times, once per cloud) and the "cleanest grids" chips likewise.
+- **Close controls** of windows and panels are one drawn cross in a soft square that turns on hover.
+
 ## [0.1.0-alpha.75] - 2026-10-11
 
 ### Fixed

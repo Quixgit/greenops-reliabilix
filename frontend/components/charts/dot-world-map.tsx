@@ -2,7 +2,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Locate, Maximize2, Minus, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Locate, Maximize2, Minus } from "lucide-react";
+import { CloseButton } from "@/components/ui/close-button";
 import { IconPlus as Plus } from "@/components/ui/icons";
 import type { RegionFootprint, RegionIntensity } from "@/lib/api/schemas";
 import { landDots, project, MAP_H, MAP_W } from "@/lib/dot-grid";
@@ -72,7 +73,7 @@ const DotLayer = memo(function DotLayer({ byCountry, hoverCountry, pxWidth, swee
 
 /** Dot-matrix world on a canvas, with markers and pop-over labels on top; in the big map you can zoom and drag. */
 function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
-  regions: RegionIntensity[]; footprint: RegionFootprint[]; mode: MapMode; big: boolean; selected: string | null; onSelect: (r: string) => void;
+  regions: RegionIntensity[]; footprint: RegionFootprint[]; mode: MapMode; big: boolean; selected: string | null; onSelect: (r: string | null) => void;
 }) {
   const { markers, byCountry, arcs } = useMemo(() => {
     const acc = new Map<string, number[]>();
@@ -147,7 +148,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
       const r = w.getBoundingClientRect();
       zoomAt(view.current.k * Math.exp(-e.deltaY * 0.0016), e.clientX - r.left, e.clientY - r.top);
     };
-    const down = (e: PointerEvent) => { if ((e.target as HTMLElement).closest("[data-marker]")) return; drag = { x: e.clientX, y: e.clientY, vx: view.current.x, vy: view.current.y }; w.setPointerCapture(e.pointerId); w.classList.add("map-grabbing"); };
+    const down = (e: PointerEvent) => { if ((e.target as HTMLElement).closest("[data-marker],[data-map-ui]")) return; drag = { x: e.clientX, y: e.clientY, vx: view.current.x, vy: view.current.y }; w.setPointerCapture(e.pointerId); w.classList.add("map-grabbing"); };
     const move = (e: PointerEvent) => { if (!drag) return; view.current.x = drag.vx + e.clientX - drag.x; view.current.y = drag.vy + e.clientY - drag.y; apply(); };
     const up = () => { drag = null; w.classList.remove("map-grabbing"); };
     w.addEventListener("wheel", wheel, { passive: false });
@@ -174,6 +175,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
   }, [big]);
 
   const reset = () => { view.current = { k: 1, x: 0, y: 0 }; apply(true); };
+  const pan = (dx: number, dy: number) => { const w = wrap.current; if (!w) return; view.current.x += dx * w.clientWidth * 0.25; view.current.y += dy * w.clientHeight * 0.25; apply(true); };
   const step = (f: number) => { const w = wrap.current; if (w) zoomAt(view.current.k * f, w.clientWidth / 2, w.clientHeight / 2, true); };
 
   return (
@@ -186,7 +188,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
             return (
               <g key={a.key}>
                 <path d={`M${a.from.x},${a.from.y} Q${mx},${my} ${a.to[0]},${a.to[1]}`} fill="none" stroke="#8fb4f0" strokeWidth={0.7} strokeLinecap="round" className="map-arc" />
-                <circle cx={a.to[0]} cy={a.to[1]} r={1.5} fill="#8fe3c0" stroke="#fff" strokeWidth={0.4} className="map-breathe" />
+                <circle cx={a.to[0]} cy={a.to[1]} r={1.5} fill="#8fd4bf" stroke="#fff" strokeWidth={0.4} className="map-breathe" />
               </g>
             );
           })}
@@ -208,8 +210,8 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
           })}
         </svg>
         {markers.map((m) => {
-          const on = selected === m.region || hover === m.region;
-          if (!on && !(big && mode !== "intensity")) return null;
+          const on = hover === m.region && selected !== m.region;
+          if (!on && !(big && mode !== "intensity" && selected !== m.region)) return null;
           return (
             <div key={m.region} className="map-pill pointer-events-none absolute z-10 whitespace-nowrap rounded-xl border border-white/70 bg-white/85 px-2.5 py-1 text-[11px] font-semibold text-ink shadow-[0_8px_24px_rgba(31,52,110,.14)] "
               style={{ left: `${(m.x / MAP_W) * 100}%`, top: `${(m.y / MAP_H) * 100}%`, transform: "translate(-50%, -165%) scale(calc(1 / var(--k, 1)))", transformOrigin: "50% 100%" }}>
@@ -220,14 +222,60 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
             </div>
           );
         })}
+        {markers.filter((m) => m.region === selected).map((m) => (
+          <MiniCard key={m.region} m={m} below={m.y < MAP_H * 0.42} onClose={() => onSelect(null)} />
+        ))}
       </div>
       {big && (
-        <div className="absolute bottom-3 right-3 z-20 flex flex-col overflow-hidden rounded-xl border border-white/70 bg-white/85 shadow-[0_8px_24px_rgba(31,52,110,.14)] ">
+        <div data-map-ui className="absolute bottom-3 right-3 z-20 flex flex-col items-end gap-2">
+        <div className="grid grid-cols-3 gap-0.5 rounded-xl border border-white/70 bg-white/85 p-1 shadow-[0_8px_24px_rgba(31,52,110,.14)]">
+          <span />
+          <button type="button" aria-label="Pan up" onClick={() => pan(0, 1)} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><ArrowUp className="size-3.5" /></button>
+          <span />
+          <button type="button" aria-label="Pan left" onClick={() => pan(1, 0)} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><ArrowLeft className="size-3.5" /></button>
+          <button type="button" aria-label="Reset view" onClick={reset} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><Locate className="size-3.5" /></button>
+          <button type="button" aria-label="Pan right" onClick={() => pan(-1, 0)} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><ArrowRight className="size-3.5" /></button>
+          <span />
+          <button type="button" aria-label="Pan down" onClick={() => pan(0, -1)} className="grid size-7 place-items-center rounded-lg text-muted transition hover:bg-white hover:text-ink"><ArrowDown className="size-3.5" /></button>
+          <span />
+        </div>
+        <div className="flex flex-col overflow-hidden rounded-xl border border-white/70 bg-white/85 shadow-[0_8px_24px_rgba(31,52,110,.14)]">
           <button type="button" aria-label="Zoom in" onClick={() => step(1.6)} className="grid size-8 place-items-center text-muted transition hover:bg-white hover:text-ink"><Plus className="size-4" /></button>
           <button type="button" aria-label="Zoom out" onClick={() => step(1 / 1.6)} className="grid size-8 place-items-center border-t border-line/70 text-muted transition hover:bg-white hover:text-ink"><Minus className="size-4" /></button>
-          {zoomed && <button type="button" aria-label="Reset view" onClick={reset} className="grid size-8 place-items-center border-t border-line/70 text-muted transition hover:bg-white hover:text-ink"><Locate className="size-4" /></button>}
         </div>
+      </div>
       )}
+    </div>
+  );
+}
+
+/** The small window that opens on a marker: where it is, what the grid does there and what you have in it. */
+function MiniCard({ m, below, onClose }: { m: Marker; below: boolean; onClose: () => void }) {
+  const t = useT();
+  const b = m.g === null ? null : m.g < 150 ? ["clean", "bg-leaf-soft text-leaf-deep"] : m.g < 300 ? ["moderate", "bg-pastel-amber/30 text-amber-800"] : m.g < 450 ? ["high", "bg-pastel-amber/40 text-amber-900"] : ["very_high", "bg-pastel-rose/30 text-rose-800"];
+  return (
+    <div data-map-ui className="map-mini absolute z-30 w-[236px] rounded-2xl border border-white/80 bg-white/95 p-3.5 text-left shadow-[0_18px_44px_rgba(31,52,110,.22)] backdrop-blur"
+      style={{ left: `${(m.x / MAP_W) * 100}%`, top: `${(m.y / MAP_H) * 100}%`, transform: `translate(-50%, ${below ? "16px" : "calc(-100% - 16px)"}) scale(calc(1 / var(--k, 1)))`, transformOrigin: below ? "50% 0" : "50% 100%" }}
+      onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-start gap-2.5">
+        <span className="text-2xl leading-none" aria-hidden>{flag(m.cc)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold leading-tight text-ink">{m.city}</p>
+          <p className="truncate text-[11px] text-muted">{m.country} · {regionProvider(m.region)}</p>
+        </div>
+        <CloseButton onClick={onClose} label={t("map.close", undefined, "Close")} className="-mr-1 -mt-1 size-7 rounded-lg" />
+      </div>
+      <p className="mt-1.5 font-mono text-[10px] text-slate-400">{m.region}</p>
+      <div className="mt-2.5 flex items-end justify-between">
+        <p className="text-2xl font-bold leading-none tracking-tight tabular-nums text-ink">{m.g === null ? "—" : nf(0).format(m.g)}<span className="ml-1 text-[10px] font-medium text-muted">gCO₂e/kWh</span></p>
+        {b && <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", b[1])}>{t(`ov2.band.${b[0]}`, undefined, b[0])}</span>}
+      </div>
+      {m.fp ? (
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line/70 pt-2.5 text-center">
+          <div><p className="text-[10px] text-muted">CO₂e</p><p className="text-xs font-semibold tabular-nums">{formatCarbon(m.fp.carbon_kg_co2e)}</p></div>
+          <div><p className="text-[10px] text-muted">{t("map.cost", undefined, "Cost")}</p><p className="text-xs font-semibold tabular-nums">{formatCost(m.fp.cost)}</p></div>
+        </div>
+      ) : <p className="mt-2.5 border-t border-line/70 pt-2 text-[11px] text-muted">{t("ov2.reg.unused")}</p>}
     </div>
   );
 }
@@ -283,7 +331,7 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
         </dl>
       )}
       {fp?.alternative && (
-        <div className="mt-3 rounded-xl bg-emerald-50/70 p-3 text-xs leading-relaxed text-emerald-900 ring-1 ring-emerald-100">
+        <div className="mt-3 rounded-xl bg-leaf-soft/70 p-3 text-xs leading-relaxed text-leaf-deep ring-1 ring-leaf-soft">
           <b>{REGION_LABEL[fp.alternative.region] ?? fp.alternative.region}</b> ({fp.alternative.region}): {nf(0).format(fp.alternative.g_per_kwh)} gCO₂e/kWh,
           {" "}−{nf(0).format(fp.alternative.carbon_saving_pct)}% grid intensity, up to ≈{formatCarbon(fp.alternative.carbon_saving_kg)} CO₂e in this period.
           {fp.alternative.cost_delta !== null && (
@@ -291,7 +339,7 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
           )}
           {(() => { const km = distanceKm(r.region, fp.alternative.region); return km === null ? null : (
             <span className="mt-1 block">{t("map.distance", { km: nf(0).format(km), ms: rttMs(km) })}</span>); })()}
-          <span className="mt-1 block text-emerald-800/80">{t("map.checks", undefined, "Not yet checked: exact latency and service availability. Data residency is respected (project policy).")}</span>
+          <span className="mt-1 block text-leaf-deep/80">{t("map.checks", undefined, "Not yet checked: exact latency and service availability. Data residency is respected (project policy).")}</span>
         </div>
       )}
       <p className="mt-3 text-xs leading-relaxed text-muted">{t("map.note", undefined, "Low intensity does not mean low total emissions: those depend on the energy your workload uses there.")}</p>
@@ -303,7 +351,7 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
 export function RegionMap({ regions, footprint = [], selected = null, onSelect }: {
   regions: RegionIntensity[]; footprint?: RegionFootprint[];
   /** Controlled selection: a click on a marker selects it for the page's own detail panel instead of opening the modal. */
-  selected?: string | null; onSelect?: (region: string) => void;
+  selected?: string | null; onSelect?: (region: string | null) => void;
 }) {
   const t = useT();
   const [mode, setMode] = useState<MapMode>("intensity");
@@ -325,11 +373,23 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
     return [...regions, ...extra].sort((a, b) => (isNaN(a.g_per_kwh) ? 1e9 : a.g_per_kwh) - (isNaN(b.g_per_kwh) ? 1e9 : b.g_per_kwh));
   }, [regions, footprint]);
   const current = rows.find((r) => r.region === sel) ?? null;
+  // one line per place: a city that holds regions of several clouds is one grid, so it is listed once with its clouds
+  const groups = useMemo(() => {
+    const m = new Map<string, { key: string; first: RegionIntensity; regions: string[]; clouds: string[] }>();
+    for (const r of rows) {
+      const geo = REGION_GEO[r.region];
+      const key = geo ? `${geo.city}|${geo.country}` : r.region;
+      const cloud = regionProvider(r.region);
+      const e = m.get(key);
+      if (e) { e.regions.push(r.region); if (!e.clouds.includes(cloud)) e.clouds.push(cloud); } else m.set(key, { key, first: r, regions: [r.region], clouds: [cloud] });
+    }
+    return [...m.values()];
+  }, [rows]);
 
   return (
     <>
       <div className="relative">
-        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} selected={onSelect ? selected : null} onSelect={(r) => { if (onSelect) { onSelect(r); return; } setSel(r); setOpen(true); }} />
+        <DotMap regions={regions} footprint={footprint} mode={mode} big={false} selected={onSelect ? selected : null} onSelect={(r) => { if (onSelect) { onSelect(r); return; } if (r) { setSel(r); setOpen(true); } }} />
         <button type="button" onClick={() => setOpen(true)} aria-label={t("map.expand", undefined, "Expand map")}
           className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-xl border border-line bg-white/90 text-muted shadow-sm transition hover:scale-105 hover:text-ink">
           <Maximize2 className="size-4" />
@@ -342,7 +402,7 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
           <div className="map-modal flex max-h-[92vh] w-full max-w-[1280px] flex-col gap-4 overflow-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-6" role="dialog" aria-modal onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold tracking-tight">{t("map.title", undefined, "Carbon intensity by region")}</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label={t("map.close", undefined, "Close")} className="grid size-9 place-items-center rounded-xl border border-line text-muted transition hover:text-ink"><X className="size-4" /></button>
+              <CloseButton onClick={() => setOpen(false)} label={t("map.close", undefined, "Close")} />
             </div>
             <div>
               <DotMap regions={regions} footprint={footprint} mode={mode} big selected={sel} onSelect={setSel} />
@@ -356,13 +416,13 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect }
                 {current ? <Detail r={current} fp={footprint.find((f) => f.region === current.region)} t={t} /> : <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-muted">{t("map.pick", undefined, "Pick a region on the map or in the list.")}</p>}
               </div>
               <ul className="max-h-[22rem] divide-y divide-line/70 overflow-auto rounded-2xl border border-line">
-                {rows.map((r) => (
-                  <li key={r.region}>
-                    <button type="button" onClick={() => setSel(r.region)} className={cn("flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50", sel === r.region && "bg-slate-100")}>
-                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: isNaN(r.g_per_kwh) ? NEUTRAL : intensityColor(r.g_per_kwh) }} />
-                      <span className="min-w-0 flex-1 truncate">{REGION_LABEL[r.region] ?? r.region}</span>
-                      <span className="text-xs text-muted">{regionProvider(r.region)}</span>
-                      <span className="w-10 text-right tabular-nums">{isNaN(r.g_per_kwh) ? "—" : nf(0).format(r.g_per_kwh)}</span>
+                {groups.map((g) => (
+                  <li key={g.key}>
+                    <button type="button" onClick={() => setSel(g.first.region)} className={cn("flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-slate-50", g.regions.includes(sel ?? "") && "bg-leaf-soft/60")}>
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: isNaN(g.first.g_per_kwh) ? NEUTRAL : intensityColor(g.first.g_per_kwh) }} />
+                      <span className="min-w-0 flex-1 truncate">{REGION_LABEL[g.first.region] ?? g.first.region}</span>
+                      <span className="flex shrink-0 gap-1">{g.clouds.map((c) => <span key={c} className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{c}</span>)}</span>
+                      <span className="w-10 text-right tabular-nums">{isNaN(g.first.g_per_kwh) ? "—" : nf(0).format(g.first.g_per_kwh)}</span>
                     </button>
                   </li>
                 ))}

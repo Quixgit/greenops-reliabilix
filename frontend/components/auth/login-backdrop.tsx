@@ -39,14 +39,14 @@ export function LoginBackdrop() {
       const b = base.getContext("2d")!;
       b.setTransform(dpr, 0, 0, dpr, 0, 0);
       b.clearRect(0, 0, W, H);
-      b.fillStyle = "rgba(15, 118, 110, 0.28)";
+      b.fillStyle = "rgba(47, 143, 120, 0.30)";
       const r = Math.max(0.8, 0.5 * s);
       b.beginPath();
       for (const d of dots) { const x = ox + d.x * s, y = oy + d.y * s; b.moveTo(x + r, y); b.arc(x, y, r, 0, 6.2832); }
       b.fill();
     };
 
-    const COLORS = ["13,148,136", "37,99,235", "101,163,13", "124,58,237"];
+    const COLORS = ["47,143,120", "37,99,235", "101,163,13", "124,58,237"];
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame);
       if (now - last < 33) return; // ~30 fps is plenty for a backdrop

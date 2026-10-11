@@ -7,7 +7,7 @@ export const th = "py-1.5 pr-3 text-left text-xs font-medium text-muted";
 export const selectCls = "rounded-lg bg-white/80 px-2.5 py-1.5 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
 
 const TILE = {
-  sage: "bg-emerald-50 text-emerald-700", lavender: "bg-violet-50 text-violet-700", peach: "bg-orange-50 text-orange-700",
+  sage: "bg-leaf-soft text-leaf-deep", lavender: "bg-violet-50 text-violet-700", peach: "bg-orange-50 text-orange-700",
   sky: "bg-sky-50 text-sky-700", butter: "bg-amber-50 text-amber-700",
 } as const;
 export type TileColor = keyof typeof TILE;

@@ -60,7 +60,7 @@ function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClo
       {save.isError && <p role="alert" className="mt-2 text-sm text-bad">{save.error.message}</p>}
       <div className="mt-4 flex gap-2">
         <button type="button" disabled={save.isPending || d.name.trim().length < 2 || d.permissions.size === 0} onClick={() => save.mutate()}
-          className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 disabled:opacity-50">{t("common.save")}</button>
+          className="rounded-lg bg-leaf-deep px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-leaf-deep disabled:opacity-50">{t("common.save")}</button>
         <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium ring-1 ring-line hover:bg-white">{t("common.cancel")}</button>
       </div>
     </Panel>
@@ -86,7 +86,7 @@ export function RolesPanel() {
     <div className="grid gap-4 lg:grid-cols-2">
       {editing && <Editor view={view} draft={editing} onClose={() => setEditing(null)} />}
       <Panel index={0} icon={ShieldCheck} title={t("roles.custom")} hint={t("settings.roles.custom_hint")} action={!editing && (
-        <button type="button" onClick={() => start()} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-medium text-teal-700 transition-colors hover:bg-emerald-100"><Plus className="size-4" aria-hidden />{t("roles.new")}</button>
+        <button type="button" onClick={() => start()} className="inline-flex items-center gap-1.5 rounded-lg bg-leaf-soft px-3 py-1.5 text-sm font-medium text-leaf-deep transition-colors hover:bg-leaf-soft"><Plus className="size-4" aria-hidden />{t("roles.new")}</button>
       )}>
         {view.custom.length === 0 ? <p className="border-t border-line/70 pt-3 text-sm text-muted">{t("roles.none")}</p> : (
           <ul className="text-sm">

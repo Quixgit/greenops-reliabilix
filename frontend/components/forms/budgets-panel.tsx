@@ -18,7 +18,7 @@ import { Field, input } from "./project-form";
 const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD", "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "INR", "BRL", "SGD"];
 const PERIODS = ["monthly", "quarterly", "yearly"] as const;
 const TONE = { ok: "good", at_risk: "warn", exceeded: "bad" } as const;
-const BAR = { ok: "bg-emerald-500", at_risk: "bg-amber-500", exceeded: "bg-red-500" } as const;
+const BAR = { ok: "bg-leaf", at_risk: "bg-pastel-amber", exceeded: "bg-pastel-rose" } as const;
 
 function Row({ b, scope, canEdit }: { b: BudgetStatus; scope: string; canEdit: boolean }) {
   const t = useT();

@@ -49,13 +49,13 @@ export function FinopsStrip() {
           </>
         ) : <p className="text-sm text-muted">{t("ov2.fin.forecast_none")}</p>}
       </Tile>
-      <Tile index={5} icon={PiggyBank} tone="bg-emerald-50 text-emerald-600" title={t("ov2.fin.budget")} info={t("info.fin_budget")} loading={loading || budgets.isLoading}>
+      <Tile index={5} icon={PiggyBank} tone="bg-leaf-soft text-leaf-deep" title={t("ov2.fin.budget")} info={t("info.fin_budget")} loading={loading || budgets.isLoading}>
         {orgBudget ? (
           <>
             <p className="flex items-baseline justify-between text-sm"><span className="text-xl font-bold tabular-nums text-ink">{Math.round(orgBudget.used_pct)}%</span>
               <span className="text-xs text-muted">{formatCost(orgBudget.spent, orgBudget.currency)} / {formatCost(orgBudget.amount, orgBudget.currency)}</span></p>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className={cn("bar-x h-full rounded-full", orgBudget.state === "exceeded" ? "bg-red-400" : orgBudget.state === "at_risk" ? "bg-amber-400" : "bg-emerald-400")}
+              <div className={cn("bar-x h-full rounded-full", orgBudget.state === "exceeded" ? "bg-pastel-rose" : orgBudget.state === "at_risk" ? "bg-pastel-amber" : "bg-leaf")}
                 style={{ width: `${Math.min(100, Math.max(2, orgBudget.used_pct))}%` }} />
             </div>
             <p className="mt-1 text-xs text-muted">{orgBudget.projected > orgBudget.amount ? t("ov2.fin.will_exceed", { projected: formatCost(orgBudget.projected, orgBudget.currency) }) : t("ov2.fin.on_track")}</p>

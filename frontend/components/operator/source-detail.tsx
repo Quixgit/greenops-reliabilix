@@ -31,7 +31,7 @@ function RequestUsage({ provider }: { provider: string }) {
     <Card interactive={false}>
       <CardHeader title="Requests to this provider" />
       <p className="text-sm">Today <b className="tabular-nums">{todayN}</b> {cap > 0 ? <>of <b className="tabular-nums">{cap}</b> allowed</> : "(no daily cap)"}</p>
-      {cap > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.max(2, pct)}%` }} /></div>}
+      {cap > 0 && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf"}`} style={{ width: `${Math.max(2, pct)}%` }} /></div>}
       <dl className="mt-3 grid grid-cols-3 gap-3 text-sm">
         <div><dt className="text-xs text-muted">Last 7 days</dt><dd className="tabular-nums">{sum(7, (r) => r.requests)}</dd></div>
         <div><dt className="text-xs text-muted">Last 30 days</dt><dd className="tabular-nums">{sum(30, (r) => r.requests)}</dd></div>

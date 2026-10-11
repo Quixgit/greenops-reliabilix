@@ -31,7 +31,7 @@ type Provider = "aws" | "gcp" | "azure";
 type Filter = "all" | "synced" | "attention" | "waiting";
 const PROVIDER_NAME: Record<string, string> = { aws: "AWS", gcp: "Google Cloud", azure: "Azure" };
 
-const STATE_DOT: Record<ConnectionState, string> = { synced: "bg-emerald-500", waiting: "bg-amber-500", failing: "bg-red-500", attention: "bg-red-500" };
+const STATE_DOT: Record<ConnectionState, string> = { synced: "bg-leaf", waiting: "bg-pastel-amber", failing: "bg-pastel-rose", attention: "bg-pastel-rose" };
 
 function StateBadge({ state, label }: { state: ConnectionState; label: string }) {
   const live = state === "synced" || state === "waiting";
@@ -137,7 +137,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi index={0} label={t("connectors.kpi.active")} info={t("info.connectors_active")} hint={t("connectors.kpi.active_of", { total: k.total })}
-          ring={<span className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><Zap className="size-5" /></span>}>
+          ring={<span className="flex size-11 items-center justify-center rounded-xl bg-leaf-soft text-leaf-deep"><Zap className="size-5" /></span>}>
           {loading ? <Skeleton className="h-8 w-14" /> : <CountUp value={k.active} format={(n) => String(Math.round(n))} />}
         </Kpi>
         <Kpi index={1} label={t("connectors.kpi.sources")} info={t("info.connectors_sources")} hint={k.sources.length ? undefined : t("connectors.kpi.sources_none")}
@@ -265,7 +265,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
           <Card index={5} interactive={false}>
             <CardHeader title={t("connectors.attention.title")} icon={<AlertTriangle className="size-4 text-amber-500" />} />
             {broken.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-muted"><CheckCircle2 className="size-4 text-emerald-500" />{conns.length ? t("connectors.attention.none") : t("connectors.attention.nothing")}</p>
+              <p className="flex items-center gap-2 text-sm text-muted"><CheckCircle2 className="size-4 text-leaf-deep" />{conns.length ? t("connectors.attention.none") : t("connectors.attention.nothing")}</p>
             ) : (
               <ul className="space-y-3">
                 {broken.map((c) => (

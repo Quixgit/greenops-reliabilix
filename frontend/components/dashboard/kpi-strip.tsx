@@ -76,34 +76,34 @@ export function KpiStrip() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Kpi index={0} icon={Wallet} tone="bg-gradient-to-br from-sky-400 to-blue-600" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading}
-        value={f?.has_data ? <CountUp value={f.total_cost} format={(n) => formatCost(n, cur)} /> : null} spark={costSeries} sparkColor="#3b82f6" empty={empty}
+      <Kpi index={0} icon={Wallet} tone="bg-gradient-to-br from-pastel-blue to-blue-600" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading}
+        value={f?.has_data ? <CountUp value={f.total_cost} format={(n) => formatCost(n, cur)} /> : null} spark={costSeries} sparkColor="#7aa7ea" empty={empty}
         delta={trendBadge(roll.costTrend7, f?.previous_comparable ? 1 : null, f?.previous_comparable ? pctChange(f.total_cost, f.previous_total_cost) : null)}
         foot={<>
           <span className="font-semibold text-slate-800">{formatCost(roll.costPerDay, cur)}</span> {t("ov2.per_day")}
           {roll.costTrend7 !== null && <span className="text-muted"> · {t("ov2.week_vs_week")}</span>}
           {f && f.excluded.length > 0 && <span className="block text-amber-700">{t("ov.kpi.excluded", { currencies: f.excluded.map((e) => e.currency).join(", "), rows: f.excluded.reduce((n, e) => n + e.rows, 0) })}</span>}
         </>} />
-      <Kpi index={1} icon={Leaf} tone="bg-gradient-to-br from-emerald-400 to-teal-600" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading}
+      <Kpi index={1} icon={Leaf} tone="bg-gradient-to-br from-leaf to-leaf-deep" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading}
         value={parts ? <CountUp value={parts.n} format={(n) => nf(1).format(n)} /> : null} unit={parts ? `${parts.unit} CO₂e` : undefined}
-        spark={carbonSeries} sparkColor="#10b981" empty={empty}
+        spark={carbonSeries} sparkColor="#6fc3a8" empty={empty}
         delta={trendBadge(roll.carbonTrend7, c?.comparable ? 1 : null, c?.comparable ? pctChange(c.carbon_kg_co2e, c.previous.carbon_kg_co2e) : null)}
         foot={<>
           <span className="font-semibold text-slate-800">{nf(roll.carbonPerDay < 10 ? 2 : 1).format(roll.carbonPerDay)} kg</span> {t("ov2.per_day")}
           <span className="block text-muted">{t("ov2.operational_only")}</span>
         </>} />
-      <Kpi index={2} icon={Zap} tone="bg-gradient-to-br from-amber-400 to-orange-500" label={t("ov2.kpi.intensity")} info={t("info.kpi_intensity")} loading={loading}
+      <Kpi index={2} icon={Zap} tone="bg-gradient-to-br from-pastel-amber to-pastel-amber" label={t("ov2.kpi.intensity")} info={t("info.kpi_intensity")} loading={loading}
         value={intensity !== null ? <CountUp value={intensity} format={(n) => nf(0).format(n)} /> : null} unit="gCO₂e/kWh" empty={empty}
         delta={intensity !== null ? <span className="text-xs font-semibold text-muted">{t(band)}</span> : null}
         foot={<>
           {intensity !== null && (
-            <span className="mb-1.5 block h-1.5 overflow-hidden rounded-full bg-gradient-to-r from-emerald-300 via-amber-300 to-rose-300">
+            <span className="mb-1.5 block h-1.5 overflow-hidden rounded-full bg-gradient-to-r from-leaf via-pastel-amber to-pastel-rose">
               <span className="block h-full border-r-2 border-slate-800/70 bg-white/0" style={{ width: `${Math.min(100, (intensity / 600) * 100)}%` } as CSSProperties} />
             </span>
           )}
           {cleanest ? t("ov2.cleanest", { region: regionName(cleanest.region), g: nf(0).format(cleanest.g_per_kwh) }) : t("ov2.energy_weighted")}
         </>} />
-      <Kpi index={3} icon={Gauge} tone="bg-gradient-to-br from-violet-400 to-indigo-600" label={t("ov.kpi.potential")} info={t("info.optimization")} loading={loading}
+      <Kpi index={3} icon={Gauge} tone="bg-gradient-to-br from-pastel-violet to-indigo-600" label={t("ov.kpi.potential")} info={t("info.optimization")} loading={loading}
         value={opt.data && opt.data.open_count + opt.data.approved_count > 0 ? <CountUp value={opt.data.potential_carbon_kg_month} format={(n) => `−${nf(1).format(n)}`} /> : null}
         unit="kg CO₂e/mo"
         empty={<span>{t("ov2.opt.none")} <AllowRegions className="text-[12px]" /></span>}

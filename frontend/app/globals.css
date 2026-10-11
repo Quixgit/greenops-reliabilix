@@ -5,9 +5,17 @@
   --color-muted: #6b7a94;
   --color-line: #e3e9f3; /* a touch darker than before: white cards on a white page need a visible edge */
   --color-primary: #3b7cf4;
+  /* One green and a handful of pastel tones for the whole platform: charts, bars, tiles, switches and buttons */
+  --color-leaf: #6fc3a8;
+  --color-leaf-soft: #e8f6f1;
+  --color-leaf-deep: #2f8f78;
+  --color-pastel-blue: #8db4ee;
+  --color-pastel-amber: #f2cf8a;
+  --color-pastel-rose: #eba7b3;
+  --color-pastel-violet: #b8a9ee;
   --color-violet: #7c5cf0;
-  --color-carbon: #1f9d57;
-  --color-carbon-soft: #e6f6ec;
+  --color-carbon: #2f8f78;
+  --color-carbon-soft: #e8f6f1;
   --color-cost-soft: #e4f0ff;
   --color-bad: #e5484d;
   --color-navy: #131c2b;
@@ -52,7 +60,7 @@ body {
   }
 }
 .brand-gradient { background-image: linear-gradient(135deg, #3b82f6 0%, #6d5ef0 100%); }
-.green-gradient { background-image: linear-gradient(135deg, #22c55e 0%, #0e7a3a 100%); }
+.green-gradient { background-image: linear-gradient(135deg, #6fc3a8 0%, #0e7a3a 100%); }
 
 /* ---- Buttons and links: press feedback --------------------------------------------------------------------------- */
 button, [role="tab"], a { -webkit-tap-highlight-color: transparent; }
@@ -224,3 +232,7 @@ html[data-motion="reduced"] .phoenix-live { animation: none; }
 @keyframes form-swap { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
 .form-swap { animation: form-swap 0.38s var(--ease-out-soft) both; }
 @media (prefers-reduced-motion: reduce) { .form-swap { animation: none; } }
+
+@keyframes map-mini-in { from { opacity: 0; margin-top: 6px; } to { opacity: 1; margin-top: 0; } }
+.map-mini { animation: map-mini-in 0.26s var(--ease-out-soft) both; }
+@media (prefers-reduced-motion: reduce) { .map-mini { animation: none; } }

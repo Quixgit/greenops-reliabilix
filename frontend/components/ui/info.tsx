@@ -36,7 +36,7 @@ export function Info({ title, children, className, label = "More information" }:
     <>
       <button ref={btn} type="button" aria-label={label} aria-describedby={pos ? id : undefined}
         onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={(e) => { e.preventDefault(); e.stopPropagation(); pos ? hide() : show(); }}
-        className={cn("inline-grid size-[18px] shrink-0 cursor-help place-items-center rounded-full align-middle text-slate-400 transition-colors hover:text-teal-700 focus-visible:text-teal-700", className)}>
+        className={cn("inline-grid size-[18px] shrink-0 cursor-help place-items-center rounded-full align-middle text-slate-400 transition-colors hover:text-leaf-deep focus-visible:text-leaf-deep", className)}>
         <IconInfo className="size-[15px]" strokeWidth={1.7} />
       </button>
       {pos && createPortal(

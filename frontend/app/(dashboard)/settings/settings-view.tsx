@@ -52,7 +52,7 @@ function ProfileCard({ user }: { user: { name: string; email: string; role: Role
       <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
         {CAPABILITIES.map(([text, can]) => (
           <li key={text} className={cn("flex items-start gap-2", !can(user.role) && "text-slate-400")}>
-            <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold", can(user.role) ? "bg-emerald-100 text-teal-700" : "bg-slate-100 text-slate-400")}>{can(user.role) ? "✓" : "–"}</span>{text}
+            <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold", can(user.role) ? "bg-leaf-soft text-leaf-deep" : "bg-slate-100 text-slate-400")}>{can(user.role) ? "✓" : "–"}</span>{text}
           </li>
         ))}
       </ul>
@@ -136,9 +136,9 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
         {tabs.map((x) => (
           <button key={x.id} role="tab" type="button" aria-selected={active === x.id} onClick={() => go(x.id)}
             className={cn("group relative flex shrink-0 items-center whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors duration-200",
-              active === x.id ? "text-teal-700" : "text-slate-600 hover:text-ink")}>
+              active === x.id ? "text-leaf-deep" : "text-slate-600 hover:text-ink")}>
             {x.label}
-            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-teal-700 transition-transform duration-300",
+            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-leaf-deep transition-transform duration-300",
               active === x.id ? "scale-x-100" : "scale-x-0 group-hover:scale-x-50 group-hover:bg-slate-300")} />
           </button>
         ))}

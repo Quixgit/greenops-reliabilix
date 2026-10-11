@@ -165,3 +165,5 @@ export const IconPlus = make("plus", null, <path d="M12 5v14M5 12h14" />);
 export const IconArrowRight = make("arrow-right", null, <path d="M4.5 12h15M13.5 6l6 6-6 6" />);
 export const IconChevronRight = make("chevron-right", null, <path d="M9.5 5.5l6.5 6.5-6.5 6.5" />);
 export const IconInfo = make("info", <circle cx="12" cy="12" r="8.6" />, <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.2" /><path d="M12 7.7v.1" /></>);
+
+export const IconClose = make("close", null, <><path d="M6.2 6.4c3.8 3.6 7.6 7.4 11.6 11.4" /><path d="M17.7 6.2C13.9 9.9 10.2 13.8 6.3 17.7" /></>);

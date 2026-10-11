@@ -80,7 +80,7 @@ export function IntegrationForm({ st, canEdit }: { st: ManagedIntegration; canEd
       </div>
       {resets.size > 0 && <p className="mt-3 text-xs text-muted">Will return to the environment: {[...resets].join(", ")}.</p>}
       {msg && (
-        <p role="status" className={`mt-4 flex items-start gap-2 rounded-lg p-3 text-sm ring-1 ${msg.ok ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-red-50 text-bad ring-red-200"}`}>
+        <p role="status" className={`mt-4 flex items-start gap-2 rounded-lg p-3 text-sm ring-1 ${msg.ok ? "bg-leaf-soft text-leaf-deep ring-leaf-soft" : "bg-red-50 text-bad ring-red-200"}`}>
           {msg.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0" />}{msg.text}
         </p>
       )}

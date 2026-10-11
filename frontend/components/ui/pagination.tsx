@@ -46,7 +46,7 @@ export function Pagination({ page, pages, total, size, onPage, onSize, className
           <label className="flex items-center gap-2 text-xs text-muted">
             {t("pagination.per_page")}
             <select value={size} onChange={(e) => onSize(Number(e.target.value))}
-              className="rounded-lg border border-line bg-white px-2 py-1 text-xs text-ink outline-none focus:border-emerald-500">
+              className="rounded-lg border border-line bg-white px-2 py-1 text-xs text-ink outline-none focus:border-leaf">
               {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
@@ -58,7 +58,7 @@ export function Pagination({ page, pages, total, size, onPage, onSize, className
             ? <span key={`g${i}`} className="px-1 text-slate-400" aria-hidden>…</span>
             : (
               <button key={p} type="button" aria-current={p === page ? "page" : undefined} onClick={() => onPage(p)}
-                className={cn(btn, "tabular-nums", p === page ? "scale-105 bg-emerald-600 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100")}>{p}</button>
+                className={cn(btn, "tabular-nums", p === page ? "scale-105 bg-leaf-deep text-white shadow-sm" : "text-slate-600 hover:bg-slate-100")}>{p}</button>
             ))}
           <button type="button" aria-label={t("pagination.next")} disabled={page >= pages} onClick={() => onPage(page + 1)}
             className={cn(btn, "text-slate-600 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent")}><ChevronRight className="size-4" /></button>

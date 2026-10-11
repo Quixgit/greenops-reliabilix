@@ -23,9 +23,9 @@ function GitHubMark() {
   );
 }
 
-const field = "block h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10 disabled:bg-slate-50";
-const primary = "relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(15,118,110,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:from-teal-600 hover:to-teal-800 active:translate-y-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-600/30 disabled:translate-y-0 disabled:opacity-60";
-const social = "flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-600/15 aria-disabled:pointer-events-none aria-disabled:opacity-50";
+const field = "block h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-3.5 text-sm outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-leaf-deep focus:ring-4 focus:ring-leaf-deep/10 disabled:bg-slate-50";
+const primary = "relative h-12 w-full overflow-hidden rounded-xl bg-gradient-to-b from-leaf-deep to-leaf-deep text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(15,118,110,0.75)] transition-all duration-200 hover:-translate-y-0.5 hover:from-leaf-deep hover:to-leaf-deep active:translate-y-0 focus:outline-none focus-visible:ring-4 focus-visible:ring-leaf-deep/30 disabled:translate-y-0 disabled:opacity-60";
+const social = "flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-800 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-leaf-deep/15 aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
 type View = "signin" | "signup" | "forgot";
 
@@ -99,7 +99,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
         <p className="mt-1.5 text-sm text-slate-500">Enter the e-mail of your account and we will send a link to choose a new password.</p>
         <div className="mt-6">
           {sent ? (
-            <p role="status" className="rounded-xl bg-teal-50 p-4 text-sm leading-relaxed text-teal-900 ring-1 ring-teal-200">
+            <p role="status" className="rounded-xl bg-leaf-soft p-4 text-sm leading-relaxed text-leaf-deep ring-1 ring-leaf-soft">
               If an account exists for <b>{email.trim()}</b>, a reset link is on its way. It can take a few minutes.
             </p>
           ) : (
@@ -177,7 +177,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
         )}
 
         <div className="flex items-center justify-between text-sm">
-          <button type="button" onClick={() => go("forgot")} className="font-medium text-teal-700 transition-colors hover:text-teal-900 hover:underline">Forgot your password?</button>
+          <button type="button" onClick={() => go("forgot")} className="font-medium text-leaf-deep transition-colors hover:text-leaf-deep hover:underline">Forgot your password?</button>
           <button type="button" onClick={() => go("signup")} className="font-medium text-slate-600 transition-colors hover:text-slate-900">Create an account →</button>
         </div>
         {auth0 && <p className="text-center text-xs leading-relaxed text-slate-400">Your password and, if turned on, your two-step code are entered on our identity provider's secure page.</p>}

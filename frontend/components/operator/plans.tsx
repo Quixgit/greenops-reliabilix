@@ -105,7 +105,7 @@ export function PlansView() {
                       <td className="border-b border-line/60 px-4 py-3 text-slate-600">{label}</td>
                       {q.data!.map((p) => (
                         <td key={p.id} className="border-b border-l border-line/60 px-4 py-3 font-medium tabular-nums">
-                          {p.limits[k] === undefined ? "—" : p.limits[k] === 0 ? <span className="text-emerald-700">Unlimited</span> : p.limits[k]}
+                          {p.limits[k] === undefined ? "—" : p.limits[k] === 0 ? <span className="text-leaf-deep">Unlimited</span> : p.limits[k]}
                         </td>
                       ))}
                     </tr>
@@ -117,7 +117,7 @@ export function PlansView() {
                       {q.data!.map((p) => (
                         <td key={p.id} className="border-b border-l border-line/60 px-4 py-3">
                           {p.modules[k] === undefined ? "—" : p.modules[k]
-                            ? <span className="inline-grid size-6 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check className="size-3.5" strokeWidth={3} aria-label="on" /></span>
+                            ? <span className="inline-grid size-6 place-items-center rounded-full bg-leaf-soft text-leaf-deep"><Check className="size-3.5" strokeWidth={3} aria-label="on" /></span>
                             : <span className="inline-grid size-6 place-items-center rounded-full bg-slate-100 text-slate-400"><Minus className="size-3.5" aria-label="off" /></span>}
                         </td>
                       ))}

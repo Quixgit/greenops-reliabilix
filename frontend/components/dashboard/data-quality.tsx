@@ -27,7 +27,7 @@ export function DataQuality() {
   const basis = (b: string) => t(`ov.basis.${b}`, undefined, b);
   return (
     <Card index={6} interactive={false}>
-      <CardHeader title={t("ov.dq.title")} icon={<ShieldCheck className="size-4 text-emerald-600" />} info={t("info.quality")}
+      <CardHeader title={t("ov.dq.title")} icon={<ShieldCheck className="size-4 text-leaf-deep" />} info={t("info.quality")}
         action={<Link href="/methodology" className="text-xs font-semibold text-primary hover:underline">{t("ov.dq.methodology")}</Link>} />
       {carbon.isLoading || conns.isLoading ? <Skeleton className="h-24" /> : !c?.has_data ? (
         <p className="text-sm text-muted">{t("ov.dq.empty")}</p>
@@ -37,13 +37,13 @@ export function DataQuality() {
             <div className="flex items-baseline justify-between"><span className="text-muted">{t("ov.dq.measured")}</span>
               <span className="font-semibold tabular-nums">{measured === null ? "—" : `${nf(0).format(measured)}%`}</span></div>
             <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-gradient-to-r from-teal-500/80 to-teal-400 transition-[width] duration-700" style={{ width: `${Math.min(100, measured ?? 0)}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-leaf/80 to-leaf transition-[width] duration-700" style={{ width: `${Math.min(100, measured ?? 0)}%` }} />
             </div>
           </div>
           {measured !== null && measured < 50 && <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-snug text-amber-900 ring-1 ring-amber-100">{t("ov2.dq.estimated")}</p>}
           <div className="flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-2 text-[13px]">
             <span className="text-slate-600">{t("ov2.dq.cost_check")}</span>
-            <span className={mismatched ? "font-semibold text-bad" : verified ? "font-semibold text-teal-700" : "text-muted"}>
+            <span className={mismatched ? "font-semibold text-bad" : verified ? "font-semibold text-leaf-deep" : "text-muted"}>
               {runs.loading ? "…" : mismatched ? t("ov2.dq.cost_mismatch", { count: mismatched }) : verified ? t("ov2.dq.cost_ok", { count: verified }) : t("ov2.dq.cost_unchecked")}
             </span>
           </div>

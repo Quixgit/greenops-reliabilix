@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 type Tone = "good" | "warn" | "bad" | "neutral" | "stub";
 const TONES: Record<Tone, string> = {
-  good: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  good: "bg-leaf-soft text-leaf-deep ring-leaf-soft",
   warn: "bg-amber-50 text-amber-700 ring-amber-200",
   bad: "bg-red-50 text-red-700 ring-red-200",
   neutral: "bg-slate-100 text-slate-600 ring-slate-200",

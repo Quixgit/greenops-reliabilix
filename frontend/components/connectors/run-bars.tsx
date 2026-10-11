@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
-const TONE: Record<string, string> = { succeeded: "bg-emerald-400", failed: "bg-red-400", running: "bg-amber-400 animate-pulse" };
+const TONE: Record<string, string> = { succeeded: "bg-leaf", failed: "bg-pastel-rose", running: "bg-pastel-amber animate-pulse" };
 
 /** The latest sync runs, oldest on the left: one bar each, green for a success, red for a failure. */
 export function RunBars({ runs, limit = 12, className }: { runs: { status: string; started_at: string }[]; limit?: number; className?: string }) {

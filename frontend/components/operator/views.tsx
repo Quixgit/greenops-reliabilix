@@ -294,7 +294,7 @@ function StatusPanel({ id, canAct }: { id: string; canAct: boolean }) {
       {canAct && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {suspended ? (
-            <button type="button" disabled={set.isPending} onClick={() => set.mutate({ "organization.suspended": false })} className="rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60">Restore access</button>
+            <button type="button" disabled={set.isPending} onClick={() => set.mutate({ "organization.suspended": false })} className="rounded-xl bg-leaf-deep px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-60">Restore access</button>
           ) : (<>
             <input value={message} onChange={(e) => setMessage(e.target.value)} maxLength={300} aria-label="Message shown to the organization" placeholder={current || "Reason shown to the organization"} className={`${selectCls} w-full sm:w-96`} />
             <ConfirmButton label="Suspend organization" confirmLabel="Suspend now" disabled={set.isPending}
@@ -355,7 +355,7 @@ function PlanPanel({ id, current, canAct }: { id: string; current: string; canAc
         <p className="mt-2 text-xs text-muted">Will fix: {Object.entries(chosen.limits).map(([k, v]) => `${k.replace("limits.", "").replace(/_/g, " ")} ${v === 0 ? "unlimited" : v}`).join(", ")}; modules off: {Object.entries(chosen.modules).filter(([, v]) => !v).map(([k]) => k.replace("modules.", "")).join(", ") || "none"}.</p>
       )}
       {assign.isError && <p role="alert" className="mt-2 text-sm text-bad">{assign.error.message}</p>}
-      {assign.isSuccess && <p role="status" className="mt-2 text-sm text-emerald-700">Plan assigned.</p>}
+      {assign.isSuccess && <p role="status" className="mt-2 text-sm text-leaf-deep">Plan assigned.</p>}
     </Card>
   );
 }

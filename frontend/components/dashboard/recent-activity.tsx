@@ -15,9 +15,9 @@ import { timeAgo } from "@/lib/formatters";
 // Only user-facing audit actions reach this list (allowlisted server-side).
 const EVENTS: Record<string, { icon: LucideIcon; tone: string; text: (target: string) => string }> = {
   "project.created": { icon: FolderPlus, tone: "bg-blue-50 text-blue-600", text: (t) => `Project created: ${t.replace(/^project:/, "")}` },
-  "cloud_connection.created": { icon: Cloud, tone: "bg-emerald-50 text-emerald-600", text: () => "Cloud account connected" },
+  "cloud_connection.created": { icon: Cloud, tone: "bg-leaf-soft text-leaf-deep", text: () => "Cloud account connected" },
   "cloud_sync.completed": { icon: RefreshCw, tone: "bg-sky-50 text-sky-600", text: () => "Data sync completed" },
-  "report.generated": { icon: FileText, tone: "bg-emerald-50 text-emerald-600", text: () => "Report generated" },
+  "report.generated": { icon: FileText, tone: "bg-leaf-soft text-leaf-deep", text: () => "Report generated" },
   "recommendation.created": { icon: Lightbulb, tone: "bg-blue-50 text-blue-600", text: () => "New recommendation generated" },
   "recommendation.applied": { icon: Lightbulb, tone: "bg-violet-50 text-violet-600", text: () => "Recommendation applied" },
 };

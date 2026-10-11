@@ -7,7 +7,7 @@ export function LeafIcon({ className }: P) {
   const id = useId();
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <defs><linearGradient id={`${id}-l`} x1="0.1" y1="1" x2="0.9" y2="0"><stop offset="0" stopColor="#12935a" /><stop offset="1" stopColor="#5fdba4" /></linearGradient></defs>
+      <defs><linearGradient id={`${id}-l`} x1="0.1" y1="1" x2="0.9" y2="0"><stop offset="0" stopColor="#2f8f78" /><stop offset="1" stopColor="#8fd4bf" /></linearGradient></defs>
       <path d="M5.6 20.8C4.3 15.200 5.900 9.700 10.600 6.600 13.900 4.400 18.300 3.500 20.800 3.300c.3 4.200-.9 9.600-4.400 12.900-3 2.800-6.900 4.200-10.800 4.600z" fill={`url(#${id}-l)`} />
       <path d="M5.800 20.500c2.300-5.400 6.100-9.300 11.200-12" fill="none" stroke="#fff" strokeOpacity=".9" strokeWidth="1.3" strokeLinecap="round" />
     </svg>

@@ -14,10 +14,10 @@ export function Phoenix({ className, animated = true }: { className?: string; an
     <svg viewBox="0 0 80.2 100" className={cn("phoenix", animated && "phoenix-live", className)} role="img" aria-label="Reliabilix">
       <defs>
         <linearGradient id={`${id}-g`} x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
-          <stop offset="0" stopColor="#0f8a5f" />
-          <stop offset=".45" stopColor="#34d399" />
-          <stop offset=".75" stopColor="#bef264" />
-          <stop offset="1" stopColor="#10b981" />
+          <stop offset="0" stopColor="#2f8f78" />
+          <stop offset=".45" stopColor="#6fc3a8" />
+          <stop offset=".75" stopColor="#b7e6d8" />
+          <stop offset="1" stopColor="#6fc3a8" />
           {animated && <animateTransform attributeName="gradientTransform" type="translate" values="-0.6 -0.6; 0.6 0.6; -0.6 -0.6" dur="7s" repeatCount="indefinite" />}
         </linearGradient>
       </defs>

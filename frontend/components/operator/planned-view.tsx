@@ -16,7 +16,7 @@ export function PlannedView({ section }: { section: PlannedSection }) {
           <CardHeader title="Available today" />
           <ul className="space-y-2 text-sm">
             {section.today.map((t) => (
-              <li key={t.href + t.label}><Link href={t.href} className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 font-medium text-primary hover:bg-emerald-100">{t.label} →</Link></li>
+              <li key={t.href + t.label}><Link href={t.href} className="inline-flex items-center gap-2 rounded-xl bg-leaf-soft px-3 py-2 font-medium text-primary hover:bg-leaf-soft">{t.label} →</Link></li>
             ))}
           </ul>
         </Card>

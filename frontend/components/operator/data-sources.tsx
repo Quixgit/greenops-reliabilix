@@ -19,7 +19,7 @@ import type { DataSource, DataSourceAccess, DataSourceState, ManagedIntegration 
 import { Chip, PageTitle, Tile } from "./parts";
 
 export const ACCESS: Record<DataSourceAccess, { label: string; cls: string }> = {
-  free: { label: "Free", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  free: { label: "Free", cls: "bg-leaf-soft text-leaf-deep ring-leaf-soft" },
   paid: { label: "Paid / plan-dependent", cls: "bg-amber-50 text-amber-700 ring-amber-200" },
   customer_provided: { label: "Customer-provided", cls: "bg-sky-50 text-sky-700 ring-sky-200" },
   internal: { label: "Internal", cls: "bg-violet-50 text-violet-700 ring-violet-200" },
@@ -38,7 +38,7 @@ export const CATEGORY: Record<string, string> = { inventory: "Emissions inventor
 function settingsLine(st: ManagedIntegration | undefined) {
   if (!st) return null;
   const secret = st.fields.find((f) => f.secret && f.required) ?? st.fields.find((f) => f.required);
-  if (st.ready) return <span className="inline-flex items-center gap-1.5 text-emerald-700"><KeyRound className="size-3.5" aria-hidden />{st.prepared ? "Credentials stored" : "Settings complete"}</span>;
+  if (st.ready) return <span className="inline-flex items-center gap-1.5 text-leaf-deep"><KeyRound className="size-3.5" aria-hidden />{st.prepared ? "Credentials stored" : "Settings complete"}</span>;
   return <span className="inline-flex items-center gap-1.5 text-amber-700"><KeyRound className="size-3.5" aria-hidden />{secret ? `${secret.label} not set` : "Needs setup"}</span>;
 }
 
