@@ -13,7 +13,7 @@ import { IconBolt, IconClock, IconGauge, IconGlobe, IconLeaf, IconTrend } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCarbonSummary, useCarbonTrend, useIntensityHistory, useProviders, useRegionFootprint, useScheduleAdvice, useServices } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
-import { carbonParts, formatCost, nf, pctChange } from "@/lib/formatters";
+import { carbonParts, nf, pctChange } from "@/lib/formatters";
 import { movingAverage } from "@/lib/overview";
 import { regionName } from "@/lib/regions";
 import { periodRange, useUi } from "@/lib/store";

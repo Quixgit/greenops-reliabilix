@@ -1,6 +1,6 @@
 "use client";
 
-import { IconLogOut as LogOut, IconMenu as Menu, IconBell, IconFolder, IconSearch, IconSliders } from "@/components/ui/icons";
+import { IconLogOut as LogOut, IconMenu as Menu, IconFolder, IconSliders } from "@/components/ui/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -13,7 +13,7 @@ import { useConnections, useProjects } from "@/hooks/use-overview";
 import { NotificationBell } from "@/components/layout/bell";
 import { QuickSearchBox, type QuickItem } from "@/components/layout/quick-search";
 import { useT } from "@/i18n/provider";
-import { timeAgo } from "@/lib/formatters";
+
 import type { Role } from "@/lib/permissions";
 import { PERIODS, periodLabel, useUi } from "@/lib/store";
 import { cn } from "@/lib/utils";
@@ -82,7 +82,7 @@ function IconCalendar() {
   );
 }
 
-export function Header({ user, unread = 0 }: { user: { name: string; email: string; role: Role }; unread?: number }) {
+export function Header({ user }: { user: { name: string; email: string; role: Role }; unread?: number }) {
   const { projectId, setProject, setNavOpen } = useUi();
   const t = useT();
   const projects = useProjects();

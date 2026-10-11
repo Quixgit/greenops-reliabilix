@@ -6,8 +6,8 @@ import { useMemo, useState } from "react";
 import { ProviderMark } from "@/components/connectors/provider-mark";
 import type { AnyIcon } from "@/components/ui/icons";
 import { IconCard, IconKey, IconShield, IconBell as Bell, IconRefresh, IconCheckCircle as CheckCircle2, IconCloud as Cloud, IconClock, IconCpu, IconDatabase as Database, IconGauge as Gauge, IconPlug as Plug, IconServer as Server, IconWarning as AlertTriangle } from "@/components/ui/icons";
-import { Card, CardHeader } from "@/components/ui/card";
-import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { Card } from "@/components/ui/card";
+import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorJobs, useOperatorMe, useOperatorStats, useOperatorSystem,

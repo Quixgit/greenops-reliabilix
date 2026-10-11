@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
@@ -23,6 +24,8 @@ func (h Handlers) extraRoutes(r chi.Router) {
 	read, write := h.operator(false), h.operator(true)
 	r.With(read).Get("/operator/metrics", h.metrics)
 	r.With(read).Get("/operator/aggregation", h.aggregation)
+	r.With(read).Get("/operator/tenants/{tenant_id}/support", h.supportStatus)
+	r.With(write).Get("/operator/tenants/{tenant_id}/support/overview", h.supportOverview)
 	r.With(read).Get("/operator/diagnostics", h.diagnostics)
 	r.With(write).Post("/operator/diagnostics/run", h.runDiagnostics)
 	r.With(write).Post("/operator/jobs/{queue}/{id}/retry", h.jobAction(false))
@@ -346,4 +349,46 @@ func (h Handlers) runDiagnostics(w http.ResponseWriter, r *http.Request) {
 	}
 	defer diagRunning.Unlock()
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": h.Svc.RunDiagnostics(r.Context(), in.IDs)})
+}
+
+// supportStatus says whether the organization has opened support access, and until when. It carries no organization data.
+func (h Handlers) supportStatus(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := httpx.PathUUID(r, "tenant_id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	var raw []byte
+	if err := h.Pool.QueryRow(r.Context(), `SELECT platform.operator_support_status($1::uuid)::text`, tenant).Scan(&raw); err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, json.RawMessage(raw))
+}
+
+// supportOverview is the working detail of an organization: it exists only while the organization's grant is open, an admin
+// operator may read it, and every read is written where the organization can see who looked.
+func (h Handlers) supportOverview(w http.ResponseWriter, r *http.Request) {
+	tenant, ok := httpx.PathUUID(r, "tenant_id")
+	if !ok {
+		httpx.NotFound(w, r)
+		return
+	}
+	op := operatorOf(r)
+	label := op.Email
+	if label == "" {
+		label = op.Subject
+	}
+	var raw []byte
+	err := h.Pool.QueryRow(r.Context(), `SELECT platform.operator_support_overview($1, $2::uuid, $3)::text`, op.Subject, tenant, label).Scan(&raw)
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) && pe.Code == "P0002" {
+		httpx.WriteProblem(w, r, http.StatusForbidden, "no support access", "the organization has not opened support access, or it has expired")
+		return
+	}
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, json.RawMessage(raw))
 }

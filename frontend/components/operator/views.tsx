@@ -1,31 +1,27 @@
 "use client";
 
-import { DateField } from "@/components/ui/date-field";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconChevronRight, IconBell as Bell, IconBuilding as Building2, IconCloud as Cloud, IconGauge as Gauge, IconReceipt as Receipt, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
+
+
+import { IconChevronRight, IconBuilding as Building2, IconGauge as Gauge, IconReceipt as Receipt, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Badge, statusTone } from "@/components/ui/badge";
+import { useMemo, useState } from "react";
+
 import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
-import { Card, CardHeader } from "@/components/ui/card";
-import { EmptyState, ErrorState } from "@/components/ui/empty-state";
-import { ConfirmButton } from "@/components/ui/confirm-button";
+
+import { ErrorState } from "@/components/ui/empty-state";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { PillTabs } from "@/components/ui/tabs";
-import {
-  useOperatorConnections, useOperatorDeliveries, useOperatorErrors, useOperatorMe, useOperatorOrgUsage, useOperatorPlans, useOperatorStats, useOperatorSubscription, useOperatorSystem, useOperatorTenants,
-} from "@/hooks/use-admin";
-import { api } from "@/lib/api/client";
-import { useErasure, useOrgOverview } from "@/hooks/use-operator-extra";
-import { changed, settingsView, type OperatorTenant } from "@/lib/api/schemas";
-import { useQuery } from "@tanstack/react-query";
+import { useOperatorMe, useOperatorOrgUsage, useOperatorTenants } from "@/hooks/use-admin";
+
+
+import { type OperatorTenant } from "@/lib/api/schemas";
+
 import { shortTime } from "@/lib/format-time";
-import { PageTitle, selectCls, th, Tile } from "./parts";
+import { PageTitle, selectCls, Tile } from "./parts";
 import { Avatar, DataTable, EmptyPanel, Pill, RowList, SearchBox, Segmented, type Column } from "./ui";
 
-const select = selectCls;
 
-function useCanAct() { return useOperatorMe().data?.role === "admin"; }
 
 const planTone = (p: string) => (p === "enterprise" ? "violet" : p === "business" ? "info" : p === "team" ? "good" : "neutral") as "violet" | "info" | "good" | "neutral";
 const needs = (t: OperatorTenant) => t.connections_in_error + t.failed_deliveries_7d;

@@ -442,7 +442,9 @@ func TestServiceAccountKeyConnectionRunsInTheCustomersProjectWithoutOwnershipLab
 }
 
 func TestKeyConnectionFailuresAreSayable(t *testing.T) {
-	p := NewKeyOnly(func(domain.Connection) (string, error) { return "", errors.New("cipher: message authentication failed") })
+	p := NewKeyOnly(func(domain.Connection) (string, error) {
+		return "", errors.New("cipher: message authentication failed")
+	})
 	c := conn()
 	c.SealedSecret = "sealed"
 	err := p.Validate(context.Background(), c)

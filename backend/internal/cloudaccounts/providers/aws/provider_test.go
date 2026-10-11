@@ -229,8 +229,11 @@ func TestAccessKeyConnectionSignsWithTheOpenedSecretAndNeverAssumesARole(t *test
 	var gotID, gotSecret string
 	assumed := false
 	p := &Provider{
-		Assume:     func(context.Context, string, string) (CEAPI, error) { assumed = true; return ce, nil },
-		Key:        func(_ context.Context, id, secret string) (CEAPI, error) { gotID, gotSecret = id, secret; return ce, nil },
+		Assume: func(context.Context, string, string) (CEAPI, error) { assumed = true; return ce, nil },
+		Key: func(_ context.Context, id, secret string) (CEAPI, error) {
+			gotID, gotSecret = id, secret
+			return ce, nil
+		},
 		OpenSecret: func(domain.Connection) (string, error) { return "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", nil },
 	}
 	c := domain.Connection{AccountRef: "123456789012", CredentialRef: "awskey://AKIAIOSFODNN7EXAMPLE", SealedSecret: "sealed"}
@@ -245,7 +248,9 @@ func TestAccessKeyConnectionSignsWithTheOpenedSecretAndNeverAssumesARole(t *test
 		t.Errorf("validate: %v", err)
 	}
 	// a secret that cannot be opened says why and is not a customer action
-	p.OpenSecret = func(domain.Connection) (string, error) { return "", errors.New("cipher: message authentication failed") }
+	p.OpenSecret = func(domain.Connection) (string, error) {
+		return "", errors.New("cipher: message authentication failed")
+	}
 	err := p.Validate(context.Background(), c)
 	var pe domain.PublicError
 	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "NOTIFICATIONS_SECRET_KEY") || strings.Contains(pe.Message, "cipher") {

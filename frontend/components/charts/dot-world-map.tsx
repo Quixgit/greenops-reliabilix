@@ -154,8 +154,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitM
   const wrap = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const view = useRef({ k: 1, x: 0, y: 0 });
-  const [zoomed, setZoomed] = useState(false);
-  const apply = useCallback((fly = false) => {
+    const apply = useCallback((fly = false) => {
     const w = wrap.current, st = stage.current;
     if (!w || !st) return;
     const v = view.current, W = w.clientWidth, H = w.clientHeight;
@@ -163,7 +162,6 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitM
     st.classList.toggle("map-fly", fly);
     st.style.transform = `translate3d(${v.x}px,${v.y}px,0) scale(${v.k})`;
     st.style.setProperty("--k", String(v.k));
-    setZoomed(v.k > 1.01);
   }, []);
   const zoomAt = useCallback((k2: number, cx: number, cy: number, fly = false) => {
     const v = view.current, k = clamp(k2, 1, 6), r = k / v.k;

@@ -5,7 +5,7 @@ The single place that says which version every part of Reliabilix is at. Rules f
 A test (`backend/internal/platform/version`) fails the build when this file, `VERSION`, `frontend/package.json`,
 `backend/api/openapi.yaml` and the migrations disagree, or when a service or module has no row.
 
-**Platform release: `0.1.0-alpha.141`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
+**Platform release: `0.1.0-alpha.144`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
 
 Row format (the test reads it): `` | `key` | version | ... | ``.
 
@@ -13,7 +13,7 @@ Row format (the test reads it): `` | `key` | version | ... | ``.
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform` | 0.1.0-alpha.141 | Same as the `VERSION` file and `frontend/package.json`. |
+| `platform` | 0.1.0-alpha.144 | Same as the `VERSION` file and `frontend/package.json`. |
 
 ## Services and container images
 
@@ -23,13 +23,13 @@ Image name: `<registry>/reliabilix/<service>:<version>`. Never deploy `latest` (
 
 | Item | Version | Image | Built from |
 |---|---|---|---|
-| `service/api` | 0.1.0-alpha.141 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
-| `service/worker` | 0.1.0-alpha.141 | `reliabilix/worker` | `backend/cmd/worker` |
-| `service/scheduler` | 0.1.0-alpha.141 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
-| `service/migrate` | 0.1.0-alpha.141 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
-| `service/web` | 0.1.0-alpha.141 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
-| `service/agent` | 0.1.0-alpha.141 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
-| `service/admin` | 0.1.0-alpha.141 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
+| `service/api` | 0.1.0-alpha.144 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
+| `service/worker` | 0.1.0-alpha.144 | `reliabilix/worker` | `backend/cmd/worker` |
+| `service/scheduler` | 0.1.0-alpha.144 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
+| `service/migrate` | 0.1.0-alpha.144 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
+| `service/web` | 0.1.0-alpha.144 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
+| `service/agent` | 0.1.0-alpha.144 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
+| `service/admin` | 0.1.0-alpha.144 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
 
 ## Backend domain modules
 
@@ -38,58 +38,59 @@ that module changes in a way listed in the policy.
 
 | Item | Version | Notes |
 |---|---|---|
-| `internal/app` | 0.1.0-alpha.141 | Composition root, router, gates |
-| `internal/alerts` | 0.1.0-alpha.141 | Budget and connection alerts |
-| `internal/automation` | 0.1.0-alpha.141 | Plans only, no executors |
-| `internal/carbon` | 0.1.0-alpha.141 | Engine, SCI, methodology use |
-| `internal/cloudaccounts` | 0.1.0-alpha.141 | Connections, sync, reconciliation |
-| `internal/dashboard` | 0.1.0-alpha.141 | Read models |
-| `internal/finops` | 0.1.0-alpha.141 | Spend, budgets, anomalies |
-| `internal/ingestion` | 0.1.0-alpha.141 | Normalizers to FOCUS |
-| `internal/licensing` | 0.1.0-alpha.141 | Plan view, checkout, payment webhooks, subscription expiry |
-| `internal/lifecycle` | 0.1.0-alpha.141 | Export, scheduled erasure, retention |
-| `internal/kubernetes` | 0.1.0-alpha.141 | Placeholder layers |
-| `internal/notifications` | 0.1.0-alpha.141 | Channels, outbox |
-| `internal/operator` | 0.1.0-alpha.141 | Operator console |
-| `internal/projects` | 0.1.0-alpha.141 | Projects, policies |
-| `internal/recommendations` | 0.1.0-alpha.141 | region_shift, rightsizing |
-| `internal/reports` | 0.1.0-alpha.141 | CSV, JSON, PDF |
-| `internal/settings` | 0.1.0-alpha.141 | Settings engine |
-| `internal/tenants` | 0.1.0-alpha.141 | Organizations, members, keys |
-| `internal/usage` | 0.1.0-alpha.141 | FOCUS records |
-| `internal/users` | 0.1.0-alpha.141 | Identity |
+| `internal/app` | 0.1.0-alpha.144 | Composition root, router, gates |
+| `internal/alerts` | 0.1.0-alpha.144 | Budget and connection alerts |
+| `internal/automation` | 0.1.0-alpha.144 | Plans only, no executors |
+| `internal/carbon` | 0.1.0-alpha.144 | Engine, SCI, methodology use |
+| `internal/cloudaccounts` | 0.1.0-alpha.144 | Connections, sync, reconciliation |
+| `internal/dashboard` | 0.1.0-alpha.144 | Read models |
+| `internal/finops` | 0.1.0-alpha.144 | Spend, budgets, anomalies |
+| `internal/ingestion` | 0.1.0-alpha.144 | Normalizers to FOCUS |
+| `internal/licensing` | 0.1.0-alpha.144 | Plan view, checkout, payment webhooks, subscription expiry |
+| `internal/lifecycle` | 0.1.0-alpha.144 | Export, scheduled erasure, retention |
+| `internal/kubernetes` | 0.1.0-alpha.144 | Placeholder layers |
+| `internal/notifications` | 0.1.0-alpha.144 | Channels, outbox |
+| `internal/operator` | 0.1.0-alpha.144 | Operator console |
+| `internal/projects` | 0.1.0-alpha.144 | Projects, policies |
+| `internal/recommendations` | 0.1.0-alpha.144 | region_shift, rightsizing |
+| `internal/reports` | 0.1.0-alpha.144 | CSV, JSON, PDF |
+| `internal/settings` | 0.1.0-alpha.144 | Settings engine |
+| `internal/tenants` | 0.1.0-alpha.144 | Organizations, members, keys |
+| `internal/usage` | 0.1.0-alpha.144 | FOCUS records |
+| `internal/users` | 0.1.0-alpha.144 | Identity |
 
 ## Platform packages
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform/audit` | 0.1.0-alpha.141 | |
-| `platform/apiusage` | 0.1.0-alpha.141 | Request metering and daily cap for paid APIs |
-| `platform/auth` | 0.1.0-alpha.141 | OIDC, API keys, RBAC |
-| `platform/config` | 0.1.0-alpha.141 | |
-| `platform/database` | 0.1.0-alpha.141 | |
-| `platform/ec2spec` | 0.1.0-alpha.141 | |
-| `platform/awsprice` | 0.1.0-alpha.141 | Relative EC2 price index per region (AWS price list) |
-| `platform/azureprice` | 0.1.0-alpha.141 | Azure Retail Prices: relative price index per region for VMs, managed PostgreSQL and Redis |
-| `platform/gcpprice` | 0.1.0-alpha.141 | Cloud Billing Catalog: relative Compute Engine price index per region (needs a key) |
-| `platform/fxrates` | 0.1.0-alpha.141 | ECB euro reference rates for currency conversion |
-| `platform/entitlements` | 0.1.0-alpha.141 | Limits port |
-| `platform/errlog` | 0.1.0-alpha.141 | Error log |
-| `platform/geo` | 0.1.0-alpha.141 | Where cloud regions are; measured (Microsoft, CloudPing) or distance-estimated round-trip time between them, with its basis |
-| `platform/focus` | 0.1.0-alpha.141 | FOCUS record contract |
-| `platform/integrations` | 0.1.0-alpha.141 | External-service credentials |
-| `platform/billing` | 0.1.0-alpha.141 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
-| `platform/http` | 0.1.0-alpha.141 | |
-| `platform/i18n` | 0.1.0-alpha.141 | Server-side language catalogs and negotiation (ADR-0036) |
-| `platform/methodology` | 0.1.0-alpha.141 | |
-| `platform/notify` | 0.1.0-alpha.141 | Producer port, event catalog |
-| `platform/observability` | 0.1.0-alpha.141 | |
-| `platform/plans` | 0.1.0-alpha.141 | Plan catalog: presets of limits and modules (ADR-0033) |
-| `platform/queue` | 0.1.0-alpha.141 | |
-| `platform/secretbox` | 0.1.0-alpha.141 | |
-| `platform/settings` | 0.1.0-alpha.141 | Settings catalog |
-| `platform/storage` | 0.1.0-alpha.141 | |
-| `platform/version` | 0.1.0-alpha.141 | |
+| `platform/audit` | 0.1.0-alpha.144 | |
+| `platform/apiusage` | 0.1.0-alpha.144 | Request metering and daily cap for paid APIs |
+| `platform/auth` | 0.1.0-alpha.144 | OIDC, API keys, RBAC |
+| `platform/config` | 0.1.0-alpha.144 | |
+| `platform/database` | 0.1.0-alpha.144 | |
+| `platform/ec2spec` | 0.1.0-alpha.144 | |
+| `platform/awsprice` | 0.1.0-alpha.144 | Relative price indexes per region: EC2 (pricing pages), RDS and ElastiCache (bulk price list) |
+| `platform/azureprice` | 0.1.0-alpha.144 | Azure Retail Prices: relative price index per region for VMs, managed PostgreSQL and Redis |
+| `platform/gcpprice` | 0.1.0-alpha.144 | Cloud Billing Catalog: relative Compute Engine, Cloud SQL and Memorystore price indexes per region (needs a key) |
+| `platform/pricing` | 0.1.0-alpha.144 | What the price-index clients share: the "not offered in this region" answer |
+| `platform/fxrates` | 0.1.0-alpha.144 | ECB euro reference rates for currency conversion |
+| `platform/entitlements` | 0.1.0-alpha.144 | Limits port |
+| `platform/errlog` | 0.1.0-alpha.144 | Error log |
+| `platform/geo` | 0.1.0-alpha.144 | Where cloud regions are; measured (Microsoft, CloudPing) or distance-estimated round-trip time between them, with its basis |
+| `platform/focus` | 0.1.0-alpha.144 | FOCUS record contract |
+| `platform/integrations` | 0.1.0-alpha.144 | External-service credentials |
+| `platform/billing` | 0.1.0-alpha.144 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
+| `platform/http` | 0.1.0-alpha.144 | |
+| `platform/i18n` | 0.1.0-alpha.144 | Server-side language catalogs and negotiation (ADR-0036) |
+| `platform/methodology` | 0.1.0-alpha.144 | |
+| `platform/notify` | 0.1.0-alpha.144 | Producer port, event catalog |
+| `platform/observability` | 0.1.0-alpha.144 | |
+| `platform/plans` | 0.1.0-alpha.144 | Plan catalog: presets of limits and modules (ADR-0033) |
+| `platform/queue` | 0.1.0-alpha.144 | |
+| `platform/secretbox` | 0.1.0-alpha.144 | |
+| `platform/settings` | 0.1.0-alpha.144 | Settings catalog |
+| `platform/storage` | 0.1.0-alpha.144 | |
+| `platform/version` | 0.1.0-alpha.144 | |
 
 ## Connectors and plugins
 
@@ -98,13 +99,13 @@ that third party changes.
 
 | Item | Version | Notes |
 |---|---|---|
-| `connector/aws` | 0.1.0-alpha.141 | Cost Explorer, FOCUS export, rightsizing |
-| `connector/gcp` | 0.1.0-alpha.141 | Billing export in BigQuery |
-| `connector/azure` | 0.1.0-alpha.141 | Cost Management export in Blob Storage (FOCUS) |
-| `connector/electricitymaps` | 0.1.0-alpha.141 | Grid carbon intensity |
-| `channel/email` | 0.1.0-alpha.141 | SMTP |
-| `channel/webhook` | 0.1.0-alpha.141 | Signed JSON |
-| `channel/slack` | 0.1.0-alpha.141 | Incoming webhook |
+| `connector/aws` | 0.1.0-alpha.144 | Cost Explorer, FOCUS export, rightsizing |
+| `connector/gcp` | 0.1.0-alpha.144 | Billing export in BigQuery |
+| `connector/azure` | 0.1.0-alpha.144 | Cost Management export in Blob Storage (FOCUS) |
+| `connector/electricitymaps` | 0.1.0-alpha.144 | Grid carbon intensity |
+| `channel/email` | 0.1.0-alpha.144 | SMTP |
+| `channel/webhook` | 0.1.0-alpha.144 | Signed JSON |
+| `channel/slack` | 0.1.0-alpha.144 | Incoming webhook |
 
 ## Contracts and data
 
@@ -112,11 +113,11 @@ These are what other systems and stored data depend on; they follow stricter rul
 
 | Item | Version | Notes |
 |---|---|---|
-| `contract/api` | 0.39.0 | `backend/api/openapi.yaml` `info.version`; paths stay under `/api/v1` |
+| `contract/api` | 0.40.0 | `backend/api/openapi.yaml` `info.version`; paths stay under `/api/v1` |
 | `contract/webhook-payload` | 1 | Notification webhook body (`version` field) |
 | `contract/webhook-signature` | 1 | `X-Reliabilix-Signature: t=,v1=` |
 | `contract/focus` | 1.4 | FOCUS specification followed by `platform/focus` |
-| `data/db-schema` | 66 | Number of the newest migration (`backend/migrations`) |
+| `data/db-schema` | 67 | Number of the newest migration (`backend/migrations`) |
 | `data/methodology` | RLX-PROVISIONAL-1 | Immutable; a new set is a new version, never an edit |
 | `data/settings-catalog` | 1 | Bump when a setting is removed or its meaning changes |
 

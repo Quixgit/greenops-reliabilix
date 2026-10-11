@@ -1,4 +1,4 @@
-import { IconSrcElectricityMaps, IconSrcEmber, IconSrcEia, IconSrcEnergyCharts, IconSrcIeso, IconSrcHydroQuebec, IconSrcEntsoe, IconSrcOns, IconSrcUkGrid, IconSrcWattTime, IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
+import { IconSrcElectricityMaps, IconSrcEmber, IconSrcEia, IconSrcEnergyCharts, IconSrcIeso, IconSrcHydroQuebec, IconSrcEntsoe, IconSrcOns, IconSrcUkGrid, IconSrcWattTime, IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {

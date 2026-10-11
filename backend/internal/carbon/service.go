@@ -15,6 +15,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/domain"
 	chttp "github.com/quixgit/greenops-reliabilix/backend/internal/carbon/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/repository"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/apiusage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 )
@@ -70,7 +71,7 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		_, err := m.Svc.RecalculateAll(ctx)
 		return err
 	})
-	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return m.Svc.RefreshGrid(ctx) })
+	mux.HandleFunc(queue.TaskRefreshGrid, func(ctx context.Context, _ *asynq.Task) error { return noRetryOnBudget(m.Svc.RefreshGrid(ctx)) })
 	mux.HandleFunc(queue.TaskRecalculateWindow, func(ctx context.Context, t *asynq.Task) error {
 		p, err := queue.DecodeAs[queue.RecalcPayload](t)
 		if err != nil {
@@ -90,12 +91,12 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		if len(res.Regions) > 0 {
 			m.Svc.Log.Info("grid history loaded by itself", "regions", len(res.Regions), "projects_recalculated", res.Recalc, "err", err)
 		}
-		return err
+		return noRetryOnBudget(err)
 	})
 	mux.HandleFunc(queue.TaskRefreshMonthly, func(ctx context.Context, _ *asynq.Task) error {
 		n, err := m.Svc.RefreshMonthly(ctx)
 		m.Svc.Log.Info("monthly grid data refreshed", "figures", n, "err", err)
-		return err
+		return noRetryOnBudget(err)
 	})
 	mux.HandleFunc(queue.TaskBackfillIntensity, func(ctx context.Context, t *asynq.Task) error {
 		p, err := queue.DecodeAs[queue.BackfillPayload](t)
@@ -119,4 +120,13 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		}
 		return err
 	})
+}
+
+// noRetryOnBudget stops a retry that cannot succeed: once a provider's daily cap is used, or it has no key or no history on the
+// plan, asking again within the day changes nothing and only fills the failed list. The next scheduled run does the work.
+func noRetryOnBudget(err error) error {
+	if err != nil && (errors.Is(err, apiusage.ErrBudget) || errors.Is(err, domain.ErrNotConfigured) || errors.Is(err, domain.ErrPastUnavailable)) {
+		return errors.Join(asynq.SkipRetry, err)
+	}
+	return err
 }

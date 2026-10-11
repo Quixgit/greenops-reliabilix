@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/hibiken/asynq"
 
@@ -62,7 +63,11 @@ func main() {
 		if skip[task] {
 			continue
 		}
-		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}"))); err != nil {
+		timeout := 10 * time.Minute
+		if task == queue.TaskRefreshPrices {
+			timeout = 45 * time.Minute // AWS's managed-service price files are large: about 30 MB per region and service
+		}
+		if _, err := s.Register(spec, asynq.NewTask(task, []byte("{}")), asynq.MaxRetry(3), asynq.Timeout(timeout), asynq.Retention(24*time.Hour)); err != nil {
 			log.Error("register", "task", task, "err", err)
 			os.Exit(1)
 		}

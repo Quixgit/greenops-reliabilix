@@ -72,10 +72,18 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 				err = e
 			}
 		}
+		// AWS's managed services come from the bulk price list: large files, so a few regions at a time.
+		for _, svc := range awsprice.Services {
+			if _, e := m.svc.RefreshPriceIndex(ctx, awsBulkSource{b: awsprice.NewBulk(), svc: svc}, awsRegions()); err == nil {
+				err = e
+			}
+		}
 		if m.gcpKey != nil {
 			if key := m.gcpKey(ctx); key != "" {
-				if _, e := m.svc.RefreshPriceIndex(ctx, gcpPriceSource{c: gcpprice.New(key)}, gcpRegions()); err == nil {
-					err = e
+				for _, fam := range gcpprice.Families {
+					if _, e := m.svc.RefreshPriceIndex(ctx, gcpPriceSource{c: gcpprice.New(key), fam: fam}, gcpRegions()); err == nil {
+						err = e
+					}
 				}
 			}
 		}
@@ -114,12 +122,45 @@ func (a azurePriceSource) BuildIndex(ctx context.Context, regions []string) ([]a
 }
 
 // gcpPriceSource adapts the Cloud Billing Catalog client to the application port.
-type gcpPriceSource struct{ c *gcpprice.Client }
+type gcpPriceSource struct {
+	c   *gcpprice.Client
+	fam gcpprice.Family
+}
 
-func (gcpPriceSource) Provider() string { return "gcp" }
-func (gcpPriceSource) Basis() string    { return "gcp_n2_standard4_ondemand" }
+func (g gcpPriceSource) Provider() string { return g.fam.ID }
+func (g gcpPriceSource) Basis() string {
+	switch g.fam.ID {
+	case "gcp:cloudsql":
+		return "gcp_cloudsql_postgres_zonal_basket"
+	case "gcp:memorystore":
+		return "gcp_memorystore_redis_standard_basket"
+	}
+	return "gcp_n2_standard4_ondemand"
+}
 func (g gcpPriceSource) BuildIndex(ctx context.Context, regions []string) ([]application.PriceEntry, map[string]error, error) {
-	idx, errs, err := g.c.BuildIndex(ctx, regions)
+	idx, errs, err := g.c.BuildFamilyIndex(ctx, g.fam, regions)
+	out := make([]application.PriceEntry, 0, len(idx))
+	for _, i := range idx {
+		out = append(out, application.PriceEntry{Region: i.Region, Idx: i.Idx, N: i.N})
+	}
+	return out, errs, err
+}
+
+// awsBulkSource adapts the AWS bulk price list (RDS, ElastiCache) to the application port.
+type awsBulkSource struct {
+	b   *awsprice.Bulk
+	svc awsprice.Service
+}
+
+func (a awsBulkSource) Provider() string { return a.svc.ID }
+func (a awsBulkSource) Basis() string {
+	if a.svc.ID == "aws:elasticache" {
+		return "aws_elasticache_redis_ondemand_basket"
+	}
+	return "aws_rds_postgresql_singleaz_basket"
+}
+func (a awsBulkSource) BuildIndex(ctx context.Context, regions []string) ([]application.PriceEntry, map[string]error, error) {
+	idx, errs, err := a.b.BuildServiceIndex(ctx, a.svc, regions)
 	out := make([]application.PriceEntry, 0, len(idx))
 	for _, i := range idx {
 		out = append(out, application.PriceEntry{Region: i.Region, Idx: i.Idx, N: i.N})

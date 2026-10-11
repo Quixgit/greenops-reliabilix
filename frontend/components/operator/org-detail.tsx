@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconArrowLeft as ArrowLeft, IconClock, IconHistory, IconReceipt, IconShield, IconSliders, IconWarning } from "@/components/ui/icons";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
@@ -16,12 +17,84 @@ import { useErasure, useOrgOverview } from "@/hooks/use-operator-extra";
 import { api } from "@/lib/api/client";
 import { changed, settingsView } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
-import { describe } from "./audit";
+
 import { Tile } from "./parts";
 import { Avatar, Btn, inputCls, Pill, Select } from "./ui";
 
 const planTone = (p: string) => (p === "enterprise" ? "violet" : p === "business" ? "info" : p === "team" ? "good" : "neutral") as "violet" | "info" | "good" | "neutral";
 const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{e.message}</p> : null);
+
+const supportStatus = z.object({ active: z.boolean(), expires_at: z.string().nullable().optional(), granted_by: z.string().nullable().optional(), note: z.string().nullable().optional() });
+const supportOverview = z.object({
+  expires_at: z.string(), budgets: z.number(), recommendations_open: z.number(),
+  projects: z.array(z.object({ id: z.string(), name: z.string(), functional_unit: z.string(), allowed_regions: z.array(z.string()), created_at: z.string() })),
+  connections: z.array(z.object({ id: z.string(), provider: z.string(), account_ref: z.string(), status: z.string(), last_error: z.string().nullable(), last_sync_at: z.string().nullable() })),
+  recent_activity: z.array(z.object({ at: z.string(), actor: z.string(), action: z.string(), target: z.string() })),
+});
+
+/**
+ * The working detail of an organization, which exists only while the organization has opened support access. The status is free to ask;
+ * reading the detail is an admin operator's action and is recorded where the organization can see it.
+ */
+function SupportPanel({ id, canAct }: { id: string; canAct: boolean }) {
+  const st = useQuery({ queryKey: ["op-support", id], queryFn: () => api(`operator/tenants/${id}/support`, supportStatus) });
+  const [shown, setShown] = useState(false);
+  const detail = useQuery({ queryKey: ["op-support-overview", id], enabled: shown && canAct && !!st.data?.active, queryFn: () => api(`operator/tenants/${id}/support/overview`, supportOverview), retry: false });
+  if (st.isLoading) return <Skeleton className="h-24" />;
+  if (!st.data?.active) {
+    return (
+      <Card index={0} interactive={false}>
+        <CardHeader title="Support access" icon={<IconShield className="size-4 text-leaf-deep" />} action={<Pill>closed</Pill>} />
+        <p className="text-sm text-muted">This organization has not opened support access, so only counts are visible. Ask its owner to open it under Settings → Security; it then stays open for the time they choose and every look is listed for them.</p>
+      </Card>
+    );
+  }
+  return (
+    <div className="space-y-5">
+      <Card index={0} interactive={false}>
+        <CardHeader title="Support access" icon={<IconShield className="size-4 text-leaf-deep" />} action={<Pill tone="warn" pulse>open</Pill>} />
+        <p className="text-sm text-slate-600">Open until {shortTime(st.data.expires_at ?? "")}{st.data.note ? ` · “${st.data.note}”` : ""}. Reading the detail is recorded for the organization, with your name.</p>
+        {canAct && !shown && <div className="mt-3"><Btn onClick={() => setShown(true)}>Show the working detail</Btn></div>}
+        {!canAct && <p className="mt-2 text-xs text-muted">Only an operator with the admin role can read the detail.</p>}
+      </Card>
+      {shown && detail.isLoading && <Skeleton className="h-40" />}
+      {detail.isError && <Err e={detail.error} />}
+      {detail.data && (
+        <div className="grid gap-5 xl:grid-cols-2">
+          <Card index={1} interactive={false}>
+            <CardHeader title={`Projects (${detail.data.projects.length})`} />
+            <ul className="divide-y divide-line/60 text-sm">
+              {detail.data.projects.map((p) => (
+                <li key={p.id} className="py-2.5"><p className="font-medium">{p.name} <span className="font-normal text-muted">· per {p.functional_unit.replace(/_/g, " ")}</span></p>
+                  <p className="text-xs text-muted">{p.allowed_regions.length ? `allowed: ${p.allowed_regions.join(", ")}` : "no allowed regions: moves are not proposed"}</p></li>
+              ))}
+              {detail.data.projects.length === 0 && <li className="py-2.5 text-muted">None.</li>}
+            </ul>
+            <p className="mt-3 text-xs text-muted">{detail.data.budgets} budget(s) · {detail.data.recommendations_open} open recommendation(s)</p>
+          </Card>
+          <Card index={2} interactive={false}>
+            <CardHeader title={`Connections (${detail.data.connections.length})`} />
+            <ul className="divide-y divide-line/60 text-sm">
+              {detail.data.connections.map((c) => (
+                <li key={c.id} className="py-2.5"><p className="flex flex-wrap items-center gap-2 font-medium">{c.provider} <span className="font-normal text-muted">{c.account_ref}</span><Pill tone={c.status === "ok" ? "good" : "warn"}>{c.status}</Pill></p>
+                  <p className="text-xs text-muted">{c.last_sync_at ? `synced ${shortTime(c.last_sync_at)}` : "never synced"}{c.last_error ? ` · ${c.last_error}` : ""}</p></li>
+              ))}
+              {detail.data.connections.length === 0 && <li className="py-2.5 text-muted">None.</li>}
+            </ul>
+          </Card>
+          <Card index={3} interactive={false} className="xl:col-span-2">
+            <CardHeader title="Recent activity" icon={<IconClock className="size-4 text-leaf-deep" />} />
+            <ul className="divide-y divide-line/60 text-sm">
+              {detail.data.recent_activity.map((a, i) => (
+                <li key={i} className="flex flex-wrap items-center justify-between gap-2 py-2"><span><b className="font-medium">{a.action}</b> <span className="text-muted">{a.target}</span></span><span className="text-xs text-muted">{shortTime(a.at)}</span></li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Suspend or restore one organization. It is a locked, audited setting; the API gate refuses changes while it is on. */
 function StatusPanel({ id, canAct }: { id: string; canAct: boolean }) {
@@ -211,7 +284,7 @@ export function OrganizationView({ id }: { id: string }) {
 
       <PillTabs value={tab} onChange={setTab} label="Organization sections" tabs={[
         { value: "overview", label: "Overview" }, { value: "plan", label: "Plan and access" }, { value: "settings", label: "Settings and limits" },
-        { value: "history", label: "Change history" }, { value: "erasure", label: "Erasure" },
+        { value: "support", label: "Support access" }, { value: "history", label: "Change history" }, { value: "erasure", label: "Erasure" },
       ]} />
 
       <div key={tab} className="page-enter">
@@ -219,6 +292,7 @@ export function OrganizationView({ id }: { id: string }) {
         {tab === "plan" && <div className="grid gap-5 xl:grid-cols-2"><PlanPanel id={id} current={org?.plan ?? "free"} canAct={canAct} /><StatusPanel id={id} canAct={canAct} /></div>}
         {tab === "settings" && <div className="flex items-center gap-2 pb-3 text-sm text-muted"><IconSliders className="size-4" aria-hidden />Values set here apply to this organization only; the rest inherits the platform defaults.</div>}
         {tab === "settings" && <SettingsEditor mode="operator-tenant" path={`operator/tenants/${id}/settings`} historyPath="" canEdit={canAct} />}
+        {tab === "support" && <SupportPanel id={id} canAct={canAct} />}
         {tab === "history" && <SettingsHistory path={`operator/settings/history?tenant_id=${id}&limit=200`} />}
         {tab === "erasure" && <div className="max-w-2xl"><ErasurePanel id={id} canAct={canAct} /></div>}
       </div>

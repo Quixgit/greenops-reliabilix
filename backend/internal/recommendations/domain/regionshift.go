@@ -252,12 +252,27 @@ func isVMCompute(provider, service string) bool {
 // ManagedFamily is the price-index family of a managed service ("" when no index describes it).
 func ManagedFamily(provider, service string) string {
 	s := strings.ToLower(strings.TrimSpace(service))
-	if strings.EqualFold(provider, "azure") {
+	switch strings.ToLower(provider) {
+	case "azure":
 		switch {
 		case s == "azure database for postgresql":
 			return "azure:postgresql"
 		case s == "redis cache" || s == "azure cache for redis":
 			return "azure:redis"
+		}
+	case "aws":
+		switch {
+		case s == "amazon relational database service" || s == "amazon rds":
+			return "aws:rds"
+		case s == "amazon elasticache" || s == "amazon elasticache service":
+			return "aws:elasticache"
+		}
+	case "gcp":
+		switch {
+		case s == "cloud sql":
+			return "gcp:cloudsql"
+		case s == "cloud memorystore for redis" || s == "memorystore for redis" || s == "memorystore":
+			return "gcp:memorystore"
 		}
 	}
 	return ""

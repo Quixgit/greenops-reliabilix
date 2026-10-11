@@ -9,7 +9,8 @@ import { AutomationTab } from "@/components/settings/automation-tab";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { useFinopsSummary } from "@/hooks/use-overview";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
-import { DataPanel } from "@/components/settings/data-panel";
+import { SupportAccessPanel } from "@/components/settings/support-access-panel";
+
 import { MembersPanel } from "@/components/settings/members-panel";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
 import { OrganizationTab } from "@/components/settings/organization-tab";
@@ -17,9 +18,9 @@ import { BillingTab } from "@/components/billing/billing-tab";
 import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import { ProjectsPolicyPanel } from "@/components/settings/projects-policy-panel";
 import { RolesPanel } from "@/components/settings/roles-panel";
-import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-editor";
+import { SettingsHistory } from "@/components/settings/settings-editor";
 import { LatencyPanel } from "@/components/settings/latency-panel";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/operator/ui";
 import { useT } from "@/i18n/provider";
 import { canBuy, canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
@@ -115,6 +116,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     security: (
       <div className="space-y-4">
         <ApiKeysPanel />
+        <SupportAccessPanel />
         <AuditPanel />
         {canSeeSettings(user.role) && <SettingsHistory path="settings/history?limit=100" />}
       </div>

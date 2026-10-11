@@ -34,7 +34,7 @@ function Quality({ q }: { q: DataQuality | null }) {
       <p className="flex items-center gap-2"><Badge tone={m.tone}>{m.label}</Badge><span className="text-xs text-muted">checked {shortTime(q.checked_at)}</span></p>
       {q.status !== "unchecked" && (
         <p className="text-muted">
-          {q.checked_days} days compared with the cloud's own totals; {q.mismatch_days} differ
+          {q.checked_days} days compared with the cloud&apos;s own totals; {q.mismatch_days} differ
           {q.mismatch_days > 0 && <> (largest difference {q.max_diff_pct.toFixed(1)}%)</>}.
         </p>
       )}

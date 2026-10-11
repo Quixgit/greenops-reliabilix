@@ -20,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/pricing"
 )
 
 // Baseline is the region whose basket price is 1.0.
@@ -201,8 +203,7 @@ func (c *Client) FamilyPrices(ctx context.Context, fam Family, region string) (m
 		next = doc.Next
 	}
 	if len(out) == 0 {
-		failed = true
-		return nil, fmt.Errorf("azureprice: no prices for %s", region)
+		return nil, fmt.Errorf("azureprice: no prices for %s: %w", region, pricing.ErrNotOffered)
 	}
 	return out, nil
 }
@@ -259,7 +260,7 @@ func (c *Client) BuildFamilyIndex(ctx context.Context, fam Family, regions []str
 		}
 		ratio, n, ok := familyRatio(fam, p, base)
 		if !ok {
-			errs[r] = fmt.Errorf("azureprice: only %d basket entries overlap for %s", n, r)
+			errs[r] = fmt.Errorf("azureprice: only %d basket entries overlap for %s: %w", n, r, pricing.ErrNotOffered)
 			continue
 		}
 		idx = append(idx, Index{Region: r, Idx: math.Round(ratio*10000) / 10000, N: n})

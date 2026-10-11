@@ -6,7 +6,7 @@ import { IconHistory as History, IconUndo as RotateCcw, IconSearch as Search, Ic
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
+
 import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Panel } from "./organization-tab";
 import { ErrorState } from "@/components/ui/empty-state";
@@ -83,7 +83,7 @@ export function Control({ item, value, onChange, disabled }: { item: SettingItem
 
 export const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes, onlyGroup, hideKeys, hideGroups, groupNotes }: {
+export function SettingsEditor({ mode, path, canEdit = true, scopes, onlyGroup, hideKeys, hideGroups, groupNotes }: {
   mode: EditorMode; path: string; historyPath: string; canEdit?: boolean; scopes?: SettingItem["scope"][];
   /** Show one group only, without the search and group tabs: for a card that sits next to the thing it configures. */
   onlyGroup?: string;

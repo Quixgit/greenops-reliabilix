@@ -152,7 +152,13 @@ LEFT JOIN projects.policies p ON p.project_id = u.project_id;
 -- Cost per region and price-index family: virtual machine compute (EC2, Azure Virtual Machines, Compute Engine) and Azure's managed
 -- PostgreSQL and Redis, the only costs the region price indexes describe,
 -- in the dominant currency.
-SELECT u.region_id, CASE WHEN u.provider = 'aws' THEN 'aws' WHEN u.provider = 'gcp' THEN 'gcp'
+SELECT u.region_id, CASE
+       WHEN u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%' THEN 'aws'
+       WHEN u.provider = 'aws' AND lower(u.service_name) IN ('amazon relational database service', 'amazon rds') THEN 'aws:rds'
+       WHEN u.provider = 'aws' THEN 'aws:elasticache'
+       WHEN u.provider = 'gcp' AND lower(u.service_name) = 'compute engine' THEN 'gcp'
+       WHEN u.provider = 'gcp' AND lower(u.service_name) = 'cloud sql' THEN 'gcp:cloudsql'
+       WHEN u.provider = 'gcp' THEN 'gcp:memorystore'
        WHEN lower(u.service_name) = 'virtual machines' THEN 'azure'
        WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
@@ -160,13 +166,13 @@ SELECT u.region_id, CASE WHEN u.provider = 'aws' THEN 'aws' WHEN u.provider = 'g
     GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-  AND ((u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%')
+  AND ((u.provider = 'aws' AND (lower(u.service_name) LIKE '%elastic compute cloud%' OR lower(u.service_name) IN ('amazon relational database service', 'amazon rds', 'amazon elasticache', 'amazon elasticache service')))
     OR (u.provider = 'azure' AND lower(u.service_name) IN ('virtual machines', 'azure database for postgresql', 'redis cache', 'azure cache for redis'))
-    OR (u.provider = 'gcp' AND lower(u.service_name) = 'compute engine'))
+    OR (u.provider = 'gcp' AND lower(u.service_name) IN ('compute engine', 'cloud sql', 'cloud memorystore for redis', 'memorystore for redis', 'memorystore')))
 GROUP BY 1, 2;
 
 -- name: DashboardPriceIndex :many
-SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider IN ('aws', 'azure', 'gcp', 'azure:postgresql', 'azure:redis');
+SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider IN ('aws', 'azure', 'gcp', 'azure:postgresql', 'azure:redis', 'aws:rds', 'aws:elasticache', 'gcp:cloudsql', 'gcp:memorystore');
 
 -- name: DashboardConnectionCost :many
 -- Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the

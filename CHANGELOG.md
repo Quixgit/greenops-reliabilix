@@ -5,6 +5,51 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.144] - 2026-10-11
+
+### Added
+- **Time-limited support access** (ADR-0047, migration 0067). An organization's owner or admin opens it for 1 to 168 hours (Settings →
+  Security → Support access), with an optional reason, and can close it at any time. While it is open, an admin operator can read the
+  organization's working detail in the console (Organizations → the organization → Support access): project names and allowed regions,
+  connections with their last error, budgets and open recommendations counts, the last 30 actions. Without a grant the detail does not exist
+  (the database function refuses). Every look is recorded with the operator's name and listed to the organization; granting and closing
+  are in its audit log. `GET/POST/DELETE /api/v1/support-access`, `GET /api/v1/operator/tenants/{id}/support[/overview]` (API 0.40.0).
+
+## [0.1.0-alpha.143] - 2026-10-11
+
+### Added
+- **Frontend lint**: ESLint 9 with Next's rules (`npm run lint`). It found and this release fixes 8 unescaped characters in text and 46
+  unused imports and 9 unused variables. 43 warnings stay (state set in an effect, a clock read while rendering a relative time): the new
+  React-compiler rules flag patterns that are correct here, so they are warnings, not errors.
+
+### Fixed
+- **A region that does not sell a service no longer fails the price job**: Amazon RDS has no price list for some regions (ca-west-1 shares
+  too little of the basket), which returned an error, so the job was retried and re-downloaded 700 MB each time. "Not offered" is now an
+  answer (`pricing.ErrNotOffered`): the region has no index and no estimate, and nothing is retried. Checked against the real price lists:
+  RDS 25 regions, ElastiCache 26, indexes from 1.00 to 1.73 and 1.70.
+
+### Checked
+- `govulncheck`: none. `nilness` and `unusedwrite` analyzers: none. `staticcheck` and `golangci-lint` cannot read Go 1.27 yet (their
+  export-data reader is older than the compiler), so they are not run; `go vet` and `go test -race ./...` are.
+- The nonce policy was loaded on 16 routes of the stand (client, console, sign-in): no violation, every page's scripts carry the nonce.
+
+## [0.1.0-alpha.142] - 2026-10-11
+
+### Added
+- **Cost estimates for managed databases and caches on AWS and Google Cloud**, as for Azure: Amazon RDS for PostgreSQL and Amazon ElastiCache
+  for Redis from AWS's official bulk price list (no key; a region's file is large, so it is streamed, three regions at a time, weekly),
+  and Cloud SQL for PostgreSQL and Memorystore for Redis from the Cloud Billing Catalog (needs the same free key as Compute Engine). Each
+  service has its own index; the Google ones are written against the catalog's documented descriptions and have not run against a real
+  key. A service that is not offered in a region has no index and no estimate.
+- **A Content-Security-Policy with a nonce per request** (`proxy.ts`): inline scripts of an attacker cannot run; `'unsafe-inline'` is gone
+  from `script-src` wherever the nonce can be handed to the page. The Auth0 path keeps the old policy until it is verified against a real
+  tenant (the SDK builds its own response).
+
+### Fixed
+- **Two periodic tasks sat in the retry list for hours**: the grid refresh was retried up to 25 times after the provider's daily cap was used
+  (my manual runs had used it), which cannot succeed. A used cap, a missing key or no history on the plan is now not retried (the next
+  scheduled run does the work), and scheduler-registered tasks have a bound of 3 retries and a timeout (45 minutes for the price job).
+
 ## [0.1.0-alpha.141] - 2026-10-11
 
 ### Fixed

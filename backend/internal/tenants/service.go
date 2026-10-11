@@ -26,7 +26,7 @@ type Deps struct {
 
 func New(d Deps) *Module {
 	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Settings: d.Settings, Limits: d.Limits}
-	return &Module{h: thttp.Handlers{Svc: svc}, Svc: svc}
+	return &Module{h: thttp.Handlers{Svc: svc, Support: repository.Postgres{Pool: d.Pool}}, Svc: svc}
 }
 
 func (*Module) Name() string                  { return "tenants" }

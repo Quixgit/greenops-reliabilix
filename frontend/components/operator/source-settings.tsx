@@ -110,8 +110,8 @@ export function DivergenceTab({ data }: { data: Aggregation }) {
   return (
     <div className="space-y-4">
       <p className="rise rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700 ring-1 ring-line">
-        Each figure is the <b>median of a source's hourly readings of the last 7 days</b> (one spike does not move it). Sources that differ by
-        1.5× or more are marked; the figure a client sees is the one the policy takes ("Used"). The monthly national figure from Ember is an
+        Each figure is the <b>median of a source&apos;s hourly readings of the last 7 days</b> (one spike does not move it). Sources that differ by
+        1.5× or more are marked; the figure a client sees is the one the policy takes (&quot;Used&quot;). The monthly national figure from Ember is an
         independent anchor: it is a country average, so a single region may differ from it for real reasons.
         {flagged > 0 ? <b className="ml-1 text-[#8a6218]">{flagged} region{flagged === 1 ? "" : "s"} to look at.</b> : <b className="ml-1 text-leaf-deep">No region where sources disagree.</b>}
       </p>

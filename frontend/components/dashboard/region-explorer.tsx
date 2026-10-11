@@ -15,7 +15,7 @@ import type { RegionFootprint } from "@/lib/api/schemas";
 import { formatCarbon, formatCost, nf } from "@/lib/formatters";
 import { intensityColor } from "@/lib/intensity-color";
 import { isMeasured, latencyBasisLabel } from "@/lib/latency-basis";
-import { REGION_GEO, distanceKm, flag, regionName, regionProvider, latencyBetween } from "@/lib/regions";
+import { REGION_GEO, flag, regionName, regionProvider, latencyBetween } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 import { AllowRegions } from "./allow-regions";
 
@@ -199,16 +199,6 @@ export function RegionExplorer() {
   useEffect(() => { if (!sel && used[0]) setSel(used[0].region); }, [used, sel]);
   const current = rows.find((r) => r.region === sel) ?? used[0] ?? ranked[0] ?? null;
 
-  // one entry per place: Paris is one grid whichever cloud has a region there
-  const places = useMemo(() => {
-    const m = new Map<string, { first: Row; clouds: Set<string> }>();
-    for (const r of ranked) {
-      const key = regionName(r.region); // the label a person reads: two regions with the same label are one place
-      const e = m.get(key);
-      if (e) e.clouds.add(regionProvider(r.region)); else m.set(key, { first: r, clouds: new Set([regionProvider(r.region)]) });
-    }
-    return [...m.values()];
-  }, [ranked]);
   const maxCarbon = Math.max(1, ...used.map((r) => r.fp!.carbon_kg_co2e));
 
   return (

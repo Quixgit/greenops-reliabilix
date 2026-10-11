@@ -141,7 +141,7 @@ function PolicyTab({ data }: { data: Aggregation }) {
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <p className="font-medium">Readings a source needs per day</p>
-            <p className="mb-2.5 mt-0.5 text-sm text-muted">A source's mean counts as the day's intensity only with at least this many hourly readings that day. Fewer is used only when no source has enough, and is marked partial.</p>
+            <p className="mb-2.5 mt-0.5 text-sm text-muted">A source&apos;s mean counts as the day&apos;s intensity only with at least this many hourly readings that day. Fewer is used only when no source has enough, and is marked partial.</p>
             <Stepper label="Readings per day" value={min} onChange={setMin} min={1} max={24} unit="readings" disabled={!canAct} />
           </div>
           <div>

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -16,6 +17,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/pricing"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/domain"
@@ -87,6 +89,11 @@ func (s Service) RefreshPriceIndex(ctx context.Context, src PriceSource, regions
 		stored++
 	}
 	for r, e := range errs {
+		if errors.Is(e, pricing.ErrNotOffered) {
+			// the service is not sold there: no index, no estimate, and nothing to retry
+			s.Log.Info("price index: not offered", "provider", src.Provider(), "region", r)
+			continue
+		}
 		s.Log.Warn("price index", "region", r, "err", e)
 		if err == nil {
 			err = e
@@ -134,7 +141,7 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 		}
 	}
 	services := map[string]map[string]float64{}
-	for _, fam := range []string{"azure:postgresql", "azure:redis"} {
+	for _, fam := range []string{"azure:postgresql", "azure:redis", "aws:rds", "aws:elasticache", "gcp:cloudsql", "gcp:memorystore"} {
 		if p, err := s.Repo.PriceIndex(ctx, fam); err == nil && len(p) > 0 {
 			services[fam] = p
 		}

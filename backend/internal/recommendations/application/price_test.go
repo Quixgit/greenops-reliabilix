@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/pricing"
 	"io"
 	"log/slog"
 	"testing"
@@ -47,5 +49,17 @@ func TestRefreshPriceIndexStoresWhatItGotAndReportsWhatFailed(t *testing.T) {
 	}
 	if err == nil {
 		t.Fatal("a failed region must be reported so the job is seen to be incomplete")
+	}
+}
+
+func TestAServiceNotOfferedInARegionIsNotAFailure(t *testing.T) {
+	repo := &priceRepo{saved: map[string]float64{}}
+	svc := Service{Repo: repo, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Now: func() time.Time { return time.Date(2026, 10, 12, 3, 20, 0, 0, time.UTC) }}
+	n, err := svc.RefreshPriceIndex(context.Background(), stubSource{
+		idx:  []PriceEntry{{Region: "us-east-1", Idx: 1, N: 7}},
+		errs: map[string]error{"ca-west-1": fmt.Errorf("only 3 of the basket: %w", pricing.ErrNotOffered)},
+	}, nil)
+	if n != 1 || err != nil {
+		t.Fatalf("a region without the service must not fail the job: n=%d err=%v", n, err)
 	}
 }

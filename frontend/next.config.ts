@@ -14,8 +14,7 @@ const config: NextConfig = {
         { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
         { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-        // 'unsafe-inline' is required by Next's inline bootstrap scripts until nonces are wired (TODO before production).
-        { key: "Content-Security-Policy", value: "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'" },
+        // The Content-Security-Policy is set per request, with a nonce, in proxy.ts.
       ],
     }];
   },

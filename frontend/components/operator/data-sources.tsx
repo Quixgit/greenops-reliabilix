@@ -9,7 +9,7 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOperatorDataSources, useOperatorIntegrations, useOperatorSystem } from "@/hooks/use-admin";
 import type { DataSource, DataSourceAccess, DataSourceState, ManagedIntegration } from "@/lib/api/schemas";
-import { Chip, PageTitle, Tile } from "./parts";
+import { PageTitle, Tile } from "./parts";
 import { Pill, Segmented, type PillTone } from "./ui";
 
 export const ACCESS: Record<DataSourceAccess, { label: string; cls: string }> = {

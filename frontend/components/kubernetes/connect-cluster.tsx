@@ -2,7 +2,7 @@
 
 import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { IconArrowLeft, IconArrowRight, IconCheck, IconCluster, IconCopy, IconKey, IconLock, IconShield } from "@/components/ui/icons";
 import { useK8sClusters, useProjects } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";

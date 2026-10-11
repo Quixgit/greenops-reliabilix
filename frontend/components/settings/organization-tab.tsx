@@ -215,9 +215,6 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
   const gates = (pols.data ?? []).filter((p) => p.ci_carbon_block_kg != null || p.ci_cost_block != null).length;
   const nProj = projects.data?.length ?? 0;
   const origins = summary.data?.intensity_origins ?? [];
-  const used = (name: string) => origins.some((o) => o.source.toLowerCase().includes(name));
-  const grd = connectorSummary("electricity-maps", facts);
-  const k8s = connectorSummary("kubernetes", facts);
   const activeKeys = (keys.data ?? []).filter((k) => !k.revoked_at).length;
   const customRoles = roles.data?.custom.length ?? 0;
 

@@ -15,7 +15,11 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/domain"
 )
 
-type Handlers struct{ Svc application.Service }
+type Handlers struct {
+	Svc application.Service
+	// Support is the organization's control over time-limited platform support access (optional).
+	Support domain.SupportStore
+}
 
 // IdentityRoutes are mounted behind identity-only authentication: the caller has a valid token but may not
 // belong to a tenant yet.
@@ -41,6 +45,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(admin).Post("/api-keys", h.createAPIKey)
 	r.With(admin).Delete("/api-keys/{id}", h.revokeAPIKey)
 	r.With(auth.Require(auth.PermAuditRead)).Get("/audit-log", h.auditLog)
+	h.supportRoutes(r)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {

@@ -149,3 +149,16 @@ func TestManagedServicesAreMeasuredByTheirOwnIndex(t *testing.T) {
 		t.Fatal("networking has no index")
 	}
 }
+
+func TestManagedFamilyNamesTheIndexOfEachCloudsService(t *testing.T) {
+	for _, c := range []struct{ provider, service, want string }{
+		{"aws", "Amazon Relational Database Service", "aws:rds"}, {"aws", "Amazon ElastiCache", "aws:elasticache"},
+		{"azure", "Azure Database for PostgreSQL", "azure:postgresql"}, {"azure", "Redis Cache", "azure:redis"},
+		{"gcp", "Cloud SQL", "gcp:cloudsql"}, {"gcp", "Cloud Memorystore for Redis", "gcp:memorystore"},
+		{"aws", "Amazon Simple Storage Service", ""}, {"gcp", "Cloud Storage", ""}, {"azure", "Virtual Network", ""},
+	} {
+		if got := ManagedFamily(c.provider, c.service); got != c.want {
+			t.Errorf("%s %q = %q, want %q", c.provider, c.service, got, c.want)
+		}
+	}
+}

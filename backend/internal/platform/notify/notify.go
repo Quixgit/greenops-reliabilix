@@ -48,7 +48,7 @@ const (
 	TypeBillingPaymentFailed   = "billing.payment_failed"
 	TypeBillingPlanEnded       = "billing.plan_ended"
 	TypeAutomationResult       = "automation.result_reported"
-	TypeNotificationTest       = "notification.test" // only ever sent by the "send a test" action
+	TypeNotificationTest       = "notification.test"     // only ever sent by the "send a test" action
 	TypePlatformAnnouncement   = "platform.announcement" // an operator's notice to every organization; reaches the inbox, not the destinations
 )
 

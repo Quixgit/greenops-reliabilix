@@ -161,7 +161,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
             {touched && !emailOk && <p role="alert" className="text-xs text-red-600">Enter a valid e-mail address.</p>}
             <button type="submit" disabled={!auth0} className={primary}>Create account</button>
           </form>
-          <p className="text-center text-xs leading-relaxed text-slate-500">You will choose your password on the identity provider's secure page.</p>
+          <p className="text-center text-xs leading-relaxed text-slate-500">You will choose your password on the identity provider&apos;s secure page.</p>
         </div>
       </div>
     );
@@ -209,7 +209,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
           <button type="button" onClick={() => go("forgot")} className="font-medium text-leaf-deep transition-colors hover:text-leaf-deep hover:underline">Forgot your password?</button>
           <button type="button" onClick={() => go("signup")} className="font-medium text-slate-600 transition-colors hover:text-slate-900">Create an account →</button>
         </div>
-        {auth0 && <p className="text-center text-xs leading-relaxed text-slate-400">Your password and, if turned on, your two-step code are entered on our identity provider's secure page.</p>}
+        {auth0 && <p className="text-center text-xs leading-relaxed text-slate-400">Your password and, if turned on, your two-step code are entered on our identity provider&apos;s secure page.</p>}
       </div>
     </div>
   );

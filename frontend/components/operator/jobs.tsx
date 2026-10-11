@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconClock as Clock, IconDatabase as Layers, IconRefresh, IconTimer, IconTrash, IconTrend as Activity, IconWarning as AlertTriangle } from "@/components/ui/icons";
+import { IconClock as Clock, IconDatabase as Layers, IconRefresh, IconTimer, IconTrend as Activity, IconWarning as AlertTriangle } from "@/components/ui/icons";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/empty-state";
