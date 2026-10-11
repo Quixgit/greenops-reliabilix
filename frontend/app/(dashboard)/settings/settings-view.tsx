@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, Building2, CreditCard, Database, FolderKanban, History, KeyRound, Search, ShieldCheck, SlidersHorizontal, UserRound, Users, type LucideIcon } from "lucide-react";
+import { Bell, Building2, CreditCard, Database, FolderKanban, History, KeyRound, LayoutGrid, Search, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { DataPanel } from "@/components/settings/data-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
+import { OverviewPanel } from "@/components/settings/overview-panel";
 import { PlanPanel } from "@/components/settings/plan-panel";
 import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import { ProjectsPolicyPanel } from "@/components/settings/projects-policy-panel";
@@ -56,6 +57,7 @@ function ProfileCard({ user }: { user: { name: string; email: string; role: Role
 export function SettingsView({ user }: { user: { name: string; email: string; role: Role } }) {
   const t = useT();
   const sections: Section[] = useMemo(() => [
+    { id: "overview", group: "Account", label: t("settings.overview"), hint: t("settings.overview_hint"), icon: LayoutGrid, show: true },
     { id: "profile", group: "Account", label: "Profile", hint: "You and your role", icon: UserRound, show: true },
     { id: "preferences", group: "Account", label: t("settings.prefs.title", undefined, "Preferences"), hint: "Period, units, density, motion", icon: SlidersHorizontal, show: true },
     { id: "organization", group: "Organization", label: "General", hint: "Retention, modules, defaults", icon: Building2, show: canSeeSettings(user.role) },
@@ -69,7 +71,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     { id: "data", group: "Data", label: "Data & privacy", hint: "Export and erasure", icon: Database, show: user.role === "owner" },
   ].filter((s) => s.show), [t, user.role]);
 
-  const [active, setActive] = useState("profile");
+  const [active, setActive] = useState("overview");
   const [query, setQuery] = useState("");
   // The section is in the address (#members) so a link or a reload lands on it.
   useEffect(() => {
@@ -83,6 +85,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
   const current = sections.find((s) => s.id === active) ?? sections[0];
 
   const body: Record<string, ReactNode> = {
+    overview: <OverviewPanel go={go} canManage={canManageTenant(user.role)} canSettings={canSeeSettings(user.role)} />,
     profile: <ProfileCard user={user} />,
     preferences: <PreferencesPanel />,
     organization: <SettingsEditor mode="tenant" path="settings" historyPath="settings/history" canEdit={canWrite(user.role)} />,
@@ -98,9 +101,14 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
 
   return (
     <div className="mx-auto max-w-[1180px] space-y-5">
-      <div className="rise">
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-muted">Your account, your organization and how the platform behaves for it.</p>
+      <div className="rise flex items-center gap-4">
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md shadow-emerald-900/10">
+          <SettingsIcon className="size-6 transition-transform duration-700 hover:rotate-90" strokeWidth={1.8} />
+        </span>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="mt-0.5 text-sm text-muted">{t("settings.subtitle")}</p>
+        </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="lg:sticky lg:top-20 lg:self-start">
@@ -115,9 +123,10 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
                 <p className="mb-1 hidden px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 lg:block">{g}</p>
                 {visible.filter((s) => s.group === g).map((s) => (
                   <button key={s.id} type="button" onClick={() => go(s.id)} aria-current={active === s.id ? "page" : undefined}
-                    className={cn("flex w-full shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-left text-sm font-medium transition lg:whitespace-normal",
-                      active === s.id ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-100")}>
-                    <s.icon className="size-[18px] shrink-0" strokeWidth={1.8} />{s.label}
+                    className={cn("group relative flex w-full shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-left text-sm font-medium transition-all duration-200 lg:whitespace-normal",
+                      active === s.id ? "bg-primary/10 text-primary shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:pl-4")}>
+                    <span aria-hidden className={cn("absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-primary transition-all duration-300", active === s.id ? "opacity-100" : "scale-y-0 opacity-0")} />
+                    <s.icon className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.8} />{s.label}
                   </button>
                 ))}
               </div>

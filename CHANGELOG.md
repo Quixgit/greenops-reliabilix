@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.69] - 2026-10-11
+
+### Changed
+- **Settings opens on an overview** of the whole organization, built from the facts the platform has: the organization
+  and plan, the cloud connections (the same state derivation as the Connectors page), grid data and methodology,
+  cost and carbon policy (budgets, projects with allowed regions, carbon limit, CI gate), automation, notification
+  channels and security and access. Every card opens its section; the sections themselves are unchanged. The page header,
+  the section list (animated active marker, hover) and the cards follow the style of the Connectors page and respect
+  reduced motion. Translated (English, Russian).
+
 ## [0.1.0-alpha.68] - 2026-10-11
 
 ### Changed
