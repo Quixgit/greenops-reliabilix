@@ -16,6 +16,10 @@ import (
 // `admin gcp-check <project id> <bq://project/dataset/table> <external id>`. It runs what Verify and a sync do against
 // one connection with the platform identity of this machine (the default AWS / Google credential chain), and prints
 // the step, what came back and, on failure, the exact text the customer would see on the connection.
+//
+// A connection made with the customer's own credential: pass `awskey://<access key id>` (AWS) or a normal bq:// table
+// (GCP) and put the secret access key, or the service account JSON, in CLOUD_CHECK_SECRET (or its file in
+// CLOUD_CHECK_KEY_FILE).
 func runCloudCheck(kind string, args []string) int {
 	if len(args) != 3 {
 		fmt.Fprintf(os.Stderr, "usage: admin %s-check <account or project id> <role arn | bq://project/dataset/table> <external id>\n", kind)
@@ -23,6 +27,19 @@ func runCloudCheck(kind string, args []string) int {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+	// A customer's own credential (AWS secret access key, Google service account key file) comes from the environment,
+	// never from an argument, so it does not land in a shell history or a process list.
+	own := os.Getenv("CLOUD_CHECK_SECRET")
+	if f := os.Getenv("CLOUD_CHECK_KEY_FILE"); f != "" && own == "" {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			fmt.Println("key file:", err)
+			return 2
+		}
+		own = string(b)
+	}
+	secret := func(domain.Connection) (string, error) { return own, nil }
+	keyMode := own != ""
 	c := domain.Connection{ProjectID: "check", AccountRef: args[0], CredentialRef: args[1], ExternalID: args[2]}
 	var p interface {
 		domain.CloudProvider
@@ -31,7 +48,7 @@ func runCloudCheck(kind string, args []string) int {
 	switch kind {
 	case "aws":
 		c.Provider = domain.AWS
-		ap, err := aws.New(ctx)
+		ap, err := aws.New(ctx, secret)
 		if err != nil {
 			fmt.Println("platform identity: FAILED:", err)
 			return 1
@@ -39,12 +56,17 @@ func runCloudCheck(kind string, args []string) int {
 		p = ap
 	case "gcp":
 		c.Provider = domain.GCP
+		if keyMode {
+			c.SealedSecret = "from-environment" // marks the key mode; the provider asks secret() for the key
+			p = gcp.NewKeyOnly(secret)
+			break
+		}
 		gp, err := gcp.New(ctx, os.Getenv("PLATFORM_GCP_PROJECT"))
 		if err != nil {
 			fmt.Println("platform identity: FAILED:", err)
 			return 1
 		}
-		p = gp
+		p = gp.WithKeys(secret)
 	}
 	if err := c.Validate(); err != nil {
 		fmt.Println("1. the connection as entered: FAILED:", err)

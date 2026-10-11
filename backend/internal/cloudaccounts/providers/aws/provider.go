@@ -16,6 +16,7 @@ import (
 
 	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	awscreds "github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer"
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
@@ -54,16 +55,27 @@ type CEAPI interface {
 // Assumer returns a Cost Explorer client acting as roleARN with the given ExternalId.
 type Assumer func(ctx context.Context, roleARN, externalID string) (CEAPI, error)
 
+// KeyAssumer returns a Cost Explorer client that signs with a customer's IAM access key.
+type KeyAssumer func(ctx context.Context, accessKeyID, secretAccessKey string) (CEAPI, error)
+
+// KeyS3 is the S3 counterpart of KeyAssumer.
+type KeyS3 func(ctx context.Context, accessKeyID, secretAccessKey, region string) (S3API, error)
+
 type Provider struct {
 	Assume Assumer
 	// AssumeS3 is needed only for connections that read a FOCUS data export from S3.
 	AssumeS3 S3Assumer
-	Log      *slog.Logger // optional; nil uses slog.Default()
+	// Key, KeyS3 and OpenSecret serve connections made with the customer's own IAM access key (credential_ref
+	// "awskey://<id>"): the secret access key is stored sealed and opened per call.
+	Key        KeyAssumer
+	KeyS3      KeyS3
+	OpenSecret func(domain.Connection) (string, error)
+	Log        *slog.Logger // optional; nil uses slog.Default()
 }
 
 // New builds the provider from the default AWS credential chain (the platform's own identity,
 // which only needs sts:AssumeRole on customer roles).
-func New(ctx context.Context) (*Provider, error) {
+func New(ctx context.Context, openSecret func(domain.Connection) (string, error)) (*Provider, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"),
 		// Cost Explorer throttles bursts (a few requests a second per account): the SDK backs off and retries
 		// before the job fails and is retried later with a larger delay.
@@ -80,7 +92,22 @@ func New(ctx context.Context) (*Provider, error) {
 			o.Duration = 15 * time.Minute
 		}))
 	}
+	static := func(id, secret, region string) awssdk.Config {
+		c := cfg.Copy()
+		c.Credentials = awssdk.NewCredentialsCache(awscreds.NewStaticCredentialsProvider(id, secret, ""))
+		if region != "" {
+			c.Region = region
+		}
+		return c
+	}
 	return &Provider{
+		OpenSecret: openSecret,
+		Key: func(_ context.Context, id, secret string) (CEAPI, error) {
+			return costexplorer.NewFromConfig(static(id, secret, "")), nil
+		},
+		KeyS3: func(_ context.Context, id, secret, region string) (S3API, error) {
+			return s3.NewFromConfig(static(id, secret, region)), nil
+		},
 		Assume: func(_ context.Context, roleARN, externalID string) (CEAPI, error) {
 			c := cfg.Copy()
 			c.Credentials = credentials(roleARN, externalID)
@@ -96,6 +123,52 @@ func New(ctx context.Context) (*Provider, error) {
 }
 
 func (*Provider) Provider() domain.ProviderType { return domain.AWS }
+
+// keyOf returns the access key id and the opened secret access key of an access-key connection.
+func (p *Provider) keyOf(c domain.Connection) (id, secret string, err error) {
+	if id, err = domain.ParseAWSKeyRef(c.CredentialRef); err != nil {
+		return "", "", err
+	}
+	if p.OpenSecret == nil {
+		return "", "", errors.New("aws: no way to open the connection's secret")
+	}
+	if secret, err = p.OpenSecret(c); err != nil {
+		// The API sealed the secret and the worker opens it: they must share the sealing key.
+		return "", "", domain.PublicError{Message: "The stored secret access key cannot be opened by this service: every service (api, worker, scheduler) must run with the same NOTIFICATIONS_SECRET_KEY. Reconnect the account if the key was changed."}
+	}
+	return id, secret, nil
+}
+
+// ce returns the Cost Explorer client of a connection: the customer's access key when it has one, otherwise the
+// role the platform assumes.
+func (p *Provider) ce(ctx context.Context, c domain.Connection) (CEAPI, error) {
+	if domain.IsAWSKeyRef(c.CredentialRef) {
+		id, secret, err := p.keyOf(c)
+		if err != nil {
+			return nil, err
+		}
+		return p.Key(ctx, id, secret)
+	}
+	return p.Assume(ctx, c.CredentialRef, c.ExternalID)
+}
+
+// s3 returns the S3 client for the connection's FOCUS export, authenticated like ce.
+func (p *Provider) s3(ctx context.Context, c domain.Connection, region string) (S3API, error) {
+	if domain.IsAWSKeyRef(c.CredentialRef) {
+		if p.KeyS3 == nil {
+			return nil, errors.New("aws: S3 access is not configured")
+		}
+		id, secret, err := p.keyOf(c)
+		if err != nil {
+			return nil, err
+		}
+		return p.KeyS3(ctx, id, secret, region)
+	}
+	if p.AssumeS3 == nil {
+		return nil, errors.New("aws: S3 access is not configured")
+	}
+	return p.AssumeS3(ctx, c.CredentialRef, c.ExternalID, region)
+}
 
 // classify turns AWS failures into errors the customer can act on. Authorization failures are domain.ErrAccessDenied
 // (not retryable) and say which step was refused; throttling and other API errors carry AWS's error code and are
@@ -140,7 +213,7 @@ func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
 	if c.Export != nil {
 		return p.validateExport(ctx, c)
 	}
-	ce, err := p.Assume(ctx, c.CredentialRef, c.ExternalID)
+	ce, err := p.ce(ctx, c)
 	if err != nil {
 		return classify(err)
 	}
@@ -165,7 +238,7 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 		}
 		return []focus.RawBatch{b}, nil
 	}
-	ce, err := p.Assume(ctx, req.Connection.CredentialRef, req.Connection.ExternalID)
+	ce, err := p.ce(ctx, req.Connection)
 	if err != nil {
 		return nil, classify(err)
 	}
@@ -238,7 +311,7 @@ func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest
 	if req.Connection.Export != nil {
 		return nil, nil
 	}
-	ce, err := p.Assume(ctx, req.Connection.CredentialRef, req.Connection.ExternalID)
+	ce, err := p.ce(ctx, req.Connection)
 	if err != nil {
 		return nil, classify(err)
 	}

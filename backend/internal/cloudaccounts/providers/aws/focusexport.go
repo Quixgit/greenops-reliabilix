@@ -48,10 +48,7 @@ type S3Assumer func(ctx context.Context, roleARN, externalID, region string) (S3
 // aggregate (see ingestion/normalizers/awsexport for the contract).
 func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, to time.Time) (focus.RawBatch, error) {
 	cfg := c.Export
-	if p.AssumeS3 == nil {
-		return focus.RawBatch{}, errors.New("aws: S3 access is not configured")
-	}
-	s3c, err := p.AssumeS3(ctx, c.CredentialRef, c.ExternalID, cfg.Region)
+	s3c, err := p.s3(ctx, c, cfg.Region)
 	if err != nil {
 		return focus.RawBatch{}, classify(err)
 	}
@@ -422,10 +419,7 @@ func (a *aggregate) payload() map[string]any {
 
 // validateExport proves the role can read the export: a manifest must exist for the current or previous month.
 func (p *Provider) validateExport(ctx context.Context, c domain.Connection) error {
-	if p.AssumeS3 == nil {
-		return errors.New("aws: S3 access is not configured")
-	}
-	s3c, err := p.AssumeS3(ctx, c.CredentialRef, c.ExternalID, c.Export.Region)
+	s3c, err := p.s3(ctx, c, c.Export.Region)
 	if err != nil {
 		return classify(err)
 	}

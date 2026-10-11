@@ -10,8 +10,8 @@
 
 | Коннектор | Категория | Статус | Версия | Что даёт |
 |---|---|---|---|---|
-| AWS | cloud | ✅ | `connector/aws` | Cost Explorer, FOCUS data export, rightsizing |
-| Google Cloud | cloud | ✅ | `connector/gcp` | экспорт биллинга в BigQuery, измеренные compute и storage |
+| AWS | cloud | ✅ | `connector/aws` | ключ read-only IAM-пользователя (ADR-0044) или роль с ExternalId; Cost Explorer, FOCUS data export, rightsizing |
+| Google Cloud | cloud | ✅ | `connector/gcp` | ключ сервисного аккаунта клиента (ADR-0044) или общий датасет; экспорт биллинга в BigQuery, измеренные compute и storage |
 | Microsoft Azure | cloud | ✅ | `connector/azure` | сервисный аккаунт (Cost Management Reader) и Cost Management API: стоимость всех сервисов (ADR-0043); экспорт FOCUS из Blob Storage — измеренные часы VM и хранилище (ADR-0041) |
 | Kubernetes | infrastructure | 🗓️ фаза 2 | — | workloads, утилизация, Kepler |
 | Prometheus | infrastructure | 🗓️ фаза 2 | — | CPU/RAM-метрики |
@@ -30,8 +30,10 @@ create (ExternalId выдан) → configure access → verify → select source
 ```
 
 1. **Выбор интеграции** из каталога.
-2. **Настройка доступа:** AWS — роль `ReliabilixReadOnly` с ExternalId на подключение; GCP — сервисный аккаунт и
-   проверка владения экспортом; Azure — приложение платформы в Entra ID (service principal в тенанте клиента, роль
+2. **Настройка доступа:** обычный путь у всех трёх облаков один: собственная read-only учётная запись клиента, секрет
+   вводится в консоли и хранится запечатанным (AWS — ключ IAM-пользователя, GCP — ключ сервисного аккаунта, Azure —
+   service principal; ADR-0044, ADR-0043). Дополнительно, без секрета: AWS — роль `ReliabilixReadOnly` с ExternalId на
+   подключение; GCP — общий датасет и проверка владения экспортом; Azure — приложение платформы в Entra ID (service principal в тенанте клиента, роль
    Storage Blob Data Reader на контейнере экспорта) и метка владения в метаданных контейнера. Платформа не хранит долгоживущих ключей (ADR-0010).
 3. **Проверка (`verify`):** учётные данные, права, доступность источника, принадлежность источника этому аккаунту.
 4. **Выбор данных и проекта:** какой источник (Cost Explorer или экспорт), к какому проекту привязано.

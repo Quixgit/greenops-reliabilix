@@ -526,3 +526,59 @@ func (azureStub) Validate(context.Context, domain.Connection) error { return nil
 func (azureStub) GetUsage(context.Context, domain.UsageRequest) ([]focus.RawBatch, error) {
 	return nil, nil
 }
+
+func TestAWSAccessKeyAndGoogleKeyAreSealedAndNeverReturned(t *testing.T) {
+	const secretKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+	const saJSON = `{"type":"service_account","project_id":"acme-prod-123","private_key":"-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----\n","client_email":"reliabilix@acme-prod-123.iam.gserviceaccount.com"}`
+	repo := newRepo()
+	s := newSvc(repo, &fakeProvider{}, fakeIngestor{}, &recorder{})
+	s.Secrets = fakeSealer{on: true}
+	aws := domain.Connection{TenantID: "t", ProjectID: "p", Provider: domain.AWS, AccountRef: "123456789012",
+		CredentialRef: "awskey://AKIAIOSFODNN7EXAMPLE", ClientSecret: secretKey}
+	c, setup, err := s.Connect(context.Background(), aws)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored := repo.conns["c1"]; stored.ClientSecret != "" || !strings.HasPrefix(stored.SealedSecret, "sealed(t:rlx-") {
+		t.Errorf("aws key must be stored sealed: %+v", stored)
+	}
+	out, _ := json.Marshal(map[string]any{"connection": c, "setup": setup})
+	if strings.Contains(string(out), secretKey) || strings.Contains(string(out), "sealed(") || !strings.Contains(string(out), `"access":"`) {
+		t.Errorf("response: %s", out)
+	}
+	if !strings.Contains(strings.Join(setup.Steps, "\n"), "Cost Explorer") || setup.TrustPolicy != nil {
+		t.Errorf("setup of the access-key mode: %+v", setup)
+	}
+	// without the secret, or with a wrong shape, the key mode is refused
+	aws.ClientSecret = ""
+	if _, _, err := s.Connect(context.Background(), aws); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Errorf("no secret: %v", err)
+	}
+
+	s.Providers = domain.NewRegistry(&fakeProvider{}, gcpStub{})
+	g := domain.Connection{TenantID: "t", ProjectID: "p", Provider: domain.GCP, AccountRef: "acme-prod-123",
+		CredentialRef: "bq://acme-billing-1/billing_export/gcp_billing_export_v1_AAAAAA_BBBBBB_CCCCCC", ClientSecret: saJSON}
+	_, gsetup, err := s.Connect(context.Background(), g)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored := repo.conns["c1"]; stored.SealedSecret == "" || stored.ClientSecret != "" {
+		t.Errorf("gcp key must be stored sealed: %+v", stored)
+	}
+	if !strings.Contains(strings.Join(gsetup.Steps, "\n"), "BigQuery Job User") {
+		t.Errorf("steps: %v", gsetup.Steps)
+	}
+	g.ClientSecret = `{"type":"authorized_user"}`
+	if _, _, err := s.Connect(context.Background(), g); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Errorf("a user credential file must be refused: %v", err)
+	}
+	// the platform-shared GCP mode takes no secret
+	g.ClientSecret = ""
+	if _, gs, err := s.Connect(context.Background(), g); err != nil || !strings.Contains(strings.Join(gs.Steps, "\n"), "label") {
+		t.Errorf("shared dataset mode: %v %v", err, gs.Steps)
+	}
+}
+
+type gcpStub struct{ azureStub }
+
+func (gcpStub) Provider() domain.ProviderType { return domain.GCP }

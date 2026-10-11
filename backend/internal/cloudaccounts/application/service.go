@@ -140,18 +140,34 @@ func (s Service) Connect(ctx context.Context, c domain.Connection) (domain.Conne
 	return created, s.setup(created), nil
 }
 
-// sealSecret turns the client secret of a create request into its sealed form. Only an Azure service-principal
-// connection takes a secret, and it must have one.
+// sealSecret turns the secret of a create request into its sealed form. Three modes take one: an Azure service
+// principal (client secret, required), an AWS access key (secret access key, required) and a GCP service account
+// (the JSON key file, optional: without it the platform's own account reads the dataset the customer shared).
 func (s Service) sealSecret(c *domain.Connection) error {
-	needs := c.Provider == domain.Azure && domain.IsAzureCostRef(c.CredentialRef)
+	var needs bool
 	switch {
-	case !needs && c.ClientSecret != "":
-		return fmt.Errorf("%w: only an Azure service principal takes a client secret", domain.ErrInvalidConnection)
-	case !needs:
+	case c.Provider == domain.Azure && domain.IsAzureCostRef(c.CredentialRef):
+		if !domain.ValidAzureClientSecret(c.ClientSecret) {
+			return fmt.Errorf("%w: client_secret is required for an Azure service principal (the secret value, not its id)", domain.ErrInvalidConnection)
+		}
+		needs = true
+	case c.Provider == domain.AWS && domain.IsAWSKeyRef(c.CredentialRef):
+		if !domain.ValidAWSSecretKey(c.ClientSecret) {
+			return fmt.Errorf("%w: client_secret is required for an AWS access key (the 40-character secret access key)", domain.ErrInvalidConnection)
+		}
+		needs = true
+	case c.Provider == domain.GCP && c.ClientSecret != "":
+		if _, err := domain.ParseServiceAccountKey(c.ClientSecret); err != nil {
+			return err
+		}
+		needs = true
+	case c.ClientSecret != "":
+		return fmt.Errorf("%w: this kind of connection does not take a secret (only an Azure service principal, an AWS access key or a Google service account key)", domain.ErrInvalidConnection)
+	}
+	if !needs {
 		return nil
-	case !domain.ValidAzureClientSecret(c.ClientSecret):
-		return fmt.Errorf("%w: client_secret is required for an Azure service principal (the secret value, not its id)", domain.ErrInvalidConnection)
-	case s.Secrets == nil || !s.Secrets.Configured():
+	}
+	if s.Secrets == nil || !s.Secrets.Configured() {
 		return ErrSecretsUnavailable
 	}
 	sealed, err := s.Secrets.Seal(c.ClientSecret, SecretAAD(c.TenantID, c.ExternalID))
@@ -165,12 +181,18 @@ func (s Service) sealSecret(c *domain.Connection) error {
 func (s Service) setup(c domain.Connection) Setup {
 	switch c.Provider {
 	case domain.GCP:
+		if c.SealedSecret != "" {
+			return s.gcpKeySetup(c)
+		}
 		return s.gcpSetup(c)
 	case domain.Azure:
 		if domain.IsAzureCostRef(c.CredentialRef) {
 			return s.azureServicePrincipalSetup(c)
 		}
 		return s.azureSetup(c)
+	}
+	if domain.IsAWSKeyRef(c.CredentialRef) {
+		return s.awsKeySetup(c)
 	}
 	st := Setup{
 		ExternalID:        c.ExternalID,
@@ -188,6 +210,50 @@ func (s Service) setup(c domain.Connection) Setup {
 		}}}
 	}
 	return st
+}
+
+// awsKeySetup explains the access-key mode: one read-only IAM user, nothing to export or share.
+func (s Service) awsKeySetup(c domain.Connection) Setup {
+	id, _ := domain.ParseAWSKeyRef(c.CredentialRef)
+	policy := map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
+		{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"}, "Resource": "*"}}}
+	return Setup{
+		ExternalID:          c.ExternalID,
+		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"},
+		PermissionsPolicy:   policy,
+		Steps: []string{
+			"Cost Explorer must be enabled in the AWS account (Billing > Cost Explorer); the first data can take up to 24 hours.",
+			"The IAM user that owns access key " + id + " needs only the read-only policy shown here (cost data, no resources).",
+			"Verify the connection. The platform reads cost data only, with the key you entered (the secret is stored sealed and never shown again); deactivate or delete the key in IAM at any time to revoke access.",
+		},
+	}
+}
+
+// gcpKeySetup explains the service-account-key mode: nothing to share with the platform, the customer's own account
+// reads its own billing export.
+func (s Service) gcpKeySetup(c domain.Connection) Setup {
+	t, err := domain.ParseBigQueryRef(c.CredentialRef)
+	if err != nil { // validated on creation; defensive
+		return Setup{ExternalID: c.ExternalID, RequiredPermissions: []string{}, PermissionsPolicy: map[string]any{}}
+	}
+	return Setup{
+		ExternalID: c.ExternalID,
+		RequiredPermissions: []string{
+			"roles/bigquery.dataViewer on dataset " + t.Dataset + " (read-only)",
+			"roles/bigquery.jobUser on the project of the service account (runs the read query)",
+		},
+		PermissionsPolicy: map[string]any{
+			"dataset":     t.Project + ":" + t.Dataset,
+			"dataset_iam": map[string]string{"role": "roles/bigquery.dataViewer", "member": "the service account of the key"},
+			"project_iam": map[string]string{"role": "roles/bigquery.jobUser", "member": "the service account of the key"},
+		},
+		Steps: []string{
+			"Cloud Billing export to BigQuery (Billing > Billing export > BigQuery export > Standard usage cost) must be turned on into dataset " + t.Dataset +
+				" of project " + t.Project + ". Data is exported from the day you enable it, and the first delivery can take up to 48 hours.",
+			"Give the service account of the key BigQuery Data Viewer on that dataset and BigQuery Job User on its own project: queries run, and are billed (a few cents at most), in that project.",
+			"Verify the connection. The platform reads only the billing export table, with the key you entered (stored sealed, never shown again); disable or delete the key in IAM at any time to revoke access.",
+		},
+	}
 }
 
 // gcpSetup explains how a customer connects their Cloud Billing export. Nothing here is a secret: the label key

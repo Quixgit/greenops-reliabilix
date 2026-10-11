@@ -24,7 +24,7 @@ const maxRightsizingPages = 20
 // ce:GetRightsizingRecommendation permission and the "Rightsizing recommendations" opt-in in the customer's
 // Cost Explorer preferences; without them the call is denied or returns nothing.
 func (p *Provider) GetRightsizing(ctx context.Context, c domain.Connection) ([]domain.RightsizingFinding, error) {
-	ce, err := p.Assume(ctx, c.CredentialRef, c.ExternalID)
+	ce, err := p.ce(ctx, c)
 	if err != nil {
 		return nil, classify(err)
 	}

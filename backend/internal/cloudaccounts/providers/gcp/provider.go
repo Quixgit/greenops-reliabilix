@@ -37,6 +37,61 @@ type Provider struct {
 	JobProject     string // the platform's own project: queries run (and are billed) here
 	MaxBytesBilled int64
 	MaxRows        int // 0 = default; a result larger than this is rejected, not truncated
+
+	// OpenSecret and KeyClient serve connections made with the customer's own service account key (a sealed secret
+	// on the connection): the queries then run with that account, in its project, and need no ownership proof.
+	OpenSecret func(domain.Connection) (string, error)
+	KeyClient  func(ctx context.Context, keyJSON string) (BigQuery, error)
+}
+
+// NewKeyOnly builds a provider that serves service-account-key connections only: it needs no identity of the
+// platform's own. WithKeys adds the same ability to a provider that has one.
+func NewKeyOnly(openSecret func(domain.Connection) (string, error)) *Provider {
+	return (&Provider{}).WithKeys(openSecret)
+}
+
+// WithKeys enables service-account-key connections.
+func (p *Provider) WithKeys(openSecret func(domain.Connection) (string, error)) *Provider {
+	p.OpenSecret = openSecret
+	p.KeyClient = func(ctx context.Context, keyJSON string) (BigQuery, error) {
+		creds, err := google.CredentialsFromJSON(ctx, []byte(keyJSON), "https://www.googleapis.com/auth/bigquery")
+		if err != nil {
+			return nil, err
+		}
+		return &RESTClient{HTTP: oauthClient(ctx, creds)}, nil
+	}
+	return p
+}
+
+// errNoSharedIdentity: a dataset-share connection was asked for on a platform without its Google identity.
+var errNoSharedIdentity = domain.PublicError{Message: "Reading a shared dataset needs the platform's own Google identity, which is not configured here; connect with a service account key instead."}
+
+// access returns what a connection's queries run with: the BigQuery client, the project the jobs run (and are billed)
+// in, and whether ownership of the dataset must be proven (only for the platform's own identity: a customer's own key
+// proves access by working).
+func (p *Provider) access(ctx context.Context, c domain.Connection) (bq BigQuery, jobProject string, proveOwnership bool, err error) {
+	if c.SealedSecret == "" {
+		if p.BQ == nil {
+			return nil, "", false, errNoSharedIdentity
+		}
+		return p.BQ, p.JobProject, true, nil
+	}
+	if p.OpenSecret == nil || p.KeyClient == nil {
+		return nil, "", false, errors.New("gcp: no way to open the connection's key")
+	}
+	raw, err := p.OpenSecret(c)
+	if err != nil {
+		return nil, "", false, domain.PublicError{Message: "The stored service account key cannot be opened by this service: every service (api, worker, scheduler) must run with the same NOTIFICATIONS_SECRET_KEY. Reconnect the account if the key was changed."}
+	}
+	k, err := domain.ParseServiceAccountKey(raw)
+	if err != nil {
+		return nil, "", false, err
+	}
+	bq, err = p.KeyClient(ctx, raw)
+	if err != nil {
+		return nil, "", false, domain.PublicError{Message: "Google rejected the service account key (" + k.ClientEmail + "): it may be disabled, deleted or malformed. Create a new key and reconnect."}
+	}
+	return bq, k.ProjectID, false, nil
 }
 
 // New builds the provider from Application Default Credentials (the platform's own Google identity). jobProject
@@ -82,8 +137,8 @@ func table(c domain.Connection) (domain.BigQueryTable, error) {
 
 // proveOwnership requires the dataset label "<external_id>: 1". Only someone who can write to the dataset can
 // set it, which stops one tenant from pointing a connection at another customer's export.
-func (p *Provider) proveOwnership(ctx context.Context, t domain.BigQueryTable, externalID string) error {
-	labels, err := p.BQ.DatasetLabels(ctx, t.Project, t.Dataset)
+func (p *Provider) proveOwnership(ctx context.Context, bq BigQuery, t domain.BigQueryTable, externalID string) error {
+	labels, err := bq.DatasetLabels(ctx, t.Project, t.Dataset)
 	if err != nil {
 		return err
 	}
@@ -100,13 +155,19 @@ func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
 	if err != nil {
 		return err
 	}
-	if err := p.proveOwnership(ctx, t, c.ExternalID); err != nil {
+	bq, job, prove, err := p.access(ctx, c)
+	if err != nil {
 		return err
 	}
+	if prove {
+		if err := p.proveOwnership(ctx, bq, t, c.ExternalID); err != nil {
+			return err
+		}
+	}
 	now := time.Now().UTC().Truncate(24 * time.Hour)
-	q := p.usageQuery(t, c.AccountRef, now.AddDate(0, 0, -2), now)
+	q := p.usageQuery(job, t, c.AccountRef, now.AddDate(0, 0, -2), now)
 	q.DryRun = true
-	_, err = p.BQ.Query(ctx, q)
+	_, err = bq.Query(ctx, q)
 	return err
 }
 
@@ -117,10 +178,16 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 	if err != nil {
 		return nil, err
 	}
-	if err := p.proveOwnership(ctx, t, c.ExternalID); err != nil {
+	bq, job, prove, err := p.access(ctx, c)
+	if err != nil {
 		return nil, err
 	}
-	rows, err := p.BQ.Query(ctx, p.usageQuery(t, c.AccountRef, req.From, req.To))
+	if prove {
+		if err := p.proveOwnership(ctx, bq, t, c.ExternalID); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := bq.Query(ctx, p.usageQuery(job, t, c.AccountRef, req.From, req.To))
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +222,7 @@ func toLines(rows [][]string) []line {
 // usageQuery builds the aggregation. Table identifiers were validated by domain.ParseBigQueryRef (letters, digits
 // and underscores only) so quoting them is safe; every value is a query parameter. The project filter keeps a
 // billing-account-wide export to the connection's project; the byte cap bounds the cost of a scan.
-func (p *Provider) usageQuery(t domain.BigQueryTable, project string, from, to time.Time) Query {
+func (p *Provider) usageQuery(jobProject string, t domain.BigQueryTable, project string, from, to time.Time) Query {
 	sql := fmt.Sprintf("SELECT\n"+
 		"  FORMAT_DATE('%%Y-%%m-%%d', DATE(usage_start_time, 'UTC')) AS day,\n"+
 		"  IFNULL(service.description, '') AS service,\n"+
@@ -170,7 +237,7 @@ func (p *Provider) usageQuery(t domain.BigQueryTable, project string, from, to t
 		"WHERE project.id = @project_id AND usage_start_time >= @from_ts AND usage_start_time < @to_ts\n"+
 		"GROUP BY day, service, sku, region, currency, pricing_unit", t.Project, t.Dataset, t.Table)
 	return Query{
-		JobProject: p.JobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 9,
+		JobProject: jobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 9,
 		Params: map[string]Param{
 			"project_id": {Type: "STRING", Value: project},
 			"from_ts":    {Type: "TIMESTAMP", Value: from.UTC().Format(time.RFC3339)},
@@ -196,10 +263,16 @@ func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest
 	if err != nil {
 		return nil, err
 	}
-	if err := p.proveOwnership(ctx, t, c.ExternalID); err != nil {
+	bq, job, prove, err := p.access(ctx, c)
+	if err != nil {
 		return nil, err
 	}
-	rows, err := p.BQ.Query(ctx, p.controlQuery(t, c.AccountRef, req.From, req.To))
+	if prove {
+		if err := p.proveOwnership(ctx, bq, t, c.ExternalID); err != nil {
+			return nil, err
+		}
+	}
+	rows, err := bq.Query(ctx, p.controlQuery(job, t, c.AccountRef, req.From, req.To))
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +288,7 @@ func (p *Provider) GetControlTotals(ctx context.Context, req domain.UsageRequest
 }
 
 // controlQuery sums cost per day and currency for the same project and window as usageQuery. It has the same byte cap.
-func (p *Provider) controlQuery(t domain.BigQueryTable, project string, from, to time.Time) Query {
+func (p *Provider) controlQuery(jobProject string, t domain.BigQueryTable, project string, from, to time.Time) Query {
 	sql := fmt.Sprintf("SELECT\n"+
 		"  FORMAT_DATE('%%Y-%%m-%%d', DATE(usage_start_time, 'UTC')) AS day,\n"+
 		"  currency,\n"+
@@ -224,7 +297,7 @@ func (p *Provider) controlQuery(t domain.BigQueryTable, project string, from, to
 		"WHERE project.id = @project_id AND usage_start_time >= @from_ts AND usage_start_time < @to_ts\n"+
 		"GROUP BY day, currency", t.Project, t.Dataset, t.Table)
 	return Query{
-		JobProject: p.JobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 3,
+		JobProject: jobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 3,
 		Params: map[string]Param{
 			"project_id": {Type: "STRING", Value: project},
 			"from_ts":    {Type: "TIMESTAMP", Value: from.UTC().Format(time.RFC3339)},

@@ -223,3 +223,32 @@ func TestClassifyBlamesThePlatformWhenItHasNoCredentials(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestAccessKeyConnectionSignsWithTheOpenedSecretAndNeverAssumesARole(t *testing.T) {
+	ce := &fakeCE{pages: []*costexplorer.GetCostAndUsageOutput{page("2026-09-01", "")}}
+	var gotID, gotSecret string
+	assumed := false
+	p := &Provider{
+		Assume:     func(context.Context, string, string) (CEAPI, error) { assumed = true; return ce, nil },
+		Key:        func(_ context.Context, id, secret string) (CEAPI, error) { gotID, gotSecret = id, secret; return ce, nil },
+		OpenSecret: func(domain.Connection) (string, error) { return "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", nil },
+	}
+	c := domain.Connection{AccountRef: "123456789012", CredentialRef: "awskey://AKIAIOSFODNN7EXAMPLE", SealedSecret: "sealed"}
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := p.GetUsage(context.Background(), domain.UsageRequest{Connection: c, From: from, To: from.AddDate(0, 0, 7)}); err != nil {
+		t.Fatal(err)
+	}
+	if assumed || gotID != "AKIAIOSFODNN7EXAMPLE" || gotSecret == "" {
+		t.Errorf("assumed=%v id=%q secret set=%v", assumed, gotID, gotSecret != "")
+	}
+	if err := p.Validate(context.Background(), c); err != nil {
+		t.Errorf("validate: %v", err)
+	}
+	// a secret that cannot be opened says why and is not a customer action
+	p.OpenSecret = func(domain.Connection) (string, error) { return "", errors.New("cipher: message authentication failed") }
+	err := p.Validate(context.Background(), c)
+	var pe domain.PublicError
+	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "NOTIFICATIONS_SECRET_KEY") || strings.Contains(pe.Message, "cipher") {
+		t.Errorf("unopenable secret: %v", err)
+	}
+}

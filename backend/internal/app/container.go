@@ -103,23 +103,28 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	}
 	registry := o.providers
 	if registry == nil {
-		awsProvider, err := aws.New(ctx)
+		// Every provider has a mode that needs nothing from the platform but the sealing key: the customer's own
+		// credential (Azure service principal, AWS access key, Google service account key), stored sealed.
+		openSecret := func(c clouddomain.Connection) (string, error) {
+			return box.Open(c.SealedSecret, cloudapp.SecretAAD(c.TenantID, c.ExternalID))
+		}
+		awsProvider, err := aws.New(ctx, openSecret)
 		if err != nil {
 			return nil, err
 		}
 		providers := []clouddomain.CloudProvider{awsProvider}
-		if cfg.PlatformGCPProject != "" { // the GCP connector is opt-in: it needs the platform's own Google identity
-			gcpProvider, err := gcp.New(ctx, cfg.PlatformGCPProject)
+		gcpProvider := gcp.NewKeyOnly(openSecret)
+		if cfg.PlatformGCPProject != "" { // sharing a dataset with the platform needs its own Google identity
+			shared, err := gcp.New(ctx, cfg.PlatformGCPProject)
 			if err != nil {
 				return nil, err
 			}
-			providers = append(providers, gcpProvider)
+			gcpProvider = shared.WithKeys(openSecret)
 		}
-		// Azure needs nothing from the platform for a service-principal connection (the customer's own secret is
-		// opened with the sealing key); only reading an export needs the platform's Entra application.
-		providers = append(providers, azure.New(cfg.PlatformAzureClientID, cfg.PlatformAzureClientSecret, func(c clouddomain.Connection) (string, error) {
-			return box.Open(c.SealedSecret, cloudapp.SecretAAD(c.TenantID, c.ExternalID))
-		}))
+		providers = append(providers, gcpProvider)
+		// Azure: a service-principal connection uses the customer's own secret; only reading an export needs the
+		// platform's Entra application.
+		providers = append(providers, azure.New(cfg.PlatformAzureClientID, cfg.PlatformAzureClientSecret, openSecret))
 		registry = clouddomain.NewRegistry(providers...)
 	}
 

@@ -119,6 +119,30 @@ and `credential_ref` = `bq://<project>/<dataset>/<table>`):
 
 Queries are capped at 20 GiB scanned each and 500k result lines; they only read the billing export table.
 
+## 5e. AWS and GCP with the customer's own credential (ADR-0044)
+
+The usual way for both, as for Azure: nothing is needed on the platform side except the sealing key
+(`NOTIFICATIONS_SECRET_KEY`, the same on api, worker and scheduler).
+
+**AWS** (`credential_ref` = `awskey://<access key id>`, `client_secret` = the secret access key):
+1. In IAM they create a user that may only read costs: policy `ce:GetCostAndUsage` (and, for rightsizing,
+   `ce:GetRightsizingRecommendation`), resource `*`. Cost Explorer must be enabled in the account (first data up to
+   24 hours later).
+2. They create a long-term access key for the user, enter the account id, the key id and the secret and verify.
+3. Revocation: deactivate or delete the key.
+
+**GCP** (`credential_ref` = `bq://<project>/<dataset>/<table>`, `client_secret` = the JSON key file):
+1. Cloud Billing export to BigQuery (Standard usage cost) must be on (history starts the day it is enabled; first
+   delivery up to 48 hours).
+2. A service account gets **BigQuery Data Viewer** on the export dataset and **BigQuery Job User** on its own project
+   (queries run, and are billed, there). They create a JSON key for it, paste it and verify.
+3. Revocation: delete or disable the key. The platform needs no Google identity of its own for this mode.
+
+To see what the cloud answers without the database or the platform configuration, on any machine (the secret comes
+from the environment, never from an argument):
+`CLOUD_CHECK_SECRET='<secret access key>' admin aws-check <account id> awskey://<access key id> <any token>` and
+`CLOUD_CHECK_KEY_FILE=key.json admin gcp-check <project id> bq://<project>/<dataset>/<table> <any token>`.
+
 ## 5d. Azure: onboarding
 
 **The usual way: the customer's service principal (ADR-0043).** Nothing is needed on the platform side except the

@@ -18,9 +18,11 @@ import (
 type Postgres struct{ Pool *pgxpool.Pool }
 
 func toConn(r db.CloudaccountsConnection) domain.Connection {
-	return domain.Connection{ID: r.ID, TenantID: r.TenantID, ProjectID: r.ProjectID, Provider: domain.ProviderType(r.Provider),
+	c := domain.Connection{ID: r.ID, TenantID: r.TenantID, ProjectID: r.ProjectID, Provider: domain.ProviderType(r.Provider),
 		AccountRef: r.AccountRef, CredentialRef: r.CredentialRef, ExternalID: r.ExternalID, SyncStatus: domain.SyncStatus(r.SyncStatus),
 		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, Export: exportOf(r), SealedSecret: deref(r.SealedSecret)}
+	c.Access = c.AccessMode()
+	return c
 }
 
 func optional(s string) *string {

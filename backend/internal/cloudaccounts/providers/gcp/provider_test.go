@@ -402,3 +402,61 @@ func TestPersistentFailuresSayWhatBigQueryAnswered(t *testing.T) {
 		})
 	}
 }
+
+const customerKey = `{"type":"service_account","project_id":"acme-prod-123","private_key":"-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----\n","client_email":"reliabilix@acme-prod-123.iam.gserviceaccount.com"}`
+
+// A connection made with the customer's own key runs in the key's project, needs no dataset label (the key proves
+// access by working) and never touches the platform's own identity.
+func TestServiceAccountKeyConnectionRunsInTheCustomersProjectWithoutOwnershipLabel(t *testing.T) {
+	f := &fakeBigQuery{pages: [][][]string{{row("2026-09-01", "Compute Engine", "N2 Instance Core", "europe-west3")}}}
+	srv := httptest.NewServer(f.handler(t))
+	defer srv.Close()
+	var keyUsed string
+	p := NewKeyOnly(func(domain.Connection) (string, error) { return customerKey, nil })
+	p.KeyClient = func(_ context.Context, k string) (BigQuery, error) {
+		keyUsed = k
+		return &RESTClient{HTTP: srv.Client(), Base: srv.URL}, nil
+	}
+	c := conn()
+	c.ExternalID = "rlx-nolabelonthedataset"
+	c.SealedSecret = "sealed"
+
+	if err := p.Validate(context.Background(), c); err != nil {
+		t.Fatalf("a key connection must verify without the ownership label: %v", err)
+	}
+	batches, err := p.GetUsage(context.Background(), domain.UsageRequest{Connection: c, From: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), To: time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)})
+	if err != nil || len(batches) != 1 {
+		t.Fatalf("usage: %v %v", batches, err)
+	}
+	if keyUsed != customerKey {
+		t.Error("the opened key must be the one the client is built from")
+	}
+	for _, r := range f.requests {
+		if strings.Contains(r.Path, "/datasets/") {
+			t.Errorf("no ownership proof is read in key mode: %s", r.Path)
+		}
+		if r.Method == http.MethodPost && !strings.Contains(r.Path, "/projects/acme-prod-123/queries") {
+			t.Errorf("queries must run in the key's own project: %s", r.Path)
+		}
+	}
+}
+
+func TestKeyConnectionFailuresAreSayable(t *testing.T) {
+	p := NewKeyOnly(func(domain.Connection) (string, error) { return "", errors.New("cipher: message authentication failed") })
+	c := conn()
+	c.SealedSecret = "sealed"
+	err := p.Validate(context.Background(), c)
+	var pe domain.PublicError
+	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "NOTIFICATIONS_SECRET_KEY") {
+		t.Errorf("unopenable key: %v", err)
+	}
+	// a shared-dataset connection on a platform with no identity of its own
+	if err := p.Validate(context.Background(), conn()); !errors.As(err, &pe) || !strings.Contains(pe.Message, "service account key") {
+		t.Errorf("no platform identity: %v", err)
+	}
+	// the key file is malformed once opened
+	p.OpenSecret = func(domain.Connection) (string, error) { return `{"type":"authorized_user"}`, nil }
+	if err := p.Validate(context.Background(), c); !errors.Is(err, domain.ErrInvalidConnection) {
+		t.Errorf("malformed key: %v", err)
+	}
+}

@@ -3133,6 +3133,11 @@ export interface components {
             provider?: "aws" | "azure" | "gcp";
             account_ref?: string;
             credential_ref?: string;
+            /**
+             * @description How the platform authenticates to the customer's cloud (computed).
+             * @enum {string}
+             */
+            access?: "role" | "access_key" | "dataset_share" | "service_account_key" | "export" | "service_principal";
             external_id?: string;
             /** @enum {string} */
             sync_status?: "pending" | "healthy" | "error";
@@ -3157,7 +3162,8 @@ export interface components {
             /** @description AWS account id (12 digits), GCP project id (6-30 lowercase letters, digits, hyphens) or Azure subscription id (GUID). */
             account_ref: string;
             /**
-             * @description A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`).
+             * @description A reference, never a credential. AWS: the IAM role ARN (role name starts with `Reliabilix`), or
+             *     `awskey://<access key id>` of the customer's own read-only IAM user (with `client_secret`).
              *     GCP: `bq://<project>/<dataset>/<table>` of the Cloud Billing export table (`gcp_billing_export_v1_*` or
              *     `gcp_billing_export_resource_v1_*`). Azure: `azblob://<tenant id>@<storage account>/<container>/<export directory>`
              *     of the Cost Management FOCUS export, or `azcost://<tenant id>@<application (client) id>` for the customer's own
@@ -3166,7 +3172,8 @@ export interface components {
              */
             credential_ref: string;
             /**
-             * @description Azure service principal only: the client secret value. It is sealed on arrival (AES-256-GCM, bound to the
+             * @description Azure service principal: the client secret value. AWS `awskey://`: the secret access key. GCP: optionally the
+             *     JSON key file of a service account (then queries run with it, in its project). It is sealed on arrival (AES-256-GCM, bound to the
              *     organization and the connection), never returned by any endpoint and never part of the data export.
              */
             client_secret?: string;

@@ -94,6 +94,8 @@ type Connection struct {
 	ClientSecret string `json:"-"`
 	// SealedSecret is the stored, sealed form. Providers open it with the platform's key; it is never serialized.
 	SealedSecret string `json:"-"`
+	// Access is how the platform authenticates (see the Access* constants); computed, never stored.
+	Access string `json:"access"`
 	// Export, when set, makes the connection read the customer's FOCUS data export from S3 instead of
 	// Cost Explorer (invoice-level data, exact instance hours). nil = Cost Explorer.
 	Export *ExportConfig `json:"export"`
@@ -119,7 +121,9 @@ func (c Connection) Validate() error {
 	if c.ProjectID == "" || c.AccountRef == "" || c.CredentialRef == "" {
 		return fmt.Errorf("%w: project_id, account_ref, credential_ref required", ErrInvalidConnection)
 	}
-	if secretLike.MatchString(c.CredentialRef) {
+	if IsAWSKeyRef(c.CredentialRef) && c.Provider == AWS {
+		// the access key id is an identifier; the secret access key travels separately and is sealed
+	} else if secretLike.MatchString(c.CredentialRef) {
 		return fmt.Errorf("%w: credential_ref must be a reference, not a secret", ErrInvalidConnection)
 	}
 	if c.Provider == GCP {
@@ -135,6 +139,10 @@ func (c Connection) Validate() error {
 	if c.Provider == AWS {
 		if !awsAccountRe.MatchString(c.AccountRef) {
 			return fmt.Errorf("%w: AWS account id must be 12 digits", ErrInvalidConnection)
+		}
+		if IsAWSKeyRef(c.CredentialRef) {
+			_, err := ParseAWSKeyRef(c.CredentialRef)
+			return err
 		}
 		m := awsRoleRe.FindStringSubmatch(c.CredentialRef)
 		if m == nil {

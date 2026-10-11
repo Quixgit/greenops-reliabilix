@@ -5,6 +5,29 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.65] - 2026-10-11
+
+### Added
+- **AWS and GCP connect with the customer's own read-only credential, like Azure** (ADR-0044). Until now both asked the
+  customer to build something (a role with an ExternalId; a billing export, a dataset label and a shared dataset).
+  - **AWS: an IAM user access key** (`awskey://<access key id>` + the secret access key). Cost Explorer, the S3 FOCUS
+    export and rightsizing are read with it directly; only long-term `AKIA…` keys are accepted.
+  - **GCP: a service account key** (the JSON key file). Queries run with the customer's service account in its own
+    project, no ownership label and no Google identity of the platform needed: the GCP connector is available on every
+    platform, `PLATFORM_GCP_PROJECT` is only for the advanced shared-dataset mode.
+  - The secret is sealed exactly like the Azure client secret (AES-256-GCM bound to the organization and the connection,
+    write-only, never in a response, a listing or the export). The key file is accepted only if it is a service account
+    key with Google's own token URI; a user credentials file is refused.
+  - The connection form offers the own credential as the recommended way for every provider and keeps the older way
+    (role, shared dataset, export) as "advanced". A connection reports `access` (`role`, `access_key`,
+    `dataset_share`, `service_account_key`, `service_principal`, `export`).
+- `admin aws-check` and `admin gcp-check` accept the customer's own credential from the environment
+  (`CLOUD_CHECK_SECRET`, `CLOUD_CHECK_KEY_FILE`).
+
+### Changed
+- API: `POST /cloud-accounts` takes `client_secret` for an AWS `awskey://` connection and, optionally, for GCP; a
+  secret on any other kind is refused (422). `access` added to the connection.
+
 ## [0.1.0-alpha.64] - 2026-10-11
 
 ### Fixed
