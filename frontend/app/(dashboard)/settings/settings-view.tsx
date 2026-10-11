@@ -1,12 +1,13 @@
 "use client";
 
-import { Bell, Building2, CreditCard, Database, FolderKanban, History, KeyRound, LayoutGrid, Search, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, UserRound, Users, type LucideIcon } from "lucide-react";
+import { Bell, Building2, CreditCard, Database, KeyRound, Palette, Settings as SettingsIcon, SlidersHorizontal, Users, Workflow, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AutomationTab } from "@/components/settings/automation-tab";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { DataPanel } from "@/components/settings/data-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
-import { OverviewPanel } from "@/components/settings/overview-panel";
+import { OrganizationTab } from "@/components/settings/organization-tab";
 import { PlanPanel } from "@/components/settings/plan-panel";
 import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import { ProjectsPolicyPanel } from "@/components/settings/projects-policy-panel";
@@ -18,7 +19,7 @@ import { useT } from "@/i18n/provider";
 import { canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
-type Section = { id: string; group: string; label: string; hint: string; icon: LucideIcon; show: boolean };
+type Section = { id: string; label: string; icon: LucideIcon; show: boolean };
 
 const CAPABILITIES: [string, (r: Role) => boolean][] = [
   ["See the dashboards, recommendations and reports", () => true],
@@ -53,95 +54,86 @@ function ProfileCard({ user }: { user: { name: string; email: string; role: Role
   );
 }
 
+/** Addresses of the earlier layout keep working: they land on the tab that now holds the section. */
+const ALIAS: Record<string, string> = { profile: "preferences", members: "users", roles: "users", keys: "security", history: "security", projects: "policies", general: "data", overview: "organization" };
+
 /** Role checks here only decide what to show; the Go API enforces every one of them again. */
 export function SettingsView({ user }: { user: { name: string; email: string; role: Role } }) {
   const t = useT();
-  const sections: Section[] = useMemo(() => [
-    { id: "overview", group: "Account", label: t("settings.overview"), hint: t("settings.overview_hint"), icon: LayoutGrid, show: true },
-    { id: "profile", group: "Account", label: "Profile", hint: "You and your role", icon: UserRound, show: true },
-    { id: "preferences", group: "Account", label: t("settings.prefs.title", undefined, "Preferences"), hint: "Period, units, density, motion", icon: SlidersHorizontal, show: true },
-    { id: "organization", group: "Organization", label: "General", hint: "Retention, modules, defaults", icon: Building2, show: canSeeSettings(user.role) },
-    { id: "projects", group: "Organization", label: "Projects & policies", hint: "Regions, automation, limits", icon: FolderKanban, show: true },
-    { id: "notifications", group: "Organization", label: "Notifications", hint: "E-mail, webhooks, Slack", icon: Bell, show: canSeeNotifications(user.role) },
-    { id: "members", group: "Access", label: "Members", hint: "People and invitations", icon: Users, show: canManageTenant(user.role) },
-    { id: "roles", group: "Access", label: t("settings.tab.roles"), hint: "What each role may do", icon: ShieldCheck, show: canManageTenant(user.role) },
-    { id: "keys", group: "Access", label: "API keys", hint: "CI and automation", icon: KeyRound, show: canManageTenant(user.role) },
-    { id: "plan", group: "Billing", label: t("settings.tab.plan"), hint: "Plan, limits, payment", icon: CreditCard, show: canSeeSettings(user.role) },
-    { id: "history", group: "Data", label: "Change history", hint: "Who changed what", icon: History, show: canSeeSettings(user.role) },
-    { id: "data", group: "Data", label: "Data & privacy", hint: "Export and erasure", icon: Database, show: user.role === "owner" },
-  ].filter((s) => s.show), [t, user.role]);
+  const tabs: Section[] = useMemo(() => [
+    { id: "organization", label: t("settings.tab.organization"), icon: Building2, show: true },
+    { id: "users", label: t("settings.tab.users"), icon: Users, show: canManageTenant(user.role) },
+    { id: "data", label: t("settings.tab.data"), icon: Database, show: canSeeSettings(user.role) },
+    { id: "policies", label: t("settings.tab.policies"), icon: SlidersHorizontal, show: true },
+    { id: "automation", label: t("settings.tab.automation"), icon: Workflow, show: true },
+    { id: "notifications", label: t("settings.tab.notifications"), icon: Bell, show: canSeeNotifications(user.role) },
+    { id: "security", label: t("settings.tab.security"), icon: KeyRound, show: canManageTenant(user.role) },
+    { id: "plan", label: t("settings.tab.plan_billing"), icon: CreditCard, show: canSeeSettings(user.role) },
+    { id: "preferences", label: t("settings.tab.preferences"), icon: Palette, show: true },
+  ].filter((x) => x.show), [t, user.role]);
 
-  const [active, setActive] = useState("overview");
-  const [query, setQuery] = useState("");
-  // The section is in the address (#members) so a link or a reload lands on it.
+  const [active, setActive] = useState("organization");
+  // The tab is in the address (#users) so a link or a reload lands on it.
   useEffect(() => {
     const h = window.location.hash.slice(1);
-    if (h && sections.some((s) => s.id === h)) setActive(h);
-  }, [sections]);
-  const go = (id: string) => { setActive(id); window.history.replaceState(null, "", `#${id}`); };
-
-  const visible = sections.filter((s) => !query || `${s.label} ${s.hint} ${s.group}`.toLowerCase().includes(query.toLowerCase()));
-  const groups = Array.from(new Set(visible.map((s) => s.group)));
-  const current = sections.find((s) => s.id === active) ?? sections[0];
+    const id = ALIAS[h] ?? h;
+    if (id && tabs.some((x) => x.id === id)) setActive(id);
+  }, [tabs]);
+  const go = (id: string) => {
+    const target = ALIAS[id] ?? id;
+    setActive(target);
+    window.history.replaceState(null, "", `#${target}`);
+  };
+  const current = tabs.find((x) => x.id === active) ?? tabs[0];
+  const edit = canWrite(user.role);
 
   const body: Record<string, ReactNode> = {
-    overview: <OverviewPanel go={go} canManage={canManageTenant(user.role)} canSettings={canSeeSettings(user.role)} />,
-    profile: <ProfileCard user={user} />,
-    preferences: <PreferencesPanel />,
-    organization: <SettingsEditor mode="tenant" path="settings" historyPath="settings/history" canEdit={canWrite(user.role)} />,
-    projects: <ProjectsPolicyPanel canEdit={canWrite(user.role)} />,
-    notifications: <NotificationsPanel canEdit={canWrite(user.role)} />,
-    members: <MembersPanel />,
-    roles: <RolesPanel />,
-    keys: <ApiKeysPanel />,
+    organization: <OrganizationTab go={go} canManage={canManageTenant(user.role)} canEdit={edit} />,
+    users: <div className="space-y-4"><MembersPanel /><RolesPanel /></div>,
+    data: (
+      <div className="space-y-4">
+        <SettingsEditor mode="tenant" path="settings" historyPath="settings/history" canEdit={edit} />
+        {user.role === "owner" && <DataPanel />}
+      </div>
+    ),
+    policies: <ProjectsPolicyPanel canEdit={edit} />,
+    automation: <AutomationTab go={go} />,
+    notifications: <NotificationsPanel canEdit={edit} />,
+    security: (
+      <div className="space-y-4">
+        <ApiKeysPanel />
+        {canSeeSettings(user.role) && <SettingsHistory path="settings/history?limit=100" />}
+      </div>
+    ),
     plan: <PlanPanel canBuy={canManageTenant(user.role)} />,
-    history: <SettingsHistory path="settings/history?limit=100" />,
-    data: <DataPanel />,
+    preferences: <div className="space-y-4"><ProfileCard user={user} /><PreferencesPanel /></div>,
   };
 
   return (
-    <div className="mx-auto max-w-[1180px] space-y-5">
+    <div className="mx-auto max-w-[1280px] space-y-5">
       <div className="rise flex items-center gap-4">
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md shadow-emerald-900/10">
-          <SettingsIcon className="size-6 transition-transform duration-700 hover:rotate-90" strokeWidth={1.8} />
-        </span>
+        <SettingsIcon className="size-10 text-[#3d5a8a] transition-transform duration-700 hover:rotate-90" strokeWidth={1.4} />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
           <p className="mt-0.5 text-sm text-muted">{t("settings.subtitle")}</p>
         </div>
       </div>
-      <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <nav aria-label="Settings sections" className="lg:sticky lg:top-20 lg:self-start">
-          <div className="relative mb-3">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a section…" aria-label="Find a section"
-              className="w-full rounded-xl bg-white py-2.5 pl-9 pr-3 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-          <div className="thin-scroll flex gap-1 overflow-x-auto lg:block lg:space-y-4 lg:overflow-visible">
-            {groups.map((g) => (
-              <div key={g} className="flex gap-1 lg:block">
-                <p className="mb-1 hidden px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 lg:block">{g}</p>
-                {visible.filter((s) => s.group === g).map((s) => (
-                  <button key={s.id} type="button" onClick={() => go(s.id)} aria-current={active === s.id ? "page" : undefined}
-                    className={cn("group relative flex w-full shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2 text-left text-sm font-medium transition-all duration-200 lg:whitespace-normal",
-                      active === s.id ? "bg-primary/10 text-primary shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:pl-4")}>
-                    <span aria-hidden className={cn("absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-primary transition-all duration-300", active === s.id ? "opacity-100" : "scale-y-0 opacity-0")} />
-                    <s.icon className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.8} />{s.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-            {visible.length === 0 && <p className="px-3 py-2 text-sm text-muted">No section matches.</p>}
-          </div>
-        </nav>
-        <section key={current.id} className="page-enter min-w-0 space-y-4" aria-labelledby="settings-section-title">
-          <header>
-            <h2 id="settings-section-title" className="text-lg font-semibold tracking-tight">{current.label}</h2>
-            <p className="text-sm text-muted">{current.hint}</p>
-          </header>
-          {body[current.id]}
-        </section>
+
+      <div role="tablist" aria-label="Settings" className="rise -mb-px flex gap-0 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ "--i": 1 } as React.CSSProperties}>
+        {tabs.map((x) => (
+          <button key={x.id} role="tab" type="button" aria-selected={active === x.id} onClick={() => go(x.id)}
+            className={cn("group relative flex shrink-0 items-center whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors duration-200",
+              active === x.id ? "text-emerald-600" : "text-slate-600 hover:text-ink")}>
+            {x.label}
+            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-emerald-600 transition-transform duration-300",
+              active === x.id ? "scale-x-100" : "scale-x-0 group-hover:scale-x-50 group-hover:bg-slate-300")} />
+          </button>
+        ))}
       </div>
+
+      <section key={current.id} role="tabpanel" aria-label={current.label} className="page-enter settings-skin min-w-0 pt-5">
+        {body[current.id]}
+      </section>
     </div>
   );
 }

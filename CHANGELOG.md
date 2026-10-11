@@ -8,12 +8,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 ## [0.1.0-alpha.69] - 2026-10-11
 
 ### Changed
-- **Settings opens on an overview** of the whole organization, built from the facts the platform has: the organization
-  and plan, the cloud connections (the same state derivation as the Connectors page), grid data and methodology,
-  cost and carbon policy (budgets, projects with allowed regions, carbon limit, CI gate), automation, notification
-  channels and security and access. Every card opens its section; the sections themselves are unchanged. The page header,
-  the section list (animated active marker, hover) and the cards follow the style of the Connectors page and respect
-  reduced motion. Translated (English, Russian).
+- **Settings follows the design: tabs on top and a card layout.** The left admin navigation is gone; the tabs are
+  Organization, Users, Data & integrations, Cost & carbon policies, Automation, Notifications, API & security, Billing and
+  Preferences (the old addresses such as `#members`, `#keys`, `#projects`, `#profile` land on the right tab).
+  **Organization** is the design's grid, from real data: organization details (the reporting currency is saved here),
+  cloud provider connections with their state and last sync, carbon and energy data sources, cost and carbon policy
+  (budget, carbon budget, alert thresholds, projects with allowed regions), automation and CI gate, notification
+  channels with working switches (they enable or disable the destinations of that kind) and security and access.
+  Rows that need a person or the sign-in provider say so instead of showing a switch that does nothing. Automation and
+  Preferences are cards of the same look; every other tab keeps its panels in the same card style. Reduced motion is
+  respected; translated (English, Russian).
 
 ## [0.1.0-alpha.68] - 2026-10-11
 

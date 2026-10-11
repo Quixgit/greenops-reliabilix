@@ -181,3 +181,9 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
 .connector-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px -12px rgba(31, 52, 110, 0.22); border-color: #c9d6ee; }
 .connector-card:hover [data-mark] { transform: scale(1.06) rotate(-2deg); }
 @media (prefers-reduced-motion: reduce) { .row-in, .bar-in, .drawer-in, .scrim-in { animation: none; } .ring-arc, .expand, .connector-card { transition: none; } }
+
+/* ---- Settings: the cards of every tab share the look of the Organization tab ---------------------------------- */
+.settings-skin .glass { border-radius: 12px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); padding: 1.25rem; }
+.settings-skin .glass:hover { border-color: #d3dcec; }
+.settings-skin .glass h2 { font-size: 14px; }
+.settings-skin input:focus, .settings-skin select:focus { border-color: #10b981; }
