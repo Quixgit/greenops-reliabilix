@@ -13,7 +13,7 @@ import { DataPanel } from "@/components/settings/data-panel";
 import { MembersPanel } from "@/components/settings/members-panel";
 import { NotificationsPanel } from "@/components/settings/notifications-panel";
 import { OrganizationTab } from "@/components/settings/organization-tab";
-import { PlanPanel } from "@/components/settings/plan-panel";
+import { BillingTab } from "@/components/billing/billing-tab";
 import { PreferencesPanel } from "@/components/settings/preferences-panel";
 import { ProjectsPolicyPanel } from "@/components/settings/projects-policy-panel";
 import { RolesPanel } from "@/components/settings/roles-panel";
@@ -21,7 +21,7 @@ import { SettingsEditor, SettingsHistory } from "@/components/settings/settings-
 import { Card, CardHeader } from "@/components/ui/card";
 import { Pill } from "@/components/operator/ui";
 import { useT } from "@/i18n/provider";
-import { canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
+import { canBuy, canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type Section = { id: string; label: string; icon: LucideIcon; show: boolean };
@@ -73,7 +73,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     { id: "automation", label: t("settings.tab.automation"), icon: Workflow, show: true },
     { id: "notifications", label: t("settings.tab.notifications"), icon: Bell, show: canSeeNotifications(user.role) },
     { id: "security", label: t("settings.tab.security"), icon: KeyRound, show: canManageTenant(user.role) },
-    { id: "plan", label: t("settings.tab.plan_billing"), icon: CreditCard, show: canSeeSettings(user.role) },
+    { id: "plan", label: t("settings.tab.plan_billing"), icon: CreditCard, show: canSeeSettings(user.role) || canBuy(user.role) },
     { id: "preferences", label: t("settings.tab.preferences"), icon: Palette, show: true },
   ].filter((x) => x.show), [t, user.role]);
 
@@ -117,35 +117,44 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
         {canSeeSettings(user.role) && <SettingsHistory path="settings/history?limit=100" />}
       </div>
     ),
-    plan: <PlanPanel canBuy={canManageTenant(user.role)} />,
+    plan: <BillingTab canBuy={canBuy(user.role)} />,
     preferences: <div className="space-y-4"><ProfileCard user={user} /><PreferencesPanel /></div>,
   };
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-5">
+    <div className="mx-auto max-w-[1280px] space-y-6">
       <div className="rise flex items-center gap-4">
-        <SettingsIcon className="size-10 text-[#3d5a8a] transition-transform duration-700 hover:rotate-90" strokeWidth={1.4} />
+        <SettingsIcon className="size-12 text-[#5b8fdc] transition-transform duration-700 hover:rotate-90" strokeWidth={1.3} />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("settings.title", undefined, "Settings")}</h1>
           <p className="mt-0.5 text-sm text-muted">{t("settings.subtitle")}</p>
         </div>
       </div>
 
-      <div role="tablist" aria-label="Settings" className="rise -mb-px flex gap-0 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ "--i": 1 } as React.CSSProperties}>
-        {tabs.map((x) => (
-          <button key={x.id} role="tab" type="button" aria-selected={active === x.id} onClick={() => go(x.id)}
-            className={cn("group relative flex shrink-0 items-center whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors duration-200",
-              active === x.id ? "text-leaf-deep" : "text-slate-600 hover:text-ink")}>
-            {x.label}
-            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-leaf-deep transition-transform duration-300",
-              active === x.id ? "scale-x-100" : "scale-x-0 group-hover:scale-x-50 group-hover:bg-slate-300")} />
-          </button>
-        ))}
-      </div>
+      <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <nav role="tablist" aria-label="Settings" aria-orientation="vertical"
+          className="rise flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:sticky lg:top-24 lg:flex-col lg:self-start lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden" style={{ "--i": 1 } as React.CSSProperties}>
+          {tabs.map((x) => {
+            const on = active === x.id;
+            return (
+              <button key={x.id} role="tab" type="button" aria-selected={on} onClick={() => go(x.id)}
+                className={cn("group relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 lg:w-full",
+                  on ? "bg-leaf-soft/70 text-leaf-deep" : "text-slate-600 hover:bg-slate-100 hover:text-ink")}>
+                <span aria-hidden className={cn("absolute inset-y-2 left-0 hidden w-1 rounded-full bg-leaf-deep transition-transform duration-300 lg:block", on ? "scale-y-100" : "scale-y-0")} />
+                <x.icon className={cn("size-7 shrink-0 transition-transform duration-300 group-hover:scale-110", on ? "text-leaf-deep" : "text-slate-400")} strokeWidth={1.5} />
+                <span className="min-w-0">
+                  <span className="block whitespace-nowrap text-sm font-semibold">{x.label}</span>
+                  <span className="hidden truncate text-xs font-normal text-muted lg:block">{t(`settings.tabdesc.${x.id}`)}</span>
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-      <section key={current.id} role="tabpanel" aria-label={current.label} className="page-enter settings-skin min-w-0 pt-5">
-        {body[current.id]}
-      </section>
+        <section key={current.id} role="tabpanel" aria-label={current.label} className="page-enter settings-skin min-w-0">
+          {body[current.id]}
+        </section>
+      </div>
     </div>
   );
 }

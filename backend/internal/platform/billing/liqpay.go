@@ -153,3 +153,12 @@ func (l LiqPay) ParseWebhook(ctx context.Context, r *http.Request, body []byte) 
 	}
 	return e, nil
 }
+
+// Price implements Pricer: the configured amount for the plan, in hryvnia.
+func (l LiqPay) Price(ctx context.Context, plan string) (float64, string, bool) {
+	v, err := strconv.ParseFloat(l.val(ctx, "amount_"+plan), 64)
+	if err != nil || v <= 0 {
+		return 0, "", false
+	}
+	return v, "UAH", true
+}

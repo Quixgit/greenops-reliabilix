@@ -1,6 +1,6 @@
 "use client";
 
-import { IconClipboard as ClipboardList } from "@/components/ui/icons";
+import { IconClipboard as ClipboardList, IconDownload, IconSearch } from "@/components/ui/icons";
 import { useState } from "react";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Pagination, usePaged } from "@/components/ui/pagination";
@@ -18,7 +18,19 @@ export function AuditPanel() {
   const t = useT();
   const q = useAuditLog(200);
   const [area, setArea] = useState<(typeof AREAS)[number]>("all");
-  const filtered = (q.data ?? []).filter((r) => area === "all" || r.action.startsWith(area));
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const filtered = (q.data ?? []).filter((r) => (area === "all" || r.action.startsWith(area)) && (!needle || `${r.actor_user_id} ${r.action} ${r.target}`.toLowerCase().includes(needle)));
+  /** The rows on screen as a CSV file, with the same protection against spreadsheet formulas the reports use. */
+  const exportCsv = () => {
+    const cell = (v: string) => `"${(/^[=+@\t\r-]/.test(v) ? `'${v}` : v).replace(/"/g, '""')}"`;
+    const csv = ["time,actor,action,target", ...filtered.map((r) => [r.created_at, r.actor_user_id, r.action, r.target].map(cell).join(","))].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   const pg = usePaged(filtered, 10);
   const rows = pg.slice;
   return (
@@ -31,6 +43,15 @@ export function AuditPanel() {
             {t(`settings.audit.area.${a}`)}
           </button>
         ))}
+      </div>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <label className="relative">
+          <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input value={search} onChange={(e) => { setSearch(e.target.value); pg.setPage(1); }} placeholder={t("settings.audit.search")} aria-label={t("settings.audit.search")} className="w-64 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm" />
+        </label>
+        <button type="button" disabled={filtered.length === 0} onClick={exportCsv} className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:bg-slate-50 disabled:opacity-50">
+          <IconDownload className="size-4" />{t("settings.audit.export", { count: filtered.length })}
+        </button>
       </div>
       {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={ClipboardList} text={t("settings.audit.none")} /> : (
         <div className="overflow-x-auto">

@@ -14,3 +14,6 @@ export const canAutomate = (r: Role) => r === "owner" || r === "engineer";
 export const canManageTenant = canWrite;
 /** Organization settings: everybody who can manage or engineer sees them; only owners and admins change them. */
 export const canSeeSettings = canSeeNotifications;
+
+/** Who may pay for or change the plan: the same people the API allows (billing:read — owner, admin and billing). */
+export const canBuy = (r: Role) => r === "owner" || r === "admin" || r === "billing";

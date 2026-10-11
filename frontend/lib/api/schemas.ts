@@ -279,10 +279,23 @@ export const planView = z.object({
   trial_ends_at: z.string().nullable(), period_end: z.string().nullable(),
   limits: z.array(z.object({ resource: z.string(), key: z.string(), limit: z.number(), used: z.number() })),
   modules: z.array(z.object({ key: z.string(), enabled: z.boolean() })),
-  providers: z.array(z.object({ id: z.string(), name: z.string(), plans: z.array(z.string()) })),
+  providers: z.array(z.object({
+    id: z.string(), name: z.string(), plans: z.array(z.string()),
+    prices: z.record(z.string(), z.object({ amount: z.number(), currency: z.string() })).default({}),
+  })),
+  catalog: z.array(z.object({
+    id: z.string(), name: z.string(), description: z.string(), rank: z.number(),
+    limits: z.array(z.object({ resource: z.string(), key: z.string(), limit: z.number() })),
+    modules: z.array(z.object({ key: z.string(), enabled: z.boolean() })),
+  })).default([]),
 });
 export type PlanView = z.infer<typeof planView>;
-export const checkoutResult = z.object({ url: z.string().optional(), message: z.string().optional() });
+export const checkoutResult = z.object({
+  url: z.string().optional(), message: z.string().optional(), plan: z.string().optional(), intent: z.enum(["renew", "upgrade", "downgrade"]).optional(),
+});
+export const billingHistory = z.object({
+  items: z.array(z.object({ at: z.string(), provider: z.string(), kind: z.enum(["started", "requested", "applied"]), plan: z.string(), detail: z.string() })),
+});
 
 export const invitation = z.object({
   id: z.string(), email: z.string(), role: z.string(), created_by: z.string(), created_at: z.string(), expires_at: z.string(), accepted_at: z.string().nullable(),

@@ -16,7 +16,7 @@ import { budget, settingsView, tenantInfo } from "@/lib/api/schemas";
 import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { BrandLogo } from "./brand-logos";
+import { ProviderMark } from "@/components/connectors/provider-mark";
 import { Info } from "@/components/ui/info";
 
 const policy = z.object({
@@ -243,7 +243,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     const share = origins.filter((o) => o.source === provider).reduce((n, o) => n + o.share_pct, 0);
     return (
       <div key={provider} className="flex items-center gap-3 border-t border-line/70 py-2.5">
-        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-leaf-soft text-xs font-bold text-leaf-deep">{meta.name.slice(0, 2).toUpperCase()}</span>
+        <ProviderMark id={provider} size="md" />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-ink">{meta.name}</span>
           <span className="block truncate text-[11px] text-muted">
@@ -301,7 +301,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
           ? <p className="border-t border-line/70 py-3 text-xs text-muted">{t("settings.org.no_sources")}</p>
           : (gridSrc.data ?? []).map((g) => sourceRow(g.provider, g.last_at, g.regions))}
         <div className="flex items-center gap-3 border-t border-line/70 py-2.5 opacity-70">
-          <BrandLogo id="watttime" className="size-9 shrink-0" />
+          <ProviderMark id="watttime" size="md" dim />
           <span className="min-w-0 flex-1"><span className="block text-[13px] font-medium text-ink">WattTime</span><span className="block truncate text-[11px] text-muted">{t("settings.org.watttime")}</span></span>
           <Status ok={null}>{t("settings.org.planned")}</Status>
         </div>

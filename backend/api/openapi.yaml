@@ -1955,6 +1955,36 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/plan/history:
+    get:
+      operationId: getPlanHistory
+      summary: The organization's own billing events (checkouts started, requests, confirmed payments)
+      tags:
+      - licensing
+      description: Requires permission `billing:read`. Newest first, at most 50.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        at: {type: string, format: date-time}
+                        provider: {type: string}
+                        kind: {type: string, enum: [started, requested, applied]}
+                        plan: {type: string}
+                        detail: {type: string}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/plan/checkout:
     post:
       operationId: startCheckout
@@ -1962,8 +1992,10 @@ paths:
       tags:
       - licensing
       description: |
-        Requires permission `tenant:admin`. Answers a `url` to send the person to, or a `message` for providers
-        without a hosted page (invoice). The plan becomes active when the provider confirms the payment by webhook.
+        Requires permission `billing:read` (owner, admin, billing). Answers a `url` to send the person to, or a `message` for
+        providers without a hosted page (invoice), with the `plan` and the `intent` (renew, upgrade, downgrade). Choosing the
+        current plan renews it. The plan id travels to the provider, so its confirmation names the plan that was paid for;
+        the plan becomes active when the provider confirms the payment by webhook.
       requestBody:
         required: true
         content:
@@ -1984,6 +2016,8 @@ paths:
                 properties:
                   url: {type: string}
                   message: {type: string}
+                  plan: {type: string}
+                  intent: {type: string, enum: [renew, upgrade, downgrade]}
         '401':
           $ref: '#/components/responses/Problem'
         '403':
@@ -5587,7 +5621,7 @@ components:
       additionalProperties: true
     PlanView:
       type: object
-      required: [plan, name, status, source, limits, modules, providers]
+      required: [plan, name, status, source, limits, modules, providers, catalog]
       properties:
         plan: {type: string}
         name: {type: string}
@@ -5622,6 +5656,39 @@ components:
               id: {type: string}
               name: {type: string}
               plans: {type: array, items: {type: string}}
+              prices:
+                type: object
+                description: Amount per plan where the provider's price is known to the platform.
+                additionalProperties:
+                  type: object
+                  properties:
+                    amount: {type: number}
+                    currency: {type: string}
+        catalog:
+          type: array
+          description: Every plan, in order from the smallest, so the customer can compare it with the current one.
+          items:
+            type: object
+            properties:
+              id: {type: string}
+              name: {type: string}
+              description: {type: string}
+              rank: {type: integer}
+              limits:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    resource: {type: string}
+                    key: {type: string}
+                    limit: {type: integer, description: 0 means unlimited}
+              modules:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    key: {type: string}
+                    enabled: {type: boolean}
     ScheduleAdvice:
       type: object
       required: [region, source, window, basis]

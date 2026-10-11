@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/audit"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/billing"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
@@ -44,7 +45,8 @@ func (*Module) Name() string { return "licensing" }
 
 func (m *Module) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermProjectRead)).Get("/plan", m.plan)
-	r.With(auth.Require(auth.PermTenantAdmin)).Post("/plan/checkout", m.checkout)
+	r.With(auth.Require(auth.PermBillingRead)).Get("/plan/history", m.history)
+	r.With(auth.Require(auth.PermBillingRead)).Post("/plan/checkout", m.checkout)
 }
 
 // PublicRoutes: payment providers call back without a session; every notification is verified by its provider adapter.
@@ -101,12 +103,31 @@ type planView struct {
 	Modules     []moduleRow `json:"modules"`
 	// Providers are the payment providers that are set up, with the plans each can sell.
 	Providers []providerRow `json:"providers"`
+	// Catalog lists every plan, so the customer can compare them with the current one.
+	Catalog []catalogRow `json:"catalog"`
 }
 
 type providerRow struct {
 	ID    string   `json:"id"`
 	Name  string   `json:"name"`
 	Plans []string `json:"plans"`
+	// Prices holds the amount per plan where the provider's price is known to the platform.
+	Prices map[string]priceRow `json:"prices"`
+}
+
+type priceRow struct {
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
+
+// catalogRow is one plan of the catalog as a customer sees it: what it includes.
+type catalogRow struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Rank        int         `json:"rank"` // position in the catalog: higher is a bigger plan
+	Limits      []limitRow  `json:"limits"`
+	Modules     []moduleRow `json:"modules"`
 }
 
 var usage = []struct {
@@ -122,7 +143,7 @@ var moduleKeys = []string{settings.KeyModuleAutomation, settings.KeyModuleKubern
 
 func (m *Module) plan(w http.ResponseWriter, r *http.Request) {
 	c, _ := auth.FromContext(r.Context())
-	v := planView{Status: "none", Source: "manual", Limits: []limitRow{}, Modules: []moduleRow{}, Providers: []providerRow{}}
+	v := planView{Status: "none", Source: "manual", Limits: []limitRow{}, Modules: []moduleRow{}, Providers: []providerRow{}, Catalog: []catalogRow{}}
 	err := database.WithTenantTx(r.Context(), m.d.Pool, c.TenantID, func(tx pgx.Tx) error {
 		if err := tx.QueryRow(r.Context(), `SELECT plan FROM tenants.organizations WHERE id = $1`, c.TenantID).Scan(&v.Plan); err != nil {
 			return err
@@ -159,11 +180,64 @@ func (m *Module) plan(w http.ResponseWriter, r *http.Request) {
 	if m.d.Billing != nil {
 		for _, p := range m.d.Billing.All() {
 			if p.Configured(r.Context()) {
-				v.Providers = append(v.Providers, providerRow{ID: p.ID(), Name: p.Name(), Plans: p.Plans(r.Context())})
+				row := providerRow{ID: p.ID(), Name: p.Name(), Plans: p.Plans(r.Context()), Prices: map[string]priceRow{}}
+				if pr, ok := p.(billing.Pricer); ok {
+					for _, id := range row.Plans {
+						if amount, cur, ok := pr.Price(r.Context(), id); ok {
+							row.Prices[id] = priceRow{Amount: amount, Currency: cur}
+						}
+					}
+				}
+				v.Providers = append(v.Providers, row)
 			}
 		}
 	}
+	for i, p := range plans.Catalog() {
+		row := catalogRow{ID: p.ID, Name: p.Name, Description: p.Description, Rank: i, Limits: []limitRow{}, Modules: []moduleRow{}}
+		for _, u := range usage {
+			row.Limits = append(row.Limits, limitRow{Resource: u.Resource, Key: u.Key, Limit: int64(p.Limits[u.Key])})
+		}
+		for _, k := range moduleKeys {
+			row.Modules = append(row.Modules, moduleRow{Key: k, Enabled: p.Modules[k]})
+		}
+		v.Catalog = append(v.Catalog, row)
+	}
 	httpx.WriteJSON(w, http.StatusOK, v)
+}
+
+type historyRow struct {
+	At       time.Time `json:"at"`
+	Provider string    `json:"provider"`
+	Kind     string    `json:"kind"` // started | requested | applied
+	Plan     string    `json:"plan"`
+	Detail   string    `json:"detail"`
+}
+
+// history lists the organization's own billing events: checkouts it started, requests an operator must handle and the
+// payments a provider confirmed.
+func (m *Module) history(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	out := []historyRow{}
+	err := database.WithTenantTx(r.Context(), m.d.Pool, c.TenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(r.Context(), `SELECT at, provider, kind, plan, detail FROM platform.tenant_billing_history(50)`)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var h historyRow
+			if err := rows.Scan(&h.At, &h.Provider, &h.Kind, &h.Plan, &h.Detail); err != nil {
+				return err
+			}
+			out = append(out, h)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
 func mustJSON(v any) string {
@@ -215,7 +289,37 @@ func (m *Module) checkout(w http.ResponseWriter, r *http.Request) {
 			m.d.Log.Error("billing request not recorded", "err", err)
 		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, res)
+	// Which plan was asked for, and whether it renews, upgrades or lowers the current one, is kept in the organization's
+	// own trail; the plan id also travels to the provider, so its confirmation names the plan that was paid for.
+	intent := m.intent(r.Context(), c.TenantID, plan.ID)
+	_ = database.WithTenantTx(r.Context(), m.d.Pool, c.TenantID, func(tx pgx.Tx) error {
+		return audit.Record(r.Context(), tx, "billing.checkout_started", "plan:"+plan.ID, map[string]any{"provider": prov.ID(), "plan": plan.ID, "intent": intent})
+	})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"url": res.URL, "message": res.Message, "plan": plan.ID, "intent": intent})
+}
+
+// intent says what choosing a plan means for the organization: renew the current one, move up, or move down.
+func (m *Module) intent(ctx context.Context, tenantID, target string) string {
+	var cur string
+	_ = database.WithTenantTx(ctx, m.d.Pool, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT plan FROM tenants.organizations WHERE id = $1`, tenantID).Scan(&cur)
+	})
+	rank := func(id string) int {
+		for i, p := range plans.Catalog() {
+			if p.ID == id {
+				return i
+			}
+		}
+		return -1
+	}
+	switch {
+	case cur == target:
+		return "renew"
+	case rank(target) > rank(cur):
+		return "upgrade"
+	default:
+		return "downgrade"
+	}
 }
 
 // webhook applies a verified provider notification. The answer is 200 for everything that was understood (applied,

@@ -172,7 +172,7 @@ export const IconSearch = make("search", <circle cx="10.6" cy="10.6" r="6.4" />,
 
 // ---- The four platforms, drawn with the same pen as the rest, bare (no tile, no frame) -----------------------------
 /* Platform marks: our own drawings (not the vendors' logos), each in its own soft colours so they read at a glance. */
-function mark(name: string, body: ReactNode): IconType {
+export function mark(name: string, body: ReactNode): IconType {
   const Icon = ({ className }: IconProps) => (
     <svg viewBox="0 0 32 32" fill="none" strokeLinecap="round" strokeLinejoin="round" className={cn("size-10 shrink-0", className)} aria-hidden>{body}</svg>
   );
@@ -376,3 +376,38 @@ export const IconInsightAction = make("insight-action",
 export const IconTrust = make("trust",
   <path d="M12 3.4l7 2.6v5.6c0 4-2.9 7.2-7 9-4.1-1.8-7-5-7-9V6z" />,
   <><path d="M12 3.2l7.2 2.7v5.8c0 4.1-3 7.4-7.2 9.2-4.2-1.8-7.2-5.1-7.2-9.2V5.9z" /><path d="M8.6 12.2l2.5 2.6 4.4-5" /></>);
+
+/* Grid data sources: our own marks, in the platform's soft colours, standing in for the providers' logos. */
+export const IconSrcElectricityMaps = mark("src-electricity-maps",
+  <>
+    <path d="M16 3.6c-5 0-9 3.8-9 8.6 0 6.2 9 16.2 9 16.2s9-10 9-16.2c0-4.800-4-8.600-9-8.600z" fill="#e3f4ee" stroke="#6fc3a8" strokeWidth="1.8" />
+    <path d="M17.400 8.400 12.600 15h3.400l-1.400 6.400 4.800-6.800h-3.400z" fill="#f2cf8a" stroke="#d9a441" strokeWidth="1.2" />
+  </>);
+export const IconSrcEnergyCharts = mark("src-energy-charts",
+  <>
+    <rect x="5" y="17" width="4.400" height="9" rx="1.200" fill="#8db4ee" />
+    <rect x="11.800" y="10" width="4.400" height="16" rx="1.200" fill="#6fc3a8" />
+    <rect x="18.600" y="5" width="4.400" height="21" rx="1.200" fill="#f2cf8a" />
+    <path d="M4 27.600h24" stroke="#b9c4d6" strokeWidth="1.600" />
+  </>);
+export const IconSrcEia = mark("src-eia",
+  <>
+    <path d="M16 4.600 4.800 10h22.400z" fill="#c9d7f7" stroke="#6f8fe0" strokeWidth="1.600" />
+    <path d="M8 12.600v10M13 12.600v10M19 12.600v10M24 12.600v10" stroke="#8db4ee" strokeWidth="2.400" strokeLinecap="round" />
+    <path d="M5 25.600h22" stroke="#6f8fe0" strokeWidth="2.200" strokeLinecap="round" />
+  </>);
+export const IconSrcEmber = mark("src-ember",
+  <>
+    <path d="M16 3.400c1.200 4.400-4.800 6.600-4.800 12.200a4.800 4.800 0 0 0 9.600 0c0-2-.8-3.200-1.800-4.400-.4 1.800-1.200 2.600-2 2.800.8-4-.2-7.600-1-10.600z" fill="#f6c3cc" stroke="#e08b98" strokeWidth="1.600" strokeLinejoin="round" />
+    <path d="M10 26.800h12" stroke="#f2cf8a" strokeWidth="2.400" strokeLinecap="round" />
+  </>);
+export const IconSrcWattTime = mark("src-watttime",
+  <>
+    <circle cx="16" cy="16" r="11" fill="#f1ecfc" stroke="#b8a9ee" strokeWidth="1.800" />
+    <path d="M8.600 16h3.200l2-5.600 3.400 11 2-5.400h3.200" stroke="#8a78d8" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  </>);
+export const IconSrcUkGrid = mark("src-uk-grid",
+  <>
+    <path d="M16 4c-5.600 3.600-8 8-8 12.400a8 8 0 0 0 16 0C24 12 21.600 7.600 16 4z" fill="#e3f4ee" stroke="#6fc3a8" strokeWidth="1.800" strokeLinejoin="round" />
+    <path d="M16 9v18M16 17l-4-3M16 20l4-3" stroke="#2f8f78" strokeWidth="1.600" strokeLinecap="round" />
+  </>);

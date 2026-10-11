@@ -1,4 +1,4 @@
-import { IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
+import { IconSrcElectricityMaps, IconSrcEmber, IconSrcEia, IconSrcEnergyCharts, IconSrcUkGrid, IconSrcWattTime, IconAws, IconAzure, IconCpu, IconDatabase, IconGcp, IconKubernetes, IconLeaf, IconMail, IconPlug, IconSend, IconUsers, type IconType } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {
@@ -11,7 +11,13 @@ const MARKS: Record<string, { icon: IconType; tone: string; own?: boolean }> = {
   webhook: { icon: IconPlug, tone: "text-[#5b8fdc]" },
   teams: { icon: IconUsers, tone: "text-[#8a78d8]" },
   prometheus: { icon: IconCpu, tone: "text-[#d9a441]" },
-  "electricity-maps": { icon: IconLeaf, tone: "text-leaf-deep" },
+  "electricity-maps": { icon: IconSrcElectricityMaps, tone: "", own: true },
+  electricitymaps: { icon: IconSrcElectricityMaps, tone: "", own: true },
+  energy_charts: { icon: IconSrcEnergyCharts, tone: "", own: true },
+  eia: { icon: IconSrcEia, tone: "", own: true },
+  ember: { icon: IconSrcEmber, tone: "", own: true },
+  watttime: { icon: IconSrcWattTime, tone: "", own: true },
+  uk_carbon_intensity: { icon: IconSrcUkGrid, tone: "", own: true },
 };
 
 /** The drawn mark of a connector: bare, no tile or frame, the same weight for every source so mixed lists read evenly. */

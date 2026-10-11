@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useRoles } from "@/hooks/use-admin";
+import { useMembers, useRoles } from "@/hooks/use-admin";
 import { useT } from "@/i18n/provider";
 import { api, apiVoid } from "@/lib/api/client";
-import { customRole, type CustomRole, type RolesView } from "@/lib/api/schemas";
+import { customRole, member as memberSchema, type CustomRole, type RolesView } from "@/lib/api/schemas";
 import { cn } from "@/lib/utils";
 import { Panel } from "./organization-tab";
 
@@ -18,24 +18,61 @@ const field = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line 
 
 type Draft = { id?: string; name: string; description: string; permissions: Set<string> };
 
+/** Ready-made starting points: a name, what the role is for and the permissions that fit it. The person only chooses who gets it. */
+const TEMPLATES: { id: string; permissions: string[] }[] = [
+  { id: "finops", permissions: ["project:read", "usage:read", "carbon:read", "billing:read", "budget:write", "report:read", "report:write", "recommendation:read"] },
+  { id: "sustainability", permissions: ["project:read", "usage:read", "carbon:read", "carbon:compute", "report:read", "report:write", "recommendation:read", "recommendation:apply"] },
+  { id: "developer", permissions: ["project:read", "carbon:read", "recommendation:read", "ci:evaluate", "automation:read"] },
+  { id: "auditor", permissions: ["project:read", "usage:read", "carbon:read", "report:read", "audit:read", "settings:read", "notification:read"] },
+  { id: "approver", permissions: ["project:read", "recommendation:read", "recommendation:apply", "automation:read", "automation:approve"] },
+];
+
 function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClose: () => void }) {
   const t = useT();
   const qc = useQueryClient();
   const [d, setD] = useState<Draft>(draft);
+  const members = useMembers().data ?? [];
+  const [who, setWho] = useState<Set<string>>(new Set());
+  const [tpl, setTpl] = useState<string | null>(null);
+  const assignable = new Set(view.permissions.filter((x) => x.assignable).map((x) => x.key));
+  const applyTemplate = (id: string) => {
+    const tp = TEMPLATES.find((x) => x.id === id)!;
+    setTpl(id);
+    setD((x) => ({ ...x, name: t(`roles.tpl.${id}`), description: t(`roles.tpl.${id}_desc`), permissions: new Set(tp.permissions.filter((k) => assignable.has(k))) }));
+  };
   const groups = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const p of view.permissions.filter((x) => x.assignable)) m.set(p.group, [...(m.get(p.group) ?? []), p.key]);
     return [...m.entries()];
   }, [view]);
   const save = useMutation({
-    mutationFn: () => api(d.id ? `roles/${d.id}` : "roles", customRole, undefined, {
-      method: d.id ? "PUT" : "POST", body: JSON.stringify({ name: d.name, description: d.description, permissions: [...d.permissions].sort() }),
-    }),
+    mutationFn: async () => {
+      const role = await api(d.id ? `roles/${d.id}` : "roles", customRole, undefined, {
+        method: d.id ? "PUT" : "POST", body: JSON.stringify({ name: d.name, description: d.description, permissions: [...d.permissions].sort() }),
+      });
+      // Give the new role to the people chosen in the same step.
+      for (const id of who) await api(`members/${id}`, memberSchema, undefined, { method: "PATCH", body: JSON.stringify({ custom_role_id: role.id }) });
+      return role;
+    },
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["roles"] }); void qc.invalidateQueries({ queryKey: ["members"] }); onClose(); },
   });
   const toggle = (k: string) => setD((x) => { const n = new Set(x.permissions); if (n.has(k)) n.delete(k); else n.add(k); return { ...x, permissions: n }; });
   return (
     <Panel icon={ShieldCheck} title={d.id ? t("roles.edit") : t("roles.new")} className="lg:col-span-2">
+      {!d.id && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{t("roles.start_from")}</p>
+          <div className="flex flex-wrap gap-2">
+            {TEMPLATES.map((x) => (
+              <button key={x.id} type="button" onClick={() => applyTemplate(x.id)} aria-pressed={tpl === x.id}
+                className={cn("rounded-xl border px-3 py-2 text-left text-sm transition-all hover:-translate-y-0.5", tpl === x.id ? "border-leaf bg-leaf-soft/60" : "border-line bg-white hover:border-leaf/50")}>
+                <span className="block font-semibold">{t(`roles.tpl.${x.id}`)}</span>
+                <span className="block text-xs text-muted">{t(`roles.tpl.${x.id}_desc`)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm"><span className="mb-1 block font-medium">{t("roles.name")}</span><input value={d.name} maxLength={60} onChange={(e) => setD({ ...d, name: e.target.value })} className={field} /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium">{t("roles.description")}</span><input value={d.description} maxLength={200} onChange={(e) => setD({ ...d, description: e.target.value })} className={field} /></label>
@@ -55,6 +92,26 @@ function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClo
           </fieldset>
         ))}
       </div>
+      {!d.id && members.length > 0 && (
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{t("roles.give_to")}</p>
+          <ul className="flex flex-wrap gap-2">
+            {members.filter((m) => m.role !== "owner").map((m) => {
+              const on = who.has(m.id);
+              return (
+                <li key={m.id}>
+                  <button type="button" aria-pressed={on} onClick={() => setWho((x) => { const n = new Set(x); if (n.has(m.id)) n.delete(m.id); else n.add(m.id); return n; })}
+                    className={cn("flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm transition-all", on ? "border-leaf bg-leaf-soft/60" : "border-line bg-white hover:border-leaf/50")}>
+                    <span className={cn("grid size-6 place-items-center rounded-full text-[10px] font-bold", on ? "bg-leaf text-white" : "bg-slate-100 text-slate-500")}>{(m.email || m.user_id).slice(0, 2).toUpperCase()}</span>
+                    {m.email || m.user_id}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1.5 text-xs text-muted">{t("roles.give_hint")}</p>
+        </div>
+      )}
       <p className="mt-3 text-xs text-muted">{t("roles.limits_note")}</p>
       {save.isError && <p role="alert" className="mt-2 text-sm text-bad">{save.error.message}</p>}
       <div className="mt-4 flex gap-2">

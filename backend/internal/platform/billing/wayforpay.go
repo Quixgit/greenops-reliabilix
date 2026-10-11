@@ -183,3 +183,12 @@ func (w WayForPay) Ack(ctx context.Context, body []byte) any {
 	return map[string]any{"orderReference": n.OrderReference, "status": "accept", "time": w.now().Unix(),
 		"signature": hmacMD5(w.val(ctx, "secret_key"), strings.Join([]string{n.OrderReference, "accept", t}, ";"))}
 }
+
+// Price implements Pricer: the configured amount for the plan, in hryvnia.
+func (w WayForPay) Price(ctx context.Context, plan string) (float64, string, bool) {
+	v, err := strconv.ParseFloat(w.val(ctx, "amount_"+plan), 64)
+	if err != nil || v <= 0 {
+		return 0, "", false
+	}
+	return v, "UAH", true
+}

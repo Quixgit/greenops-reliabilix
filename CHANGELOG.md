@@ -5,6 +5,27 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.96] - 2026-10-11
+
+### Added
+- **Billing you can act on.** `GET /api/v1/plan` now carries the whole plan catalog (limits and modules per plan) and, where
+  a provider's amount is known to the platform (LiqPay, WayForPay), the price; `GET /api/v1/plan/history` lists the
+  organization's own billing events (migration 0055). Checkout accepts the current plan, which is a **renewal**: the
+  answer names the plan and the intent (renew, upgrade, downgrade), the choice is kept in the organization's audit trail
+  and the plan id travels to the provider so its confirmation says which plan was paid for. Checkout and history are for
+  billing:read (owner, admin, billing), matching what the screen always promised.
+- **Role templates and assignment**: a custom role starts from a template (FinOps analyst, sustainability lead, developer,
+  auditor, change approver) and is given to chosen members in the same step.
+- **Audit log search and CSV export.**
+
+### Changed
+- **Settings shell**: a vertical navigation with a short description of every area; the Billing tab is rebuilt (current
+  plan with days left and a Renew button, the plan catalog with prices and what each adds, an order summary, usage and
+  the billing history, and it waits for the provider's confirmation after paying).
+- **Grid data sources** show our own drawn marks (Electricity Maps, Energy-Charts, EIA, Ember, WattTime, UK Carbon
+  Intensity) instead of letter tiles.
+- The Kubernetes empty state opens the connect wizard instead of sending to Settings.
+
 ## [0.1.0-alpha.95] - 2026-10-11
 
 ### Added

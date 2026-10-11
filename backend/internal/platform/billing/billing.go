@@ -62,6 +62,13 @@ type Provider interface {
 	ParseWebhook(ctx context.Context, r *http.Request, body []byte) (*Event, error)
 }
 
+// Pricer is implemented by providers that know the amount of a plan (the others keep the price in their own system and
+// show it at checkout).
+type Pricer interface {
+	// Price is the amount charged for one period of the plan and its ISO currency; ok is false when unknown.
+	Price(ctx context.Context, plan string) (amount float64, currency string, ok bool)
+}
+
 // Acknowledger is implemented by providers that require a specific JSON answer to a notification (WayForPay).
 type Acknowledger interface {
 	Ack(ctx context.Context, body []byte) any

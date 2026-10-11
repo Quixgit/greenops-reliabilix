@@ -218,3 +218,20 @@ func TestRegistryAndInvoice(t *testing.T) {
 		t.Error("a provider without credentials must not be configured")
 	}
 }
+
+func TestProvidersThatKnowTheAmountReportIt(t *testing.T) {
+	v := vals(map[string]string{"liqpay.amount_team": "1999", "wayforpay.amount_business": "9990"})
+	for _, c := range []struct {
+		p    Pricer
+		plan string
+		want float64
+	}{{LiqPay{Values: v}, "team", 1999}, {WayForPay{Values: v}, "business", 9990}} {
+		amount, cur, ok := c.p.Price(context.Background(), c.plan)
+		if !ok || amount != c.want || cur != "UAH" {
+			t.Fatalf("%s: %v %s %v", c.plan, amount, cur, ok)
+		}
+	}
+	if _, _, ok := (LiqPay{Values: v}).Price(context.Background(), "business"); ok {
+		t.Fatal("a plan without an amount has no price")
+	}
+}
