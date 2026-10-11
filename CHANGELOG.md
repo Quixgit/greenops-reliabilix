@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.87] - 2026-10-11
+
+### Changed
+- **Carbon & Energy page rebuilt.** Four headline numbers with change against the previous period (emissions, energy,
+  grid intensity with its band, SCI); a daily CO₂e chart with a crosshair, 7-day average, peak and quietest day; a
+  breakdown by cloud, region (with the grid intensity under it) and service; grid intensity history with region chips
+  and coverage; a schedule advisor (job length and start window, best start and how much cleaner than starting now);
+  a ring and a stacked bar showing how much of the intensity was measured on the day itself; the SCI calculator and
+  the methodology summary.
+
 ## [0.1.0-alpha.86] - 2026-10-11
 
 ### Fixed

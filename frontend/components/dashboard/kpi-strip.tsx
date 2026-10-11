@@ -17,7 +17,7 @@ import { rollup } from "@/lib/overview";
 import { regionName } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 
-function Kpi({ index, icon: Icon, tone, label, info, value, unit, delta, spark, sparkColor, foot, loading, empty }: {
+export function Kpi({ index, icon: Icon, tone, label, info, value, unit, delta, spark, sparkColor, foot, loading, empty }: {
   index: number; icon: typeof Leaf; tone: string; label: string; info?: string; value: ReactNode | null; unit?: string; delta?: ReactNode;
   spark?: number[]; sparkColor?: string; foot?: ReactNode; loading: boolean; empty?: ReactNode;
 }) {
