@@ -35,7 +35,7 @@ export function ConnectedAccounts() {
             const st = stateOf(c.key);
             return (
               <li key={c.key} className="rise" style={{ "--i": i + 2 } as CSSProperties}>
-                <Link href={c.key === "kubernetes" ? "/kubernetes" : "/connectors"} className="group flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-colors hover:bg-slate-50">
+                <Link href={c.key === "kubernetes" ? "/kubernetes" : st ? "/connectors" : `/connectors?connect=${c.key}`} className="group flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-colors hover:bg-slate-50">
                   <span className={cn("flex size-11 items-center justify-center rounded-full transition-transform duration-300 group-hover:scale-110", c.tile)}><c.icon className="size-5" strokeWidth={1.8} /></span>
                   <span className="text-sm font-medium">{c.label}</span>
                   {st === "attention" ? <span className="flex items-center gap-1 text-[11px] font-medium text-bad"><span className="size-1.5 rounded-full bg-bad" />{t("connection.state.attention")}</span>

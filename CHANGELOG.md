@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.74] - 2026-10-11
+
+### Changed
+- **The sign-in page is new**: a dark scene with the dashboard's dot-matrix world held low and alive (cloud regions
+  pulse, light travels between them along arcs, soft aurora behind), the phoenix and a headline for GreenOps and
+  FinOps on the left, a frosted form on the right. It stands still with reduced motion. The form, the forgot-password
+  flow and the identity-provider hand-off are unchanged; passwords and second factors are still typed only on the
+  provider's page.
+- **Overview: regions and the right column are interactive.** Each used region is a card with its grid intensity, paired
+  CO₂e and cost bars and, when no comparison is possible because no regions are allowed, a link that says so and
+  goes to the policy. Connected-accounts tiles lead to the connect panel of that cloud; recent events lead to the
+  screen that holds them.
+
 ## [0.1.0-alpha.73] - 2026-10-11
 
 ### Changed

@@ -816,5 +816,6 @@
   "ov2.setup.budget": "Set a monthly budget",
   "ov2.setup.budget_why": "Enables budget burn, forecast against budget and alerts.",
   "ov2.setup.notify": "Add a notification destination",
-  "ov2.setup.notify_why": "Get budget, anomaly and connection alerts by e-mail, Slack or webhook."
+  "ov2.setup.notify_why": "Get budget, anomaly and connection alerts by e-mail, Slack or webhook.",
+  "ov2.reg.blocked": "Allow regions for this project to compare with cleaner ones"
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BarChart3, Leaf, ShieldCheck, Workflow } from "lucide-react";
 import { LoginBackdrop } from "@/components/auth/login-backdrop";
 import { LoginForm } from "@/components/auth/login-form";
 import { Logo } from "@/components/layout/logo";
@@ -10,6 +11,13 @@ import { getUser } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in · Reliabilix GreenOps" };
 
+const POINTS = [
+  { icon: BarChart3, title: "Cost and carbon, side by side", text: "Every service, region and workload on one bill and one footprint." },
+  { icon: Leaf, title: "Measured against the grid", text: "Emissions from real grid intensity, with the basis shown, not hidden." },
+  { icon: Workflow, title: "From insight to action", text: "Region moves, rightsizing and time shifting, approved by people." },
+  { icon: ShieldCheck, title: "Built to be trusted", text: "Isolated per organization; secrets sealed; every change on the record." },
+];
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; preview?: string; error?: string }> }) {
   const q = await searchParams;
   const dev = devAuthEnabled();
@@ -17,23 +25,47 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (!(dev && q.preview !== undefined) && (await getUser())) redirect(safeReturnTo(q.returnTo));
   const returnTo = safeReturnTo(q.returnTo);
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-5 sm:p-8">
+    <main className="relative min-h-screen overflow-hidden text-white">
       <LoginBackdrop />
-      <div className="sign-in-rise relative z-10 w-full max-w-[400px]">
-        <div className="sign-in-card rounded-2xl p-7 sm:p-9">
-          <div className="mb-7 flex items-center gap-3">
-            <Logo className="size-10" />
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1240px] items-center gap-12 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-10">
+        <section className="hidden lg:block">
+          <div className="login-reveal flex items-center gap-3.5" style={{ "--i": 0 } as React.CSSProperties}>
+            <Logo className="h-14 w-11" />
             <span className="leading-tight">
-              <span className="block text-lg font-bold tracking-tight text-slate-900">Reliabilix Systems</span>
-              <span className="block text-xs font-medium text-emerald-700">GreenOps Platform</span>
+              <span className="block text-2xl font-bold tracking-tight">Reliabilix</span>
+              <span className="block text-xs font-medium uppercase tracking-[0.22em] text-emerald-300/90">Systems</span>
             </span>
           </div>
-          <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} devLogin={devLoginEnabled()} error={q.error} />
+          <h1 className="login-reveal mt-10 max-w-xl text-[44px] font-bold leading-[1.08] tracking-tight" style={{ "--i": 1 } as React.CSSProperties}>
+            A greener cloud.<br /><span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-sky-300 bg-clip-text text-transparent">A smarter bill.</span>
+          </h1>
+          <p className="login-reveal mt-4 max-w-lg text-[17px] leading-relaxed text-slate-300/90" style={{ "--i": 2 } as React.CSSProperties}>
+            GreenOps and FinOps in one place: see what your cloud costs and what it emits, then do something about both.
+          </p>
+          <ul className="mt-9 grid max-w-xl gap-4 sm:grid-cols-2">
+            {POINTS.map((p, i) => (
+              <li key={p.title} className="login-reveal flex gap-3" style={{ "--i": i + 3 } as React.CSSProperties}>
+                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-emerald-300 ring-1 ring-white/10 backdrop-blur"><p.icon className="size-[18px]" strokeWidth={1.8} /></span>
+                <span>
+                  <span className="block text-sm font-semibold text-white">{p.title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-slate-400">{p.text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className="login-card-in w-full lg:justify-self-end">
+          <div className="mb-6 flex items-center gap-3 lg:hidden">
+            <Logo className="h-11 w-9" />
+            <span className="leading-tight"><span className="block text-xl font-bold">Reliabilix</span><span className="block text-xs font-medium uppercase tracking-[0.2em] text-emerald-300/90">Systems</span></span>
+          </div>
+          <div className="login-card rounded-3xl p-7 sm:p-9">
+            <LoginForm mode={dev ? "dev" : "auth0"} returnTo={returnTo} devLogin={devLoginEnabled()} error={q.error} />
+          </div>
+          <p className="mt-5 text-center text-[11px] text-slate-500">GreenOps Platform · Reliabilix Systems</p>
         </div>
       </div>
-      <p className="absolute inset-x-0 bottom-4 z-10 px-4 text-center text-[11px] text-white/75 [text-shadow:0_1px_2px_rgba(0,0,0,0.5)]">
-        Photos: Pierre Blaché and Zed Can77 (CC0, Wikimedia Commons)
-      </p>
     </main>
   );
 }

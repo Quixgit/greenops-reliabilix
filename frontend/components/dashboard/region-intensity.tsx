@@ -11,7 +11,7 @@ import { intensityColor } from "@/lib/intensity-color";
 import { useFinopsSummary, useRegionFootprint, useRegions } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { formatCarbon, formatCost, formatPct, nf } from "@/lib/formatters";
-import { REGION_LABEL, regionProvider } from "@/lib/regions";
+import { REGION_LABEL, regionName, regionProvider } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 
 // The map is a separate chunk loaded after the page is interactive; the placeholder keeps its exact size (no layout jump).
@@ -39,17 +39,33 @@ function RegionSummary({ rows, cur }: { rows: Row[]; cur: string }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t("ov.reg.where")}</p>
       {used.length === 0 ? <p className="text-sm text-muted">{t("ov.reg.no_resources")}</p> : (
         <ul className="space-y-2">
-          {used.map((r) => (
-            <li key={r.region} className="rounded-xl border border-line/70 px-3 py-2">
-              <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="min-w-0 truncate font-medium">{REGION_LABEL[r.region] ?? r.region}</span>
-                <span className="shrink-0 tabular-nums">{formatCarbon(r.f!.carbon_kg_co2e)}</span>
-              </div>
-              <div className="mt-0.5 flex justify-between text-xs text-muted">
-                <span className="font-mono">{r.region} · {regionProvider(r.region)}</span><span className="tabular-nums">{formatCost(r.f!.cost, cur)}</span>
-              </div>
-            </li>
-          ))}
+          {used.map((r, i) => {
+            const maxC = Math.max(...used.map((x) => x.f!.carbon_kg_co2e), 1), maxK = Math.max(...used.map((x) => x.f!.cost), 1);
+            const blocked = r.f?.relocation_blocked === "residency_unknown" && !r.f?.alternative;
+            return (
+              <li key={r.region} className="rise group rounded-xl border border-line/70 bg-white px-3 py-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm" style={{ "--i": i } as React.CSSProperties}>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2 font-medium">
+                    {r.g !== null && <span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/5" style={{ background: intensityColor(r.g) }} title={`${nf(0).format(r.g)} gCO₂e/kWh`} />}
+                    <span className="truncate">{regionName(r.region)}</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums">{formatCarbon(r.f!.carbon_kg_co2e)}</span>
+                </div>
+                <div className="mt-0.5 flex justify-between text-xs text-muted">
+                  <span className="font-mono">{r.region} · {regionProvider(r.region)}{r.g !== null ? ` · ${nf(0).format(r.g)} g` : ""}</span><span className="tabular-nums">{formatCost(r.f!.cost, cur)}</span>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <div className="h-1 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-emerald-400" style={{ width: `${Math.max(3, (r.f!.carbon_kg_co2e / maxC) * 100)}%`, "--d": `${i * 70}ms` } as React.CSSProperties} /></div>
+                  <div className="h-1 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-blue-400" style={{ width: `${Math.max(3, (r.f!.cost / maxK) * 100)}%`, "--d": `${i * 70 + 60}ms` } as React.CSSProperties} /></div>
+                </div>
+                {blocked && (
+                  <Link href="/settings#policies" className="mt-2 block rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-snug text-amber-900 ring-1 ring-amber-100 transition-colors hover:bg-amber-100">
+                    {t("ov2.reg.blocked")} →
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
       {stat(t("ov.reg.cleanest"), withG[0])}

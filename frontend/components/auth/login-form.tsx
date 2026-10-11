@@ -23,8 +23,8 @@ function GitHubMark() {
   );
 }
 
-const input = "block h-11 w-full rounded-lg border border-slate-200 bg-white/90 px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 disabled:bg-slate-50";
-const primary = "h-11 w-full rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-600 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-500 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60";
+const input = "block h-11 w-full rounded-lg border border-slate-200 bg-white/90 px-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-slate-50";
+const primary = "h-11 w-full rounded-xl bg-gradient-to-b from-teal-600 to-teal-700 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(15,118,110,0.7)] transition-all duration-200 hover:-translate-y-0.5 hover:from-teal-600 hover:to-teal-800 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-teal-600/40 disabled:opacity-60";
 const social = "flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-800 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/25";
 
 /**
@@ -91,7 +91,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
     <div className="space-y-6">
       <div>
         <h1 className="text-[26px] font-semibold tracking-tight text-slate-900">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">to Reliabilix GreenOps</p>
+        <p className="mt-1 text-sm text-slate-500">to your GreenOps and FinOps workspace</p>
       </div>
 
       {mode === "dev" && devLogin ? (
@@ -143,7 +143,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
             </div>
             <button type="submit" className={primary}>Continue</button>
             <div className="text-center">
-              <button type="button" onClick={() => setView("forgot")} className="text-sm font-medium text-emerald-700 hover:underline">Forgot your password?</button>
+              <button type="button" onClick={() => setView("forgot")} className="text-sm font-medium text-teal-700 hover:underline">Forgot your password?</button>
             </div>
           </form>
           <p className="text-center text-xs leading-relaxed text-slate-500">
