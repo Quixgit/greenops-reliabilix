@@ -126,7 +126,7 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
       </div>
       <Card>
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
-          <EmptyState icon={Lightbulb} text="No recommendations here yet. They appear after a cloud account is synced and carbon is calculated." /> : (
+          <EmptyState icon={Lightbulb} text="No recommendations here yet. They appear after a cloud account is synced and carbon is calculated. Moves to a cleaner region are only proposed into regions you allow: set the allowed regions in a project's policy." action={{ href: "/settings", label: "Open project policy" }} /> : (
             <ul className="divide-y divide-line/70">{q.data!.map((r) => <Row key={r.id} r={r} canDecide={canDecide} canPlan={canPlan} />)}</ul>
           )}
       </Card>

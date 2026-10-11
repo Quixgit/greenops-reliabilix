@@ -3,14 +3,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ProviderMark } from "@/components/connectors/provider-mark";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Badge, statusTone } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useConnection, useSyncRuns } from "@/hooks/use-overview";
+import { useConnection, useConnectionCosts, useProjects, useSyncRuns } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { connectionState, stateTone } from "@/lib/connection-state";
-import { api } from "@/lib/api/client";
+import { api, apiVoid } from "@/lib/api/client";
+import { formatCost } from "@/lib/formatters";
 import { z } from "zod";
 import type { DataQuality } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
@@ -44,6 +48,13 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
   const qc = useQueryClient();
   const conn = useConnection(id);
   const runs = useSyncRuns(id);
+  const router = useRouter();
+  const projects = useProjects();
+  const costs = useConnectionCosts();
+  const disconnect = useMutation({
+    mutationFn: () => apiVoid(`cloud-accounts/${id}`, { method: "DELETE" }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ["connections"] }); router.push("/connectors"); },
+  });
   const act = useMutation({
     mutationFn: (what: "sync" | "verify") => api(`cloud-accounts/${id}/${what}`, z.unknown(), undefined, { method: "POST", body: "{}" }),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["connection", id] }); void qc.invalidateQueries({ queryKey: ["sync-runs", id] }); },
@@ -51,15 +62,19 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
   const c = conn.data?.connection;
   return (
     <div className="space-y-5">
-      <Link href="/connectors#accounts" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" />Connectors</Link>
+      <Link href="/connectors" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink"><ArrowLeft className="size-4" />Connectors</Link>
       {conn.isLoading ? <Skeleton className="h-32" /> : conn.isError || !c ? <ErrorState text="This account could not be loaded." /> : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold tracking-tight"><span className="uppercase">{c.provider}</span> <span className="font-medium text-muted">{c.account_ref}</span></h1>
+            <h1 className="flex items-center gap-3 text-2xl font-bold tracking-tight">
+              <ProviderMark id={c.provider} size="lg" />
+              <span><span className="uppercase">{c.provider}</span> <span className="font-medium text-muted">{c.account_ref}</span></span>
+            </h1>
             {canWrite && (
               <div className="flex gap-2">
                 <button disabled={act.isPending} onClick={() => act.mutate("verify")} className="rounded-lg px-3 py-1.5 text-sm font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60">Test connection</button>
                 <button disabled={act.isPending} onClick={() => act.mutate("sync")} className="rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60">Sync now</button>
+                <ConfirmButton label={t("account.disconnect")} confirmLabel={t("account.disconnect_confirm")} disabled={disconnect.isPending} onConfirm={() => disconnect.mutate()} className="px-3 py-1.5 text-sm" />
               </div>
             )}
           </div>
@@ -68,9 +83,12 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
             <Card index={0}>
               <CardHeader title="Connection" />
               <dl className="grid grid-cols-[130px_1fr] gap-y-2 text-sm">
+                <dt className="text-muted">{t("connectors.col.project")}</dt><dd>{projects.data?.find((p) => p.id === c.project_id)?.name ?? "—"}</dd>
+                <dt className="text-muted">{t("connectors.col.access")}</dt><dd>{t(`connectors.access.${c.access || "role"}`)}</dd>
                 <dt className="text-muted">Status</dt><dd><Badge tone={stateTone(connectionState(c))}>{t(`connection.state.${connectionState(c)}`)}</Badge></dd>
                 <dt className="text-muted">Last sync</dt><dd>{c.last_sync_at ? shortTime(c.last_sync_at) : "never"}</dd>
                 <dt className="text-muted">Data read up to</dt><dd>{c.synced_through ? shortTime(c.synced_through) : "—"}</dd>
+                {(() => { const m = costs.data?.find((x) => x.connection_id === c.id); return m ? <><dt className="text-muted">{t("account.cost")}</dt><dd>{formatCost(m.cost)} · {t("connectors.days_with_data", { count: m.days })}</dd></> : null; })()}
                 <dt className="text-muted">Last error</dt><dd className={c.last_error ? "text-bad" : ""}>{c.last_error ?? "none"}</dd>
               </dl>
             </Card>
@@ -79,7 +97,14 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
               <Quality q={c.data_quality} />
             </Card>
           </div>
-          <Card index={2}>
+          {(conn.data?.setup?.steps?.length ?? 0) > 0 && (
+            <Card index={2}>
+              <CardHeader title={t("account.how_to_fix")} />
+              <ol className="list-decimal space-y-2 pl-5 text-sm">{conn.data!.setup!.steps!.map((st, i) => <li key={i} className="break-words">{st}</li>)}</ol>
+            </Card>
+          )}
+          {disconnect.isError && <p role="alert" className="text-sm text-bad">{disconnect.error.message}</p>}
+          <Card index={3}>
             <CardHeader title="Sync history" />
             {runs.isLoading ? <Skeleton className="h-24" /> : runs.isError ? <ErrorState /> : runs.data!.length === 0 ? <EmptyState icon={ArrowLeft} text="No synchronization has run yet." /> : (
               <div className="overflow-x-auto">

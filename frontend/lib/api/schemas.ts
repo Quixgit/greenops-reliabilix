@@ -483,9 +483,12 @@ export type DataQuality = z.infer<typeof dataQuality>;
 export const connectionDetail = z.object({
   connection: z.object({
     id: z.string(), project_id: z.string(), provider: z.string(), account_ref: z.string(), sync_status: z.string(),
+    credential_ref: z.string().optional(), access: z.string().optional(),
     last_error: z.string().nullable(), last_sync_at: z.string().nullable(), synced_through: z.string().nullable(),
     data_quality: dataQuality.nullable(),
   }),
+  // What the customer has to set up on their side (the steps, the permissions); there is no secret in it.
+  setup: z.object({ steps: z.array(z.string()).nullish(), required_permissions: z.array(z.string()).nullish() }).optional(),
 });
 export const syncRun = z.object({
   id: z.string(), started_at: z.string(), finished_at: z.string().nullable(), status: z.string(), records: z.number(),

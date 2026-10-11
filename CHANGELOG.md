@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.68] - 2026-10-11
+
+### Changed
+- **The connection page says what the connection is and what to do** (it showed neither before): the project it belongs
+  to, how the platform authenticates (IAM role, access key, service account key, service principal, shared dataset,
+  export), the cost and days with data of the period, and, from the API's own setup text, the steps to set up on the
+  customer's side. A failed "Test connection" is no longer a dead end.
+- **A connection can be disconnected from its page** (two clicks). Its cost history stays; connecting the same account
+  again updates those lines.
+- The empty Recommendations page says why it is empty beyond "not synced yet": a move to a cleaner region is only
+  proposed into regions the project's policy allows, and links to where they are set.
+- Gap list: stand-wide check after removing the demo data (all customer read endpoints answer, empty states are honest).
+
 ## [0.1.0-alpha.67] - 2026-10-11
 
 ### Fixed
