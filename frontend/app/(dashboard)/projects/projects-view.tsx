@@ -80,14 +80,14 @@ function ProjectCard({ p, index, total, pol, onOpen, canDelete }: { p: Project; 
         </button>
       )}
       {confirm && (
-        <div className="del-wipe absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-[#fdf1f3] px-6 py-6 text-center ring-1 ring-[#eba7b3]">
-          <IconTrash className="size-10 text-[#d9707f]" strokeWidth={1.4} />
-          <p className="text-sm font-semibold text-ink">{t("proj.delete_ask", { name: p.name })}</p>
-          <p className="max-w-[18rem] text-xs leading-snug text-slate-500">{t("proj.delete_hint")}</p>
-          {del.isError && <p role="alert" className="max-w-[18rem] text-xs font-medium text-[#c25667]">{del.error.message}</p>}
-          <div className="mt-1 grid w-full max-w-[18rem] grid-cols-2 gap-3">
-            <button type="button" onClick={() => setConfirm(false)} className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:text-ink">{t("common.cancel")}</button>
-            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#e08b98] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#d9707f] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
+        <div className="del-wipe absolute inset-0 z-20 flex flex-col justify-center gap-2.5 overflow-hidden rounded-2xl bg-[#fdf1f3] px-5 py-4 ring-1 ring-[#eba7b3]">
+          <p className="flex items-center gap-2 pr-10 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#d9707f]" strokeWidth={1.6} /><span className="truncate">{t("proj.delete_ask", { name: p.name })}</span></p>
+          {del.isError
+            ? <p role="alert" className="line-clamp-3 text-xs font-medium leading-snug text-[#c25667]">{del.error.message}</p>
+            : <p className="line-clamp-2 text-xs leading-snug text-slate-500">{t("proj.delete_hint")}</p>}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button type="button" onClick={() => setConfirm(false)} className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:text-ink">{t("common.cancel")}</button>
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#e08b98] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#d9707f] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
           </div>
         </div>
       )}

@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.86] - 2026-10-11
+
+### Fixed
+- The delete confirmation fits inside the project card: a compact layout (title, a two-line note, the two buttons) that
+  never overflows the card's lower edge, with the note replaced by the reason when the server refuses.
+
 ## [0.1.0-alpha.85] - 2026-10-11
 
 ### Fixed
