@@ -88,6 +88,14 @@ func (f *fakeStore) Origins(context.Context, string, *string, time.Time, time.Ti
 	return nil, nil
 }
 
+func (f *fakeStore) RecordGate(context.Context, string, domain.GateEvaluation) error { return nil }
+func (f *fakeStore) GateEvaluations(context.Context, string, *string, string, time.Time, time.Time, int) ([]domain.GateEvaluation, error) {
+	return nil, nil
+}
+func (f *fakeStore) GateSummary(context.Context, string, *string, time.Time, time.Time) (domain.GateSummary, error) {
+	return domain.GateSummary{}, nil
+}
+
 type usageSrc struct{ rows []domain.UsageDay }
 
 func (u usageSrc) DailyAggregates(context.Context, string, string, time.Time, time.Time) ([]domain.UsageDay, error) {

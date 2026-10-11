@@ -34,6 +34,7 @@ func (h Handlers) Routes(r chi.Router) {
 	// CI gate: reachable with an API key (role ci) as well as by people who may compute carbon.
 	r.With(auth.Require(auth.PermCIEvaluate)).Post("/ci/evaluate", h.evaluate)
 	r.With(auth.Require(auth.PermCIEvaluate)).Get("/ci/schedule", h.schedule)
+	r.With(auth.Require(auth.PermCarbonRead)).Get("/ci/evaluations", h.evaluations)
 }
 
 type totalsJSON struct {
@@ -326,8 +327,42 @@ func (h Handlers) evaluate(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		httpx.WriteProblem(w, r, http.StatusBadGateway, "carbon data unavailable", "")
 	default:
+		source := "console"
+		if c.KeyID != "" {
+			source = "api_key"
+		}
+		h.Svc.RecordGate(r.Context(), c.TenantID, source, req, res) // best effort: never changes the answer
 		httpx.WriteJSON(w, http.StatusOK, res)
 	}
+}
+
+// evaluations lists the recorded CI gate decisions of a window with the counts by verdict.
+func (h Handlers) evaluations(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	from, to, project, ok := query(w, r)
+	if !ok {
+		return
+	}
+	verdict := r.URL.Query().Get("verdict")
+	if verdict != "" && verdict != "PASS" && verdict != "WARN" && verdict != "BLOCK" {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "verdict must be PASS, WARN or BLOCK")
+		return
+	}
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "limit must be 1-500")
+			return
+		}
+		limit = n
+	}
+	items, sum, err := h.Svc.GateHistory(r.Context(), c.TenantID, project, verdict, from, to, limit)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "summary": sum})
 }
 
 // schedule answers when to start a flexible job (CI pipeline, backup, batch) to use the cleanest grid hours, from stored

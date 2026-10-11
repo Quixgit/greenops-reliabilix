@@ -94,3 +94,30 @@ type RegionCoverage struct {
 	Covered int
 	Total   int
 }
+
+// GateEvaluation is one recorded CI gate decision.
+type GateEvaluation struct {
+	ID                string    `json:"id"`
+	ProjectID         string    `json:"project_id"`
+	Verdict           Verdict   `json:"verdict"`
+	CarbonKgMonth     float64   `json:"carbon_kg_month"`
+	CostDeltaMonth    float64   `json:"cost_delta_month"`
+	Reasons           []string  `json:"reasons"`
+	Changes           int       `json:"changes"`
+	Regions           []string  `json:"regions"`
+	ThresholdsApplied bool      `json:"thresholds_applied"`
+	Source            string    `json:"source"` // api_key | console
+	Ref               string    `json:"ref,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+// GateSummary counts the evaluations of a window by verdict. CarbonBlockedKg is the monthly carbon of the changes the
+// gate blocked: what was kept from being added, never a measured saving.
+type GateSummary struct {
+	Total           int     `json:"total"`
+	Pass            int     `json:"pass"`
+	Warn            int     `json:"warn"`
+	Block           int     `json:"block"`
+	CarbonBlockedKg float64 `json:"carbon_blocked_kg_month"`
+	CostBlocked     float64 `json:"cost_blocked_month"`
+}

@@ -5,6 +5,19 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.95] - 2026-10-11
+
+### Added
+- **CI gate decisions are recorded** (migration 0054, `carbon.gate_evaluations`): every `POST /ci/evaluate` keeps the
+  project, verdict, carbon and cost of the change, reasons, source (pipeline key or console) and an optional `ref`.
+  `GET /api/v1/ci/evaluations` lists a window with counts by verdict and the monthly carbon of the blocked changes.
+  The records are part of the data export and of organization erasure.
+
+### Changed
+- **CI/CD page built** (it was a placeholder): gate statistics, a "try the gate" form that makes the same call as a
+  pipeline, the limits per project with an in-place editor, CI keys with ready GitHub Actions / GitLab CI / schedule
+  snippets, and the history of decisions with filters.
+
 ## [0.1.0-alpha.94] - 2026-10-11
 
 ### Added

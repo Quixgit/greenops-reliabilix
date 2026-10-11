@@ -2313,6 +2313,60 @@ paths:
           $ref: '#/components/responses/Problem'
         '422':
           $ref: '#/components/responses/Problem'
+  /api/v1/ci/evaluations:
+    get:
+      operationId: listCiEvaluations
+      summary: Recorded CI gate decisions of a window, with counts by verdict
+      tags:
+      - ci
+      description: Requires permission `carbon:read`. Every call of `/ci/evaluate` is recorded (project, verdict, carbon and cost of the change, reasons, source, optional `ref`).
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - {name: verdict, in: query, schema: {type: string, enum: [PASS, WARN, BLOCK]}}
+      - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, summary]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: {type: string, format: uuid}
+                        project_id: {type: string, format: uuid}
+                        verdict: {type: string, enum: [PASS, WARN, BLOCK]}
+                        carbon_kg_month: {type: number}
+                        cost_delta_month: {type: number}
+                        reasons: {type: array, items: {type: string}}
+                        changes: {type: integer}
+                        regions: {type: array, items: {type: string}}
+                        thresholds_applied: {type: boolean}
+                        source: {type: string, enum: [api_key, console]}
+                        ref: {type: string}
+                        created_at: {type: string, format: date-time}
+                  summary:
+                    type: object
+                    properties:
+                      total: {type: integer}
+                      pass: {type: integer}
+                      warn: {type: integer}
+                      block: {type: integer}
+                      carbon_blocked_kg_month: {type: number}
+                      cost_blocked_month: {type: number}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/ci/evaluate:
     post:
       operationId: evaluateCiGate
@@ -6069,6 +6123,10 @@ components:
         project_id:
           type: string
           format: uuid
+        ref:
+          type: string
+          maxLength: 200
+          description: Optional label of what is gated (a pipeline run, a commit); kept with the recorded decision.
         changes:
           type: array
           items:

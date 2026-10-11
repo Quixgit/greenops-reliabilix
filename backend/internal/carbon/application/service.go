@@ -42,6 +42,10 @@ type Store interface {
 	// Regions lists the regions an organization has carbon in; Origins breaks a window's carbon down by intensity source.
 	Regions(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.RegionCarbon, error)
 	Origins(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.IntensityOrigin, error)
+	// RecordGate keeps one CI gate decision; GateEvaluations lists them newest first and GateSummary counts a window.
+	RecordGate(ctx context.Context, tenantID string, e domain.GateEvaluation) error
+	GateEvaluations(ctx context.Context, tenantID string, project *string, verdict string, from, to time.Time, limit int) ([]domain.GateEvaluation, error)
+	GateSummary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.GateSummary, error)
 }
 
 // MonthlyProvider returns a source's published monthly national averages for a cloud region.
@@ -508,7 +512,9 @@ type Change struct {
 }
 
 type GateRequest struct {
-	ProjectID  string           `json:"project_id"`
+	ProjectID string `json:"project_id"`
+	// Ref is an optional label of what is being gated (a pipeline run, a commit), kept with the decision.
+	Ref        string           `json:"ref"`
 	Changes    []Change         `json:"changes"`
 	Thresholds *ThresholdsInput `json:"thresholds"`
 }
@@ -825,4 +831,39 @@ func (s *Service) ScheduleAdvice(ctx context.Context, region string, duration, w
 		}
 	}
 	return domain.BestWindow{}, "", domain.ErrNoForecast
+}
+
+// RecordGate keeps the decision of one evaluation. It is best effort: a failure to record must not change the answer.
+func (s *Service) RecordGate(ctx context.Context, tenantID, source string, req GateRequest, res GateResponse) {
+	regions := []string{}
+	seen := map[string]bool{}
+	for _, c := range req.Changes {
+		if !seen[c.Region] {
+			seen[c.Region] = true
+			regions = append(regions, c.Region)
+		}
+	}
+	ref := strings.TrimSpace(req.Ref)
+	if len(ref) > 200 {
+		ref = ref[:200]
+	}
+	reasons := res.Reasons
+	if reasons == nil {
+		reasons = []string{}
+	}
+	e := domain.GateEvaluation{ProjectID: req.ProjectID, Verdict: res.Verdict, CarbonKgMonth: res.CarbonKgMonth, CostDeltaMonth: res.CostDeltaMonth,
+		Reasons: reasons, Changes: len(req.Changes), Regions: regions, ThresholdsApplied: res.ThresholdsApplied, Source: source, Ref: ref}
+	if err := s.Store.RecordGate(ctx, tenantID, e); err != nil && s.Log != nil {
+		s.Log.Warn("ci gate: could not record the evaluation", "tenant", tenantID, "err", err)
+	}
+}
+
+// GateHistory lists the recorded evaluations of a window with the counts for it.
+func (s *Service) GateHistory(ctx context.Context, tenantID string, project *string, verdict string, from, to time.Time, limit int) ([]domain.GateEvaluation, domain.GateSummary, error) {
+	items, err := s.Store.GateEvaluations(ctx, tenantID, project, verdict, from, to, limit)
+	if err != nil {
+		return nil, domain.GateSummary{}, err
+	}
+	sum, err := s.Store.GateSummary(ctx, tenantID, project, from, to)
+	return items, sum, err
 }

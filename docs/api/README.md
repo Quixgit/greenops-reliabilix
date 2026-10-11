@@ -49,6 +49,7 @@ curl -sS -X POST https://api.reliabilix.green/api/v1/ci/evaluate \
 ```
 
 Thresholds omitted in the request fall back to the project policy. Only increases count; reductions never block.
+Every call is recorded (`GET /ci/evaluations` lists the decisions of a window with counts by verdict; an optional `ref` in the request labels the run).
 A reusable GitHub Action wrapping this call (`reliabilix/greenops-ci-gate`) is a separate repository.
 
 ## Reports

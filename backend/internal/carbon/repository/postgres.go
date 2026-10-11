@@ -271,3 +271,59 @@ func (r Postgres) Forecast(ctx context.Context, region, provider string, from, t
 	}
 	return out, nil
 }
+
+// RecordGate keeps one CI gate decision.
+func (r Postgres) RecordGate(ctx context.Context, tenantID string, e domain.GateEvaluation) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		var ref *string
+		if e.Ref != "" {
+			ref = &e.Ref
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO carbon.gate_evaluations
+			(tenant_id, project_id, verdict, carbon_kg_month, cost_delta_month, reasons, changes, regions, thresholds_applied, source, ref)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+			tenantID, e.ProjectID, string(e.Verdict), e.CarbonKgMonth, e.CostDeltaMonth, e.Reasons, e.Changes, e.Regions, e.ThresholdsApplied, e.Source, ref)
+		return err
+	})
+}
+
+// GateEvaluations lists the recorded decisions of a window, newest first.
+func (r Postgres) GateEvaluations(ctx context.Context, tenantID string, project *string, verdict string, from, to time.Time, limit int) ([]domain.GateEvaluation, error) {
+	out := []domain.GateEvaluation{}
+	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT id::text, project_id::text, verdict, carbon_kg_month, cost_delta_month, reasons, changes, regions,
+				thresholds_applied, source, COALESCE(ref, ''), created_at
+			FROM carbon.gate_evaluations
+			WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3
+			  AND ($4::uuid IS NULL OR project_id = $4) AND ($5 = '' OR verdict = $5)
+			ORDER BY created_at DESC, id LIMIT $6`, tenantID, from, to, project, verdict, limit)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var e domain.GateEvaluation
+			var v string
+			if err := rows.Scan(&e.ID, &e.ProjectID, &v, &e.CarbonKgMonth, &e.CostDeltaMonth, &e.Reasons, &e.Changes, &e.Regions, &e.ThresholdsApplied, &e.Source, &e.Ref, &e.CreatedAt); err != nil {
+				return err
+			}
+			e.Verdict = domain.Verdict(v)
+			out = append(out, e)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
+
+// GateSummary counts a window's decisions by verdict.
+func (r Postgres) GateSummary(ctx context.Context, tenantID string, project *string, from, to time.Time) (s domain.GateSummary, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*)::int,
+				count(*) FILTER (WHERE verdict='PASS')::int, count(*) FILTER (WHERE verdict='WARN')::int, count(*) FILTER (WHERE verdict='BLOCK')::int,
+				COALESCE(sum(carbon_kg_month) FILTER (WHERE verdict='BLOCK'), 0)::float8, COALESCE(sum(GREATEST(cost_delta_month,0)) FILTER (WHERE verdict='BLOCK'), 0)::float8
+			FROM carbon.gate_evaluations
+			WHERE tenant_id = $1 AND created_at >= $2 AND created_at < $3 AND ($4::uuid IS NULL OR project_id = $4)`,
+			tenantID, from, to, project).Scan(&s.Total, &s.Pass, &s.Warn, &s.Block, &s.CarbonBlockedKg, &s.CostBlocked)
+	})
+	return
+}
