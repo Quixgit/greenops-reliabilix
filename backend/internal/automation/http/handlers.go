@@ -21,6 +21,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(read).Get("/automation/jobs", h.list)
 	r.With(write).Post("/automation/jobs", h.plan)
 	r.With(read).Get("/automation/jobs/{id}", h.get)
+	r.With(read).Get("/automation/jobs/{id}/history", h.history)
 	r.With(approve).Post("/automation/jobs/{id}/approve", h.approve)
 	r.With(write).Post("/automation/jobs/{id}/result", h.result)
 	r.With(write).Post("/automation/jobs/{id}/cancel", h.cancel)
@@ -95,6 +96,20 @@ func (h Handlers) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, j)
+}
+
+func (h Handlers) history(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := jobID(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.Svc.History(r.Context(), c.TenantID, id)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func (h Handlers) approve(w http.ResponseWriter, r *http.Request) {

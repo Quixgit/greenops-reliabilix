@@ -4,6 +4,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -126,10 +127,35 @@ func (r Postgres) Transition(ctx context.Context, tenantID, id string, to domain
 		if err != nil {
 			return err
 		}
-		return audit.Record(ctx, tx, "automation.job_"+string(to), "job:"+id, map[string]any{"kind": j.Kind, "recommendation": j.RecommendationID})
+		return audit.Record(ctx, tx, "automation.job_"+string(to), "job:"+id, map[string]any{"kind": j.Kind, "recommendation": j.RecommendationID, "note": note})
 	})
 	if err == nil { // return the persisted state (approver, timestamps, note)
 		j, err = r.Get(ctx, tenantID, id)
 	}
 	return
+}
+
+// History reads the audit trail of one job (oldest first). The note of a result is kept in the audit entry, so a
+// completed change later recorded as rolled back still shows both steps.
+func (r Postgres) History(ctx context.Context, tenantID, id string) ([]domain.HistoryEntry, error) {
+	out := []domain.HistoryEntry{}
+	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `SELECT action, actor_user_id, created_at, COALESCE(metadata->>'note', '')
+			FROM audit.audit_logs WHERE target = $1 AND action LIKE 'automation.job\_%' ORDER BY created_at, id`, "job:"+id)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var e domain.HistoryEntry
+			var action string
+			if err := rows.Scan(&action, &e.Actor, &e.At, &e.Note); err != nil {
+				return err
+			}
+			e.Action = strings.TrimPrefix(action, "automation.job_")
+			out = append(out, e)
+		}
+		return rows.Err()
+	})
+	return out, err
 }

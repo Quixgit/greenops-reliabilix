@@ -140,11 +140,22 @@ type RecommendationInfo struct {
 	Details           map[string]string
 }
 
+// HistoryEntry is one recorded step of a job, read from the audit trail: planned, approved, a reported result, a
+// withdrawal. Unlike the job row (which keeps only the latest finish), the history keeps every step.
+type HistoryEntry struct {
+	Action string    `json:"action"` // planned | approved | completed | failed | rolled_back | cancelled
+	Actor  string    `json:"actor"`
+	At     time.Time `json:"at"`
+	Note   string    `json:"note,omitempty"`
+}
+
 // Repository is tenant-scoped (explicit tenantID + RLS).
 type Repository interface {
 	Insert(ctx context.Context, tenantID string, j Job) (Job, error)
 	List(ctx context.Context, tenantID string, limit int) ([]Job, error)
 	Get(ctx context.Context, tenantID, id string) (Job, error)
+	// History lists every recorded step of one job, oldest first.
+	History(ctx context.Context, tenantID, id string) ([]HistoryEntry, error)
 	// Transition locks the row, validates the move, runs check against the current state, applies the change
 	// and audits it, atomically.
 	Transition(ctx context.Context, tenantID, id string, to Status, actor, note string, check func(current *Job) error) (Job, error)

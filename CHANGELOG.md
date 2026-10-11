@@ -5,6 +5,23 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.93] - 2026-10-11
+
+### Added
+- **Change plan history**: `GET /api/v1/automation/jobs/{id}/history` returns every recorded step of a plan from the
+  audit trail (planned, approved, applied / failed / rolled back, withdrawn) with who, when and the note. The plan row
+  keeps only the latest finish, so a change recorded as applied and later as rolled back now shows both steps; the
+  Automation page shows the history in each plan.
+- **Notifications for change plans**: two new event types, `automation.plan_approved` and `automation.result_reported`
+  (a warning when the change failed or was rolled back), published to the organization's destinations; destinations can
+  subscribe to them like to any other event.
+
+### Changed
+- **Kubernetes page rebuilt**: summary tiles (clusters, energy, CO₂e, possibly oversized workloads), a card per
+  cluster with freshness and share of energy, a split of the energy by namespace and by heaviest workload, the open
+  right-sizing recommendations with current and recommended requests, and a workload table with search, namespace,
+  oversized-only and sort, CPU and memory use as bars; a guided empty state when no agent has reported yet.
+
 ## [0.1.0-alpha.92] - 2026-10-11
 
 ### Changed

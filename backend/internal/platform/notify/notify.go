@@ -42,6 +42,8 @@ const (
 	TypeConnectionDataQuality  = "connection.data_quality"
 	TypeRecommendationVerified = "recommendation.verified"
 	TypeAlertOpened            = "alert.opened"
+	TypeAutomationApproved     = "automation.plan_approved"
+	TypeAutomationResult       = "automation.result_reported"
 	TypeNotificationTest       = "notification.test" // only ever sent by the "send a test" action
 )
 
@@ -64,6 +66,8 @@ func Catalog() []TypeInfo {
 		{TypeConnectionDataQuality, "Stored cost data differs from the totals the cloud reports for some days", Warning},
 		{TypeAlertOpened, "A budget or connection alert was opened", Warning},
 		{TypeRecommendationVerified, "The measured result of an applied recommendation is available", Info},
+		{TypeAutomationApproved, "A change plan was approved and is ready to be applied", Info},
+		{TypeAutomationResult, "The result of applying a change plan was reported (applied, failed or rolled back)", Info},
 	}
 }
 

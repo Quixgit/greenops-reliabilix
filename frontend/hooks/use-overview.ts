@@ -92,7 +92,7 @@ export const useK8sClusters = () => {
 };
 export const useK8sWorkloads = (cluster: string) => {
   const f = useFilters();
-  return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "50" }) });
+  return useQuery({ queryKey: ["k8s-workloads", f, cluster], queryFn: () => api("kubernetes/workloads", s.k8sWorkloads, { ...f, cluster: cluster || undefined, limit: "200" }) });
 };
 export const useTeams = () => useQuery({ queryKey: ["teams"], queryFn: () => api("teams", s.teams) });
 export const useEnvironments = () => useQuery({ queryKey: ["environments"], queryFn: () => api("environments", s.environments) });

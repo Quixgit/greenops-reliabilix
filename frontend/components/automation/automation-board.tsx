@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
@@ -154,6 +155,30 @@ function ResultForm({ job, rolledBackOnly, onDone }: { job: AutomationJob; rolle
   );
 }
 
+const historySchema = z.object({ items: z.array(z.object({ action: z.string(), actor: z.string(), at: z.string(), note: z.string().nullish() })) });
+
+/** Every recorded step of the plan from the audit trail, including those the plan row has since overwritten. */
+function History({ id }: { id: string }) {
+  const t = useT();
+  const q = useQuery({ queryKey: ["automation-history", id], queryFn: () => api(`automation/jobs/${id}/history`, historySchema) });
+  const rows = q.data?.items ?? [];
+  if (q.isLoading || rows.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("au.history")}</p>
+      <ol className="relative space-y-3 border-l border-line pl-5">
+        {rows.map((e, i) => (
+          <li key={i} className="relative text-sm">
+            <span className={cn("absolute -left-[26px] top-1.5 size-2.5 rounded-full ring-4 ring-white", e.action === "failed" || e.action === "rolled_back" ? "bg-[#e08b98]" : e.action === "cancelled" ? "bg-slate-300" : "bg-leaf")} />
+            <p className="font-semibold text-ink">{t(`au.hist.${e.action}`, undefined, e.action)} <span className="font-normal text-muted">· {e.actor} · {timeAgo(e.at)}</span></p>
+            {e.note && <p className="mt-0.5 text-slate-600">{e.note}</p>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function Dot({ on, bad, label, sub }: { on: boolean; bad?: boolean; label: string; sub?: string }) {
   return (
     <li className="flex items-start gap-2.5">
@@ -230,7 +255,7 @@ function JobCard({ job, rec, project, canAct, index }: { job: AutomationJob; rec
                 <p className="whitespace-pre-line text-sm text-slate-600">{job.rollback_plan}</p>
               </div>
             )}
-            {job.result_note && <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-line">{job.result_note}</p>}
+            {open && <History id={job.id} />}
             <div className="flex flex-wrap items-center gap-2">
               {canAct && job.status === "planned" && <button type="button" className="btn-leaf rounded-xl px-4 py-2 text-sm font-semibold" disabled={act.isPending} onClick={() => act.mutate("approve")}>{t("automation.approve")}</button>}
               {canAct && job.status === "approved" && <button type="button" className="btn-leaf rounded-xl px-4 py-2 text-sm font-semibold" disabled={act.isPending} onClick={() => setReporting(!reporting)}>{t("automation.report")}</button>}

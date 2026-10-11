@@ -8,6 +8,7 @@ import (
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/automation/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 )
 
 type fakeRecs struct {
@@ -43,6 +44,9 @@ func (m *memRepo) Insert(_ context.Context, _ string, j domain.Job) (domain.Job,
 	j.ID, j.Status = "job1", domain.Planned
 	m.job = &j
 	return j, nil
+}
+func (m *memRepo) History(context.Context, string, string) ([]domain.HistoryEntry, error) {
+	return []domain.HistoryEntry{{Action: "planned", Actor: "alice"}}, nil
 }
 func (m *memRepo) List(context.Context, string, int) ([]domain.Job, error) { return nil, nil }
 func (m *memRepo) Get(context.Context, string, string) (domain.Job, error) {
@@ -190,5 +194,40 @@ func TestCancel(t *testing.T) {
 	}
 	if _, err := s.Plan(ctx, "t", alice, "r1"); err != nil {
 		t.Fatalf("a cancelled job frees the recommendation for a new plan: %v", err)
+	}
+}
+
+type recordingNotifier struct{ events []notify.Event }
+
+func (r *recordingNotifier) Publish(_ context.Context, _ string, e notify.Event) error {
+	r.events = append(r.events, e)
+	return nil
+}
+
+func TestApprovalAndResultAreAnnounced(t *testing.T) {
+	n := &recordingNotifier{}
+	s := Service{Repo: &memRepo{}, Recs: approvedRegionShift(), Notify: n}
+	ctx := context.Background()
+	if _, err := s.Plan(ctx, "t", alice, "r1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Approve(ctx, "t", "job1", alice); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Report(ctx, "t", "job1", alice, domain.OutcomeFailed, "the window was missed"); err != nil {
+		t.Fatal(err)
+	}
+	if len(n.events) != 2 || n.events[0].Type != notify.TypeAutomationApproved || n.events[1].Type != notify.TypeAutomationResult || n.events[1].Severity != notify.Warning {
+		t.Fatalf("events: %+v", n.events)
+	}
+	if err := n.events[0].Validate(); err != nil {
+		t.Fatalf("the approval event must be valid: %v", err)
+	}
+}
+
+func TestHistoryNeedsAnExistingJob(t *testing.T) {
+	s := Service{Repo: &memRepo{}, Recs: approvedRegionShift()}
+	if _, err := s.History(context.Background(), "t", "nope"); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("got %v", err)
 	}
 }
