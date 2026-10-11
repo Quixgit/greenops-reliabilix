@@ -11,7 +11,7 @@ import (
 )
 
 const dashboardActivity = `-- name: DashboardActivity :many
-SELECT id, action, target, created_at FROM audit.audit_logs
+SELECT id, action, target, created_at, metadata FROM audit.audit_logs
 WHERE tenant_id = $1 AND action = ANY($2::text[])
 ORDER BY created_at DESC LIMIT $3
 `
@@ -27,6 +27,7 @@ type DashboardActivityRow struct {
 	Action    string    `json:"action"`
 	Target    string    `json:"target"`
 	CreatedAt time.Time `json:"created_at"`
+	Metadata  []byte    `json:"metadata"`
 }
 
 func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityParams) ([]DashboardActivityRow, error) {
@@ -43,6 +44,7 @@ func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityPa
 			&i.Action,
 			&i.Target,
 			&i.CreatedAt,
+			&i.Metadata,
 		); err != nil {
 			return nil, err
 		}
@@ -254,10 +256,11 @@ func (q *Queries) DashboardPotential(ctx context.Context, arg DashboardPotential
 }
 
 const dashboardPriceIndex = `-- name: DashboardPriceIndex :many
-SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = 'aws'
+SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider IN ('aws', 'azure', 'gcp', 'azure:postgresql', 'azure:redis')
 `
 
 type DashboardPriceIndexRow struct {
+	Family   string  `json:"family"`
 	RegionID string  `json:"region_id"`
 	Idx      float64 `json:"idx"`
 }
@@ -271,7 +274,7 @@ func (q *Queries) DashboardPriceIndex(ctx context.Context) ([]DashboardPriceInde
 	items := []DashboardPriceIndexRow{}
 	for rows.Next() {
 		var i DashboardPriceIndexRow
-		if err := rows.Scan(&i.RegionID, &i.Idx); err != nil {
+		if err := rows.Scan(&i.Family, &i.RegionID, &i.Idx); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -432,14 +435,18 @@ func (q *Queries) DashboardRegionCost(ctx context.Context, arg DashboardRegionCo
 }
 
 const dashboardRegionEC2Cost = `-- name: DashboardRegionEC2Cost :many
-SELECT u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+SELECT u.region_id, CASE WHEN u.provider = 'aws' THEN 'aws' WHEN u.provider = 'gcp' THEN 'gcp'
+       WHEN lower(u.service_name) = 'virtual machines' THEN 'azure'
+       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
     GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
-  AND u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%'
-GROUP BY 1
+  AND ((u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%')
+    OR (u.provider = 'azure' AND lower(u.service_name) IN ('virtual machines', 'azure database for postgresql', 'redis cache', 'azure cache for redis'))
+    OR (u.provider = 'gcp' AND lower(u.service_name) = 'compute engine'))
+GROUP BY 1, 2
 `
 
 type DashboardRegionEC2CostParams struct {
@@ -451,6 +458,7 @@ type DashboardRegionEC2CostParams struct {
 
 type DashboardRegionEC2CostRow struct {
 	RegionID string  `json:"region_id"`
+	Family   string  `json:"family"`
 	Cost     float64 `json:"cost"`
 }
 
@@ -469,7 +477,7 @@ func (q *Queries) DashboardRegionEC2Cost(ctx context.Context, arg DashboardRegio
 	items := []DashboardRegionEC2CostRow{}
 	for rows.Next() {
 		var i DashboardRegionEC2CostRow
-		if err := rows.Scan(&i.RegionID, &i.Cost); err != nil {
+		if err := rows.Scan(&i.RegionID, &i.Family, &i.Cost); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -536,17 +544,27 @@ func (q *Queries) DashboardRegionResidency(ctx context.Context, arg DashboardReg
 }
 
 const dashboardRegions = `-- name: DashboardRegions :many
-WITH latest AS (
+WITH newest AS (
   SELECT DISTINCT ON (region_id) region_id, provider, g_co2e_per_kwh AS g, ts FROM carbon.grid_intensity
   WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
-  ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC
+  ORDER BY region_id, (ts < now() - carbon.source_max_age(provider)), array_position(carbon.provider_priority(), provider), ts DESC
+), latest AS (
+  SELECT n.region_id, n.provider, n.ts,
+         COALESCE((SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY gi.g_co2e_per_kwh) FROM carbon.grid_intensity gi
+                    WHERE gi.region_id = n.region_id AND gi.provider = n.provider AND NOT gi.is_forecast AND gi.measure = 'average'
+                      AND gi.ts > n.ts - interval '6 hours' AND gi.ts <= n.ts), n.g)::float8 AS g
+  FROM newest n
 ), prev AS (
-  SELECT DISTINCT ON (gi.region_id) gi.region_id, gi.g_co2e_per_kwh AS g FROM carbon.grid_intensity gi
+  SELECT DISTINCT ON (gi.region_id) gi.region_id,
+         (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY x.g_co2e_per_kwh) FROM carbon.grid_intensity x
+           WHERE x.region_id = gi.region_id AND x.provider = gi.provider AND NOT x.is_forecast AND x.measure = 'average'
+             AND x.ts > gi.ts - interval '6 hours' AND x.ts <= gi.ts)::float8 AS g
+  FROM carbon.grid_intensity gi
   JOIN latest l ON l.region_id = gi.region_id AND gi.provider = l.provider AND gi.ts <= l.ts - interval '24 hours'
   WHERE NOT gi.is_forecast AND gi.measure = 'average' ORDER BY gi.region_id, gi.ts DESC
 )
 SELECT l.region_id, l.g::float8 AS g_per_kwh, l.ts AS at, p.g AS prev_g_per_kwh
-FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g
+FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g;
 `
 
 type DashboardRegionsRow struct {
@@ -556,8 +574,10 @@ type DashboardRegionsRow struct {
 	PrevGPerKwh *float64  `json:"prev_g_per_kwh"`
 }
 
-// Reference data (no tenant): per region, the newest average-intensity reading of the most trusted source (platform
-// setting carbon.provider_priority), and that same source's reading from >= 24h earlier for the change column.
+// Reference data (no tenant): per region, the figure of the most trusted FRESH source (platform setting carbon.provider_priority;
+// a source whose newest reading is older than its accepted age ranks behind every fresh one): the median of its readings in the
+// six hours up to its newest one, so one spike hour is not shown as the region's state; and that same source's figure from
+// >= 24h earlier for the change column.
 func (q *Queries) DashboardRegions(ctx context.Context) ([]DashboardRegionsRow, error) {
 	rows, err := q.db.Query(ctx, dashboardRegions)
 	if err != nil {

@@ -12,3 +12,4 @@ tsconfig.tsbuildinfo
 
 # local Redis snapshots
 dump.rdb
+__pycache__/

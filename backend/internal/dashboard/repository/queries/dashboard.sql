@@ -42,14 +42,26 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
 GROUP BY 1, 2, 3 ORDER BY 3;
 
 -- name: DashboardRegions :many
--- Reference data (no tenant): per region, the newest average-intensity reading of the most trusted source (platform
--- setting carbon.provider_priority), and that same source's reading from >= 24h earlier for the change column.
-WITH latest AS (
+-- Reference data (no tenant): per region, the figure of the most trusted FRESH source (platform setting carbon.provider_priority;
+-- a source whose newest reading is older than its accepted age ranks behind every fresh one): the median of its readings in the
+-- six hours up to its newest one, so one spike hour is not shown as the region's state; and that same source's figure from
+-- >= 24h earlier for the change column.
+WITH newest AS (
   SELECT DISTINCT ON (region_id) region_id, provider, g_co2e_per_kwh AS g, ts FROM carbon.grid_intensity
   WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
-  ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC
+  ORDER BY region_id, (ts < now() - carbon.source_max_age(provider)), array_position(carbon.provider_priority(), provider), ts DESC
+), latest AS (
+  SELECT n.region_id, n.provider, n.ts,
+         COALESCE((SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY gi.g_co2e_per_kwh) FROM carbon.grid_intensity gi
+                    WHERE gi.region_id = n.region_id AND gi.provider = n.provider AND NOT gi.is_forecast AND gi.measure = 'average'
+                      AND gi.ts > n.ts - interval '6 hours' AND gi.ts <= n.ts), n.g)::float8 AS g
+  FROM newest n
 ), prev AS (
-  SELECT DISTINCT ON (gi.region_id) gi.region_id, gi.g_co2e_per_kwh AS g FROM carbon.grid_intensity gi
+  SELECT DISTINCT ON (gi.region_id) gi.region_id,
+         (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY x.g_co2e_per_kwh) FROM carbon.grid_intensity x
+           WHERE x.region_id = gi.region_id AND x.provider = gi.provider AND NOT x.is_forecast AND x.measure = 'average'
+             AND x.ts > gi.ts - interval '6 hours' AND x.ts <= gi.ts)::float8 AS g
+  FROM carbon.grid_intensity gi
   JOIN latest l ON l.region_id = gi.region_id AND gi.provider = l.provider AND gi.ts <= l.ts - interval '24 hours'
   WHERE NOT gi.is_forecast AND gi.measure = 'average' ORDER BY gi.region_id, gi.ts DESC
 )
@@ -57,7 +69,7 @@ SELECT l.region_id, l.g::float8 AS g_per_kwh, l.ts AS at, p.g AS prev_g_per_kwh
 FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g;
 
 -- name: DashboardActivity :many
-SELECT id, action, target, created_at FROM audit.audit_logs
+SELECT id, action, target, created_at, metadata FROM audit.audit_logs
 WHERE tenant_id = sqlc.arg(tenant_id) AND action = ANY(sqlc.arg(actions)::text[])
 ORDER BY created_at DESC LIMIT sqlc.arg(row_limit);
 
@@ -137,18 +149,24 @@ FROM (SELECT DISTINCT x.provider, x.region_id, x.project_id FROM usage.usage_rec
 LEFT JOIN projects.policies p ON p.project_id = u.project_id;
 
 -- name: DashboardRegionEC2Cost :many
--- EC2 instance compute cost per region (the only cost the region price index describes), in the dominant currency.
-SELECT u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+-- Cost per region and price-index family: virtual machine compute (EC2, Azure Virtual Machines, Compute Engine) and Azure's managed
+-- PostgreSQL and Redis, the only costs the region price indexes describe,
+-- in the dominant currency.
+SELECT u.region_id, CASE WHEN u.provider = 'aws' THEN 'aws' WHEN u.provider = 'gcp' THEN 'gcp'
+       WHEN lower(u.service_name) = 'virtual machines' THEN 'azure'
+       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
       AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
     GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-  AND u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%'
-GROUP BY 1;
+  AND ((u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%')
+    OR (u.provider = 'azure' AND lower(u.service_name) IN ('virtual machines', 'azure database for postgresql', 'redis cache', 'azure cache for redis'))
+    OR (u.provider = 'gcp' AND lower(u.service_name) = 'compute engine'))
+GROUP BY 1, 2;
 
 -- name: DashboardPriceIndex :many
-SELECT region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider = 'aws';
+SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_price_index WHERE provider IN ('aws', 'azure', 'gcp', 'azure:postgresql', 'azure:redis');
 
 -- name: DashboardConnectionCost :many
 -- Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the

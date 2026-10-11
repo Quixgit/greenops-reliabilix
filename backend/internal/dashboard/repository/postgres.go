@@ -11,13 +11,30 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"encoding/json"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard/repository/db"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/geo"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
+	"strconv"
 )
 
-type Postgres struct{ Pool *pgxpool.Pool }
+type Postgres struct {
+	Pool *pgxpool.Pool
+	// Settings is the organization settings engine (optional: catalog defaults without it).
+	Settings settings.Reader
+}
+
+// latencyBudget is how much round-trip time a proposed move may add for this organization (an estimate from distance).
+func (r Postgres) latencyBudget(ctx context.Context, tenantID string) int {
+	var rd settings.Reader = settings.Defaults{}
+	if r.Settings != nil {
+		rd = r.Settings
+	}
+	return int(rd.Int(ctx, tenantID, settings.KeyRecMaxLatencyMs))
+}
 
 func (r Postgres) Trend(ctx context.Context, f domain.Filter) ([]domain.TrendPoint, error) {
 	out := []domain.TrendPoint{}
@@ -126,12 +143,35 @@ func (r Postgres) Regions(ctx context.Context) ([]domain.RegionIntensity, error)
 	return out, err
 }
 
+// Countries reads global reference data (no tenant): the newest national monthly figure of every country.
+func (r Postgres) Countries(ctx context.Context) ([]domain.CountryIntensity, error) {
+	// Ember's published figure wins; a country without one gets the inventory-derived figure of its newest year.
+	rows, err := r.Pool.Query(ctx, `SELECT DISTINCT ON (region_id) substr(region_id, 9), g_co2e_per_kwh::float8, ts,
+			CASE provider WHEN 'ember_country' THEN 'ember' ELSE 'inventory' END
+		FROM carbon.grid_intensity
+		WHERE provider IN ('ember_country', 'inventory_country') AND measure = 'average' AND NOT is_forecast AND region_id LIKE 'country:%'
+		ORDER BY region_id, (provider = 'ember_country') DESC, ts DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []domain.CountryIntensity{}
+	for rows.Next() {
+		var c domain.CountryIntensity
+		if err := rows.Scan(&c.Code, &c.GPerKWh, &c.Month, &c.Source); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
 func (r Postgres) Activity(ctx context.Context, tenantID string, limit int) ([]domain.Activity, error) {
 	out := []domain.Activity{}
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).DashboardActivity(ctx, db.DashboardActivityParams{TenantID: tenantID, Actions: domain.UserFacingActions, RowLimit: int32(limit)}) //nolint:gosec // limit clamped to <= 50 by the handler
 		for _, x := range rows {
-			out = append(out, domain.Activity{ID: x.ID, Action: x.Action, Target: x.Target, At: x.CreatedAt})
+			out = append(out, domain.Activity{ID: x.ID, Action: x.Action, Target: x.Target, At: x.CreatedAt, Detail: activityDetail(x.Metadata)})
 		}
 		return err
 	})
@@ -155,8 +195,8 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 		return rows[k]
 	}
 	// allowedFor: per (cloud, region) the regions every project using it may move to; unknown when one has no allow-list.
-	ec2Cost := map[string]float64{}
-	priceIdx := map[string]float64{}
+	vmCost := map[string]map[string]float64{}   // family -> region -> cost
+	priceIdx := map[string]map[string]float64{} // family -> region -> relative price
 	allowedFor := map[key]map[string]bool{}
 	unknown := map[key]bool{}
 	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
@@ -190,14 +230,20 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 			return err
 		}
 		for _, x := range ec2 {
-			ec2Cost[x.RegionID] = x.Cost
+			if vmCost[x.Family] == nil {
+				vmCost[x.Family] = map[string]float64{}
+			}
+			vmCost[x.Family][x.RegionID] = x.Cost
 		}
 		pi, err := q.DashboardPriceIndex(ctx)
 		if err != nil {
 			return err
 		}
 		for _, x := range pi {
-			priceIdx[x.RegionID] = x.Idx
+			if priceIdx[x.Family] == nil {
+				priceIdx[x.Family] = map[string]float64{}
+			}
+			priceIdx[x.Family][x.RegionID] = x.Idx
 		}
 		costs, err := q.DashboardRegionCost(ctx, db.DashboardRegionCostParams{TenantID: f.TenantID, ProjectID: f.Project, FromTs: f.From, ToTs: f.To})
 		if err != nil {
@@ -236,6 +282,7 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 		}
 		out = append(out, *e)
 	}
+	budget := r.latencyBudget(ctx, f.TenantID)
 	for i := range out {
 		e := &out[i]
 		if e.GPerKWh == nil || e.EnergyKWh <= 0 || *e.GPerKWh <= 0 {
@@ -247,9 +294,18 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 			continue
 		}
 		var best *domain.RegionIntensity
+		cleanerButFar := false
 		for j := range grid {
 			c := &grid[j]
 			if c.Region == e.Region || regionCloud(c.Region) != regionCloud(e.Region) || !allowedFor[k][c.Region] {
+				continue
+			}
+			// A cleaner grid across an ocean is not a move a workload can make for carbon alone: it must stay within the latency
+			// the organization accepts. A region the map does not know cannot be ruled out by distance.
+			if ms, known := geo.RTTms(e.Region, c.Region); known && ms > budget {
+				if c.GPerKWh < *e.GPerKWh {
+					cleanerButFar = true
+				}
 				continue
 			}
 			if best == nil || c.GPerKWh < best.GPerKWh {
@@ -258,6 +314,9 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 		}
 		if best == nil {
 			e.RelocationBlocked = "residency"
+			if cleanerButFar {
+				e.RelocationBlocked = "latency"
+			}
 			continue
 		}
 		pct := (*e.GPerKWh - best.GPerKWh) / *e.GPerKWh * 100
@@ -266,16 +325,62 @@ func (r Postgres) RegionFootprint(ctx context.Context, f domain.Filter) ([]domai
 		}
 		var costDelta *float64
 		basis := ""
-		if from, to := priceIdx[e.Region], priceIdx[best.Region]; from > 0 && to > 0 && ec2Cost[e.Region] > 0 {
-			d := math.Round(ec2Cost[e.Region]*(to/from-1)*100) / 100
+		// Each family of billed service (VM compute, managed PostgreSQL, Redis) has its own index: the effects add up.
+		sum, known := 0.0, false
+		for fam, byRegion := range vmCost {
+			c, from, to := byRegion[e.Region], priceIdx[fam][e.Region], priceIdx[fam][best.Region]
+			if c > 0 && from > 0 && to > 0 {
+				sum += c * (to/from - 1)
+				known = true
+			}
+		}
+		if known {
+			d := math.Round(sum*100) / 100
 			costDelta, basis = &d, "region_price_index"
 		}
-		e.Alternative = &domain.Alternative{CostDelta: costDelta, CostBasis: basis, CostEstimated: costDelta != nil, Region: best.Region, GPerKWh: best.GPerKWh, SavingPct: pct,
-			SavingKg:    e.EnergyKWh * (*e.GPerKWh - best.GPerKWh) / 1000,
+		var latency, distance *int
+		var lbasis string
+		var lerr int
+		if l, known := geo.Between(e.Region, best.Region); known {
+			d, ms := int(math.Round(l.DistanceKm)), l.Ms
+			latency, distance, lbasis, lerr = &ms, &d, l.Basis, l.ErrorPct
+		}
+		e.Alternative = &domain.Alternative{LatencyMs: latency, DistanceKm: distance, LatencyBasis: lbasis, LatencyErrorPct: lerr, LatencyBudgetMs: budget, CostDelta: costDelta, CostBasis: basis, CostEstimated: costDelta != nil, Region: best.Region, GPerKWh: best.GPerKWh, SavingPct: pct,
+			SavingKg:    relocationSavingKg(e.CO2eKg, *e.GPerKWh, best.GPerKWh),
 			ResidencyOK: true, ChecksRequired: []string{"price", "latency", "service_availability"}}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CO2eKg > out[j].CO2eKg })
 	return out, nil
+}
+
+// activityDetail keeps only the allowlisted scalar facts of an audit entry's metadata, as text.
+func activityDetail(raw []byte) map[string]string {
+	out := map[string]string{}
+	var m map[string]any
+	if len(raw) == 0 || json.Unmarshal(raw, &m) != nil {
+		return out
+	}
+	for _, k := range domain.ActivityDetailKeys {
+		switch v := m[k].(type) {
+		case string:
+			if v != "" && len(v) <= 120 {
+				out[k] = v
+			}
+		case float64:
+			out[k] = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+	}
+	return out
+}
+
+// relocationSavingKg is what moving a region's load to a cleaner grid would save: the grids' relative improvement applied
+// to the emissions the region really had in the period. The latest grid reading is a moment, not the period, so it is
+// never multiplied by the period's energy: that overstated the saving (a region of 46 kg "saving" 49 kg).
+func relocationSavingKg(co2eKg, currentG, candidateG float64) float64 {
+	if co2eKg <= 0 || currentG <= 0 || candidateG >= currentG {
+		return 0
+	}
+	return co2eKg * (currentG - candidateG) / currentG
 }
 
 // regionCloud tells the cloud from the shape of a region id, so a candidate is never proposed across clouds.

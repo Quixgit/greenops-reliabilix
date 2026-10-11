@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -51,6 +52,10 @@ type Container struct {
 	Resolver auth.Resolver
 	// Settings reads the configuration engine's effective values (also used by the worker's maintenance jobs).
 	Settings settings.Reader
+
+	// BackfillIntensity loads the past grid readings of the given regions from every source that can supply them (the admin
+	// command `backfill`); it is the same call the operator console's "load history" makes.
+	BackfillIntensity func(ctx context.Context, regions []string, from, to time.Time) (int, error)
 
 	modules []httpx.Module
 	jobs    []queue.JobRegistrar
@@ -144,8 +149,8 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	ingestionM := ingestion.New(usageM.Svc, store, log)
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
-		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}, eiaSource{ints: ints, meter: meter}, energyChartsSource{ints: ints, meter: meter}}})
-	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc})
+		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Inventory: &inventoryAnnual{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}, eiaSource{ints: ints, meter: meter}, energyChartsSource{ints: ints, meter: meter}, iesoSource{ints: ints, meter: meter}, hydroQuebecSource{ints: ints, meter: meter}, entsoeSource{ints: ints, meter: meter}, onsSource{ints: ints, meter: meter}}})
+	recsM := recommendations.New(recommendations.Deps{Pool: pool, Log: log, Queue: q, Projects: recsProjects{projects: projectsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, GCPPricingKey: func(ctx context.Context) string { return ints.Value(ctx, "gcp_pricing", "api_key") }})
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, PlatformAzureAppID: cfg.PlatformAzureClientID, Secrets: box, BackfillDays: cfg.SyncBackfillDays})
 	finopsM := finops.New(pool)
@@ -159,9 +164,12 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
-		dashboard.New(pool), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM,
+		dashboard.New(pool, cfgr), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc, store, func(ctx context.Context, region string, day time.Time) (any, error) {
+			return carbonM.Svc.ExplainIntensity(ctx, region, day)
+		}), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM,
 	}
 	c.Settings = cfgr
+	c.BackfillIntensity = carbonM.Svc.BackfillIntensity
 	c.jobs = []queue.JobRegistrar{cloudM, carbonM, finopsM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
 
 	switch {

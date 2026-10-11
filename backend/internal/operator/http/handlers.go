@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -176,8 +177,22 @@ func (h Handlers) unhealthy(w http.ResponseWriter, r *http.Request) {
 	list(w, r, items, err)
 }
 
-func (h Handlers) system(w http.ResponseWriter, _ *http.Request) {
-	httpx.WriteJSON(w, http.StatusOK, h.Svc.SystemInfo())
+var processStart = time.Now()
+
+func (h Handlers) system(w http.ResponseWriter, r *http.Request) {
+	info := h.Svc.SystemInfo()
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	info.Runtime = &domain.Runtime{StartedAt: processStart.UTC(), GoVersion: runtime.Version(), Goroutines: runtime.NumGoroutine(), HeapMB: float64(m.HeapAlloc) / (1 << 20), CPUs: runtime.NumCPU()}
+	if h.Pool != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		t0 := time.Now()
+		err := h.Pool.Ping(ctx)
+		st := h.Pool.Stat()
+		info.Database = &domain.DatabaseStats{OK: err == nil, PingMS: float64(time.Since(t0).Microseconds()) / 1000, Connections: st.TotalConns(), InUse: st.AcquiredConns(), Max: st.MaxConns()}
+	}
+	httpx.WriteJSON(w, http.StatusOK, info)
 }
 
 func (h Handlers) audit(w http.ResponseWriter, r *http.Request) {

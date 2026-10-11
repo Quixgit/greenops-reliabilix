@@ -59,3 +59,20 @@ func TestIngestRightsizingWithNoFindingsDoesNotTouchTheRepo(t *testing.T) {
 		t.Fatalf("n=%d err=%v", n, err)
 	}
 }
+
+// The same finding keeps its identity when the proposed region changes: it is about the service and where it runs.
+func TestFingerprintDoesNotDependOnTheProposedRegion(t *testing.T) {
+	a := domain.Recommendation{Type: domain.RegionShift, Provider: "azure", ServiceName: "Azure App Service", CurrentRegion: "canadacentral", RecommendedRegion: "francecentral"}
+	b := a
+	b.RecommendedRegion = "canadaeast"
+	if fingerprint("p1", a) != fingerprint("p1", b) {
+		t.Error("a better target must update the finding, not create a second one")
+	}
+	b.ServiceName = "Redis Cache"
+	if fingerprint("p1", a) == fingerprint("p1", b) {
+		t.Error("another service is another finding")
+	}
+	if fingerprint("p1", a) == fingerprint("p2", a) {
+		t.Error("another project is another finding")
+	}
+}

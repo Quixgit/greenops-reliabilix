@@ -100,6 +100,10 @@ func (s Service) Generate(ctx context.Context, tenantID, id string) error {
 	if err != nil {
 		return err
 	}
+	// Whom the report is for; a failure to name them must not lose the report.
+	if org, scope, err := s.Repo.Scope(ctx, tenantID, r.ProjectID); err == nil {
+		tbl.Organization, tbl.Scope = org, scope
+	}
 	b, err := render.Render(tbl, r.Format, s.now())
 	if err != nil {
 		return err

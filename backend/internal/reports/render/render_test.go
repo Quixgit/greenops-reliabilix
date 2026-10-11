@@ -24,7 +24,7 @@ func TestCSVNeutralizesFormulaInjectionButKeepsNegativeNumbers(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "# Methodology RLX-PROVISIONAL-1 (provisional)") || !strings.Contains(s, "day,service,carbon_kg_co2e") {
+	if !strings.Contains(s, "# Methodology RLX-PROVISIONAL-1 (provisional)") || !strings.HasPrefix(s, "day,service,carbon_kg_co2e") || strings.Index(s, "# Methodology") < strings.Index(s, "day,service") {
 		t.Errorf("header/notes missing:\n%s", s)
 	}
 	if !strings.Contains(s, `"'=HYPERLINK(""http://evil"")"`) {

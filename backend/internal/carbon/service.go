@@ -33,6 +33,8 @@ type Deps struct {
 	Extras []application.HourlyExtra
 	// Monthly supplies monthly national figures (optional).
 	Monthly application.MonthlyProvider
+	// Inventory supplies annual reference intensities derived from an emissions inventory (optional).
+	Inventory application.InventoryProvider
 	// Settings supplies the grid source policy (optional: catalog defaults).
 	Settings settings.Reader
 }
@@ -44,7 +46,7 @@ type Module struct {
 
 func New(d Deps) *Module {
 	svc := &application.Service{Store: repository.Postgres{Pool: d.Pool}, Usage: d.Usage, Units: d.Units, Policies: d.Policies,
-		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings, Monthly: d.Monthly, Extras: d.Extras}
+		Projects: d.Projects, Provider: d.Provider, Queue: d.Queue, Log: d.Log, Settings: d.Settings, Monthly: d.Monthly, Inventory: d.Inventory, Extras: d.Extras}
 	return &Module{h: chttp.Handlers{Svc: svc}, Svc: svc}
 }
 
@@ -110,6 +112,10 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		// Loading the past also refreshes the monthly national figures; one source failing does not hide the other's error.
 		if _, mErr := m.Svc.RefreshMonthly(ctx); err == nil {
 			err = mErr
+		}
+		// A key or plan that does not return past data will not start to after five attempts: say so once and stop.
+		if errors.Is(err, domain.ErrPastUnavailable) || errors.Is(err, domain.ErrNotConfigured) {
+			err = errors.Join(asynq.SkipRetry, err)
 		}
 		return err
 	})

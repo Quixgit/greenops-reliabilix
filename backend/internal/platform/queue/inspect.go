@@ -135,3 +135,15 @@ func (in *Inspector) Schedules() ([]Schedule, error) {
 	sort.Slice(out, func(a, b int) bool { return out[a].Next.Before(out[b].Next) })
 	return out, nil
 }
+
+// Workers is how many worker processes are connected to the queues (read from their heartbeat in Redis).
+func (in *Inspector) Workers() (int, error) {
+	s, err := in.i.Servers()
+	return len(s), err
+}
+
+// Retry puts a task that is waiting for a retry, or that gave up, back in the queue to run now.
+func (in *Inspector) Retry(queueName, id string) error { return in.i.RunTask(queueName, id) }
+
+// Delete removes a task that is waiting for a retry, or that gave up, so it will not run again.
+func (in *Inspector) Delete(queueName, id string) error { return in.i.DeleteTask(queueName, id) }

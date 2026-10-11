@@ -2,12 +2,17 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hibiken/asynq"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/operator/domain"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 )
@@ -17,6 +22,12 @@ import (
 func (h Handlers) extraRoutes(r chi.Router) {
 	read, write := h.operator(false), h.operator(true)
 	r.With(read).Get("/operator/metrics", h.metrics)
+	r.With(read).Get("/operator/aggregation", h.aggregation)
+	r.With(read).Get("/operator/diagnostics", h.diagnostics)
+	r.With(write).Post("/operator/diagnostics/run", h.runDiagnostics)
+	r.With(write).Post("/operator/jobs/{queue}/{id}/retry", h.jobAction(false))
+	r.With(write).Post("/operator/jobs/{queue}/{id}/delete", h.jobAction(true))
+	r.With(read).Get("/operator/aggregation/explain", h.explainIntensity)
 	r.With(read).Get("/operator/announcements", h.announcements)
 	r.With(write).Post("/operator/announcements", h.announce)
 	r.With(write).Post("/operator/announcements/{id}/withdraw", h.withdrawAnnouncement)
@@ -246,4 +257,93 @@ func (h Handlers) cancelErasure(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"cancelled": true})
+}
+
+// aggregation answers the page "Aggregation & policies": the source policy in force, each source and its freshness, and
+// where the figures of the last days took their intensity from. Counts and settings only.
+func (h Handlers) aggregation(w http.ResponseWriter, r *http.Request) {
+	a, err := h.Svc.Aggregation(r.Context(), time.Now())
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, a)
+}
+
+// explainIntensity answers "why did this region and day get this intensity?" from the stored readings and the policy
+// in force. Query: region, day (YYYY-MM-DD).
+func (h Handlers) explainIntensity(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	e, err := h.Svc.ExplainIntensity(r.Context(), q.Get("region"), q.Get("day"))
+	if errors.Is(err, domain.ErrInvalid) {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "region and day (YYYY-MM-DD, within three years) are required")
+		return
+	}
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, e)
+}
+
+var (
+	queueNameRe = regexp.MustCompile(`^[a-z0-9_-]{1,40}$`)
+	taskIDRe    = regexp.MustCompile(`^[A-Za-z0-9-]{8,64}$`)
+)
+
+// jobAction runs a failed task again (delete=false) or removes it (delete=true). Only tasks that failed can be touched:
+// a task that is running or waiting is refused, so the console cannot cancel or duplicate live work.
+func (h Handlers) jobAction(del bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if h.Svc.Jobs == nil {
+			httpx.NotFound(w, r)
+			return
+		}
+		qn, id := chi.URLParam(r, "queue"), chi.URLParam(r, "id")
+		if !queueNameRe.MatchString(qn) || !taskIDRe.MatchString(id) {
+			httpx.NotFound(w, r)
+			return
+		}
+		var err error
+		if del {
+			err = h.Svc.Jobs.Delete(qn, id)
+		} else {
+			err = h.Svc.Jobs.Retry(qn, id)
+		}
+		switch {
+		case err == nil:
+			httpx.WriteJSON(w, http.StatusOK, map[string]bool{"changed": true})
+		case errors.Is(err, asynq.ErrTaskNotFound), errors.Is(err, asynq.ErrQueueNotFound):
+			httpx.NotFound(w, r)
+		default:
+			httpx.WriteProblem(w, r, http.StatusConflict, "task cannot be changed", "Only a task that failed can be run again or removed; this one is running or already moved.")
+		}
+	}
+}
+
+// diagnostics lists the self-tests of the platform.
+func (h Handlers) diagnostics(w http.ResponseWriter, r *http.Request) {
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": h.Svc.DiagnosticsCatalog()})
+}
+
+// diagRunning lets one run at a time through: the tests touch every dependency, so repeated clicks must not pile up.
+var diagRunning sync.Mutex
+
+// runDiagnostics runs the self-tests (all, or the ids in the body). It reads and probes; the one write it makes is a
+// short-lived object in the storage, which it deletes again.
+func (h Handlers) runDiagnostics(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		IDs []string `json:"ids"`
+	}
+	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in)
+	if len(in.IDs) > 64 {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "too many ids", "")
+		return
+	}
+	if !diagRunning.TryLock() {
+		httpx.WriteProblem(w, r, http.StatusConflict, "a run is already in progress", "")
+		return
+	}
+	defer diagRunning.Unlock()
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": h.Svc.RunDiagnostics(r.Context(), in.IDs)})
 }

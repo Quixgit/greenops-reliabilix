@@ -41,6 +41,7 @@ func input() RegionShiftInput {
 		WindowDays: 30, DataDays: 30, Now: now,
 		Intensity:      map[string]float64{"us-east-1": 380, "us-west-2": 150, "eu-north-1": 28, "eu-central-1": 340},
 		AllowedRegions: []string{"us-west-2", "us-east-1"},
+		MaxLatencyMs:   80, // CloudPing measures 68 ms between us-east-1 and us-west-2: beyond the 60 ms default, so these tests widen it
 	}
 }
 
@@ -121,5 +122,30 @@ func TestRegionShiftThresholdsAndScaling(t *testing.T) {
 	in.Workloads[0].Region = "ap-unknown-1" // no intensity for the current region
 	if recs := GenerateRegionShift(in); len(recs) != 0 {
 		t.Error("unknown current intensity must not be guessed")
+	}
+}
+
+func TestManagedServicesAreMeasuredByTheirOwnIndex(t *testing.T) {
+	in := input()
+	in.Workloads[0].Provider = "azure"
+	in.AllowedRegions = []string{"us-east-1", "us-west-2"}
+	in.PriceIndex = map[string]float64{"us-east-1": 1.0, "us-west-2": 2.0} // the VM index must never price a database
+	in.ServiceIndex = map[string]map[string]float64{"azure:postgresql": {"us-east-1": 1.0, "us-west-2": 1.1}}
+	in.Workloads[0].Service = "Azure Database for PostgreSQL"
+	// RegionCloud decides which regions are the workload's cloud; the test only needs the family to select the right index
+	if idx := priceIndexFor(in, in.Workloads[0]); idx["us-west-2"] != 1.1 {
+		t.Fatalf("PostgreSQL must use its own index, got %v", idx)
+	}
+	in.Workloads[0].Service = "Redis Cache"
+	if idx := priceIndexFor(in, in.Workloads[0]); idx != nil {
+		t.Fatalf("Redis has no index here, nothing must be priced: %v", idx)
+	}
+	in.Workloads[0].Service = "Virtual Machines"
+	if idx := priceIndexFor(in, in.Workloads[0]); idx["us-west-2"] != 2.0 {
+		t.Fatalf("a VM uses the VM index, got %v", idx)
+	}
+	in.Workloads[0].Service = "Azure Virtual Network"
+	if priceIndexFor(in, in.Workloads[0]) != nil {
+		t.Fatal("networking has no index")
 	}
 }

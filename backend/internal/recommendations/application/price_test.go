@@ -28,6 +28,9 @@ type stubSource struct {
 	errs map[string]error
 }
 
+func (stubSource) Provider() string { return "aws" }
+func (stubSource) Basis() string    { return "aws_ec2_ondemand_basket" }
+
 func (s stubSource) BuildIndex(context.Context, []string) ([]PriceEntry, map[string]error, error) {
 	return s.idx, s.errs, nil
 }

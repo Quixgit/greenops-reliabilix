@@ -75,6 +75,16 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	origins, measured := toOrigins(rawOrigins)
+	usageKWh, costKWh, err := h.Svc.EnergyByMethod(r.Context(), c.TenantID, project, from, to)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	var costShare *float64
+	if usageKWh+costKWh > 0 {
+		v := costKWh / (usageKWh + costKWh) * 100
+		costShare = &v
+	}
 	httpx.WriteJSON(w, http.StatusOK, struct {
 		totalsJSON
 		HasData            bool       `json:"has_data"`
@@ -87,9 +97,11 @@ func (h Handlers) summary(w http.ResponseWriter, r *http.Request) {
 		IntensityOrigins []originJSON `json:"intensity_origins"`
 		// MeasuredSharePct is the share of the carbon whose intensity is the mean of readings of the day itself.
 		MeasuredSharePct *float64 `json:"intensity_measured_share_pct"`
+		// CostBasedSharePct is the share of the energy that was estimated from spend instead of measured usage.
+		CostBasedSharePct *float64 `json:"energy_cost_based_share_pct"`
 	}{toTotals(s.Current), s.HasData(), toTotals(s.Previous),
 		domain.Comparable(s.Current.Days, s.Previous.Days, int(to.Sub(from).Hours()/24+0.5)), domain.MethodologyVersion, describeMethodology(),
-		origins, measured})
+		origins, measured, costShare})
 }
 
 type originJSON struct {

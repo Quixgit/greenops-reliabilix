@@ -30,6 +30,10 @@ type Service struct {
 	Jobs domain.JobsPort
 	// Queue starts background jobs (optional: the backfill is then unavailable).
 	Queue queue.Enqueuer
+	// Explain asks the carbon engine why a region and day got its intensity (optional: nil answers 404).
+	Explain func(ctx context.Context, region string, day time.Time) (any, error)
+	// Diagnostics are the infrastructure self-tests of the platform (optional; see diagnostics.go).
+	Diagnostics []domain.DiagCheck
 }
 
 // Authorize resolves the operator behind a verified subject. write=true additionally demands an admin operator.
@@ -313,31 +317,8 @@ func (s Service) RegionSources(ctx context.Context) ([]domain.RegionSources, err
 	if err != nil {
 		return nil, err
 	}
-	priority, overrides := []string{"electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "ember"}, map[string]string{}
-	if s.Settings != nil {
-		if items, err := s.Settings.PlatformItems(ctx); err == nil {
-			for _, it := range items {
-				if it.Def == nil {
-					continue
-				}
-				var list []string
-				switch it.Key {
-				case settings.KeyCarbonPriority:
-					if json.Unmarshal(it.Value, &list) == nil && len(list) > 0 {
-						priority = list
-					}
-				case settings.KeyCarbonOverrides:
-					if json.Unmarshal(it.Value, &list) == nil {
-						for _, e := range list {
-							if region, src, ok := strings.Cut(e, "="); ok {
-								overrides[region] = src
-							}
-						}
-					}
-				}
-			}
-		}
-	}
+	pol := s.policyFromSettings(ctx)
+	priority, overrides := pol.Priority, pol.Overrides
 	// Regions in use with no data at all still appear: the table shows what is missing.
 	byRegion := map[string]*domain.RegionSources{}
 	var order []string

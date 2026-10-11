@@ -212,6 +212,22 @@ func (r Postgres) CarbonRegionSources(ctx context.Context) ([]domain.RegionSourc
 	})
 }
 
+func (r Postgres) IntensityProvenance(ctx context.Context, days int) ([]domain.ProvenanceRow, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT source, basis, n FROM carbon.operator_intensity_provenance($1)`, days)
+	return collect(rows, err, func(r pgx.Rows) (x domain.ProvenanceRow, err error) {
+		err = r.Scan(&x.Source, &x.Basis, &x.Rows)
+		return
+	})
+}
+
+func (r Postgres) SourceDivergence(ctx context.Context, days int) ([]domain.DivergenceRow, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT region_id, provider, g, n, newest, kind FROM carbon.operator_source_divergence($1)`, days)
+	return collect(rows, err, func(r pgx.Rows) (x domain.DivergenceRow, err error) {
+		err = r.Scan(&x.Region, &x.Provider, &x.G, &x.N, &x.Newest, &x.Kind)
+		return
+	})
+}
+
 func (r Postgres) OrgUsage(ctx context.Context, days int) ([]domain.OrgUsage, error) {
 	rows, err := r.Pool.Query(ctx, `SELECT tenant_id::text, name, plan, usage_rows, calculation_rows, sync_runs, deliveries, reports, k8s_samples, members, connections FROM platform.operator_org_usage($1)`, days)
 	return collect(rows, err, func(r pgx.Rows) (u domain.OrgUsage, err error) {

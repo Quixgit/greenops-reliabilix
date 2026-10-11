@@ -10,11 +10,15 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/climatetrace"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/eia"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/electricitymaps"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/ember"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/entsoe"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/carbon/providers/ons"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/notifications/channels/email"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/config"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/gcpprice"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 )
 
@@ -32,6 +36,10 @@ func integrationEnv(cfg config.Config) func(integration, key string) string {
 			return cfg.EmberKey
 		case "eia/api_key":
 			return cfg.EIAKey
+		case "entsoe/api_token":
+			return cfg.EntsoeToken
+		case "gcp_pricing/api_key":
+			return cfg.GCPPricingKey
 		case "electricitymaps/zone_overrides":
 			return cfg.ElectricityMapsZoneOverrides
 		case "smtp/host":
@@ -144,6 +152,46 @@ func (p integrationsPort) Test(ctx context.Context, integration string) (string,
 			return "", errors.New("EIA did not accept the key, or could not be reached")
 		}
 		return "The key is accepted: hourly US generation data is available.", nil
+	case "gcp_pricing":
+		key := p.store.Value(ctx, "gcp_pricing", "api_key")
+		if key == "" {
+			return "", errors.New("no API key is configured")
+		}
+		if err := gcpprice.New(key).Check(ctx); err != nil {
+			return "", errors.New("Google did not accept the key, or could not be reached")
+		}
+		return "The key is accepted: Compute Engine list prices are available.", nil
+	case "climatetrace":
+		c := climatetrace.New()
+		if base := p.store.ValueOrDefault(ctx, "climatetrace", "base_url"); base != "" {
+			c.BaseURL = base
+		}
+		if err := c.Check(ctx); err != nil {
+			return "", errors.New("Climate TRACE could not be reached")
+		}
+		return "Climate TRACE is reachable: annual power-sector emissions by country are available.", nil
+	case "entsoe":
+		token := p.store.Value(ctx, "entsoe", "api_token")
+		if token == "" {
+			return "", errors.New("no security token is configured")
+		}
+		c := entsoe.New(token)
+		if base := p.store.ValueOrDefault(ctx, "entsoe", "base_url"); base != "" {
+			c.BaseURL = base
+		}
+		if err := c.Check(ctx); err != nil {
+			return "", errors.New("ENTSO-E did not accept the token, or could not be reached")
+		}
+		return "The token is accepted: actual generation per production type is available.", nil
+	case "ons":
+		c := ons.New()
+		if base := p.store.ValueOrDefault(ctx, "ons", "base_url"); base != "" {
+			c.BaseURL = base
+		}
+		if err := c.Check(ctx); err != nil {
+			return "", errors.New("ONS open data could not be reached")
+		}
+		return "The ONS open data is reachable: the hourly energy balance of the subsystems is available.", nil
 	case "smtp":
 		s, _, ok := smtpFrom(ctx, p.store, p.allowPlain)
 		if !ok {

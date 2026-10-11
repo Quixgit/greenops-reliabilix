@@ -122,4 +122,8 @@ type Repository interface {
 	PriceIndex(ctx context.Context, provider string) (map[string]float64, error)
 	SavePriceIndex(ctx context.Context, provider, region string, idx float64, source string) error
 	AllowedRegions(ctx context.Context, tenantID, projectID string) ([]string, error)
+	// RetireStale closes the project's open region moves whose fingerprint is not in keep: the analysis no longer finds them (the
+	// target left the latency limit, the saving fell below the threshold). They are closed by the system, not a person, and come
+	// back by themselves if the finding does. It returns how many were closed.
+	RetireStale(ctx context.Context, tenantID, projectID string, keep []string) (int, error)
 }

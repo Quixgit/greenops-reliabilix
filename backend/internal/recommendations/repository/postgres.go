@@ -64,7 +64,21 @@ func (r Postgres) Insert(ctx context.Context, tenantID string, rec domain.Recomm
 			EstimatedCarbonReductionPct: rec.CarbonReductionPct, CarbonReductionKgMonth: rec.CarbonReductionKg, EstimatedCostImpact: rec.CostImpact,
 			CostBasis: rec.CostBasis, Confidence: rec.Confidence, ComplianceCheck: cc, Fingerprint: rec.Fingerprint, Details: details})
 		if database.IsNotFound(err) {
-			return nil // same finding already exists
+			// The same finding exists. While it is still open it follows the data (a cleaner target, new figures); once a person
+			// decided on it, it is left exactly as they saw it.
+			_, err := tx.Exec(ctx, `UPDATE recommendations.recommendations SET title = $3, recommended_region = $4, estimated_carbon_reduction_pct = $5,
+				carbon_reduction_kg_month = $6, estimated_cost_impact = $7, cost_basis = $8, confidence = $9, compliance_check = $10, details = $11
+				WHERE tenant_id = $1 AND fingerprint = $2 AND status = 'open'`,
+				tenantID, rec.Fingerprint, rec.Title, rec.RecommendedRegion, rec.CarbonReductionPct, rec.CarbonReductionKg, rec.CostImpact, rec.CostBasis, rec.Confidence, cc, details)
+			if err != nil {
+				return err
+			}
+			// One the system had retired (and no person decided) comes back when the finding does.
+			_, err = tx.Exec(ctx, `UPDATE recommendations.recommendations SET status = 'open', decided_by = NULL, decided_at = NULL, title = $3, recommended_region = $4,
+				estimated_carbon_reduction_pct = $5, carbon_reduction_kg_month = $6, estimated_cost_impact = $7, cost_basis = $8, confidence = $9, compliance_check = $10, details = $11
+				WHERE tenant_id = $1 AND fingerprint = $2 AND status = 'dismissed' AND decided_by = 'system'`,
+				tenantID, rec.Fingerprint, rec.Title, rec.RecommendedRegion, rec.CarbonReductionPct, rec.CarbonReductionKg, rec.CostImpact, rec.CostBasis, rec.Confidence, cc, details)
+			return err
 		}
 		if err != nil {
 			return err
@@ -219,6 +233,20 @@ func (r Postgres) PriceIndex(ctx context.Context, provider string) (map[string]f
 // SavePriceIndex stores one region's relative price; source says where it came from and when.
 func (r Postgres) SavePriceIndex(ctx context.Context, provider, region string, idx float64, source string) error {
 	return db.New(r.Pool).UpsertPriceIndex(ctx, db.UpsertPriceIndexParams{Provider: provider, RegionID: region, Idx: idx, Source: source})
+}
+
+// RetireStale closes the open region moves of a project that the analysis no longer finds.
+func (r Postgres) RetireStale(ctx context.Context, tenantID, projectID string, keep []string) (n int, err error) {
+	if keep == nil {
+		keep = []string{}
+	}
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE recommendations.recommendations SET status = 'dismissed', decided_by = 'system', decided_at = now()
+			WHERE tenant_id = $1 AND project_id = $2 AND type = 'region_shift' AND status = 'open' AND fingerprint <> ALL($3::text[])`, tenantID, projectID, keep)
+		n = int(tag.RowsAffected())
+		return err
+	})
+	return
 }
 
 func (r Postgres) AllowedRegions(ctx context.Context, tenantID, projectID string) (regions []string, err error) {

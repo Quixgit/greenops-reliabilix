@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +44,8 @@ type Store interface {
 	// Regions lists the regions an organization has carbon in; Origins breaks a window's carbon down by intensity source.
 	Regions(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.RegionCarbon, error)
 	Origins(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) ([]domain.IntensityOrigin, error)
+	// EnergyByMethod is the energy of the window split into what was calculated from measured usage and from cost.
+	EnergyByMethod(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (usageKWh, costKWh float64, err error)
 	// RecordGate keeps one CI gate decision; GateEvaluations lists them newest first and GateSummary counts a window.
 	RecordGate(ctx context.Context, tenantID string, e domain.GateEvaluation) error
 	GateEvaluations(ctx context.Context, tenantID string, project *string, verdict string, from, to time.Time, limit int) ([]domain.GateEvaluation, error)
@@ -52,6 +56,21 @@ type Store interface {
 type MonthlyProvider interface {
 	// Monthly returns the figures for [from, to); Provider on each row is the source id.
 	Monthly(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error)
+}
+
+// CountriesProvider returns the monthly national intensity of every country the source has, for the world map.
+type CountriesProvider interface {
+	Countries(ctx context.Context, from, to time.Time) ([]domain.CountryReading, error)
+}
+
+// CountryInventoryProvider returns the inventory-derived annual intensity of every country for a year, for the world map.
+type CountryInventoryProvider interface {
+	CountriesAnnual(ctx context.Context, year int) ([]domain.CountryReading, error)
+}
+
+// InventoryProvider returns, for a cloud region, the intensity implied by an emissions inventory and the generation of each year.
+type InventoryProvider interface {
+	Annual(ctx context.Context, region string, fromYear, toYear int) ([]domain.AnnualRow, error)
 }
 
 // HourlyExtra is an additional free source of finer-than-monthly readings for some regions (UK Carbon Intensity).
@@ -92,14 +111,18 @@ type Service struct {
 	Extras []HourlyExtra
 	// Monthly is the source of monthly national figures (optional).
 	Monthly MonthlyProvider
+	// Inventory is the source of annual inventory-derived reference intensities (optional).
+	Inventory InventoryProvider
 	// Settings supplies the source policy (carbon.* platform settings). nil: catalog defaults.
 	Settings settings.Reader
 	Queue    queue.Enqueuer
 	Log      *slog.Logger
 	TTL      time.Duration // live intensity cache (default 1h)
 
-	mu    sync.Mutex
-	cache map[string]cachedIntensity
+	mu sync.Mutex
+	// inventoryAt is when the annual inventory figures were last refreshed by this process.
+	inventoryAt time.Time
+	cache       map[string]cachedIntensity
 }
 
 type cachedIntensity struct {
@@ -126,12 +149,27 @@ func (s *Service) Policy(ctx context.Context) domain.Policy {
 			overrides[region] = src
 		}
 	}
+	sourceAge := map[string]time.Duration{}
+	for _, e := range r.Strings(ctx, "", settings.KeyCarbonSourceAge) {
+		if src, h, ok := strings.Cut(e, "="); ok {
+			if n, err := strconv.Atoi(h); err == nil && n > 0 {
+				sourceAge[src] = time.Duration(n) * time.Hour
+			}
+		}
+	}
 	return domain.Policy{
 		Priority:       r.Strings(ctx, "", settings.KeyCarbonPriority),
 		Overrides:      overrides,
+		SourceMaxAge:   sourceAge,
 		MinDayReadings: int(r.Int(ctx, "", settings.KeyCarbonMinReadings)),
 		MaxAge:         time.Duration(r.Int(ctx, "", settings.KeyCarbonMaxAgeHours)) * time.Hour,
 	}
+}
+
+// ExplainIntensity says why a region and day got the intensity it did: what each trusted source has and which one the
+// policy uses. It reads the stored readings only and never calls a provider.
+func (s *Service) ExplainIntensity(ctx context.Context, region string, day time.Time) (domain.Explanation, error) {
+	return domain.Explain(ctx, s.Store, s.Policy(ctx), region, day)
 }
 
 // intensityNow returns the current intensity of a region: cached live reading, else the provider (and the
@@ -391,7 +429,7 @@ func (s *Service) Trend(ctx context.Context, tenantID string, project *string, f
 // and the last hours of every additional source for the regions in use. One failing source does not stop the others.
 func (s *Service) RefreshGrid(ctx context.Context) error {
 	firstErr := s.refreshMain(ctx)
-	if err := s.refreshExtras(ctx, 6*time.Hour); err != nil && firstErr == nil {
+	if err := s.refreshExtras(ctx, extrasWindow); err != nil && firstErr == nil {
 		firstErr = err
 	}
 	return firstErr
@@ -404,7 +442,13 @@ func (s *Service) refreshMain(ctx context.Context) error {
 		return nil
 	}
 	var firstErr error
-	for _, region := range lister.Regions() {
+	// The provider's daily request cap is shared by every region of the catalog. The regions customers really run in come
+	// first, so that when the cap is reached late in the day it is the regions nobody uses that wait for the next day.
+	regions := lister.Regions()
+	if inUse, err := s.Store.RegionsInUse(ctx); err == nil {
+		regions = refreshSlice(regions, inUse, time.Now().UTC().Hour())
+	}
+	for _, region := range regions {
 		in, err := s.Provider.GetIntensity(ctx, region)
 		if err == nil {
 			err = s.Store.SaveGridIntensity(ctx, domain.ProviderElectricityMaps, region, in.At, in.GPerKWh, false, domain.MeasureAverage, "hourly")
@@ -422,6 +466,64 @@ func (s *Service) refreshMain(ctx context.Context) error {
 	}
 	return firstErr
 }
+
+// catalogCycleHours is how often a region nobody runs in is refreshed: its figure is only a candidate for comparison, so every
+// few hours is enough, and refreshing the whole catalog every hour (two requests per region) would use the daily request cap
+// by the afternoon and leave the regions in use without readings for the rest of the day.
+const catalogCycleHours = 6
+
+// refreshSlice is what one hourly run asks the provider: every region in use, then the share of the rest whose turn it is this
+// hour (each region of the catalog gets one turn per catalogCycleHours). Regions in use come first.
+func refreshSlice(all, inUse []string, hour int) []string {
+	used := make(map[string]bool, len(inUse))
+	for _, r := range inUse {
+		used[r] = true
+	}
+	out := make([]string, 0, len(all))
+	for _, r := range all {
+		if used[r] {
+			out = append(out, r)
+		}
+	}
+	// The turn of a region comes from its own name, not from its place in the list: when another region starts to be used the
+	// rest keep their turns, so none is skipped for a whole cycle.
+	for _, r := range all {
+		if used[r] {
+			continue
+		}
+		h := fnv.New32a()
+		_, _ = h.Write([]byte(r))
+		if int(h.Sum32()%catalogCycleHours) == hour%catalogCycleHours {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// inUseFirst orders regions so that those in `inUse` come first, each group keeping its own order.
+func inUseFirst(all, inUse []string) []string {
+	used := make(map[string]bool, len(inUse))
+	for _, r := range inUse {
+		used[r] = true
+	}
+	out := make([]string, 0, len(all))
+	for _, r := range all {
+		if used[r] {
+			out = append(out, r)
+		}
+	}
+	for _, r := range all {
+		if !used[r] {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// extrasWindow is how far back each hourly refresh asks the additional sources. They publish with a delay (EIA's hourly generation
+// is a day or two behind), so a window of a few hours never overlapped what exists and a region's readings stopped for good. A
+// stored reading is never overwritten and a range is one request, so a wide window costs nothing.
+const extrasWindow = 72 * time.Hour
 
 // refreshExtras stores the last `window` of every additional source for the regions in use that it covers.
 func (s *Service) refreshExtras(ctx context.Context, window time.Duration) error {
@@ -610,6 +712,12 @@ func (s *Service) Origins(ctx context.Context, tenantID string, project *string,
 	return s.Store.Origins(ctx, tenantID, project, from, to, methodology.Version)
 }
 
+// EnergyByMethod splits a window's energy into usage-based and cost-based, so a figure can say how much of it is an
+// estimate from spend.
+func (s *Service) EnergyByMethod(ctx context.Context, tenantID string, project *string, from, to time.Time) (usageKWh, costKWh float64, err error) {
+	return s.Store.EnergyByMethod(ctx, tenantID, project, from, to, methodology.Version)
+}
+
 // Backfill limits: the provider bills and throttles by request, so a run is bounded before it starts.
 const (
 	BackfillMaxDays     = 400
@@ -665,7 +773,7 @@ func (s *Service) BackfillIntensity(ctx context.Context, regions []string, from,
 	return stored, first
 }
 
-// RefreshMonthly stores the last 36 months of monthly national figures for every region in use. A figure that was
+// RefreshMonthly stores the last 36 months of monthly national figures for every region in use, then for the rest of the catalog. A figure that was
 // published again is replaced (monthly values are revised); hourly readings are never touched. Regions of one country
 // share one provider request (the provider adapter caches per run).
 func (s *Service) RefreshMonthly(ctx context.Context) (stored int, err error) {
@@ -675,6 +783,11 @@ func (s *Service) RefreshMonthly(ctx context.Context) (stored int, err error) {
 	regions, err := s.Store.RegionsInUse(ctx)
 	if err != nil {
 		return 0, err
+	}
+	// Regions a client may move to are held against the same national figure: the provider adapter makes one request per
+	// country, so the catalog costs a request per country, not per region.
+	if lister, ok := s.Provider.(domain.RegionLister); ok {
+		regions = inUseFirst(lister.Regions(), regions)
 	}
 	to := time.Now().UTC()
 	from := time.Date(to.Year(), to.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -36, 0)
@@ -698,7 +811,81 @@ func (s *Service) RefreshMonthly(ctx context.Context) (stored int, err error) {
 			stored++
 		}
 	}
+	// Every country's national figure, for the map (one request); never mixed with the regions' sources.
+	if cp, ok := s.Monthly.(CountriesProvider); ok {
+		now := time.Now().UTC()
+		if rows, e := cp.Countries(ctx, time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -5, 0), now); e != nil {
+			s.Log.Warn("national figures of all countries", "err", e)
+		} else {
+			for _, r := range rows {
+				if e := s.Store.SaveGridIntensity(ctx, domain.ProviderEmberCountry, "country:"+r.Code, r.Month, r.G, false, domain.MeasureAverage, "monthly"); e != nil {
+					return stored, e
+				}
+				stored++
+			}
+		}
+	}
+	// The inventory-derived annual figure per region (a reference only); a failure here never hides the monthly result.
+	if n, e := s.refreshInventory(ctx, regions); e != nil {
+		s.Log.Warn("annual inventory figures", "err", e)
+		if first == nil && !errors.Is(e, domain.ErrNotConfigured) {
+			first = e
+		}
+	} else {
+		stored += n
+	}
 	return stored, first
+}
+
+// refreshInventory stores, for every region, the intensity implied by the national power-sector inventory and generation of
+// the last three completed years. It is stored with resolution "annual" under its own provider id, which is not a source in
+// the policy, so no calculation can ever take it.
+func (s *Service) refreshInventory(ctx context.Context, regions []string) (int, error) {
+	if s.Inventory == nil {
+		return 0, nil
+	}
+	// The figures are annual and the providers rate-limit: once every twelve hours is plenty, however many jobs ask.
+	s.mu.Lock()
+	if time.Since(s.inventoryAt) < 12*time.Hour {
+		s.mu.Unlock()
+		return 0, nil
+	}
+	s.inventoryAt = time.Now()
+	s.mu.Unlock()
+	year := time.Now().UTC().Year()
+	stored := 0
+	// Every country, for the map (two requests per year): the newest two completed years.
+	if cp, ok := s.Inventory.(CountryInventoryProvider); ok {
+		for y := year - 2; y <= year-1; y++ {
+			rows, err := cp.CountriesAnnual(ctx, y)
+			if err != nil {
+				s.Log.Warn("national inventory figures", "year", y, "err", err)
+				break
+			}
+			for _, r := range rows {
+				if e := s.Store.SaveGridIntensity(ctx, domain.ProviderInventoryCountry, "country:"+r.Code, time.Date(y, 1, 1, 0, 0, 0, 0, time.UTC), r.G, false, domain.MeasureAverage, "annual"); e != nil {
+					return stored, e
+				}
+				stored++
+			}
+		}
+	}
+	for _, region := range regions {
+		rows, err := s.Inventory.Annual(ctx, region, year-3, year-1)
+		if err != nil {
+			if errors.Is(err, domain.ErrNotConfigured) || errors.Is(err, apiusage.ErrBudget) {
+				return stored, err
+			}
+			continue
+		}
+		for _, r := range rows {
+			if e := s.Store.SaveGridIntensity(ctx, r.Provider, region, time.Date(r.Year, 1, 1, 0, 0, 0, 0, time.UTC), r.G, false, domain.MeasureAverage, "annual"); e != nil {
+				return stored, e
+			}
+			stored++
+		}
+	}
+	return stored, nil
 }
 
 // minCoverage is the share of days that must have grid data before a region is left alone.

@@ -133,3 +133,59 @@ func TestHistoryFillsDaysWithoutReadingsFromTheMonthlyFigure(t *testing.T) {
 		t.Fatalf("%+v", h)
 	}
 }
+
+func TestSourceMaxAgeOverridesTheGlobalAge(t *testing.T) {
+	old := d0.Add(-48 * time.Hour)
+	latest := map[string]struct {
+		g  float64
+		at time.Time
+	}{"electricitymaps": {250, old}, "ember": {400, old}}
+	r := fakeReader{latest: latest}
+	// globally 72 h: the hourly source's 48-hour-old reading is fine
+	p := Policy{Priority: []string{"electricitymaps", "ember"}, MaxAge: 72 * time.Hour}
+	got, _, _ := ResolveDay(context.Background(), r, p, "x", d0)
+	if got.Basis != BasisLatestBefore || got.Source != "electricitymaps" {
+		t.Fatalf("%+v", got)
+	}
+	// this source accepts 24 h only: it is skipped for the next one, which has its own long limit
+	p.SourceMaxAge = map[string]time.Duration{"electricitymaps": 24 * time.Hour, "ember": 96 * time.Hour}
+	got, _, _ = ResolveDay(context.Background(), r, p, "x", d0)
+	if got.Basis != BasisLatestBefore || got.Source != "ember" || got.G != 400 {
+		t.Errorf("want ember within its own limit, got %+v", got)
+	}
+}
+
+func TestExplainReportsEverySourceAndTheDecision(t *testing.T) {
+	p := Policy{Priority: []string{"electricitymaps", "ukci", "ember", "eia"}, MinDayReadings: 6, MaxAge: 72 * time.Hour,
+		Overrides: map[string]string{"eu-west-2": "ukci"}}
+	r := fakeReader{
+		day:   map[string][2]float64{"electricitymaps": {300, 24}, "ukci": {100, 3}},
+		month: map[string]float64{"ember": 210},
+		latest: map[string]struct {
+			g  float64
+			at time.Time
+		}{"eia": {180, d0.Add(-400 * time.Hour)}},
+	}
+	e, err := Explain(context.Background(), r, p, "eu-west-2", d0.Add(5*time.Hour))
+	if err != nil || e.Day != "2026-09-01" || len(e.Sources) != 4 {
+		t.Fatalf("%+v %v", e, err)
+	}
+	if e.Order[0] != "ukci" || !e.Sources[0].Pinned || e.Sources[0].Position != 1 {
+		t.Errorf("the pinned source must be first: %+v", e.Order)
+	}
+	// ukci is pinned but has 3 readings; electricitymaps has 24 and wins the day-mean step
+	if e.Chosen == nil || e.Chosen.Source != "electricitymaps" || e.Chosen.Basis != BasisDayMean {
+		t.Fatalf("chosen: %+v", e.Chosen)
+	}
+	want := map[string]string{"ukci": VerdictTooFew, "electricitymaps": VerdictChosen, "ember": VerdictBackup, "eia": VerdictStale}
+	for _, s := range e.Sources {
+		if s.Verdict != want[s.Source] {
+			t.Errorf("%s: want %s, got %s", s.Source, want[s.Source], s.Verdict)
+		}
+	}
+	// nothing stored anywhere: no choice, every source says no data
+	e, _ = Explain(context.Background(), fakeReader{}, p, "x", d0)
+	if e.Chosen != nil || e.Sources[0].Verdict != VerdictNoData {
+		t.Errorf("%+v", e)
+	}
+}

@@ -5,6 +5,7 @@ package operator
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,12 +35,16 @@ type Deps struct {
 	Queue queue.Enqueuer
 	// Mail e-mails announcements (optional: without it an announcement reaches the bell only).
 	Mail notify.Mailer
+	// Explain asks the carbon engine why a region and day got its intensity (optional).
+	Explain func(ctx context.Context, region string, day time.Time) (any, error)
+	// Diagnostics are the infrastructure self-tests (optional).
+	Diagnostics []domain.DiagCheck
 }
 
 type Module struct{ h ohttp.Handlers }
 
 func New(d Deps) *Module {
-	return &Module{h: ohttp.Handlers{Pool: d.Pool, Mail: d.Mail, Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings, Integrations: d.Integrations, Sources: d.Sources, Jobs: d.Jobs, Queue: d.Queue}}}
+	return &Module{h: ohttp.Handlers{Pool: d.Pool, Mail: d.Mail, Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, System: d.System, Settings: d.Settings, Integrations: d.Integrations, Sources: d.Sources, Jobs: d.Jobs, Queue: d.Queue, Explain: d.Explain, Diagnostics: d.Diagnostics}}}
 }
 
 func (*Module) Name() string                  { return "operator" }

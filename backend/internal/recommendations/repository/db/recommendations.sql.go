@@ -339,10 +339,17 @@ func (q *Queries) InsertVerification(ctx context.Context, arg InsertVerification
 }
 
 const latestIntensities = `-- name: LatestIntensities :many
-SELECT DISTINCT ON (region_id) region_id, g_co2e_per_kwh::float8 AS g_per_kwh, ts
-FROM carbon.grid_intensity
-WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
-ORDER BY region_id, array_position(carbon.provider_priority(), provider), ts DESC
+SELECT DISTINCT ON (region_id) region_id, g_per_kwh, ts FROM (
+  SELECT region_id, provider,
+         CASE WHEN count(*) FILTER (WHERE ts >= now() - interval '7 days') > 0
+              THEN (percentile_cont(0.5) WITHIN GROUP (ORDER BY g_co2e_per_kwh) FILTER (WHERE ts >= now() - interval '7 days'))::float8
+              ELSE (array_agg(g_co2e_per_kwh ORDER BY ts DESC))[1]::float8 END AS g_per_kwh,
+         max(ts) AS ts
+  FROM carbon.grid_intensity
+  WHERE NOT is_forecast AND measure = 'average' AND provider = ANY(carbon.provider_priority())
+  GROUP BY region_id, provider
+) s
+ORDER BY region_id, (ts < now() - carbon.source_max_age(provider)), array_position(carbon.provider_priority(), provider)
 `
 
 type LatestIntensitiesRow struct {
@@ -351,8 +358,12 @@ type LatestIntensitiesRow struct {
 	Ts       time.Time `json:"ts"`
 }
 
-// One source per region: the most trusted one that has a reading (platform setting carbon.provider_priority), its newest
-// average-intensity reading. Sources are not mixed and marginal readings are not used.
+// One source per region: the most trusted one that has a reading (platform setting carbon.provider_priority). The figure is
+// the MEDIAN of that source's readings of the last 7 days, not its newest hour and not the mean: an hour is noise and one spike
+// must not move it, and a target picked by it
+// flips between two clean regions from one run to the next. A source with nothing that recent (a monthly figure) gives its
+// newest value. A source whose newest reading is older than its accepted age (carbon.source_max_age) ranks behind every fresh
+// one, and is used only when nothing fresher exists. Sources are not mixed and marginal readings are not used.
 func (q *Queries) LatestIntensities(ctx context.Context) ([]LatestIntensitiesRow, error) {
 	rows, err := q.db.Query(ctx, latestIntensities)
 	if err != nil {

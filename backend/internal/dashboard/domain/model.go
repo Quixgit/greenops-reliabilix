@@ -28,6 +28,16 @@ type ServiceRow struct {
 	Spark    []float64 `json:"trend"` // daily CO2e, oldest first
 }
 
+// CountryIntensity is a country's latest published monthly national average (Ember), for colouring the map where no cloud region is.
+type CountryIntensity struct {
+	Code string `json:"code"` // ISO 3166 alpha-3
+	// Source is "ember" (a published national monthly average) or "inventory" (national power emissions / generation of a year:
+	// direct emissions, so a lower bound of the life-cycle figure).
+	Source  string    `json:"source"`
+	GPerKWh float64   `json:"g_per_kwh"`
+	Month   time.Time `json:"month"`
+}
+
 type RegionIntensity struct {
 	Region    string    `json:"region"`
 	GPerKWh   float64   `json:"g_per_kwh"`
@@ -48,7 +58,7 @@ type RegionFootprint struct {
 	GPerKWh     *float64     `json:"g_per_kwh"` // latest grid reading; nil when none is stored
 	Alternative *Alternative `json:"alternative"`
 	// RelocationBlocked says why no cleaner region is proposed: "residency_unknown" (a project using the region has
-	// no allow-list) or "residency" (no allowed region is clearly cleaner).
+	// no allow-list) or "residency" (no allowed region is clearly cleaner), or "latency" (cleaner regions exist but all are beyond the latency limit).
 	RelocationBlocked string `json:"relocation_blocked,omitempty"`
 }
 
@@ -60,10 +70,19 @@ type Alternative struct {
 	CostEstimated bool    `json:"cost_estimated"`
 	// CostDelta is the estimated change of the EC2 compute cost in this period if that load ran in the candidate region
 	// (list-price index; excludes discounts, data transfer and migration). Nil when no index or no EC2 cost.
-	CostDelta      *float64 `json:"cost_delta"`
-	CostBasis      string   `json:"cost_basis,omitempty"`
-	ResidencyOK    bool     `json:"residency_ok"` // every project using the source region allows the candidate
-	ChecksRequired []string `json:"checks_required"`
+	CostDelta *float64 `json:"cost_delta"`
+	CostBasis string   `json:"cost_basis,omitempty"`
+	// LatencyMs is the estimated round trip from where the load runs now to the candidate (from the distance; nil when a region
+	// is not on the map), and LatencyBudgetMs the most the organization accepts. The move was chosen inside that budget.
+	LatencyMs  *int `json:"latency_ms,omitempty"`
+	DistanceKm *int `json:"distance_km,omitempty"`
+	// LatencyBasis says where the figure comes from: measured_azure (Microsoft), measured_aws (CloudPing) or estimated (from distance,
+	// typically off by LatencyErrorPct).
+	LatencyBasis    string   `json:"latency_basis,omitempty"`
+	LatencyErrorPct int      `json:"latency_error_pct,omitempty"`
+	LatencyBudgetMs int      `json:"latency_budget_ms"`
+	ResidencyOK     bool     `json:"residency_ok"` // every project using the source region allows the candidate
+	ChecksRequired  []string `json:"checks_required"`
 }
 
 // Optimization is the value of the recommendations: potential (estimated, per month) and verified (measured after the
@@ -98,13 +117,20 @@ type Activity struct {
 	Action string    `json:"action"`
 	Target string    `json:"target"`
 	At     time.Time `json:"at"`
+	// Detail is what the event was about, from a short allowlist of the audit entry's own facts (a project's name, a report's
+	// kind, the records a sync read). Nothing else of the audit metadata ever leaves.
+	Detail map[string]string `json:"detail"`
 }
+
+// ActivityDetailKeys are the audit metadata keys Recent Activity may show.
+var ActivityDetailKeys = []string{"name", "provider", "kind", "format", "type", "records", "amount", "period"}
 
 // UserFacingActions is the allowlist of audit actions shown in Recent Activity.
 // Security-sensitive or system actions (role changes, credential changes...) never appear here.
 var UserFacingActions = []string{
 	"project.created", "cloud_connection.created", "cloud_sync.completed",
 	"report.generated", "recommendation.created", "recommendation.approved", "recommendation.applied",
+	"budget.created", "project.deleted", "project.policy_updated",
 }
 
 type Filter struct {
@@ -136,6 +162,7 @@ type Repository interface {
 	Providers(ctx context.Context, f Filter) ([]ProviderShare, error)
 	Services(ctx context.Context, f Filter, category string) ([]ServiceRow, error)
 	Regions(ctx context.Context) ([]RegionIntensity, error)
+	Countries(ctx context.Context) ([]CountryIntensity, error)
 	RegionFootprint(ctx context.Context, f Filter) ([]RegionFootprint, error)
 	Optimization(ctx context.Context, f Filter) (Optimization, error)
 	Efficiency(ctx context.Context, f Filter) (Efficiency, error)

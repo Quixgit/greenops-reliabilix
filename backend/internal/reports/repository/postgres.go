@@ -67,7 +67,13 @@ func (r Postgres) SetReady(ctx context.Context, tenantID, id, objectKey string) 
 		if err := db.New(tx).SetReportReady(ctx, db.SetReportReadyParams{TenantID: tenantID, ID: id, ObjectKey: &objectKey}); err != nil {
 			return err
 		}
-		return audit.Record(audit.WithTenant(ctx, tenantID), tx, "report.generated", "report:"+id, nil)
+		// What was made travels with the event, so the activity feed can say "SCI report (PDF)" and not just "report".
+		meta := map[string]any{}
+		var kind, format string
+		if err := tx.QueryRow(ctx, `SELECT kind, format FROM reports.reports WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&kind, &format); err == nil {
+			meta["kind"], meta["format"] = kind, format
+		}
+		return audit.Record(audit.WithTenant(ctx, tenantID), tx, "report.generated", "report:"+id, meta)
 	})
 }
 
@@ -143,6 +149,26 @@ func (r Postgres) SCITable(ctx context.Context, tenantID string, project *string
 			t.Rows = append(t.Rows, []string{x.Project, x.FunctionalUnit, day(x.Day), f(x.CarbonKgCo2e), units, sci, x.MethodologyVersion})
 		}
 		return err
+	})
+	return
+}
+
+// Scope names the organization and the project a report is about; "All projects" when it covers every project.
+func (r Postgres) Scope(ctx context.Context, tenantID string, project *string) (org, projectName string, err error) {
+	projectName = "All projects"
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT name FROM tenants.organizations WHERE id = $1`, tenantID).Scan(&org); err != nil && err != pgx.ErrNoRows {
+			return err
+		}
+		if project != nil {
+			var n string
+			if err := tx.QueryRow(ctx, `SELECT name FROM projects.projects WHERE id = $1 AND tenant_id = $2`, *project, tenantID).Scan(&n); err == nil {
+				projectName = "Project " + n
+			} else if err != pgx.ErrNoRows {
+				return err
+			}
+		}
+		return nil
 	})
 	return
 }

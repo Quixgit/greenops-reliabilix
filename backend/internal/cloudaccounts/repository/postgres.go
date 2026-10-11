@@ -20,7 +20,7 @@ type Postgres struct{ Pool *pgxpool.Pool }
 func toConn(r db.CloudaccountsConnection) domain.Connection {
 	c := domain.Connection{ID: r.ID, TenantID: r.TenantID, ProjectID: r.ProjectID, Provider: domain.ProviderType(r.Provider),
 		AccountRef: r.AccountRef, CredentialRef: r.CredentialRef, ExternalID: r.ExternalID, SyncStatus: domain.SyncStatus(r.SyncStatus),
-		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, Export: exportOf(r), SealedSecret: deref(r.SealedSecret)}
+		LastError: r.LastError, LastSyncAt: r.LastSyncAt, SyncedThrough: r.SyncedThrough, LastQuality: qualityOf(r.LastQuality), Export: exportOf(r), SealedSecret: deref(r.SealedSecret)}
 	c.Access = c.AccessMode()
 	return c
 }
@@ -130,6 +130,13 @@ func (r Postgres) SetStatus(ctx context.Context, tenantID, id string, status dom
 
 func (r Postgres) StartRun(ctx context.Context, tenantID, connectionID string) (id string, err error) {
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		// A run that was started and never finished (the worker was stopped in the middle, for example by a deploy) stays
+		// "running" for ever and shows as a sync in progress. A sync takes minutes, so one that began over an hour ago is dead:
+		// it is closed as interrupted before the next one starts.
+		if _, err := tx.Exec(ctx, `UPDATE cloudaccounts.sync_runs SET status = 'failed', finished_at = now(), error = 'Interrupted: the worker stopped before this sync finished.'
+		                           WHERE connection_id = $1 AND status = 'running' AND started_at < now() - interval '1 hour'`, connectionID); err != nil {
+			return err
+		}
 		id, err = db.New(tx).StartSyncRun(ctx, db.StartSyncRunParams{TenantID: tenantID, ConnectionID: connectionID})
 		return err
 	})

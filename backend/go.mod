@@ -2,6 +2,8 @@ module github.com/quixgit/greenops-reliabilix/backend
 
 go 1.27
 
+toolchain go1.27.2
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # One image per process:  docker build --build-arg CMD=api -f deploy/docker/Dockerfile .   (api | worker | scheduler)
-FROM golang:1.27 AS build
+FROM golang:1.27.2 AS build
 ARG CMD
 ARG VERSION=dev
 ARG COMMIT=unknown
@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w \
     -X github.com/quixgit/greenops-reliabilix/backend/internal/platform/version.Commit=${COMMIT}" -o /out/app ./cmd/${CMD}
 
 # Migrations runner:  docker build --target migrate -f deploy/docker/Dockerfile .
-FROM golang:1.27 AS goose
+FROM golang:1.27.2 AS goose
 RUN CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@latest
 
 FROM gcr.io/distroless/static-debian12:nonroot AS migrate

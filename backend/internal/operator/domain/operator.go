@@ -118,6 +118,28 @@ type System struct {
 	Env               string        `json:"env"`
 	ExpectedMigration int           `json:"expected_migration"`
 	Integrations      []Integration `json:"integrations"`
+	// Runtime and Database describe the process that answered and its connection to the database; they are filled in
+	// by the handler at the moment of the request, never stored.
+	Runtime  *Runtime       `json:"runtime,omitempty"`
+	Database *DatabaseStats `json:"database,omitempty"`
+}
+
+// Runtime is the answering process: since when it runs and how much it holds.
+type Runtime struct {
+	StartedAt  time.Time `json:"started_at"`
+	GoVersion  string    `json:"go_version"`
+	Goroutines int       `json:"goroutines"`
+	HeapMB     float64   `json:"heap_mb"`
+	CPUs       int       `json:"cpus"`
+}
+
+// DatabaseStats is the connection pool of the API and the time one round trip takes.
+type DatabaseStats struct {
+	OK          bool    `json:"ok"`
+	PingMS      float64 `json:"ping_ms"`
+	Connections int32   `json:"connections"`
+	InUse       int32   `json:"in_use"`
+	Max         int32   `json:"max"`
 }
 
 // AuditEntry is one line of the operators' own access log: who looked at or changed what, and when.
@@ -192,6 +214,10 @@ type Repository interface {
 	APIUsage(ctx context.Context, days int) ([]APIUsage, error)
 	CarbonRegionSources(ctx context.Context) ([]RegionSourceRow, error)
 	OrgUsage(ctx context.Context, days int) ([]OrgUsage, error)
+	// IntensityProvenance counts calculation rows by the source and basis of their intensity over the last days.
+	IntensityProvenance(ctx context.Context, days int) ([]ProvenanceRow, error)
+	// SourceDivergence is, per region and source, the median hourly reading of the last days and the newest monthly figure.
+	SourceDivergence(ctx context.Context, days int) ([]DivergenceRow, error)
 	AssignOperator(ctx context.Context, actor, email string, role Role) (string, error)
 	WithdrawOperator(ctx context.Context, actor, subject string) (bool, error)
 	// CarbonRegions lists the regions that have carbon calculations for any organization.
@@ -216,6 +242,9 @@ type JobsPort interface {
 	Queues() ([]queue.QueueStat, error)
 	Failed(limit int) ([]queue.FailedTask, error)
 	Schedules() ([]queue.Schedule, error)
+	// Retry runs a failed task again now; Delete removes it. Both only touch tasks that failed (retry or archived).
+	Retry(queue, id string) error
+	Delete(queue, id string) error
 }
 
 // OrgUsage is what an organization used in a window (counts) and the estimated cost of serving it.
@@ -301,4 +330,145 @@ type SettingsPort interface {
 	SetTenantOverride(ctx context.Context, actor, tenantID string, values map[string]json.RawMessage) error
 	ClearTenantOverride(ctx context.Context, actor, tenantID string, keys []string) error
 	OperatorHistory(ctx context.Context, tenantID *string, limit int) ([]settings.HistoryEntry, error)
+}
+
+// ProvenanceRow is how many calculation rows took their intensity from a source on a basis. An empty source is a row
+// calculated before the origin was recorded.
+type ProvenanceRow struct {
+	Source string `json:"source"`
+	Basis  string `json:"basis"`
+	Rows   int64  `json:"rows"`
+}
+
+// AggregationPolicy is the source policy in force, as the platform settings hold it.
+type AggregationPolicy struct {
+	Priority          []string          `json:"priority"`
+	Overrides         map[string]string `json:"overrides"`
+	MinDayReadings    int               `json:"min_day_readings"`
+	MaxAgeHours       int               `json:"max_age_hours"`
+	SourceMaxAgeHours map[string]int    `json:"source_max_age_hours"`
+	DailyRequestCap   int64             `json:"daily_request_cap"`
+}
+
+// AggregationSource is one grid-intensity source: what kind of figure it gives, its place in the policy and how fresh
+// its data is.
+type AggregationSource struct {
+	ID          string     `json:"id"`
+	Label       string     `json:"label"`
+	Measure     string     `json:"measure"`     // average: the only measure that feeds carbon figures
+	Granularity string     `json:"granularity"` // hourly | monthly
+	Computed    bool       `json:"computed"`    // derived from generation by fuel, not a published intensity
+	Licence     string     `json:"licence"`
+	Position    int        `json:"position"` // 1-based place in the priority list; 0: not in the policy, never used
+	Pinned      int        `json:"pinned_regions"`
+	Regions     int        `json:"regions"`
+	Hourly30d   int        `json:"hourly_readings_30d"`
+	Months      int        `json:"monthly_figures"`
+	Newest      *time.Time `json:"newest"`
+	MaxAgeHours int        `json:"max_age_hours"`
+	Freshness   string     `json:"freshness"` // fresh | aging | stale | none
+}
+
+// Provenance is where the figures of the last days took their intensity from.
+type Provenance struct {
+	Days         int             `json:"days"`
+	Total        int64           `json:"total"`
+	Unattributed int64           `json:"unattributed"`
+	PreciseShare float64         `json:"precise_share"` // share of attributed rows that are a mean of that day's own readings
+	Rows         []ProvenanceRow `json:"rows"`
+}
+
+// AggregationRule is a rule the engine applies when it combines sources, stated so it can be read and checked.
+type AggregationRule struct {
+	Code  string `json:"code"`
+	Title string `json:"title"`
+	Text  string `json:"text"`
+}
+
+// DiagStatus is the outcome of one self-test of the platform.
+type DiagStatus string
+
+const (
+	DiagOK      DiagStatus = "ok"
+	DiagWarn    DiagStatus = "warn"
+	DiagFail    DiagStatus = "fail"
+	DiagSkipped DiagStatus = "skipped" // nothing to test here (not configured), which is not a problem
+)
+
+// DiagCheck is one self-test: what it looks at and how to run it. Run returns a short message that is safe to show an operator
+// (never a secret, a payload or a tenant's data).
+type DiagCheck struct {
+	ID          string
+	Group       string
+	Name        string
+	Description string
+	Run         func(ctx context.Context) (DiagStatus, string)
+}
+
+// DiagResult is the answer of one run of a self-test.
+type DiagResult struct {
+	ID          string     `json:"id"`
+	Group       string     `json:"group"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Status      DiagStatus `json:"status"`
+	Ms          int64      `json:"ms"`
+	Message     string     `json:"message"`
+	At          time.Time  `json:"at"`
+}
+
+// DivergenceRow is one source's figure for one region as the repository returns it.
+type DivergenceRow struct {
+	Region   string
+	Provider string
+	G        float64
+	N        int
+	Newest   time.Time
+	Kind     string // hourly | monthly | annual
+}
+
+// DivergenceSource is one source's typical figure for a region (the median of its hourly readings of the last days).
+type DivergenceSource struct {
+	ID       string     `json:"id"`
+	Label    string     `json:"label"`
+	G        float64    `json:"g_per_kwh"`
+	Readings int        `json:"readings"`
+	Newest   *time.Time `json:"newest"`
+	Computed bool       `json:"computed"`
+	Fresh    bool       `json:"fresh"`
+	// VsAnchorPct is how far this figure is from the monthly national figure, in percent; nil without an anchor.
+	VsAnchorPct *float64 `json:"vs_anchor_pct"`
+}
+
+// DivergenceAnchor is the independent monthly national figure (Ember) a region's hourly sources are held against.
+type DivergenceAnchor struct {
+	Source string    `json:"source"`
+	Label  string    `json:"label"`
+	Month  time.Time `json:"month"`
+	G      float64   `json:"g_per_kwh"`
+}
+
+// Divergence is where the sources of one region disagree. Level: ok (within 1.5x), differs (1.5x to 2.5x) or disagrees (2.5x or
+// more, or a lone hourly source twice as far from the national figure). Used is the source the policy takes.
+type Divergence struct {
+	Region  string             `json:"region"`
+	InUse   bool               `json:"in_use"`
+	Sources []DivergenceSource `json:"sources"`
+	Anchor  *DivergenceAnchor  `json:"anchor"`
+	// Inventory is the intensity implied by the national emissions inventory and generation of the newest year (direct emissions).
+	Inventory *DivergenceAnchor `json:"inventory"`
+	Ratio     float64           `json:"ratio"`
+	Level     string            `json:"level"`
+	Used      string            `json:"used"`
+}
+
+// Aggregation is the whole picture for the console page.
+type Aggregation struct {
+	Policy     AggregationPolicy   `json:"policy"`
+	Sources    []AggregationSource `json:"sources"`
+	Provenance Provenance          `json:"provenance"`
+	Rules      []AggregationRule   `json:"rules"`
+	Regions    int                 `json:"regions_in_use"`
+	// Divergence lists the regions where sources can be compared, the most disagreeing first.
+	Divergence []Divergence `json:"divergence"`
 }

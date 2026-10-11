@@ -84,6 +84,93 @@ func (c *Client) Monthly(ctx context.Context, entityCode string, from, to time.T
 	return out, nil
 }
 
+// CountryReading is one country's monthly intensity.
+type CountryReading struct {
+	Code  string // Ember entity code (ISO 3166 alpha-3)
+	Month time.Time
+	G     float64
+}
+
+// MonthlyAll returns the monthly intensity of every country Ember has for [from, to): one request for the whole world.
+func (c *Client) MonthlyAll(ctx context.Context, from, to time.Time) ([]CountryReading, error) {
+	if c.APIKey == "" {
+		return nil, errNoKey
+	}
+	q := url.Values{"is_aggregate_entity": {"false"}, "start_date": {from.UTC().Format("2006-01")}, "end_date": {to.UTC().Format("2006-01")}, "api_key": {c.APIKey}}
+	var body struct {
+		Data []struct {
+			Entity    string  `json:"entity_code"`
+			Date      string  `json:"date"`
+			Intensity float64 `json:"emissions_intensity_gco2_per_kwh"`
+		} `json:"data"`
+	}
+	if err := c.get(ctx, "/carbon-intensity/monthly?"+q.Encode(), &body); err != nil {
+		return nil, err
+	}
+	var out []CountryReading
+	for _, d := range body.Data {
+		m, err := time.Parse("2006-01", d.Date[:min(len(d.Date), 7)])
+		if err != nil || len(d.Entity) != 3 || math.IsNaN(d.Intensity) || d.Intensity < minIntensity || d.Intensity > maxIntensity {
+			continue
+		}
+		out = append(out, CountryReading{Code: strings.ToUpper(d.Entity), Month: m.UTC(), G: d.Intensity})
+	}
+	return out, nil
+}
+
+// GenerationTWh returns, per Ember entity code, a country's total electricity generation of the year in TWh. A country without a
+// figure is absent. It is the denominator that turns an emissions inventory into an intensity.
+func (c *Client) GenerationTWh(ctx context.Context, entityCodes []string, year int) (map[string]float64, error) {
+	if c.APIKey == "" {
+		return nil, errNoKey
+	}
+	out := map[string]float64{}
+	if len(entityCodes) == 0 {
+		return out, nil
+	}
+	q := url.Values{"entity_code": {strings.Join(entityCodes, ",")}, "is_aggregate_entity": {"false"}, "series": {"Total generation"},
+		"start_date": {fmt.Sprint(year)}, "end_date": {fmt.Sprint(year)}, "api_key": {c.APIKey}}
+	var body struct {
+		Data []struct {
+			Entity string  `json:"entity_code"`
+			TWh    float64 `json:"generation_twh"`
+		} `json:"data"`
+	}
+	if err := c.get(ctx, "/electricity-generation/yearly?"+q.Encode(), &body); err != nil {
+		return nil, err
+	}
+	for _, d := range body.Data {
+		if d.TWh > 0 && !math.IsNaN(d.TWh) {
+			out[strings.ToUpper(d.Entity)] = d.TWh
+		}
+	}
+	return out, nil
+}
+
+// GenerationAllTWh returns the total generation of the year in TWh for every country Ember has (one request).
+func (c *Client) GenerationAllTWh(ctx context.Context, year int) (map[string]float64, error) {
+	if c.APIKey == "" {
+		return nil, errNoKey
+	}
+	q := url.Values{"is_aggregate_entity": {"false"}, "series": {"Total generation"}, "start_date": {fmt.Sprint(year)}, "end_date": {fmt.Sprint(year)}, "api_key": {c.APIKey}}
+	var body struct {
+		Data []struct {
+			Entity string  `json:"entity_code"`
+			TWh    float64 `json:"generation_twh"`
+		} `json:"data"`
+	}
+	if err := c.get(ctx, "/electricity-generation/yearly?"+q.Encode(), &body); err != nil {
+		return nil, err
+	}
+	out := map[string]float64{}
+	for _, d := range body.Data {
+		if d.TWh > 0 && !math.IsNaN(d.TWh) && len(d.Entity) == 3 {
+			out[strings.ToUpper(d.Entity)] = d.TWh
+		}
+	}
+	return out, nil
+}
+
 // Check proves the key works with the smallest request there is. The key is never part of an error message.
 func (c *Client) Check(ctx context.Context) error {
 	if c.APIKey == "" {

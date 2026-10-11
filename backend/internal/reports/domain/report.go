@@ -91,11 +91,15 @@ func (f Format) ContentType() string {
 
 // Table is the neutral, format-independent content of a report.
 type Table struct {
-	Title   string     `json:"title"`
-	Period  string     `json:"period"`
-	Notes   []string   `json:"notes"`
-	Headers []string   `json:"headers"`
-	Rows    [][]string `json:"rows"`
+	Title  string `json:"title"`
+	Period string `json:"period"`
+	// Organization and Scope say for whom and for what the report was made ("All projects" or a project's name). They
+	// frame a document (the PDF's title block and footer); the data formats carry them as a note.
+	Organization string     `json:"organization,omitempty"`
+	Scope        string     `json:"scope,omitempty"`
+	Notes        []string   `json:"notes"`
+	Headers      []string   `json:"headers"`
+	Rows         [][]string `json:"rows"`
 }
 
 // Repository is tenant-scoped (explicit tenantID + RLS). Dataset builders are read-only views of other schemas.
@@ -109,6 +113,8 @@ type Repository interface {
 	FinopsTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SCITable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SustainabilityTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
+	// Scope names the organization and the project (empty project: all of them) a report is about.
+	Scope(ctx context.Context, tenantID string, project *string) (org, projectName string, err error)
 	// Delete removes the metadata row and returns what it was (the caller removes the stored file).
 	Delete(ctx context.Context, tenantID, id string) (Report, error)
 }

@@ -15,6 +15,7 @@ const (
 	KeyErrorsRetentionDays     = "errors.retention_days"
 	KeyOperatorLogRetention    = "operator.access_log_retention_days"
 	KeyAlertsWarnPct           = "alerts.warn_pct"
+	KeyRecMaxLatencyMs         = "recommendations.max_latency_ms"
 	KeyAlertsCarbonMonthlyKg   = "alerts.carbon_monthly_kg"
 	KeyDataRetentionMonths     = "retention.data_months"
 	KeyDeletionGraceDays       = "lifecycle.deletion_grace_days"
@@ -54,6 +55,7 @@ const (
 	KeyCarbonOverrides   = "carbon.region_provider_overrides"
 	KeyCarbonMinReadings = "carbon.min_day_readings"
 	KeyCarbonMaxAgeHours = "carbon.max_reading_age_hours"
+	KeyCarbonSourceAge   = "carbon.source_max_age_hours"
 
 	KeyOrgSuspended        = "organization.suspended"
 	KeyOrgSuspendedMessage = "organization.suspended_message"
@@ -85,6 +87,7 @@ var groups = []Group{
 	{"connectors", "Cloud connectors", "Which cloud providers can be connected and how often data is pulled."},
 	{"reports", "Reports", "What can be generated."},
 	{"notifications", "Notifications", "Delivery of events by e-mail, webhook and Slack."},
+	{"recommendations", "Recommendations", "How far a recommended region move may reach."},
 	{"alerts", "Alerts", "When the platform raises an alert for the organization."},
 	{"retention", "Retention", "How long operational records are kept."},
 }
@@ -163,15 +166,19 @@ func definitions() []Def {
 
 		// ---- grid data sources (platform) ----
 		{Key: KeyCarbonPriority, Group: "carbon", Title: "Source priority", Description: "Sources of grid carbon intensity, most trusted first. For a day, the first source with enough readings is used; sources are never averaged together.",
-			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity", "eia", "energy_charts"}, MinItems: 1, MaxItems: 7,
+			Scope: ScopePlatform, Type: List, Default: []string{"electricitymaps", "uk_carbon_intensity", "eia", "energy_charts", "entsoe", "ieso", "hydroquebec", "ons", "ember"}, ListEnum: []string{"electricitymaps", "ember", "uk_carbon_intensity", "eia", "energy_charts", "entsoe", "ieso", "hydroquebec", "ons"}, MinItems: 1, MaxItems: 10,
 			Note: "Only sources that have a released connector can supply data. Marginal intensity (WattTime) is a different measure and is not part of this list."},
 		{Key: KeyCarbonOverrides, Group: "carbon", Title: "Source per region", Description: "Use a specific source for a region, before the priority list. One entry per line as region=source, for example eu-west-2=uk_carbon_intensity.",
-			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity|eia|energy_charts)$`},
+			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 100, MaxLen: 80, Pattern: `^[a-z0-9-]{2,40}=(electricitymaps|ember|uk_carbon_intensity|eia|energy_charts|entsoe|ieso|hydroquebec|ons)$`},
 		intDef(KeyCarbonMaxRequests, "carbon", "Requests per day to the grid data provider", "Cost control: once this many requests were made today to the provider (all processes together), no more are made until the next UTC day, and stored readings are used. 0 is unlimited.", ScopePlatform, 2000, 0, 1000000, "requests", "The hourly refresh needs about one request per region in use; loading past data needs one per region per 9 days."),
 		boolDef(KeyCarbonAutoLoad, "carbon", "Load the past of a region by itself", "Every day, a region in use whose last days are not covered by grid data gets its past loaded from every source that can supply it, and the affected calculations are redone. Requests count against the daily cap.", ScopePlatform, true, "Turn off to load history only by hand from this page."),
 		intDef(KeyCarbonAutoDays, "carbon", "How far back to load by itself", "The window the automatic loading covers and recalculates.", ScopePlatform, 90, 7, 365, "days", ""),
 		intDef(KeyCarbonMinReadings, "carbon", "Readings a source needs per day", "A source's mean counts as the day's intensity only with at least this many readings that day; fewer is used only when no source has enough and is marked partial.", ScopePlatform, 6, 1, 24, "readings", "Readings are hourly."),
 		intDef(KeyCarbonMaxAgeHours, "carbon", "Oldest reading used for a day without data", "For a day with no readings, the last reading before it is used if it is not older than this; an older one is used only as a marked estimate.", ScopePlatform, 72, 1, 720, "hours", ""),
+
+		{Key: KeyCarbonSourceAge, Group: "carbon", Title: "Oldest reading per source", Description: "How old the last reading of one source may be for a day without data, instead of the common limit above. One entry per line as source=hours, for example ember=1500 for a feed that publishes monthly.",
+			Scope: ScopePlatform, Type: List, Default: []string{}, MaxItems: 10, MaxLen: 40, Pattern: `^(electricitymaps|ember|uk_carbon_intensity|eia|energy_charts|entsoe|ieso|hydroquebec|ons)=([1-9][0-9]{0,3})$`,
+			Note: "A source not listed uses the common limit. Applies to the next calculation."},
 
 		// ---- security (organization) ----
 		intDef(KeyInviteExpiryDays, "security", "Invitation lifetime", "How long an invitation can be accepted.", ScopeTenant, 7, 1, 30, "days", "Applies to invitations created after the change."),
@@ -180,6 +187,7 @@ func definitions() []Def {
 		intDef(KeyAPIKeysMaxActive, "security", "Active API keys", "Maximum number of API keys that are not revoked.", ScopeTenant, 10, 1, 50, "", ""),
 
 		// ---- alerts (organization) ----
+		intDef(KeyRecMaxLatencyMs, "recommendations", "Latency a move may add", "A recommendation proposes a cleaner region only if the estimated round trip to it, from where the workload runs now, is no longer than this. Farther regions are still listed as options, marked as outside the limit. Raise it for batch work that does not care, lower it for what users wait on.", ScopeTenant, 60, 5, 400, "ms", "An estimate from the distance between the regions (about 1 ms per 65 km, there and back), not a measurement. Applies at the next daily analysis."),
 		intDef(KeyAlertsWarnPct, "alerts", "Warning level", "A budget or carbon limit raises a warning at this share of the limit; reaching the limit itself is critical.", ScopeTenant, 80, 10, 99, "%", "Applies at the next hourly check."),
 		intDef(KeyAlertsCarbonMonthlyKg, "alerts", "Monthly carbon limit", "Alert when the organization's emissions in a calendar month approach this many kg CO2e. 0 turns the carbon alert off.", ScopeTenant, 0, 0, 1000000000, "kg CO2e", "Operational emissions, as shown on Carbon & Energy."),
 

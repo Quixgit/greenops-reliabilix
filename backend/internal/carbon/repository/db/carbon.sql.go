@@ -196,9 +196,13 @@ func (q *Queries) IntensityBasisBreakdown(ctx context.Context, arg IntensityBasi
 
 const intensityDayStats = `-- name: IntensityDayStats :one
 
-SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
-WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
-  AND ts >= $3 AND ts < $4
+WITH r AS (
+  SELECT g_co2e_per_kwh AS g FROM carbon.grid_intensity
+  WHERE region_id = $1 AND provider = $2 AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
+    AND ts >= $3 AND ts < $4
+), m AS (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY g) AS med, count(*) AS n FROM r)
+SELECT COALESCE(avg(r.g) FILTER (WHERE m.n < 6 OR r.g BETWEEN m.med / 2.5 AND m.med * 2.5), 0)::float8 AS g, count(r.g)::int AS n
+FROM r CROSS JOIN m
 `
 
 type IntensityDayStatsParams struct {
@@ -215,7 +219,9 @@ type IntensityDayStatsRow struct {
 
 // a published monthly figure may be revised; an hourly reading never is
 // Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
-// averaged together: the caller asks one source at a time, in policy order.
+// averaged together: the caller asks one source at a time, in policy order. With six or more readings, one that is more than
+// 2.5 times above or below the median of the period is left out of the mean (a spike of the source, not the grid); n still
+// counts every reading.
 func (q *Queries) IntensityDayStats(ctx context.Context, arg IntensityDayStatsParams) (IntensityDayStatsRow, error) {
 	row := q.db.QueryRow(ctx, intensityDayStats,
 		arg.RegionID,
@@ -413,7 +419,7 @@ const saveGridIntensity = `-- name: SaveGridIntensity :exec
 INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (provider, region_id, ts, is_forecast, measure) DO UPDATE SET g_co2e_per_kwh = EXCLUDED.g_co2e_per_kwh, resolution = EXCLUDED.resolution
-WHERE carbon.grid_intensity.resolution = 'monthly'
+WHERE carbon.grid_intensity.resolution IN ('monthly', 'annual')
 `
 
 type SaveGridIntensityParams struct {

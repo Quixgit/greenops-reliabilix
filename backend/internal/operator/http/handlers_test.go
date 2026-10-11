@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/hibiken/asynq"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -99,6 +101,17 @@ func (f *fakeRepo) APIUsage(context.Context, int) ([]domain.APIUsage, error) {
 func (f *fakeRepo) CarbonRegionSources(context.Context) ([]domain.RegionSourceRow, error) {
 	return []domain.RegionSourceRow{{Region: "eu-central-1", Provider: "ember", Months: 24}}, nil
 }
+func (f *fakeRepo) IntensityProvenance(context.Context, int) ([]domain.ProvenanceRow, error) {
+	return []domain.ProvenanceRow{{Source: "electricitymaps", Basis: "day_mean", Rows: 3}, {Rows: 1}}, nil
+}
+func (f *fakeRepo) SourceDivergence(context.Context, int) ([]domain.DivergenceRow, error) {
+	now := time.Now()
+	return []domain.DivergenceRow{
+		{Region: "sa-east-1", Provider: "electricitymaps", G: 300, N: 40, Newest: now},
+		{Region: "sa-east-1", Provider: "ons", G: 90, N: 150, Newest: now},
+		{Region: "sa-east-1", Provider: "ember", G: 105, N: 1, Newest: now.AddDate(0, -2, 0), Kind: "monthly"},
+	}, nil
+}
 func (f *fakeRepo) OrgUsage(context.Context, int) ([]domain.OrgUsage, error) {
 	return []domain.OrgUsage{{TenantID: t1, Name: "Acme", UsageRows: 2_000_000, SyncRuns: 100, Reports: 10}, {TenantID: d1, Name: "Small", UsageRows: 1000}}, nil
 }
@@ -166,7 +179,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &me) != nil || me.Role != domain.Viewer || me.Subject != "viewer-1" {
 		t.Fatalf("me = %d %s", rec.Code, rec.Body)
 	}
-	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system", "/operator/audit?limit=20", "/operator/data-sources", "/operator/operators", "/operator/plans", "/operator/billing/events", "/operator/methodology", "/operator/api-usage", "/operator/carbon/regions", "/operator/usage"} {
+	for _, p := range []string{"/operator/tenants", "/operator/notifications/stats", "/operator/notifications/deliveries?status=failed", "/operator/connections/unhealthy", "/operator/system", "/operator/audit?limit=20", "/operator/data-sources", "/operator/operators", "/operator/plans", "/operator/billing/events", "/operator/methodology", "/operator/api-usage", "/operator/carbon/regions", "/operator/usage", "/operator/aggregation"} {
 		if rec := do(h, "GET", p); rec.Code != 200 {
 			t.Errorf("GET %s = %d", p, rec.Code)
 		}
@@ -183,7 +196,7 @@ func TestViewerReadsButCannotAct(t *testing.T) {
 	if len(repo.retried)+len(repo.toggled) != 0 {
 		t.Error("a read-only operator changed something")
 	}
-	if len(repo.log) != 15 { // every successful read is recorded; refused writes are not
+	if len(repo.log) != 16 { // every successful read is recorded; refused writes are not
 		t.Errorf("access log = %v", repo.log)
 	}
 }
@@ -442,5 +455,108 @@ func TestRecalculateAllIsAdminOnlyAndBounded(t *testing.T) {
 		if c := post(h, b); c != 422 {
 			t.Errorf("%s = %d, want 422", b, c)
 		}
+	}
+}
+
+func TestAggregationAndExplain(t *testing.T) {
+	_, h := setup("viewer-1")
+	rec := do(h, "GET", "/operator/aggregation")
+	var a domain.Aggregation
+	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &a) != nil {
+		t.Fatalf("aggregation = %d %s", rec.Code, rec.Body)
+	}
+	if len(a.Sources) != 9 || len(a.Rules) == 0 || a.Policy.MinDayReadings != 6 || len(a.Policy.Priority) != 9 {
+		t.Errorf("unexpected shape: %+v", a)
+	}
+	// 3 of the 4 rows have an origin and all of those are a mean of the day itself; the empty source is not guessed
+	if a.Provenance.Total != 4 || a.Provenance.Unattributed != 1 || a.Provenance.PreciseShare != 1 {
+		t.Errorf("provenance: %+v", a.Provenance)
+	}
+	// without an engine behind it the explanation is not available; bad input is refused before that matters
+	if rec := do(h, "GET", "/operator/aggregation/explain?region=eu-west-2&day=2026-09-01"); rec.Code != 404 {
+		t.Errorf("explain without an engine = %d", rec.Code)
+	}
+}
+
+func TestExplainValidatesItsQuery(t *testing.T) {
+	repo := &fakeRepo{roles: map[string]domain.Role{"viewer-1": domain.Viewer}}
+	called := 0
+	svc := application.Service{Repo: repo, System: func() domain.System { return domain.System{} },
+		Explain: func(_ context.Context, region string, day time.Time) (any, error) {
+			called++
+			return map[string]string{"region": region, "day": day.Format(time.DateOnly)}, nil
+		}}
+	r := chi.NewRouter()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			next.ServeHTTP(w, req.WithContext(auth.WithClaims(req.Context(), auth.Claims{Subject: "viewer-1"})))
+		})
+	})
+	Handlers{Svc: svc}.IdentityRoutes(r)
+	for _, bad := range []string{"", "?region=eu-west-2", "?day=2026-09-01", "?region=x&day=2026-09-01", "?region=eu-west-2&day=nope", "?region=a%20b%3Bdrop&day=2026-09-01", "?region=eu-west-2&day=1999-01-01"} {
+		if rec := do(r, "GET", "/operator/aggregation/explain"+bad); rec.Code != 400 {
+			t.Errorf("%q = %d, want 400", bad, rec.Code)
+		}
+	}
+	if called != 0 {
+		t.Fatal("the engine was asked with an invalid query")
+	}
+	day := time.Now().AddDate(0, 0, -3).Format(time.DateOnly)
+	if rec := do(r, "GET", "/operator/aggregation/explain?region=eu-west-2&day="+day); rec.Code != 200 || called != 1 || !strings.Contains(rec.Body.String(), day) {
+		t.Errorf("valid query = %d %s (%d calls)", rec.Code, rec.Body, called)
+	}
+}
+
+type fakeJobs struct {
+	retried, deleted []string
+	err              error
+}
+
+func (f *fakeJobs) Queues() ([]queue.QueueStat, error)     { return nil, nil }
+func (f *fakeJobs) Failed(int) ([]queue.FailedTask, error) { return nil, nil }
+func (f *fakeJobs) Schedules() ([]queue.Schedule, error)   { return nil, nil }
+func (f *fakeJobs) Retry(q, id string) error               { f.retried = append(f.retried, q+"/"+id); return f.err }
+func (f *fakeJobs) Delete(q, id string) error              { f.deleted = append(f.deleted, q+"/"+id); return f.err }
+
+func TestFailedJobActions(t *testing.T) {
+	jobs := &fakeJobs{}
+	mk := func(sub string) http.Handler {
+		repo := &fakeRepo{roles: map[string]domain.Role{"viewer-1": domain.Viewer, "admin-1": domain.Admin}}
+		h := Handlers{Svc: application.Service{Repo: repo, System: func() domain.System { return domain.System{} }, Jobs: jobs}}
+		r := chi.NewRouter()
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				next.ServeHTTP(w, req.WithContext(auth.WithClaims(req.Context(), auth.Claims{Subject: sub})))
+			})
+		})
+		h.IdentityRoutes(r)
+		return r
+	}
+	const id = "3b29c3255b2adac79b6aa8af"
+	if rec := do(mk("viewer-1"), "POST", "/operator/jobs/default/"+id+"/retry"); rec.Code != 403 {
+		t.Errorf("a viewer changed a task: %d", rec.Code)
+	}
+	admin := mk("admin-1")
+	for _, bad := range []string{"/operator/jobs/DEF%20ault/" + id + "/retry", "/operator/jobs/default/x/retry", "/operator/jobs/default/..%2Fup/delete"} {
+		if rec := do(admin, "POST", bad); rec.Code != 404 {
+			t.Errorf("%s = %d, want 404", bad, rec.Code)
+		}
+	}
+	if len(jobs.retried)+len(jobs.deleted) != 0 {
+		t.Fatal("the queue was touched by an invalid request")
+	}
+	if rec := do(admin, "POST", "/operator/jobs/default/"+id+"/retry"); rec.Code != 200 || len(jobs.retried) != 1 || jobs.retried[0] != "default/"+id {
+		t.Errorf("retry = %d %v", rec.Code, jobs.retried)
+	}
+	if rec := do(admin, "POST", "/operator/jobs/default/"+id+"/delete"); rec.Code != 200 || len(jobs.deleted) != 1 {
+		t.Errorf("delete = %d %v", rec.Code, jobs.deleted)
+	}
+	jobs.err = asynq.ErrTaskNotFound
+	if rec := do(admin, "POST", "/operator/jobs/default/"+id+"/delete"); rec.Code != 404 {
+		t.Errorf("a task that is gone = %d, want 404", rec.Code)
+	}
+	jobs.err = errors.New("task is active")
+	if rec := do(admin, "POST", "/operator/jobs/default/"+id+"/delete"); rec.Code != 409 {
+		t.Errorf("a task that is running = %d, want 409", rec.Code)
 	}
 }

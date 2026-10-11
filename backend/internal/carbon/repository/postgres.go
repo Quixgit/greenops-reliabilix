@@ -207,6 +207,18 @@ func (r Postgres) Origins(ctx context.Context, tenantID string, project *string,
 	return
 }
 
+// EnergyByMethod sums the energy of a window by the method that produced it. Rows are the organization's own (RLS).
+func (r Postgres) EnergyByMethod(ctx context.Context, tenantID string, project *string, from, to time.Time, version string) (usage, cost float64, err error) {
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT coalesce(sum(energy_kwh) FILTER (WHERE method = 'usage_based'), 0)::float8,
+		                                coalesce(sum(energy_kwh) FILTER (WHERE method = 'cost_based'), 0)::float8
+		                         FROM carbon.calculations
+		                         WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2) AND methodology_version = $3 AND period_start >= $4 AND period_start < $5`,
+			tenantID, project, version, from, to).Scan(&usage, &cost)
+	})
+	return
+}
+
 func nilIfEmpty(s string) *string {
 	if s == "" {
 		return nil

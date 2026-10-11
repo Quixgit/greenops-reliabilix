@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -83,6 +84,9 @@ func (f *fakeStore) History(context.Context, string, time.Time, time.Time) ([]do
 }
 func (f *fakeStore) Regions(context.Context, string, *string, time.Time, time.Time, string) ([]domain.RegionCarbon, error) {
 	return nil, nil
+}
+func (f *fakeStore) EnergyByMethod(context.Context, string, *string, time.Time, time.Time, string) (float64, float64, error) {
+	return 0, 0, nil
 }
 func (f *fakeStore) Origins(context.Context, string, *string, time.Time, time.Time, string) ([]domain.IntensityOrigin, error) {
 	return nil, nil
@@ -331,5 +335,59 @@ func TestScheduleAdviceUsesTheStoredForecast(t *testing.T) {
 	st.forecast = nil
 	if _, _, err := svc.ScheduleAdvice(context.Background(), "eu-central-1", time.Hour, 5*time.Hour); !errors.Is(err, domain.ErrNoForecast) {
 		t.Errorf("no forecast = %v", err)
+	}
+}
+
+func TestRegionsInUseAreRefreshedFirst(t *testing.T) {
+	got := inUseFirst([]string{"a", "b", "c", "d", "e"}, []string{"d", "b", "zz"})
+	want := []string{"b", "d", "a", "c", "e"}
+	if len(got) != len(want) {
+		t.Fatalf("%v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+	if len(inUseFirst(nil, []string{"x"})) != 0 {
+		t.Error("a region that is not in the catalog must not be invented")
+	}
+}
+
+// EIA publishes a day or two behind: a refresh that asks only for the last few hours never overlaps what exists, and a region's
+// readings stop for good (eastus2 stopped on 5 October).
+func TestExtrasAreAskedFarEnoughBackToOverlapTheirPublicationDelay(t *testing.T) {
+	if extrasWindow < 48*time.Hour {
+		t.Fatalf("window %v is shorter than the delay of the slowest source", extrasWindow)
+	}
+}
+
+func TestRefreshSliceKeepsRegionsInUseEveryHourAndRotatesTheRest(t *testing.T) {
+	all := make([]string, 0, 60)
+	for i := 0; i < 60; i++ {
+		all = append(all, fmt.Sprintf("r%02d", i))
+	}
+	inUse := []string{"r07", "r41"}
+	seen := map[string]int{}
+	for h := 0; h < catalogCycleHours; h++ {
+		got := refreshSlice(all, inUse, h)
+		if len(got) < 2 || got[0] != "r07" || got[1] != "r41" {
+			t.Fatalf("hour %d: regions in use must be first: %v", h, got[:min(3, len(got))])
+		}
+		if len(got) > 2+3*(len(all)-2)/catalogCycleHours { // a hash is not an even split, but no hour may carry the whole catalog
+			t.Fatalf("hour %d: too many regions: %d", h, len(got))
+		}
+		for _, r := range got {
+			seen[r]++
+		}
+	}
+	for _, r := range all {
+		want := 1
+		if r == "r07" || r == "r41" {
+			want = catalogCycleHours
+		}
+		if seen[r] != want {
+			t.Fatalf("%s asked %d times in a cycle, want %d", r, seen[r], want)
+		}
 	}
 }

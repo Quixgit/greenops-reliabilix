@@ -39,6 +39,10 @@ const (
 	ProviderEIA             = "eia"
 	ProviderEnergyCharts    = "energy_charts"
 	ProviderUKCI            = "uk_carbon_intensity"
+	ProviderIESO            = "ieso"
+	ProviderHydroQuebec     = "hydroquebec"
+	ProviderENTSOE          = "entsoe"
+	ProviderONS             = "ons"
 	ProviderWattTime        = "watttime"
 )
 

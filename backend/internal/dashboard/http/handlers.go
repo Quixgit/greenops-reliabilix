@@ -22,6 +22,7 @@ func (h Handlers) Routes(r chi.Router) {
 	read.Get("/dashboard/connections", h.connections)
 	read.Get("/dashboard/grid-sources", h.gridSources)
 	read.Get("/dashboard/regions", h.regions)
+	read.Get("/dashboard/countries", h.countries)
 	read.Get("/dashboard/regions/footprint", h.footprint)
 	read.Get("/dashboard/optimization", h.optimization)
 	read.Get("/dashboard/efficiency", h.efficiency)
@@ -89,6 +90,11 @@ func (h Handlers) services(w http.ResponseWriter, r *http.Request) {
 
 func (h Handlers) regions(w http.ResponseWriter, r *http.Request) {
 	v, err := h.Repo.Regions(r.Context())
+	respond(w, r, v, err)
+}
+
+func (h Handlers) countries(w http.ResponseWriter, r *http.Request) {
+	v, err := h.Repo.Countries(r.Context())
 	respond(w, r, v, err)
 }
 

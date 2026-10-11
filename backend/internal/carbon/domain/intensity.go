@@ -25,9 +25,9 @@ const (
 
 // IntensityRef is an intensity together with where it came from.
 type IntensityRef struct {
-	G      float64
-	Source string // provider id
-	Basis  string
+	G      float64 `json:"g_per_kwh"`
+	Source string  `json:"source"` // provider id
+	Basis  string  `json:"basis"`
 }
 
 // Precise reports whether the basis is a mean of readings of the day itself.
@@ -40,6 +40,17 @@ type Policy struct {
 	Overrides      map[string]string // region -> provider, tried before Priority
 	MinDayReadings int               // readings a source needs inside a day for its mean to count as BasisDayMean
 	MaxAge         time.Duration     // how old the last reading before a day may be for BasisLatestBefore
+	// SourceMaxAge overrides MaxAge for one source: a feed that updates once a month tolerates a long age, an hourly one
+	// should not be trusted after a day. A source not listed uses MaxAge.
+	SourceMaxAge map[string]time.Duration
+}
+
+// maxAgeFor is how old the last reading of a source may be before the day (0: no limit).
+func (p Policy) maxAgeFor(source string) time.Duration {
+	if d, ok := p.SourceMaxAge[source]; ok && d > 0 {
+		return d
+	}
+	return p.MaxAge
 }
 
 // Order is the sources to try for a region, without repeats.
@@ -133,7 +144,7 @@ func resolveLatest(ctx context.Context, r IntensityReader, p Policy, region stri
 		if err != nil {
 			return IntensityRef{}, false, err
 		}
-		if ok && (p.MaxAge <= 0 || before.Sub(at) <= p.MaxAge) {
+		if age := p.maxAgeFor(src); ok && (age <= 0 || before.Sub(at) <= age) {
 			return IntensityRef{G: g, Source: src, Basis: BasisLatestBefore}, true, nil
 		}
 	}
@@ -148,6 +159,32 @@ func resolveLatest(ctx context.Context, r IntensityReader, p Policy, region stri
 	}
 	return IntensityRef{}, false, nil
 }
+
+// AnnualRow is a yearly intensity derived from an emissions inventory and the year's generation: direct emissions per kWh, a
+// reference to hold sources against, never a figure a calculation uses.
+type AnnualRow struct {
+	Year     int
+	Provider string
+	G        float64
+}
+
+// ProviderEmberCountry is the id under which Ember's national monthly figures of EVERY country are stored (region id "country:XXX",
+// alpha-3). It is not a source in the policy, so no calculation takes it: it only colours the map.
+const ProviderEmberCountry = "ember_country"
+
+// CountryReading is one country's monthly national intensity.
+type CountryReading struct {
+	Code  string
+	Month time.Time
+	G     float64
+}
+
+// ProviderInventoryCountry is the id under which the inventory-derived annual figure of EVERY country is stored ("country:XXX").
+// It only fills the map where no measured national figure exists, and is shown as a lower bound; no calculation takes it.
+const ProviderInventoryCountry = "inventory_country"
+
+// ProviderClimateTrace is the id under which inventory-derived annual figures are stored.
+const ProviderClimateTrace = "climatetrace"
 
 // HistoryRow is one source's readings of one day, as stored.
 type HistoryRow struct {

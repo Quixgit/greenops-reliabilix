@@ -205,6 +205,35 @@ func Catalog() []Integration {
 			},
 		},
 		{
+			ID: "ieso", Name: "IESO (Ontario)",
+			Description: "Free public hourly generation by fuel for Ontario from the Independent Electricity System Operator, with history from 2015. It needs no key: the platform COMPUTES the carbon intensity from the generation mix with generic life-cycle factors, an estimate used behind a source that publishes a measured intensity. The address can be changed for a mirror or a test double.",
+			Fields: []Field{
+				{Key: "base_url", Label: "Report address", Env: "IESO_BASE_URL", Default: "https://reports-public.ieso.ca/public/GenOutputbyFuelHourly", Placeholder: "https://reports-public.ieso.ca/public/GenOutputbyFuelHourly", validate: validURL},
+			},
+		},
+		{
+			ID: "hydroquebec", Name: "Hydro-Québec (Quebec)",
+			Description: "Free open data on Quebec's hourly generation by source (the last two days live, history 2019 to the end of 2025). It needs no key: the platform COMPUTES the carbon intensity from the generation mix with generic life-cycle factors, an estimate used behind a source that publishes a measured intensity. The address can be changed for a mirror or a test double.",
+			Fields: []Field{
+				{Key: "base_url", Label: "API address", Env: "HYDROQUEBEC_BASE_URL", Default: "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets", Placeholder: "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets", validate: validURL},
+			},
+		},
+		{
+			ID: "entsoe", Name: "ENTSO-E Transparency Platform (Europe, computed)", Testable: true,
+			Description: "Actual electricity generation per production type for European bidding zones, from the transmission system operators (free with a personal security token: register at transparency.entsoe.eu, then e-mail transparency@entsoe.eu to request web API access; the token appears in the account settings). The platform COMPUTES the carbon intensity from the generation mix with generic life-cycle factors per type, an estimate used behind a source that publishes a measured intensity. Without a token the source is skipped.",
+			Fields: []Field{
+				{Key: "api_token", Label: "Security token", Secret: true, Required: true, Env: "ENTSOE_API_TOKEN", Help: "Free; from the ENTSO-E account settings after web API access is granted. Stored sealed, shown only as configured.", validate: validSecret(8)},
+				{Key: "base_url", Label: "API address", Env: "ENTSOE_BASE_URL", Default: "https://web-api.tp.entsoe.eu/api", Placeholder: "https://web-api.tp.entsoe.eu/api", validate: validURL},
+			},
+		},
+		{
+			ID: "ons", Name: "ONS (Brazil, computed)", Testable: true,
+			Description: "Open hourly energy balance of Brazil's national grid by subsystem (North, Northeast, South, Southeast/Centre-West), with history, from the Operador Nacional do Sistema Elétrico (CC BY). It needs no key: the platform COMPUTES the carbon intensity from hydro, thermal, wind and solar generation with generic life-cycle factors; the thermal fleet is one assumed mix. The address can be changed for a mirror or a test double.",
+			Fields: []Field{
+				{Key: "base_url", Label: "Dataset address", Env: "ONS_BASE_URL", Default: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/balanco_energia_subsistema_ho", Placeholder: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/balanco_energia_subsistema_ho", validate: validURL},
+			},
+		},
+		{
 			ID: "stripe", Name: "Stripe (payments)",
 			Description: "Card payments and subscriptions worldwide, with Apple Pay and Google Pay (turn them on in the Stripe dashboard and register this site's domain for Apple Pay). Customers pay on Stripe's hosted checkout; the platform keeps only the subscription state. Point Stripe's webhook at /api/v1/billing/webhooks/stripe (events customer.subscription.created, updated, deleted).",
 			Fields: []Field{
@@ -267,6 +296,20 @@ func Catalog() []Integration {
 			Description: "For companies that pay by bank transfer. No payment page: a customer asks for a plan, you send the invoice and, once it is paid, assign the plan with its period on the organization's page.",
 			Fields: []Field{
 				{Key: "contact", Label: "Billing contact", Required: true, Env: "BILLING_CONTACT", Placeholder: "billing@example.com", Help: "Shown to customers asking for an invoice.", validate: validContact},
+			},
+		},
+		{
+			ID: "gcp_pricing", Name: "Google Cloud price list (Cloud Billing Catalog)", Testable: true,
+			Description: "Compute Engine list prices by region, to estimate what moving a workload to another Google Cloud region would cost. Google offers no keyless public price list: create a free API key in a Google Cloud project with the Cloud Billing API enabled and paste it here. Without it Google Cloud recommendations show no cost estimate; nothing is guessed. The key is stored sealed and used only to read public prices.",
+			Fields: []Field{
+				{Key: "api_key", Label: "API key", Secret: true, Env: "GCP_PRICING_API_KEY", Help: "Free; create it under APIs & Services → Credentials and restrict it to the Cloud Billing API.", validate: validSecret(8)},
+			},
+		},
+		{
+			ID: "climatetrace", Name: "Climate TRACE (emissions inventory)", Testable: true,
+			Description: "Annual power-sector emissions by country from the Climate TRACE public inventory (free, no key). It is an inventory, not an intensity: divided by the country's generation from Ember (the Ember key is used for that) it gives an independent, direct-emission figure to hold the hourly sources against on the Aggregation page. It is never used to calculate carbon. The address can be changed for a mirror or a test double.",
+			Fields: []Field{
+				{Key: "base_url", Label: "API address", Env: "CLIMATETRACE_BASE_URL", Default: "https://api.climatetrace.org", Placeholder: "https://api.climatetrace.org", validate: validURL},
 			},
 		},
 		{

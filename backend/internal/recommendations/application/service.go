@@ -17,6 +17,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/observability"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/recommendations/domain"
 )
 
@@ -35,6 +36,8 @@ type Service struct {
 	Notify notify.Notifier
 	Log    *slog.Logger
 	Now    func() time.Time
+	// Settings is the organization settings engine (optional: catalog defaults without it).
+	Settings settings.Reader
 }
 
 const windowDays = 30
@@ -46,13 +49,19 @@ func (s Service) now() time.Time {
 	return time.Now().UTC()
 }
 
+// fingerprint identifies a finding by what it is about (the kind, the project, the service and where it runs), not by what it
+// proposes: the proposed region can change from run to run as the grid does, and that is the same finding with a better
+// answer, not a new one.
 func fingerprint(project string, r domain.Recommendation) string {
-	h := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s|%s|%s", r.Type, project, r.Provider, r.ServiceName, r.CurrentRegion, r.RecommendedRegion)))
+	h := sha256.Sum256([]byte(fmt.Sprintf("%s|%s|%s|%s|%s", r.Type, project, r.Provider, r.ServiceName, r.CurrentRegion)))
 	return hex.EncodeToString(h[:])
 }
 
 // PriceSource fetches the relative region price index (an AWS price list adapter in production, a stand-in in tests).
 type PriceSource interface {
+	// Provider is the cloud the index is for ("aws", "azure", "gcp"); Basis names the basket it was built from.
+	Provider() string
+	Basis() string
 	BuildIndex(ctx context.Context, regions []string) ([]PriceEntry, map[string]error, error)
 }
 
@@ -70,9 +79,9 @@ func (s Service) RefreshPriceIndex(ctx context.Context, src PriceSource, regions
 	if err != nil {
 		return 0, err
 	}
-	source := "aws_ec2_ondemand_basket:" + s.now().Format("2006-01-02")
+	source := src.Basis() + ":" + s.now().Format("2006-01-02")
 	for _, e := range idx {
-		if err := s.Repo.SavePriceIndex(ctx, "aws", e.Region, e.Idx, source); err != nil {
+		if err := s.Repo.SavePriceIndex(ctx, src.Provider(), e.Region, e.Idx, source); err != nil {
 			return stored, err
 		}
 		stored++
@@ -84,6 +93,15 @@ func (s Service) RefreshPriceIndex(ctx context.Context, src PriceSource, regions
 		}
 	}
 	return stored, err
+}
+
+// maxLatencyMs is the organization's limit on the round trip a recommended move may add.
+func (s Service) maxLatencyMs(ctx context.Context, tenantID string) int {
+	var r settings.Reader = settings.Defaults{}
+	if s.Settings != nil {
+		r = s.Settings
+	}
+	return int(r.Int(ctx, tenantID, settings.KeyRecMaxLatencyMs))
 }
 
 // Generate analyses the last 30 days of a project and stores new findings (deduplicated by fingerprint;
@@ -105,12 +123,24 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 	if err != nil {
 		return 0, err
 	}
-	prices := map[string]float64{} // price index is per provider; phase 1 has AWS only
-	if p, err := s.Repo.PriceIndex(ctx, "aws"); err == nil {
-		prices = p
+	// One index per cloud; region ids of the clouds never collide, so one map serves every workload (a ratio is only ever taken
+	// between two regions of the same cloud).
+	prices := map[string]float64{}
+	for _, cloud := range []string{"aws", "azure", "gcp"} {
+		if p, err := s.Repo.PriceIndex(ctx, cloud); err == nil {
+			for r, v := range p {
+				prices[r] = v
+			}
+		}
+	}
+	services := map[string]map[string]float64{}
+	for _, fam := range []string{"azure:postgresql", "azure:redis"} {
+		if p, err := s.Repo.PriceIndex(ctx, fam); err == nil && len(p) > 0 {
+			services[fam] = p
+		}
 	}
 	recs := domain.GenerateRegionShift(domain.RegionShiftInput{Workloads: ws, WindowDays: windowDays, DataDays: days,
-		Intensity: intensity, AllowedRegions: allowed, PriceIndex: prices, Now: now})
+		Intensity: intensity, AllowedRegions: allowed, PriceIndex: prices, ServiceIndex: services, MaxLatencyMs: s.maxLatencyMs(ctx, tenantID), Now: now})
 
 	// Kubernetes: smaller requests for workloads that use a fraction of them (ADR-0031). Two weeks of measurements.
 	if usage, err := s.Repo.K8sUsage(ctx, tenantID, projectID, now.AddDate(0, 0, -14), now); err != nil {
@@ -120,15 +150,26 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 	}
 
 	created := 0
+	var keep []string
 	for _, r := range recs {
 		r.ProjectID = projectID
 		r.Fingerprint = fingerprint(projectID, r)
+		if r.Type == domain.RegionShift {
+			keep = append(keep, r.Fingerprint)
+		}
 		ok, err := s.Repo.Insert(ctx, tenantID, r)
 		if err != nil {
 			return created, err
 		}
 		if ok {
 			created++
+		}
+	}
+	// With nothing to judge by (no workloads, no grid data) an empty result means "cannot tell", not "nothing is worth doing":
+	// the open ones stay as they are. Otherwise an open move the analysis no longer finds is obsolete and is closed.
+	if len(ws) > 0 && len(intensity) > 0 {
+		if _, err := s.Repo.RetireStale(ctx, tenantID, projectID, keep); err != nil {
+			return created, err
 		}
 	}
 	observability.RecommendationsGenerated.Add(float64(created))

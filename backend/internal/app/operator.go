@@ -13,6 +13,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
 )
 
 // Integration states shown in the operator console. "stub" is a development stand-in that is running instead of
@@ -25,11 +26,13 @@ const (
 
 // buildOperator wires the operator console. The integration list is the one place that says, for the whole
 // platform, which external services are real, which are stubs and which are not set up yet.
-func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store, q queue.Enqueuer, mail notify.Mailer) *operator.Module {
+func buildOperator(cfg config.Config, pool *pgxpool.Pool, st domain.SettingsPort, ints *integrations.Store, q queue.Enqueuer, mail notify.Mailer, store storage.Store, explain func(ctx context.Context, region string, day time.Time) (any, error)) *operator.Module {
+	insp := queue.NewInspector(cfg.RedisAddr)
+	port := integrationsPort{store: ints, allowPlain: cfg.IsDev() && cfg.SMTPAllowPlain}
 	return operator.New(operator.Deps{Pool: pool, System: func() domain.System { return systemInfo(cfg, ints) }, Settings: st,
-		Integrations: integrationsPort{store: ints, allowPlain: cfg.IsDev() && cfg.SMTPAllowPlain},
-		Sources:      func(ctx context.Context) []domain.DataSource { return dataSources(ctx, cfg, ints) },
-		Jobs:         queue.NewInspector(cfg.RedisAddr), Queue: q, Mail: mail})
+		Integrations: port, Diagnostics: diagnostics(cfg, pool, ints, port, insp, store),
+		Sources: func(ctx context.Context) []domain.DataSource { return dataSources(ctx, cfg, ints) },
+		Jobs:    insp, Queue: q, Mail: mail, Explain: explain})
 }
 
 // dataSources is the registry of what the platform reads (ADR-0032). It is a catalog in code, because a source exists
@@ -64,6 +67,26 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 			Coverage: "European countries whose zone maps to a cloud region (DE, FR, ES, IT, PL, SE, FI, BE, NL, CH, AT, NO, DK, PT, CZ, HU, GR, IE)",
 			Terms:    "Free, no key. Data of the transmission system operators published by Fraunhofer ISE under CC BY 4.0: credit Energy-Charts / Fraunhofer ISE where figures are shown.",
 			Note:     "Computed, not measured: generic life-cycle factors per type applied to the public generation; cross-border flows are not accounted for and pumped storage is left out. It fills the past of European regions without a paid plan.", IntegrationID: "energy_charts"},
+		{ID: "ieso", Name: "IESO (Ontario, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: "ready",
+			Metrics:  []string{"Hourly carbon intensity computed from generation by fuel (gCO2e/kWh), with history from 2015"},
+			Coverage: "Ontario (zone CA-ON): Azure canadacentral and the cloud regions the zone map places there",
+			Terms:    "Free, no key. Public reports of the Independent Electricity System Operator.",
+			Note:     "Computed, not measured: generic life-cycle factors per fuel applied to Ontario's generation; imports are not accounted for. Used behind a source that publishes a measured intensity.", IntegrationID: "ieso"},
+		{ID: "hydroquebec", Name: "Hydro-Québec (Quebec, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: "ready",
+			Metrics:  []string{"Hourly carbon intensity computed from generation by source (gCO2e/kWh)"},
+			Coverage: "Quebec (zone CA-QC): Azure canadaeast, AWS ca-central-1, GCP northamerica-northeast1",
+			Terms:    "Free, no key. Open data of Hydro-Québec: credit Hydro-Québec where figures are shown.",
+			Note:     "Computed, not measured: generic life-cycle factors per source applied to Quebec's generation; imports are not accounted for. The open history ends on 2025-12-31, so later days are filled from the live feed (the last two days) as it is collected.", IntegrationID: "hydroquebec"},
+		{ID: "entsoe", Name: "ENTSO-E Transparency Platform (Europe, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: state(ints != nil && ints.Value(ctx, "entsoe", "api_token") != ""),
+			Metrics:  []string{"Hourly carbon intensity computed from actual generation per production type (gCO2e/kWh), with history"},
+			Coverage: "European bidding zones and countries whose zone maps to a cloud region (DE, FR, ES, IT, PL, SE, FI, BE, NL, CH, AT, NO, DK, PT, CZ, HU, GR, IE, RO, BG, HR, SK, SI, RS, LT, LV, EE); not Great Britain",
+			Terms:    "Free with a personal security token; ENTSO-E's data is re-usable with credit to ENTSO-E (check its terms of use before redistributing derived data).",
+			Note:     "Computed, not measured: generic life-cycle factors per type applied to the actual generation; cross-border flows are not accounted for and pumped-storage generation is left out. Without a token the source is skipped.", IntegrationID: "entsoe"},
+		{ID: "ons", Name: "ONS (Brazil, computed)", Category: "grid_intensity", Access: domain.AccessFree, State: "ready",
+			Metrics:  []string{"Hourly carbon intensity computed from hydro, thermal, wind and solar generation by subsystem (gCO2e/kWh), with history"},
+			Coverage: "Brazil's subsystems: Southeast/Centre-West (São Paulo regions), South, Northeast and North, by the zone map (BR-CS, BR-S, BR-NE, BR-N)",
+			Terms:    "Free, no key. Open data of the Operador Nacional do Sistema Elétrico under CC BY.",
+			Note:     "Computed, not measured: the dataset does not split thermal generation by fuel, so one assumed factor stands for Brazil's thermal mix; distributed generation and imports are not accounted for. Used behind a source that publishes a measured intensity.", IntegrationID: "ons"},
 		{ID: "aws-cost", Name: "AWS (Cost Explorer, FOCUS export)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
 			Metrics:  []string{"Cost", "Usage quantities", "Instance hours", "Storage"},
 			Coverage: "Accounts customers connect with a read-only role (External ID)",
@@ -86,10 +109,11 @@ func dataSources(ctx context.Context, cfg config.Config, ints *integrations.Stor
 		{ID: "uk-carbon-intensity", Name: "UK Carbon Intensity API", Category: "grid_intensity", Access: domain.AccessFree, State: "ready",
 			Metrics: []string{"Great Britain grid intensity (gCO2e/kWh), half-hourly, measured"}, Coverage: "Great Britain (cloud regions whose zone is GB)",
 			Terms: "Free, no key (National Grid ESO, CC-BY 4.0).", Note: "Used for GB regions when it is in the source priority; it needs no setup.", IntegrationID: "uk_carbon_intensity"},
-		{ID: "climate-trace", Name: "Climate TRACE", Category: "inventory", Access: domain.AccessFree, State: "planned",
-			Metrics: []string{"Emissions inventory by sector and country (tonnes)"}, Coverage: "Global; annual totals in the public API, monthly in bulk downloads",
-			Terms: "Free; CC-BY 4.0.",
-			Note:  "Evaluated, not connected as a grid-intensity source: the public API (beta, no availability guarantee) returns emission totals in tonnes without electricity generation, so no gCO2e/kWh can be derived from it. It may later supply power-sector totals as context next to the intensity figures."},
+		{ID: "climate-trace", Name: "Climate TRACE", Category: "inventory", Access: domain.AccessFree, State: state(ints != nil && ints.Value(ctx, "ember", "api_key") != ""),
+			Metrics:  []string{"Annual power-sector emissions by country (tonnes CO2e)", "Direct-emission intensity per country and year: emissions ÷ Ember generation (gCO2e/kWh)"},
+			Coverage: "Countries of the cloud regions in the catalog, the last three completed years",
+			Terms:    "Free, no key; Climate TRACE data is CC BY 4.0. The generation behind the intensity comes from Ember (its key).",
+			Note:     "A reference, never a calculation input: an inventory has no generation, so the platform divides it by Ember's annual generation. The figure is direct emissions (no life-cycle share), so it sits below the hourly sources' life-cycle values; it is shown on Aggregation → Source divergence to hold them against.", IntegrationID: "climatetrace"},
 		{ID: "azure-billing", Name: "Microsoft Azure (Cost Management export in Blob Storage)", Category: "billing", Access: domain.AccessCustomer, State: "not_configured",
 			Metrics:  []string{"Cost of every service (Cost Management API)", "Virtual machine vCPU hours and Blob storage capacity (export only)"},
 			Coverage: "Subscriptions whose service principal (Cost Management Reader) the customer connected, or whose Cost Management export they shared",

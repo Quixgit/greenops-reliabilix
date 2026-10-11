@@ -49,14 +49,20 @@ GROUP BY day ORDER BY day;
 INSERT INTO carbon.grid_intensity (provider, region_id, ts, g_co2e_per_kwh, is_forecast, measure, resolution)
 VALUES (sqlc.arg(provider), sqlc.arg(region_id), sqlc.arg(ts), sqlc.arg(g_co2e_per_kwh), sqlc.arg(is_forecast), sqlc.arg(measure), sqlc.arg(resolution))
 ON CONFLICT (provider, region_id, ts, is_forecast, measure) DO UPDATE SET g_co2e_per_kwh = EXCLUDED.g_co2e_per_kwh, resolution = EXCLUDED.resolution
-WHERE carbon.grid_intensity.resolution = 'monthly'; -- a published monthly figure may be revised; an hourly reading never is
+WHERE carbon.grid_intensity.resolution IN ('monthly', 'annual'); -- a published monthly or annual figure may be revised; an hourly reading never is
 
 -- name: IntensityDayStats :one
 -- Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
--- averaged together: the caller asks one source at a time, in policy order.
-SELECT COALESCE(avg(g_co2e_per_kwh), 0)::float8 AS g, count(*)::int AS n FROM carbon.grid_intensity
-WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
-  AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts);
+-- averaged together: the caller asks one source at a time, in policy order. With six or more readings, one that is more than
+-- 2.5 times above or below the median of the period is left out of the mean (a spike of the source, not the grid); n still
+-- counts every reading.
+WITH r AS (
+  SELECT g_co2e_per_kwh AS g FROM carbon.grid_intensity
+  WHERE region_id = sqlc.arg(region_id) AND provider = sqlc.arg(provider) AND measure = 'average' AND NOT is_forecast AND resolution = 'hourly'
+    AND ts >= sqlc.arg(from_ts) AND ts < sqlc.arg(to_ts)
+), m AS (SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY g) AS med, count(*) AS n FROM r)
+SELECT COALESCE(avg(r.g) FILTER (WHERE m.n < 6 OR r.g BETWEEN m.med / 2.5 AND m.med * 2.5), 0)::float8 AS g, count(r.g)::int AS n
+FROM r CROSS JOIN m;
 
 -- name: IntensityLatest :one
 -- Latest stored reading of one source at or before `before` (NULL = the latest overall).

@@ -29,6 +29,26 @@ type cached struct {
 	err  error
 }
 
+// Countries is every country's monthly figure from Ember in one request, for the world map.
+func (e *emberMonthly) Countries(ctx context.Context, from, to time.Time) ([]domain.CountryReading, error) {
+	key := e.ints.Value(ctx, "ember", "api_key")
+	if key == "" {
+		return nil, domain.ErrNotConfigured
+	}
+	cl := ember.New(key)
+	cl.Allow = func(ctx context.Context) error { return e.meter.Allow(ctx, "ember") }
+	cl.Done = func(ctx context.Context, failed bool) { e.meter.Record(ctx, "ember", failed) }
+	rows, err := cl.MonthlyAll(ctx, from, to)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.CountryReading, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, domain.CountryReading{Code: r.Code, Month: r.Month, G: r.G})
+	}
+	return out, nil
+}
+
 func (e *emberMonthly) Monthly(ctx context.Context, region string, from, to time.Time) ([]domain.MonthlyRow, error) {
 	key := e.ints.Value(ctx, "ember", "api_key")
 	if key == "" {

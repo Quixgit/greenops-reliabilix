@@ -56,6 +56,8 @@ type Config struct {
 	EnergyChartsBaseURL          string
 	UKCIBaseURL                  string
 	EIAKey                       string
+	EntsoeToken                  string
+	GCPPricingKey                string
 	ElectricityMapsZoneOverrides string // region=ZONE,... (validated at startup)
 	OTLPEndpoint                 string
 
@@ -107,6 +109,8 @@ func Load() (Config, error) {
 		EnergyChartsBaseURL:          String("ENERGYCHARTS_BASE_URL", ""),
 		UKCIBaseURL:                  String("UKCI_BASE_URL", ""),
 		EIAKey:                       String("EIA_API_KEY", ""),
+		EntsoeToken:                  String("ENTSOE_API_TOKEN", ""),
+		GCPPricingKey:                String("GCP_PRICING_API_KEY", ""),
 		ElectricityMapsZoneOverrides: String("ELECTRICITYMAPS_ZONE_OVERRIDES", ""),
 		OTLPEndpoint:                 String("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 

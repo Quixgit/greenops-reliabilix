@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.30.0
+  version: 0.39.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -2807,6 +2807,90 @@ paths:
           $ref: '#/components/responses/Problem'
         '403':
           $ref: '#/components/responses/Problem'
+  /api/v1/operator/diagnostics:
+    get:
+      operationId: operatorDiagnostics
+      summary: The platform's self-tests (operator)
+      tags:
+      - operator
+      description: Lists the self-tests of the platform with their group and description. Any operator.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DiagnosticResult'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/diagnostics/run:
+    post:
+      operationId: operatorRunDiagnostics
+      summary: Run the platform's self-tests (admin operator)
+      tags:
+      - operator
+      description: Runs the chosen tests (all when ids is empty) at once, each bounded to 15 seconds. They read and probe; the only write is one small object in storage that is deleted again. One run at a time (409 otherwise).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids: {type: array, maxItems: 64, items: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DiagnosticResult'
+        '403':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/dashboard/countries:
+    get:
+      operationId: dashboardCountries
+      summary: National monthly grid carbon intensity of every country (reference data, for the map)
+      tags:
+      - dashboard
+      description: Requires permission `usage:read`. Ember's newest monthly national average per country (ISO 3166 alpha-3); a coarse reference for countries without a cloud region, never used in a calculation.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [code, source, g_per_kwh, month]
+                      properties:
+                        code: {type: string, description: ISO 3166 alpha-3}
+                        source: {type: string, enum: [ember, inventory], description: "ember: a published national monthly average; inventory: national power-sector emissions divided by generation of a year (direct emissions, a lower bound of the life-cycle figure)"}
+                        g_per_kwh: {type: number}
+                        month: {type: string, format: date-time}
+        '401':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
   /api/v1/dashboard/regions/footprint:
     get:
       operationId: dashboardRegionFootprint
@@ -4072,6 +4156,92 @@ paths:
         '401':
           $ref: '#/components/responses/Problem'
         '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/aggregation:
+    get:
+      operationId: getOperatorAggregation
+      summary: Source policy for grid intensity, each source and its freshness, and where the figures came from
+      tags:
+      - operator
+      description: Platform operators only. The policy in force (priority, per-region pins, readings a source needs per day, accepted age overall and per source), each grid-intensity source with its place in the policy, licence and freshness, the share of calculation rows by the source and basis of their intensity over the last 30 days (counts only), and the rules the engine applies when it combines sources.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policy: {type: object, additionalProperties: true}
+                  sources: {type: array, items: {type: object, additionalProperties: true}}
+                  provenance: {type: object, additionalProperties: true}
+                  rules: {type: array, items: {type: object, additionalProperties: true}}
+                  regions_in_use: {type: integer}
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/aggregation/explain:
+    get:
+      operationId: explainOperatorIntensity
+      summary: Why a region and day got the intensity it did
+      tags:
+      - operator
+      description: Platform operators only. What every trusted source has for the region and day (readings, monthly figure, latest reading and its age), the order the policy tries them in, the verdict on each and the source the engine uses. Read from stored readings; no provider is called.
+      parameters:
+      - {name: region, in: query, required: true, schema: {type: string}}
+      - {name: day, in: query, required: true, description: UTC day within the last three years., schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+        '400':
+          $ref: '#/components/responses/Problem'
+        '403':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/jobs/{queue}/{id}/retry:
+    post:
+      operationId: retryOperatorJob
+      summary: Run a failed task again now
+      tags:
+      - operator
+      description: Platform operators with the admin role only. Only a task that failed (waiting for a retry, or gave up) can be changed; a task that is running is refused with 409. The action is recorded in the operators' access log.
+      parameters:
+      - {name: queue, in: path, required: true, schema: {type: string}}
+      - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema: {type: object, properties: {changed: {type: boolean}}}
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+  /api/v1/operator/jobs/{queue}/{id}/delete:
+    post:
+      operationId: deleteOperatorJob
+      summary: Remove a failed task so it does not run again
+      tags:
+      - operator
+      description: Platform operators with the admin role only. Only a task that failed (waiting for a retry, or gave up) can be changed; a task that is running is refused with 409. The action is recorded in the operators' access log.
+      parameters:
+      - {name: queue, in: path, required: true, schema: {type: string}}
+      - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Done
+          content:
+            application/json:
+              schema: {type: object, properties: {changed: {type: boolean}}}
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
           $ref: '#/components/responses/Problem'
   /api/v1/operator/metrics:
     get:
@@ -5854,6 +6024,10 @@ components:
           type: number
           nullable: true
           description: Share of the carbon whose intensity is the mean of readings of the day itself.
+        energy_cost_based_share_pct:
+          type: number
+          nullable: true
+          description: Share of the energy (0-100) that was estimated from spend instead of measured usage; null without data.
         energy_kwh:
           type: number
         carbon_kg_co2e:
@@ -6685,12 +6859,29 @@ components:
             cost_estimated: {type: boolean}
             cost_delta: {type: number, nullable: true, description: Estimated change of the EC2 compute cost in the period if the load ran in the candidate region (list-price index; excludes discounts, data transfer and migration).}
             cost_basis: {type: string}
+            latency_ms: {type: integer, description: Round trip in milliseconds from where the load runs now to the candidate. Absent when a region is not on the map.}
+            distance_km: {type: integer}
+            latency_basis: {type: string, enum: [measured_azure, measured_aws, estimated], description: "Where latency_ms comes from: measured_azure (Microsoft's published inter-region table), measured_aws (CloudPing, median over a year) or estimated (from the distance, typically off by latency_error_pct)."}
+            latency_error_pct: {type: integer, description: How far an estimate is typically off (80% of measured pairs are within it); 0 for a measured figure.}
+            latency_budget_ms: {type: integer, description: The most the organization accepts (setting recommendations.max_latency_ms); the move was chosen inside it.}
             residency_ok: {type: boolean}
             checks_required: {type: array, items: {type: string}}
         relocation_blocked:
           type: string
-          description: Why no cleaner region is proposed (residency_unknown or residency).
+          description: Why no cleaner region is proposed (residency_unknown, residency or latency).
       additionalProperties: true
+    DiagnosticResult:
+      type: object
+      required: [id, group, name, description, status, ms, message]
+      properties:
+        id: {type: string}
+        group: {type: string}
+        name: {type: string}
+        description: {type: string}
+        status: {type: string, enum: [ok, warn, fail, skipped, ""], description: "empty in the list, set after a run"}
+        ms: {type: integer, format: int64}
+        message: {type: string}
+        at: {type: string, format: date-time}
     Optimization:
       type: object
       properties:
@@ -7302,6 +7493,24 @@ components:
               name: {type: string}
               status: {type: string, enum: [ready, stub, missing]}
               note: {type: string}
+        runtime:
+          type: object
+          description: The process that answered, taken at the moment of the request.
+          properties:
+            started_at: {type: string, format: date-time}
+            go_version: {type: string}
+            goroutines: {type: integer}
+            heap_mb: {type: number}
+            cpus: {type: integer}
+        database:
+          type: object
+          description: The API's connection pool and the time of one round trip to the database.
+          properties:
+            ok: {type: boolean}
+            ping_ms: {type: number}
+            connections: {type: integer}
+            in_use: {type: integer}
+            max: {type: integer}
     OperatorError:
       type: object
       required: [id, service, component, severity, message, status, occurrences, first_seen, last_seen, tenant_id, tenant_name, last_request_id, handled_by, handled_at]
