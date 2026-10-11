@@ -236,3 +236,30 @@ html[data-motion="reduced"] .phoenix-live { animation: none; }
 @keyframes map-mini-in { from { opacity: 0; margin-top: 6px; } to { opacity: 1; margin-top: 0; } }
 .map-mini { animation: map-mini-in 0.26s var(--ease-out-soft) both; }
 @media (prefers-reduced-motion: reduce) { .map-mini { animation: none; } }
+
+/* ---- Calendar ------------------------------------------------------------------------------------------------------ */
+@keyframes cal-next { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+@keyframes cal-prev { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+.cal-next { animation: cal-next 0.28s var(--ease-out-soft) both; }
+.cal-prev { animation: cal-prev 0.28s var(--ease-out-soft) both; }
+.cal-title { animation: fade 0.25s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .cal-next, .cal-prev, .cal-title { animation: none; } }
+
+/* ---- Forms: a soft leaf edge instead of the browser's blue ring ------------------------------------------------------ */
+:focus-visible { outline: 2px solid rgba(111, 195, 168, 0.6); outline-offset: 2px; border-radius: 10px; }
+input:not([type="checkbox"]):not([type="radio"]), select, textarea { outline: none; transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease; }
+input:not([type="checkbox"]):not([type="radio"]):hover, select:hover, textarea:hover { border-color: #c8d9d2; }
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus, input:not([type="checkbox"]):not([type="radio"]):focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none; border-color: var(--color-leaf); box-shadow: 0 0 0 3px rgba(111, 195, 168, 0.22);
+}
+input[type="checkbox"], input[type="radio"] { accent-color: var(--color-leaf-deep); }
+
+/* ---- Scrollbars everywhere: thin, quiet, they appear while the pointer is over the area and fade away ------------------- */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*:hover { scrollbar-color: rgba(111, 195, 168, 0.5) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background-color: transparent; border: 3px solid transparent; background-clip: padding-box; border-radius: 999px; transition: background-color 0.35s ease; }
+*:hover::-webkit-scrollbar-thumb { background-color: rgba(111, 195, 168, 0.45); }
+*::-webkit-scrollbar-thumb:hover { background-color: rgba(47, 143, 120, 0.7); }
+html { scrollbar-gutter: stable; }

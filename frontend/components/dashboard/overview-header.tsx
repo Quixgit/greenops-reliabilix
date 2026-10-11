@@ -4,15 +4,15 @@ import { useConnections, useProjects } from "@/hooks/use-overview";
 import { content } from "@/content/schema";
 import { useT } from "@/i18n/provider";
 import { timeAgo } from "@/lib/formatters";
-import { PERIODS, useUi } from "@/lib/store";
+import { periodLabel, useUi } from "@/lib/store";
 
 /** Title and the scope of every figure on the page: which projects, which period, how fresh. */
 export function OverviewHeader() {
   const t = useT();
-  const { projectId, period } = useUi();
+  const { projectId, period, custom } = useUi();
   const projects = useProjects().data ?? [];
   const conns = useConnections().data ?? [];
-  const label = PERIODS.find((p) => p.key === period)!.label;
+  const label = periodLabel(period, custom);
   const name = projectId ? projects.find((p) => p.id === projectId)?.name ?? t("ov.head.selected") : t("ov.head.all");
   const last = conns.map((c) => c.last_sync_at).filter((x): x is string => !!x).sort().pop();
   return (

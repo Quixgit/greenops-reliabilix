@@ -59,9 +59,8 @@ export function SetupGuide() {
           {steps.map((s, i) => (
             <li key={s.id} className="rise" style={{ "--i": i } as CSSProperties}>
               <Link href={s.href} className={cn("group flex items-start gap-3 rounded-xl p-2 transition-colors hover:bg-slate-50", s.done && "opacity-60")}>
-                <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110",
-                  s.done ? "bg-leaf-soft text-leaf-deep" : "bg-slate-100 text-slate-500")}>
-                  {s.done ? <Check className="size-4" strokeWidth={2.6} /> : <s.icon className="size-4" strokeWidth={1.8} />}
+                <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center transition-transform duration-300 group-hover:scale-110", s.done ? "text-leaf-deep" : "text-slate-400")}>
+                  {s.done ? <Check className="size-5" strokeWidth={2.6} /> : <s.icon className="size-8" strokeWidth={1.4} />}
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[13px] font-medium text-ink">{t(`ov2.setup.${s.id}`)}</span>

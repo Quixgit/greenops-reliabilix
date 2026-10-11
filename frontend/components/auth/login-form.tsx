@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { loginUrl, validEmail } from "@/lib/auth/login";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +38,21 @@ function Input({ icon: Icon, ...p }: React.InputHTMLAttributes<HTMLInputElement>
   );
 }
 
+const REMEMBER_KEY = "rlx.remember";
+
+/** "Remember me" keeps only the user name or e-mail on this device, never the password. */
+function Remember({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer select-none items-center gap-2.5 text-sm text-slate-600">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span aria-hidden className="grid size-[18px] place-items-center rounded-md border border-slate-300 bg-white transition-all peer-checked:border-leaf peer-checked:bg-leaf peer-focus-visible:shadow-[0_0_0_3px_rgba(111,195,168,0.25)]">
+        <svg viewBox="0 0 16 16" className={cn("size-3 text-white transition-all", checked ? "scale-100 opacity-100" : "scale-50 opacity-0")} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+      </span>
+      Remember me on this device
+    </label>
+  );
+}
+
 function Divider({ children }: { children: string }) {
   return <div className="flex items-center gap-3 text-xs font-medium text-slate-400"><span className="h-px flex-1 bg-slate-200" />{children}<span className="h-px flex-1 bg-slate-200" /></div>;
 }
@@ -56,6 +71,18 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBER_KEY);
+      if (saved) { setRemember(true); setUsername(saved); setEmail((v) => v || saved); }
+    } catch { /* storage may be blocked */ }
+  }, []);
+  function keep(value: string) {
+    try { if (remember && value) localStorage.setItem(REMEMBER_KEY, value); else localStorage.removeItem(REMEMBER_KEY); } catch { /* ignore */ }
+  }
   const auth0 = mode === "auth0";
   const emailOk = validEmail(email);
   const go = (v: View) => { setView(v); setTouched(false); setSent(false); setError(""); };
@@ -149,9 +176,9 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
         <Divider>or</Divider>
 
         {mode === "dev" && devLogin ? (
-          <form method="post" action="/api/dev/login" className="space-y-4">
+          <form method="post" action="/api/dev/login" onSubmit={() => keep(username)} className="space-y-4">
             <input type="hidden" name="returnTo" value={returnTo} />
-            <Input icon={User} name="username" id="username" aria-label="User name" autoComplete="username" required autoFocus placeholder="User name" />
+            <Input icon={User} name="username" id="username" aria-label="User name" autoComplete="username" required autoFocus placeholder="User name" value={username} onChange={(e) => setUsername(e.target.value)} />
             <div className="relative">
               <Input icon={Lock} name="password" id="password" aria-label="Password" type={show ? "text" : "password"} autoComplete="current-password" required placeholder="Password" className="pr-11" />
               <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Hide password" : "Show password"}
@@ -159,6 +186,7 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
                 {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
+            <Remember checked={remember} onChange={setRemember} />
             {loginError && <p role="alert" className="text-xs text-red-600">{loginError === "rate" ? "Too many attempts. Wait a minute and try again." : "The user name or the password is not correct."}</p>}
             <button type="submit" className={primary}>Sign in</button>
             <p className="text-center text-xs text-slate-400">Test environment</p>
@@ -167,11 +195,12 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
           <a href="/overview" className={cn(primary, "flex items-center justify-center")}>Continue as the development user</a>
         ) : (
           <form
-            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (emailOk) window.location.assign(loginUrl({ email, returnTo })); }}
+            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (emailOk) { keep(email); window.location.assign(loginUrl({ email, returnTo })); } }}
             noValidate className="space-y-4"
           >
             <Input icon={Mail} id="email" aria-label="Work e-mail" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" aria-invalid={touched && !emailOk} />
             {touched && !emailOk && <p role="alert" className="-mt-2 text-xs text-red-600">Enter a valid e-mail address.</p>}
+            <Remember checked={remember} onChange={setRemember} />
             <button type="submit" className={primary}>Continue</button>
           </form>
         )}

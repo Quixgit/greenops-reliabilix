@@ -39,7 +39,7 @@ export function PreferencesPanel() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel index={0} icon={Palette} title={t("settings.prefs.display")} hint={t("settings.prefs.display_hint")}>
           <Row title={t("settings.prefs.period", undefined, "Default period")} hint={t("settings.prefs.period_hint", undefined, "The period every chart and number opens with.")}>
-            <Segmented label="Default period" value={period} onChange={setPeriod} options={PERIODS.map((p) => [p.key, p.label.replace("Last ", "")] as [typeof p.key, string])} />
+            <Segmented label="Default period" value={period === "custom" ? "30d" : period} onChange={setPeriod} options={PERIODS.map((p) => [p.key, p.label.replace("Last ", "")] as [typeof p.key, string])} />
           </Row>
           <Row title={t("settings.prefs.unit", undefined, "Carbon unit")} hint={t("settings.prefs.unit_hint", undefined, "Automatic switches between kg and tonnes by size.")}>
             <Segmented label="Carbon unit" value={carbonUnit} onChange={(v) => set({ carbonUnit: v })} options={[["auto", "Auto"], ["kg", "kg CO₂e"], ["t", "t CO₂e"]]} />

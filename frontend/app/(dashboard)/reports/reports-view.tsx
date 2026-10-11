@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { IconReport as FileText } from "@/components/ui/icons";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Field, input } from "@/components/forms/project-form";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { DateField } from "@/components/ui/date-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pagination, usePaged } from "@/components/ui/pagination";
 import { api } from "@/lib/api/client";
@@ -26,7 +27,7 @@ type Values = z.infer<typeof schema>;
 function ReportForm() {
   const qc = useQueryClient();
   const { from, to } = periodRange("30d");
-  const { register, handleSubmit, formState: { errors } } = useForm<Values>({
+  const { register, control, handleSubmit, formState: { errors } } = useForm<Values>({
     resolver: zodResolver(schema), defaultValues: { kind: "carbon", format: "pdf", period_start: from, period_end: to },
   });
   const m = useMutation({
@@ -37,8 +38,8 @@ function ReportForm() {
     <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3 sm:grid-cols-5 sm:items-start" noValidate>
       <Field label="Report"><select {...register("kind")} className={input}><option value="carbon">Carbon</option><option value="sci">SCI</option><option value="finops">FinOps</option><option value="sustainability">Sustainability summary</option></select></Field>
       <Field label="Format"><select {...register("format")} className={input}><option value="pdf">PDF</option><option value="csv">CSV</option><option value="json">JSON</option></select></Field>
-      <Field label="From" error={errors.period_start?.message}><input type="date" {...register("period_start")} className={input} /></Field>
-      <Field label="To" error={errors.period_end?.message}><input type="date" {...register("period_end")} className={input} /></Field>
+      <Field label="From" error={errors.period_start?.message}><Controller control={control} name="period_start" render={({ field }) => <DateField value={field.value} onChange={field.onChange} label="period_start" />} /></Field>
+      <Field label="To" error={errors.period_end?.message}><Controller control={control} name="period_end" render={({ field }) => <DateField value={field.value} onChange={field.onChange} label="period_end" />} /></Field>
       <button disabled={m.isPending} className="brand-gradient mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{m.isPending ? "Requesting…" : "Generate"}</button>
       {m.isError && <p role="alert" className="text-sm text-bad sm:col-span-5">{m.error.message}</p>}
     </form>

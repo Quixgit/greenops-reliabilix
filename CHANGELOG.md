@@ -5,6 +5,25 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.77] - 2026-10-11
+
+### Changed
+- **Projects page rebuilt.** Summary tiles (projects, cost in the period, projects with allowed regions, budgets needing
+  attention), a card per project with its cost and share, clouds, allowed regions, CI gate and budget use, tabs for
+  teams and allocation and for budgets, a "New project" panel, and a detail panel with structure, cloud connections,
+  policy and a work-units form that reports units with the new calendar.
+- **Top header redone**: search (Ctrl/Cmd+K), period presets with a calendar for a custom range, project, language,
+  alerts list in the bell and the user menu; the page no longer jumps when the bell opens (menus are not modal).
+- **Calendars** in the platform's style (animated month, soft range band) for the period and for the report dates.
+- **Form fields** show a light leaf edge on hover and focus instead of the browser's blue outline; **vertical
+  scrollbars** are thin and fade in.
+- **Connected accounts** block redone with one icon set for AWS, Azure, Google Cloud and Kubernetes; the small map's
+  window is compact; window close crosses are small circles.
+- **Icons** in the KPI strip, FinOps tiles, setup guide and header are drawn larger and bare, without a tile or frame.
+
+### Added
+- **"Remember me"** on the sign-in page keeps the user name or e-mail on the device (never the password).
+
 ## [0.1.0-alpha.76] - 2026-10-11
 
 ### Changed

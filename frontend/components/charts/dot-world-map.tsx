@@ -223,7 +223,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
           );
         })}
         {markers.filter((m) => m.region === selected).map((m) => (
-          <MiniCard key={m.region} m={m} below={m.y < MAP_H * 0.42} onClose={() => onSelect(null)} />
+          <MiniCard key={m.region} m={m} below={m.y < MAP_H * 0.5} compact={!big} onClose={() => onSelect(null)} />
         ))}
       </div>
       {big && (
@@ -250,27 +250,27 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect }: {
 }
 
 /** The small window that opens on a marker: where it is, what the grid does there and what you have in it. */
-function MiniCard({ m, below, onClose }: { m: Marker; below: boolean; onClose: () => void }) {
+function MiniCard({ m, below, compact, onClose }: { m: Marker; below: boolean; compact: boolean; onClose: () => void }) {
   const t = useT();
   const b = m.g === null ? null : m.g < 150 ? ["clean", "bg-leaf-soft text-leaf-deep"] : m.g < 300 ? ["moderate", "bg-pastel-amber/30 text-amber-800"] : m.g < 450 ? ["high", "bg-pastel-amber/40 text-amber-900"] : ["very_high", "bg-pastel-rose/30 text-rose-800"];
   return (
-    <div data-map-ui className="map-mini absolute z-30 w-[236px] rounded-2xl border border-white/80 bg-white/95 p-3.5 text-left shadow-[0_18px_44px_rgba(31,52,110,.22)] backdrop-blur"
-      style={{ left: `${(m.x / MAP_W) * 100}%`, top: `${(m.y / MAP_H) * 100}%`, transform: `translate(-50%, ${below ? "16px" : "calc(-100% - 16px)"}) scale(calc(1 / var(--k, 1)))`, transformOrigin: below ? "50% 0" : "50% 100%" }}
+    <div data-map-ui className={cn("map-mini absolute z-30 rounded-2xl border border-white/80 bg-white/95 text-left shadow-[0_18px_44px_rgba(31,52,110,.22)] backdrop-blur", compact ? "w-[172px] p-2.5" : "w-[236px] p-3.5")}
+      style={{ left: `${(m.x / MAP_W) * 100}%`, top: `${(m.y / MAP_H) * 100}%`, transform: `translate(${m.x < MAP_W * 0.16 ? "-12%" : m.x > MAP_W * 0.84 ? "-88%" : "-50%"}, ${below ? "12px" : "calc(-100% - 12px)"}) scale(calc(1 / var(--k, 1)))`, transformOrigin: below ? "50% 0" : "50% 100%" }}
       onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-start gap-2.5">
-        <span className="text-2xl leading-none" aria-hidden>{flag(m.cc)}</span>
+      <div className="flex items-start gap-2">
+        <span className={cn("leading-none", compact ? "text-lg" : "text-2xl")} aria-hidden>{flag(m.cc)}</span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold leading-tight text-ink">{m.city}</p>
           <p className="truncate text-[11px] text-muted">{m.country} · {regionProvider(m.region)}</p>
         </div>
-        <CloseButton onClick={onClose} label={t("map.close", undefined, "Close")} className="-mr-1 -mt-1 size-7 rounded-lg" />
+        <CloseButton onClick={onClose} label={t("map.close", undefined, "Close")} className={cn("-mr-1 -mt-1", compact ? "size-6" : "size-7")} />
       </div>
-      <p className="mt-1.5 font-mono text-[10px] text-slate-400">{m.region}</p>
-      <div className="mt-2.5 flex items-end justify-between">
-        <p className="text-2xl font-bold leading-none tracking-tight tabular-nums text-ink">{m.g === null ? "—" : nf(0).format(m.g)}<span className="ml-1 text-[10px] font-medium text-muted">gCO₂e/kWh</span></p>
-        {b && <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", b[1])}>{t(`ov2.band.${b[0]}`, undefined, b[0])}</span>}
+      {!compact && <p className="mt-1.5 font-mono text-[10px] text-slate-400">{m.region}</p>}
+      <div className={cn("flex items-end justify-between", compact ? "mt-1.5" : "mt-2.5")}>
+        <p className={cn("font-bold leading-none tracking-tight tabular-nums text-ink", compact ? "text-lg" : "text-2xl")}>{m.g === null ? "—" : nf(0).format(m.g)}<span className="ml-1 text-[9px] font-medium text-muted">g/kWh</span></p>
+        {b && <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-semibold", b[1])}>{t(`ov2.band.${b[0]}`, undefined, b[0])}</span>}
       </div>
-      {m.fp ? (
+      {compact ? (m.fp && <p className="mt-1.5 truncate border-t border-line/70 pt-1.5 text-[10px] tabular-nums text-muted">{formatCarbon(m.fp.carbon_kg_co2e)} · {formatCost(m.fp.cost)}</p>) : m.fp ? (
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line/70 pt-2.5 text-center">
           <div><p className="text-[10px] text-muted">CO₂e</p><p className="text-xs font-semibold tabular-nums">{formatCarbon(m.fp.carbon_kg_co2e)}</p></div>
           <div><p className="text-[10px] text-muted">{t("map.cost", undefined, "Cost")}</p><p className="text-xs font-semibold tabular-nums">{formatCost(m.fp.cost)}</p></div>

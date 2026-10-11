@@ -17,7 +17,7 @@ import { connectorSummary } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "./brand-logos";
-import type { IconType } from "@/components/ui/icons";
+import { IconAws, IconAzure, IconGcp, IconKubernetes, type IconType } from "@/components/ui/icons";
 import { Info } from "@/components/ui/info";
 
 const policy = z.object({
@@ -223,7 +223,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     const connected = s.state !== "available";
     return (
       <Link key={id} href={connected ? "/connectors" : id === "kubernetes" ? "/kubernetes" : `/connectors?connect=${id}`} className="group flex items-center gap-3 border-t border-line/70 py-2.5 transition-colors hover:bg-slate-50/70">
-        <BrandLogo id={id} className="size-9 shrink-0" />
+        {(() => { const M = { aws: IconAws, azure: IconAzure, gcp: IconGcp, kubernetes: IconKubernetes }[id]; return <M className="size-9 shrink-0 text-leaf-deep" strokeWidth={1.4} />; })()}
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-ink">{name}</span>
           <span className="block truncate text-[11px] text-muted">

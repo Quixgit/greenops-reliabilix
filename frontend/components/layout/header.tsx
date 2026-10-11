@@ -1,81 +1,198 @@
 "use client";
 
-import { CalendarDays, LogOut, Menu, Search } from "lucide-react";
-import { IconBell as Bell, IconDatabase as Layers, IconSliders as SettingsIcon } from "@/components/ui/icons";
+import { LogOut, Menu } from "lucide-react";
+import { IconBell, IconFolder, IconSearch, IconSliders } from "@/components/ui/icons";
 import Link from "next/link";
-import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot, DropdownTrigger } from "@/components/ui/dropdown";
-import { useProjects } from "@/hooks/use-overview";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { DropdownItem, DropdownPanel, DropdownRadioGroup, DropdownRadioItem, DropdownRoot } from "@/components/ui/dropdown";
+import * as DM from "@radix-ui/react-dropdown-menu";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { NAV } from "@/components/layout/nav";
+import { useAlerts, useConnections, useProjects } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
-import { PERIODS, useUi, type PeriodKey } from "@/lib/store";
+import { timeAgo } from "@/lib/formatters";
 import type { Role } from "@/lib/permissions";
+import { PERIODS, periodLabel, useUi } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 const ALL = "__all__";
+const pill = "group flex h-10 items-center gap-2 rounded-xl border border-line/80 bg-white px-3 text-sm font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:border-slate-300 hover:shadow-sm data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)] focus-visible:border-leaf";
+
+/** Jump to a page, a project or a connection by typing. ⌘K / Ctrl+K focuses it; Enter opens the first match. */
+function QuickSearch() {
+  const t = useT();
+  const router = useRouter();
+  const projects = useProjects();
+  const conns = useConnections();
+  const setProject = useUi((s) => s.setProject);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [cur, setCur] = useState(0);
+  const box = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); box.current?.focus(); setOpen(true); } };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, []);
+  const items = useMemo(() => {
+    const all: { label: string; hint: string; run: () => void }[] = [
+      ...NAV.map((n) => ({ label: n.label, hint: t("search.page"), run: () => router.push(n.href) })),
+      ...(projects.data ?? []).map((p) => ({ label: p.name, hint: t("search.project"), run: () => { setProject(p.id); router.push("/overview"); } })),
+      ...(conns.data ?? []).map((c) => ({ label: `${c.provider.toUpperCase()} ${c.account_ref}`, hint: t("search.connection"), run: () => router.push(`/cloud/${c.id}`) })),
+    ];
+    const n = q.trim().toLowerCase();
+    return (n ? all.filter((i) => i.label.toLowerCase().includes(n)) : all.slice(0, 7)).slice(0, 8);
+  }, [q, t, router, projects.data, conns.data, setProject]);
+  const go = (i: number) => { items[i]?.run(); setOpen(false); setQ(""); box.current?.blur(); };
+  return (
+    <div className="relative hidden md:block">
+      <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-slate-400" />
+      <input ref={box} value={q} placeholder={t("header.search")} aria-label={t("header.search")} role="combobox" aria-expanded={open} aria-controls="quick-search"
+        onChange={(e) => { setQ(e.target.value); setCur(0); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") { e.preventDefault(); setCur((c) => Math.min(items.length - 1, c + 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setCur((c) => Math.max(0, c - 1)); }
+          else if (e.key === "Enter") { e.preventDefault(); go(cur); }
+          else if (e.key === "Escape") { setOpen(false); box.current?.blur(); }
+        }}
+        className="h-10 w-60 rounded-xl border border-line/80 bg-white pl-11 pr-14 text-sm text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] placeholder:text-slate-400 lg:w-72" />
+      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">⌘K</kbd>
+      {open && items.length > 0 && (
+        <ul id="quick-search" role="listbox" className="info-pop absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-[0_18px_44px_rgba(31,52,110,0.16)]">
+          {items.map((it, i) => (
+            <li key={`${it.hint}-${it.label}`} role="option" aria-selected={i === cur}>
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => go(i)} onMouseEnter={() => setCur(i)}
+                className={cn("flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors", i === cur ? "bg-leaf-soft/70" : "")}>
+                <span className="truncate font-medium">{it.label}</span><span className="shrink-0 text-xs text-muted">{it.hint}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** The period: three presets as one segmented control and a calendar for any other range. */
+function PeriodPicker() {
+  const t = useT();
+  const { period, setPeriod, custom, setCustom } = useUi();
+  const [draft, setDraft] = useState<{ from?: string; to?: string }>({});
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="hidden items-center gap-2 sm:flex">
+      <div role="tablist" aria-label={t("header.period")} className="flex h-10 items-center rounded-xl border border-line/80 bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+        {PERIODS.map((p) => (
+          <button key={p.key} role="tab" type="button" aria-selected={period === p.key} onClick={() => setPeriod(p.key)}
+            className={cn("rounded-lg px-3 py-1 text-[13px] font-medium transition-all duration-200", period === p.key ? "bg-leaf-soft text-leaf-deep shadow-sm" : "text-slate-500 hover:text-ink")}>
+            {p.days}d
+          </button>
+        ))}
+      </div>
+      <DropdownRoot open={open} onOpenChange={(o) => { setOpen(o); if (o) setDraft(custom ?? {}); }}>
+        <DM.Trigger className={cn(pill, period === "custom" && "border-leaf/60 bg-leaf-soft/50")}>
+          <span className="text-slate-500"><IconCalendar /></span>
+          <span className="max-w-44 truncate">{period === "custom" ? periodLabel(period, custom) : t("header.custom_range")}</span>
+        </DM.Trigger>
+        <DropdownPanel align="end">
+          <div className="p-2">
+            <Calendar mode="range" from={draft.from} to={draft.to} max={new Date().toISOString().slice(0, 10)}
+              onPick={(f, to) => setDraft({ from: f, to })} />
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-line/70 px-1 pt-2.5">
+              <span className="text-xs text-muted">{draft.from ? `${draft.from}${draft.to ? ` → ${draft.to}` : ""}` : t("header.pick_range")}</span>
+              <button type="button" disabled={!draft.from} onClick={() => { setCustom(draft.from!, draft.to ?? draft.from!); setOpen(false); }}
+                className="rounded-lg bg-leaf-deep px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-40">{t("header.apply")}</button>
+            </div>
+          </div>
+        </DropdownPanel>
+      </DropdownRoot>
+    </div>
+  );
+}
+
+function IconCalendar() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5.5 5.6h13c.9 0 1.6.7 1.6 1.6v10.6c0 .9-.7 1.6-1.6 1.6h-13c-.9 0-1.6-.7-1.6-1.6V7.2c0-.9.7-1.6 1.6-1.6z" fill="currentColor" fillOpacity=".12" stroke="none" />
+      <path d="M5.5 5.6h13c.9 0 1.6.7 1.6 1.6v10.6c0 .9-.7 1.6-1.6 1.6h-13c-.9 0-1.6-.7-1.6-1.6V7.2c0-.9.7-1.6 1.6-1.6z" /><path d="M3.9 10h16.2M8.2 3.6v3.2M15.8 3.6v3.2" />
+    </svg>
+  );
+}
 
 export function Header({ user, unread = 0 }: { user: { name: string; email: string; role: Role }; unread?: number }) {
-  const { projectId, setProject, period, setPeriod, setNavOpen } = useUi();
+  const { projectId, setProject, setNavOpen } = useUi();
   const t = useT();
   const projects = useProjects();
+  const alerts = useAlerts("new");
   const selected = projects.data?.find((p) => p.id === projectId);
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const count = Math.max(unread, alerts.data?.length ?? 0);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-white/90 px-4 backdrop-blur-xl lg:px-6">
-      <button className="rounded-lg p-2 hover:bg-slate-100 lg:hidden" aria-label={t("header.menu")} onClick={() => setNavOpen(true)}><Menu className="size-5" /></button>
+    <header className="sticky top-0 z-30 flex h-[68px] items-center gap-3 border-b border-line/70 bg-white/85 px-4 backdrop-blur-xl lg:px-6">
+      <button className="rounded-xl p-2 hover:bg-slate-100 lg:hidden" aria-label={t("header.menu")} onClick={() => setNavOpen(true)}><Menu className="size-5" /></button>
 
-      <div className="flex items-center gap-2">
-        <DropdownRoot>
-          <DropdownTrigger><Layers className="size-4 text-slate-500" /><span className="max-w-40 truncate">{selected?.name ?? t("header.all_projects")}</span></DropdownTrigger>
-          <DropdownPanel>
-            <DropdownRadioGroup value={projectId ?? ALL} onValueChange={(v) => setProject(v === ALL ? null : v)}>
-              <DropdownRadioItem value={ALL}>{t("header.all_projects")}</DropdownRadioItem>
-              {projects.data?.map((p) => <DropdownRadioItem key={p.id} value={p.id}>{p.name}</DropdownRadioItem>)}
-            </DropdownRadioGroup>
-          </DropdownPanel>
-        </DropdownRoot>
-        <DropdownRoot>
-          <DropdownTrigger className="hidden sm:flex"><CalendarDays className="size-4 text-slate-500" />{PERIODS.find((p) => p.key === period)!.label}</DropdownTrigger>
-          <DropdownPanel>
-            <DropdownRadioGroup value={period} onValueChange={(v) => setPeriod(v as PeriodKey)}>
-              {PERIODS.map((p) => <DropdownRadioItem key={p.key} value={p.key}>{p.label}</DropdownRadioItem>)}
-            </DropdownRadioGroup>
-          </DropdownPanel>
-        </DropdownRoot>
-      </div>
+      <DropdownRoot>
+        <DM.Trigger className={pill}>
+          <IconFolder className="size-6 text-leaf-deep" />
+          <span className="max-w-44 truncate">{selected?.name ?? t("header.all_projects")}</span>
+          <svg viewBox="0 0 12 12" className="size-3 text-slate-400 transition-transform duration-300 group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
+        </DM.Trigger>
+        <DropdownPanel>
+          <DropdownRadioGroup value={projectId ?? ALL} onValueChange={(v) => setProject(v === ALL ? null : v)}>
+            <DropdownRadioItem value={ALL}>{t("header.all_projects")}</DropdownRadioItem>
+            {projects.data?.map((p) => <DropdownRadioItem key={p.id} value={p.id}>{p.name}</DropdownRadioItem>)}
+          </DropdownRadioGroup>
+        </DropdownPanel>
+      </DropdownRoot>
 
-      <div className="ml-auto flex items-center gap-3">
-        <LanguageSwitcher />
-        {/* Stub: global search arrives in a later release. It looks like the final field but is read-only. */}
-        <label className="group relative hidden md:block">
-          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-          <input readOnly aria-label="Search (coming soon)" title="Search is coming soon" placeholder="Search…"
-            className="w-64 cursor-not-allowed rounded-xl bg-white py-2.5 pl-10 pr-3 text-sm text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-line outline-none transition placeholder:text-slate-400 lg:w-72" />
-        </label>
+      <PeriodPicker />
 
-        {/* Stub: there is no in-app inbox yet. Events are delivered by e-mail, webhook or Slack (Settings > Notifications). */}
+      <div className="ml-auto flex items-center gap-2.5">
+        <QuickSearch />
+        <LanguageSwitcher className={pill} />
+
         <DropdownRoot>
-          <DropdownTrigger className="!gap-0 !rounded-full !p-2.5 [&>svg:last-child]:hidden">
-            <span className="relative"><Bell className="size-5 text-slate-600" />
-              {unread > 0 && <><span className="absolute -right-0.5 -top-0.5 size-2.5 animate-[ping-soft_1.8s_ease-out_infinite] rounded-full bg-bad/70" /><span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-bad ring-2 ring-white" /></>}
-            </span>
-            <span className="sr-only">{unread ? `${unread} unread notifications` : "Notifications"}</span>
-          </DropdownTrigger>
+          <DM.Trigger aria-label={count ? `${count} new alerts` : t("header.notifications")} className="group relative grid size-10 place-items-center rounded-xl border border-line/80 bg-white text-slate-600 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:border-slate-300 hover:text-ink data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]">
+            <IconBell className="size-[20px] transition-transform duration-300 group-hover:rotate-[-8deg]" />
+            {count > 0 && <span className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-pastel-rose px-1 text-[10px] font-bold leading-[18px] text-rose-900 ring-2 ring-white">{count > 9 ? "9+" : count}</span>}
+          </DM.Trigger>
           <DropdownPanel align="end">
-            <div className="w-72 p-3">
-              <p className="text-sm font-semibold">Notifications</p>
-              <p className="mt-1 text-xs text-muted">The in-app inbox is coming soon. Until then, events such as finished reports and cloud connections that need attention are delivered by e-mail, webhook or Slack.</p>
-              <Link href="/settings" className="mt-3 inline-block text-xs font-semibold text-primary hover:underline">Set up delivery →</Link>
+            <div className="w-[340px]">
+              <div className="flex items-center justify-between px-3 pb-2 pt-2.5">
+                <p className="text-sm font-semibold">{t("header.notifications")}</p>
+                <Link href="/alerts" className="text-xs font-semibold text-leaf-deep hover:underline">{t("header.all_alerts")}</Link>
+              </div>
+              {(alerts.data ?? []).length === 0 ? (
+                <p className="px-3 pb-4 pt-1 text-sm text-muted">{t("header.no_alerts")}</p>
+              ) : (
+                <ul className="max-h-80 overflow-y-auto">
+                  {alerts.data!.slice(0, 6).map((a) => (
+                    <li key={a.id}>
+                      <Link href="/alerts" className="flex gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-slate-50">
+                        <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.severity === "critical" ? "bg-pastel-rose" : a.severity === "warning" ? "bg-pastel-amber" : "bg-pastel-blue")} />
+                        <span className="min-w-0"><span className="block truncate text-sm font-medium">{a.title}</span><span className="block truncate text-xs text-muted">{a.detail}</span><span className="text-[11px] text-slate-400">{timeAgo(a.last_seen_at)}</span></span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="border-t border-line/70 px-3 py-2.5">
+                <Link href="/settings#notifications" className="text-xs font-semibold text-leaf-deep hover:underline">{t("header.delivery")}</Link>
+              </div>
             </div>
           </DropdownPanel>
         </DropdownRoot>
 
         <DropdownRoot>
-          <DropdownTrigger className="!border-0 !p-1.5 !shadow-none !ring-0 hover:!bg-slate-50">
-            <span className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-[#2b3a67] to-[#4a63c9] text-sm font-bold text-white shadow-md shadow-indigo-900/20">{initials || "U"}</span>
+          <DM.Trigger className="group flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-2.5 outline-none transition-colors hover:bg-slate-50 data-[state=open]:bg-slate-50">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-leaf to-leaf-deep text-sm font-bold text-white shadow-sm">{initials || "U"}</span>
             <span className="hidden text-left leading-tight sm:block"><span className="block text-sm font-semibold">{user.name}</span><span className="block text-xs capitalize text-muted">{user.role}</span></span>
-          </DropdownTrigger>
+          </DM.Trigger>
           <DropdownPanel align="end">
-            <DropdownItem asChild><Link href="/settings"><SettingsIcon className="size-4" />{t("header.settings")}</Link></DropdownItem>
+            <DropdownItem asChild><Link href="/settings"><IconSliders className="size-4" />{t("header.settings")}</Link></DropdownItem>
             <DropdownItem asChild><a href="/auth/logout"><LogOut className="size-4" />{t("header.sign_out")}</a></DropdownItem>
           </DropdownPanel>
         </DropdownRoot>

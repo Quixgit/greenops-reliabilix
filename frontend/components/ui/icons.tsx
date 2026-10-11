@@ -167,3 +167,22 @@ export const IconChevronRight = make("chevron-right", null, <path d="M9.5 5.5l6.
 export const IconInfo = make("info", <circle cx="12" cy="12" r="8.6" />, <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.2" /><path d="M12 7.7v.1" /></>);
 
 export const IconClose = make("close", null, <><path d="M6.2 6.4c3.8 3.6 7.6 7.4 11.6 11.4" /><path d="M17.7 6.2C13.9 9.9 10.2 13.8 6.3 17.7" /></>);
+
+export const IconSearch = make("search", <circle cx="10.6" cy="10.6" r="6.4" />, <><circle cx="10.6" cy="10.6" r="6.3" /><path d="M15.4 15.5l4.6 4.5" /></>);
+
+// ---- The four platforms, drawn with the same pen as the rest, bare (no tile, no frame) -----------------------------
+export const IconAws = make("aws",
+  <path d="M5.2 9.4c0-1.3 1-2.2 2.3-2.2h9c1.3 0 2.3.9 2.3 2.2v4.1c0 1.3-1 2.2-2.3 2.2h-9c-1.3 0-2.3-.9-2.3-2.2z" />,
+  <><path d="M5 9.3c0-1.4 1.1-2.4 2.5-2.4h9c1.4 0 2.5 1 2.5 2.4v4.1c0 1.4-1.1 2.4-2.5 2.4h-9C6.1 15.8 5 14.8 5 13.4z" /><path d="M8.4 10.3v2.4M8.4 11h1.6a.9.9 0 0 1 0 1.8H8.4M12 12.8l.9-2.4.9 2.4M14.9 10.3l1.4 2.6 1.1-2.6" /><path d="M5.6 18.6c3.9 2.1 9.1 2.1 12.8-.2" /><path d="M16.7 17.2l1.8 1.2-.9 1.9" /></>);
+
+export const IconAzure = make("azure",
+  <path d="M10.3 4.4L4.2 18.8h4.6l3.4-8.6z" />,
+  <><path d="M10.4 4.3L3.9 19h5l1.9-4.8 4.6 4.9H20L10.4 4.3z" /><path d="M10.2 14.2l4.9 4.9" /></>);
+
+export const IconGcp = make("gcp",
+  <path d="M7.3 18a4.4 4.4 0 0 1-.7-8.7 5.6 5.6 0 0 1 10.9 1.1A3.8 3.8 0 0 1 17 18z" />,
+  <><path d="M7.4 18.2a4.5 4.5 0 0 1-.8-8.9 5.7 5.7 0 0 1 11 1.2 3.9 3.9 0 0 1-.6 7.7z" /><path d="M9.2 12.6l2.8-1.6 2.8 1.6v3.1L12 17.3l-2.8-1.6z" /></>);
+
+export const IconKubernetes = make("kubernetes",
+  <path d="M12 3.3l7.2 3.5 1.8 7.8-5 6.2H8l-5-6.2 1.8-7.8z" />,
+  <><path d="M12 3.1l7.5 3.6 1.9 8.1-5.2 6.5H7.8l-5.2-6.5 1.9-8.1z" /><circle cx="12" cy="12.4" r="2.2" /><path d="M12 10.2V6.4M13.9 11.2l3.3-1.9M13.8 13.6l3 2.4M10.2 13.6l-3 2.4M10.1 11.2L6.8 9.3" /></>);

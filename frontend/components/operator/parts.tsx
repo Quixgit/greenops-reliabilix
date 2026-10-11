@@ -4,7 +4,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { cn } from "@/lib/utils";
 
 export const th = "py-1.5 pr-3 text-left text-xs font-medium text-muted";
-export const selectCls = "rounded-lg bg-white/80 px-2.5 py-1.5 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
+export const selectCls = "rounded-lg bg-white/80 px-2.5 py-1.5 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-leaf/40";
 
 const TILE = {
   sage: "bg-leaf-soft text-leaf-deep", lavender: "bg-violet-50 text-violet-700", peach: "bg-orange-50 text-orange-700",

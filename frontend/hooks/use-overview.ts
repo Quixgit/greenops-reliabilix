@@ -8,7 +8,8 @@ import { periodRange, useUi } from "@/lib/store";
 
 /** Filters shared by every Overview query; changing project/period refetches all of them. */
 function useFilters() {
-  const { projectId, period } = useUi();
+  const { projectId, period, custom } = useUi();
+  void custom; // a new custom range re-renders the queries that depend on the period
   const { from, to } = periodRange(period);
   return { from, to, project_id: projectId ?? undefined };
 }

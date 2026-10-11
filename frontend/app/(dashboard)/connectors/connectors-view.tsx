@@ -163,7 +163,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
             <label className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("connectors.search")}
-                className="w-56 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30" />
+                className="w-56 rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-leaf/40/30" />
             </label>
           </div>
           <div role="tablist" className="flex flex-wrap gap-2 border-b border-line px-5 py-3">

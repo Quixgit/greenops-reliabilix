@@ -60,7 +60,7 @@ export function StatCards() {
   const conns = useConnections();
   const opt = useOptimization().data;
   const period = useUi((s) => s.period);
-  const days = PERIODS.find((p) => p.key === period)!.days;
+  const days = PERIODS.find((p) => p.key === period)?.days ?? 30;
 
   // Why is there nothing? No cloud connected vs. connected but not synced yet.
   const emptyText = (conns.data?.length ?? 0) === 0 ? content.empty.noCloud : content.empty.awaitingSync;

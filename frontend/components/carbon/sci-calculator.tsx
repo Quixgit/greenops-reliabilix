@@ -9,7 +9,7 @@ import type { CarbonSummary } from "@/lib/api/schemas";
 import { nf } from "@/lib/formatters";
 import { changePct, computeSci, formatGrams } from "@/lib/sci";
 
-const input = "w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-primary";
+const input = "w-full rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-line focus:outline-none focus:ring-2 focus:ring-leaf/40";
 
 /** Reads a positive number the way people type it ("1 200 000", "1,5"); null for anything else. */
 function parseUnits(s: string): number | null {

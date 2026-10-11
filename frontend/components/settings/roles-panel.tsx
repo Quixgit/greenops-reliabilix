@@ -15,7 +15,7 @@ import { customRole, type CustomRole, type RolesView } from "@/lib/api/schemas";
 import { cn } from "@/lib/utils";
 import { Panel } from "./organization-tab";
 
-const field = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-primary";
+const field = "w-full rounded-xl bg-white/80 px-3 py-2 text-sm ring-1 ring-line outline-none focus:ring-2 focus:ring-leaf/40";
 
 type Draft = { id?: string; name: string; description: string; permissions: Set<string> };
 
