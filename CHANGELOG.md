@@ -5,6 +5,21 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.66] - 2026-10-11
+
+### Changed
+- **The Connectors page is redesigned** around what is really connected: four indicators (active connectors, source
+  types, sync health from the latest runs, average sync time), one list of connections with status, last sync, a bar per
+  recent run, and cost and CO₂e of the period; a row opens to project, access mode, data check, last error and "Sync
+  now". A "needs attention" panel lists broken connections with their cause and a way to the fix, the catalog below
+  shows each connector's real state, and "Connect" opens a slide-over instead of an inline form. Entrance, filter,
+  row-expand and slide-over animations respect reduced motion.
+- **One source of truth for connector state** (`lib/connectors.ts`): the Overview tile and the Connectors page derive
+  it from the same facts. Kubernetes is no longer shown as "Soon" (it is a real connector, ADR-0030): it reads as
+  connected while a cluster pushes data and as waiting when the data is older than two days; e-mail, Slack and webhook
+  read as connected while a destination is enabled.
+- The page and its catalog are translated (English, Russian).
+
 ### Changed
 - The stand's scheduler unit no longer switches off `cloudaccounts:sync_all` and `cloudaccounts:rightsizing_all`: the
   stand holds a real Azure connection now, and with the switch the data would never refresh by itself.
