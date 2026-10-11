@@ -33,7 +33,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
   const p = q.data;
   const ends = p.status === "trialing" ? p.trial_ends_at : p.period_end;
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-3">
       <Panel index={0} icon={CreditCard} title={t("plan.title")} action={<Badge tone={STATUS_TONE[p.status]}>{t(`plan.status.${p.status}`)}</Badge>}>
         <p className="mt-1 text-2xl font-bold tracking-tight">{p.name}</p>
         {ends && <p className="mt-1 text-sm text-muted">{p.status === "trialing" ? t("plan.trial_ends") : p.status === "canceled" ? t("plan.ended") : t("plan.period_end")}: {shortTime(ends)}</p>}
@@ -56,7 +56,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
         <ul className="grid gap-1.5 sm:grid-cols-2">
           {p.modules.map((m) => (
             <li key={m.key} className="flex items-center gap-2 text-sm">
-              {m.enabled ? <Check className="size-4 text-emerald-600" aria-hidden /> : <Minus className="size-4 text-slate-400" aria-hidden />}
+              {m.enabled ? <Check className="size-4 text-teal-700" aria-hidden /> : <Minus className="size-4 text-slate-400" aria-hidden />}
               <span className={m.enabled ? "" : "text-muted"}>{t(`plan.module.${m.key.replace("modules.", "")}`, undefined, m.key)}</span>
             </li>
           ))}

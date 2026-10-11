@@ -37,7 +37,7 @@ export function ApiKeysPanel() {
   const active = (q.data ?? []).filter((k) => !k.revoked_at).length;
   const pg = usePaged(q.data ?? [], 10);
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-3">
       <Panel index={0} icon={KeyRound} title={t("settings.keys.title")} hint={t("settings.keys.hint", { count: active })} className="lg:col-span-2">
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ? <EmptyState icon={KeyRound} text="No API keys. Create one for a CI pipeline that calls the CI gate." /> : (
           <ul className="text-sm">
@@ -61,7 +61,7 @@ export function ApiKeysPanel() {
           <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3" noValidate>
             <Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. github-actions" /></Field>
             <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option><option value="agent">Kubernetes agent</option></select></Field>
-            <button disabled={create.isPending} className="rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
+            <button disabled={create.isPending} className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
             {create.isError && <p role="alert" className="text-sm text-bad">{create.error.message}</p>}
           </form>
         </div>

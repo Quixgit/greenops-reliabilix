@@ -35,13 +35,13 @@ const SOURCE_LABEL: Record<string, { text: string; tone: "neutral" | "good" | "s
   operator: { text: "fixed by platform", tone: "warn" },
 };
 
-function Control({ item, value, onChange, disabled }: { item: SettingItem; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
+export function Control({ item, value, onChange, disabled }: { item: SettingItem; value: unknown; onChange: (v: unknown) => void; disabled: boolean }) {
   switch (item.type) {
     case "bool":
       return (
         <span className="inline-flex items-center gap-3">
           <Switch label={item.title} checked={value === true} disabled={disabled} onChange={onChange} />
-          <span className={cn("text-sm font-medium", value === true ? "text-emerald-700" : "text-muted")}>{value === true ? "On" : "Off"}</span>
+          <span className={cn("text-sm font-medium", value === true ? "text-teal-700" : "text-muted")}>{value === true ? "On" : "Off"}</span>
         </span>
       );
     case "int":
@@ -83,7 +83,7 @@ function Control({ item, value, onChange, disabled }: { item: SettingItem; value
   }
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+export const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes, onlyGroup, hideKeys }: {
   mode: EditorMode; path: string; historyPath: string; canEdit?: boolean; scopes?: SettingItem["scope"][];
@@ -138,12 +138,12 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Setting groups">
           {[{ id: "all", title: "All" }, ...groups].map((g) => (
             <button key={g.id} type="button" role="tab" aria-selected={active === g.id} onClick={() => setActive(g.id)}
-              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-emerald-50 text-emerald-700" : "text-muted hover:text-ink")}>{g.title}</button>
+              className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition", active === g.id ? "bg-emerald-50 text-teal-700" : "text-muted hover:text-ink")}>{g.title}</button>
           ))}
         </div>
       </div>}
 
-      <div className={cn("grid items-start gap-4", onlyGroup ? "" : "lg:grid-cols-2")}>
+      <div className={cn("grid gap-4", onlyGroup ? "" : "lg:grid-cols-2")}>
       {groups.filter((g) => shown.some((i) => i.group === g.id)).map((g, gi) => (
         <Panel key={g.id} index={gi} icon={GROUP_ICON[g.id] ?? Settings2} title={g.title} hint={g.description}>
           <ul className="divide-y divide-line/70">
@@ -186,9 +186,9 @@ export function SettingsEditor({ mode, path, historyPath, canEdit = true, scopes
         <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={dirty.length === 0 || save.isPending}
             onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
+            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
           {dirty.length > 0 && <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">Discard</button>}
-          {saved && dirty.length === 0 && <span role="status" className="text-sm text-emerald-700">Saved.</span>}
+          {saved && dirty.length === 0 && <span role="status" className="text-sm text-teal-700">Saved.</span>}
           {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-bad">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}
           {otherError && <span role="alert" className="text-sm text-bad">{otherError}</span>}
         </div>

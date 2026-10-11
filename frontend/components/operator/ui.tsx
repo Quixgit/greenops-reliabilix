@@ -13,7 +13,7 @@ export function Switch({ checked, onChange, disabled, label, size = "md" }: {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
       className={cn("relative inline-flex shrink-0 items-center rounded-full transition-colors duration-300 ease-[var(--ease-out-soft)] focus-visible:outline-2 disabled:cursor-not-allowed disabled:opacity-50",
-        sm ? "h-5 w-9" : "h-6 w-11", checked ? "bg-gradient-to-r from-emerald-300 to-emerald-400" : "bg-slate-200")}>
+        sm ? "h-5 w-9" : "h-6 w-11", checked ? "bg-teal-700/75" : "bg-slate-200")}>
       <span className={cn("inline-block rounded-full bg-white shadow-[0_1px_3px_rgba(15,27,51,.25)] transition-transform duration-300 ease-[var(--ease-out-soft)]",
         sm ? "size-4" : "size-5", checked ? (sm ? "translate-x-[18px]" : "translate-x-[22px]") : "translate-x-0.5")} />
     </button>
@@ -27,7 +27,7 @@ export function Check_({ checked, onChange, disabled, label, children }: {
   return (
     <label className={cn("inline-flex cursor-pointer items-center gap-2 text-sm", disabled && "cursor-not-allowed opacity-50")}>
       <input type="checkbox" className="peer sr-only" aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span className="grid size-[18px] place-items-center rounded-[6px] bg-white ring-1 ring-slate-300 transition-all duration-200 peer-checked:bg-emerald-400 peer-checked:ring-emerald-400 peer-focus-visible:outline-2 [&>svg]:scale-0 peer-checked:[&>svg]:scale-100">
+      <span className="grid size-[18px] place-items-center rounded-[6px] bg-white ring-1 ring-slate-300 transition-all duration-200 peer-checked:bg-teal-700/80 peer-checked:ring-teal-700/80 peer-focus-visible:outline-2 [&>svg]:scale-0 peer-checked:[&>svg]:scale-100">
         <Check className="size-3 text-white transition-transform duration-200" strokeWidth={3.5} />
       </span>
       {children}

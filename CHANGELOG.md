@@ -5,6 +5,18 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.71] - 2026-10-11
+
+### Changed
+- **Data & integrations is rebuilt**: six cards of one size (data sources, cost reporting, alerts, access policy,
+  export, erasure) with compact rows and one save bar, instead of every settings group dumped as a form. Gone from it:
+  the search and the group tabs; the modules and quota fields (the plan decides them and the client cannot change them;
+  usage and modules are on Billing); the suspended-organization form (a notice shows only when it applies).
+- **Notifications have one meaning per place.** The organization-wide delivery switch lives only on the Notifications
+  tab; each destination keeps its own pause there. The Organization tab and the Connectors page show the state
+  (on, paused, switched off) without a second switch, and a channel no longer reads "on" while delivery is switched off.
+- Switches and checkboxes use a calm teal instead of the bright mint; cards in a row have the same height.
+
 ## [0.1.0-alpha.70] - 2026-10-11
 
 ### Added

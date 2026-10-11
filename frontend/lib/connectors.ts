@@ -20,6 +20,8 @@ export interface ConnectorFacts {
   destinations: DestinationFacts[];
   /** Timestamps (ISO) of the newest grid-intensity reading of every region the platform follows. */
   gridReadings?: string[];
+  /** The organization-wide delivery switch; when false no channel delivers, whatever its destinations say. */
+  notificationsEnabled?: boolean;
   now?: number;
 }
 
@@ -57,6 +59,7 @@ export function connectorSummary(id: string, f: ConnectorFacts): ConnectorSummar
   if (id === "email" || id === "slack" || id === "webhook") {
     const list = f.destinations.filter((d) => d.kind === id);
     const on = list.filter((d) => d.enabled).length;
+    if (list.length > 0 && f.notificationsEnabled === false) return { state: "waiting", count: list.length, lastAt: null };
     return { state: on > 0 ? "synced" : list.length > 0 ? "waiting" : "available", count: list.length, lastAt: null };
   }
   return { state: "available", count: 0, lastAt: null };

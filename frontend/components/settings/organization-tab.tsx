@@ -8,9 +8,8 @@ import {
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { z } from "zod";
-import { Switch } from "@/components/operator/ui";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApiKeys, useDestinations, useMembers, useRoles, useTenant } from "@/hooks/use-admin";
+import { useApiKeys, useDestinations, useMembers, useNotificationsEnabled, useRoles, useTenant } from "@/hooks/use-admin";
 import { useAlerts, useBudgets, useCarbonSummary, useConnections, useK8sClusters, useProjects, useRegions } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
@@ -24,7 +23,7 @@ const policy = z.object({
   allowed_regions: z.array(z.string()), ci_carbon_block_kg: z.number().nullable(), ci_cost_block: z.number().nullable(),
   auto_apply_types: z.array(z.string()).default([]),
 });
-const GREEN = "text-emerald-600";
+const GREEN = "text-teal-700";
 
 /** The card of the design: an outlined green icon, a bold title with its one-line purpose, then rows. */
 export function Panel({ index = 0, icon: Icon, title, hint, children, foot, action, className }: {
@@ -75,12 +74,12 @@ export function Status({ ok, children }: { ok: boolean | null; children: ReactNo
   return (
     <span className="inline-flex items-center gap-1.5 text-xs">
       <span className={cn("size-1.5 rounded-full", ok === true ? "bg-emerald-500" : "bg-slate-300")} />
-      <span className={ok === true ? "text-emerald-600" : "text-muted"}>{children}</span>
+      <span className={ok === true ? "text-teal-700" : "text-muted"}>{children}</span>
     </span>
   );
 }
 
-const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 disabled:bg-slate-50 disabled:text-slate-500";
+const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-slate-50 disabled:text-slate-500";
 
 /** The Organization tab: every area of the organization in the order and shape of the design, filled from real data. */
 export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) => void; canManage: boolean; canEdit: boolean }) {
@@ -130,14 +129,8 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
     },
   });
 
-  // ---- channels: the switch enables or disables every destination of that kind
-  const toggle = useMutation({
-    mutationFn: async (v: { kind: string; on: boolean }) => {
-      const list = (dests.data ?? []).filter((d) => d.kind === v.kind);
-      await Promise.all(list.map((d) => api(`notifications/destinations/${d.id}/${v.on ? "enable" : "disable"}`, z.unknown(), undefined, { method: "POST", body: "{}" })));
-    },
-    onSettled: () => { void qc.invalidateQueries({ queryKey: ["notif-destinations"] }); },
-  });
+  // ---- channels: shown as a state, never as a second switch (the switch is on the Notifications tab)
+  const notifOn = useNotificationsEnabled();
   const channel = (kind: string) => {
     const list = (dests.data ?? []).filter((d) => d.kind === kind);
     return { list, on: list.some((d) => d.enabled) };
@@ -191,11 +184,8 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
 
   const sw = (kind: string, label: string, icon: LucideIcon) => {
     const c = channel(kind);
-    return (
-      <Row key={kind} icon={icon} label={label}
-        value={dests.isLoading ? "…" : c.list.length === 0 ? t("settings.hub.not_set") : c.on ? t("settings.hub.on") : t("settings.hub.paused")}
-        toggle={<Switch label={label} size="sm" checked={c.on} disabled={!canEdit || c.list.length === 0 || toggle.isPending} onChange={(on) => toggle.mutate({ kind, on })} />} />
-    );
+    const state = dests.isLoading || notifOn === undefined ? "…" : c.list.length === 0 ? t("settings.hub.not_set") : notifOn === false ? t("settings.notif.all_off") : c.on ? t("settings.hub.on") : t("settings.hub.paused");
+    return <Row key={kind} icon={icon} label={label} value={state} onClick={() => go("notifications")} />;
   };
 
   return (
@@ -219,10 +209,10 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
             </label>
           </div>
           <div className="flex items-center justify-end gap-3 pt-1">
-            {save.isSuccess && <span role="status" className="text-xs text-emerald-600">{t("settings.org.saved")}</span>}
+            {save.isSuccess && <span role="status" className="text-xs text-teal-700">{t("settings.org.saved")}</span>}
             {save.isError && <span role="alert" className="text-xs text-bad">{save.error.message}</span>}
             <button type="button" onClick={() => save.mutate()} disabled={!canEdit || (!nameChanged && !currencyChanged) || nm.trim().length < 2 || save.isPending}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-50">
+              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-50">
               {save.isPending ? t("settings.org.saving") : t("settings.org.save")}
             </button>
           </div>

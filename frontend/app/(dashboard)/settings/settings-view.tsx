@@ -2,6 +2,7 @@
 
 import { Bell, Building2, CreditCard, Database, KeyRound, Palette, Settings as SettingsIcon, SlidersHorizontal, Users, Workflow, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { DataTab } from "@/components/settings/data-tab";
 import { AuditPanel } from "@/components/settings/audit-panel";
 import { AutomationTab } from "@/components/settings/automation-tab";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
@@ -49,7 +50,7 @@ function ProfileCard({ user }: { user: { name: string; email: string; role: Role
       <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
         {CAPABILITIES.map(([text, can]) => (
           <li key={text} className={cn("flex items-start gap-2", !can(user.role) && "text-slate-400")}>
-            <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold", can(user.role) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400")}>{can(user.role) ? "✓" : "–"}</span>{text}
+            <span className={cn("mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold", can(user.role) ? "bg-emerald-100 text-teal-700" : "bg-slate-100 text-slate-400")}>{can(user.role) ? "✓" : "–"}</span>{text}
           </li>
         ))}
       </ul>
@@ -78,9 +79,14 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
   const [active, setActive] = useState("organization");
   // The tab is in the address (#users) so a link or a reload lands on it.
   useEffect(() => {
-    const h = window.location.hash.slice(1);
-    const id = ALIAS[h] ?? h;
-    if (id && tabs.some((x) => x.id === id)) setActive(id);
+    const read = () => {
+      const h = window.location.hash.slice(1);
+      const id = ALIAS[h] ?? h;
+      if (id && tabs.some((x) => x.id === id)) setActive(id);
+    };
+    read();
+    window.addEventListener("hashchange", read); // a link or the back button to another #tab while this page is open
+    return () => window.removeEventListener("hashchange", read);
   }, [tabs]);
   const go = (id: string) => {
     const target = ALIAS[id] ?? id;
@@ -94,12 +100,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
   const body: Record<string, ReactNode> = {
     organization: <OrganizationTab go={go} canManage={canManageTenant(user.role)} canEdit={edit} />,
     users: <div className="space-y-4"><MembersPanel /><RolesPanel /></div>,
-    data: (
-      <div className="space-y-4">
-        <SettingsEditor mode="tenant" path="settings" historyPath="settings/history" canEdit={edit} />
-        {user.role === "owner" && <DataPanel />}
-      </div>
-    ),
+    data: <DataTab canEdit={edit} isOwner={user.role === "owner"} />,
     policies: (
       <div className="space-y-4">
         <ProjectsPolicyPanel canEdit={edit} />
@@ -133,9 +134,9 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
         {tabs.map((x) => (
           <button key={x.id} role="tab" type="button" aria-selected={active === x.id} onClick={() => go(x.id)}
             className={cn("group relative flex shrink-0 items-center whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors duration-200",
-              active === x.id ? "text-emerald-600" : "text-slate-600 hover:text-ink")}>
+              active === x.id ? "text-teal-700" : "text-slate-600 hover:text-ink")}>
             {x.label}
-            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-emerald-600 transition-transform duration-300",
+            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-teal-700 transition-transform duration-300",
               active === x.id ? "scale-x-100" : "scale-x-0 group-hover:scale-x-50 group-hover:bg-slate-300")} />
           </button>
         ))}

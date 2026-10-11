@@ -41,7 +41,7 @@ function Invite() {
       <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3" noValidate>
         <Field label="E-mail" error={errors.email?.message}><input type="email" {...register("email")} className={input} placeholder="colleague@yourcompany.com" /></Field>
         <Field label="Role"><select {...register("role")} className={input}>{INVITE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select></Field>
-        <button disabled={m.isPending} className="mt-6 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
+        <button disabled={m.isPending} className="mt-6 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>
@@ -68,7 +68,7 @@ export function MembersPanel() {
   const t = useT();
   const pg = usePaged(members.data ?? [], 10);
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-3">
       <Panel index={0} icon={Users} title={t("settings.users.members")} hint={t("settings.users.members_hint", { count: members.data?.length ?? 0 })} className="lg:col-span-2">
         {members.isLoading ? <Skeleton className="h-24" /> : members.isError ? <ErrorState /> : members.data!.length === 0 ? <EmptyState icon={Users} text="No members." /> : (
           <ul className="text-sm">
@@ -79,7 +79,7 @@ export function MembersPanel() {
                   <span className="min-w-0"><span className="block truncate font-medium">{m.email || m.user_id}</span><span className="block text-xs text-muted">{t("settings.users.joined", { when: shortTime(m.created_at) })}</span></span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <select aria-label={`Role of ${m.email}`} value={m.custom_role ? `custom:${m.custom_role.id}` : `role:${m.role}`} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, value: e.target.value })} className="rounded-lg border border-line bg-white px-2 py-1 text-xs outline-none focus:border-emerald-500">
+                  <select aria-label={`Role of ${m.email}`} value={m.custom_role ? `custom:${m.custom_role.id}` : `role:${m.role}`} disabled={role.isPending} onChange={(e) => role.mutate({ id: m.id, value: e.target.value })} className="rounded-lg border border-line bg-white px-2 py-1 text-xs outline-none focus:border-teal-600">
                     <optgroup label="Built-in">{MEMBER_ROLES.map((r) => <option key={r} value={`role:${r}`}>{r}</option>)}</optgroup>
                     {roles.data && roles.data.custom.length > 0 && <optgroup label="Custom">{roles.data.custom.map((r) => <option key={r.id} value={`custom:${r.id}`}>{r.name}</option>)}</optgroup>}
                   </select>
@@ -92,7 +92,7 @@ export function MembersPanel() {
         <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
         {err && <p role="alert" className="mt-2 text-sm text-bad">{err.message}</p>}
       </Panel>
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4 [&>section]:flex-1">
         <Panel index={1} icon={UserPlus} title={t("settings.users.invite")} hint={t("settings.users.invite_hint")}><Invite /></Panel>
         {pending.length > 0 && (
           <Panel index={2} icon={Clock} title={t("settings.users.pending")} hint={t("settings.users.pending_hint", { count: pending.length })}>

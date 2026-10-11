@@ -27,7 +27,7 @@ export function AuditPanel() {
         {AREAS.map((a) => (
           <button key={a} role="tab" aria-selected={area === a} type="button" onClick={() => { setArea(a); pg.setPage(1); }}
             className={cn("rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition-all duration-200",
-              area === a ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-line hover:bg-slate-50")}>
+              area === a ? "bg-teal-700 text-white ring-teal-700" : "bg-white text-slate-600 ring-line hover:bg-slate-50")}>
             {t(`settings.audit.area.${a}`)}
           </button>
         ))}

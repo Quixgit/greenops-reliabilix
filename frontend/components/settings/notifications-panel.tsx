@@ -2,7 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bell, History as HistoryIcon, Plus, Send } from "lucide-react";
+import { Bell, History as HistoryIcon, Plus, Power, Send } from "lucide-react";
+import { Switch } from "@/components/operator/ui";
+import { useNotificationsEnabled } from "@/hooks/use-admin";
+import { settingsView } from "@/lib/api/schemas";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -55,27 +58,27 @@ function AddDestination({ catalog }: { catalog: NotificationCatalog }) {
   return (
     <div className="space-y-3">
       {secret && <SecretOnce title="Webhook signing secret" value={secret} onDismiss={() => setSecret(null)} />}
-      <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3 sm:grid-cols-6" noValidate>
-        <div className="sm:col-span-1"><Field label="Channel" error={errors.kind?.message}>
+      <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3" noValidate>
+        <div><Field label="Channel" error={errors.kind?.message}>
           <select {...register("kind")} className={input}>{catalog.channels.map((c) => <option key={c} value={c}>{c}{catalog.stubbed.includes(c) ? " (stub)" : ""}</option>)}</select>
         </Field></div>
-        <div className="sm:col-span-2"><Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. ops-alerts" /></Field></div>
-        <div className="sm:col-span-3"><Field label="Address" error={errors.target?.message}><input {...register("target")} className={input} placeholder={PLACEHOLDER[kind] ?? ""} autoComplete="off" /></Field></div>
-        <fieldset className="sm:col-span-4">
+        <div><Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. ops-alerts" /></Field></div>
+        <div><Field label="Address" error={errors.target?.message}><input {...register("target")} className={input} placeholder={PLACEHOLDER[kind] ?? ""} autoComplete="off" /></Field></div>
+        <fieldset>
           <legend className="mb-1 text-sm font-medium text-slate-600">Events <span className="font-normal text-muted">(none selected = all)</span></legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          <div className="grid grid-cols-1 gap-y-1.5 sm:grid-cols-2">
             {catalog.event_types.map((t) => (
               <label key={t.type} className="flex items-center gap-1.5 text-sm" title={t.description}>
-                <input type="checkbox" value={t.type} {...register("event_types")} className="size-4 accent-[var(--color-primary)]" />{t.type}
+                <input type="checkbox" value={t.type} {...register("event_types")} className="size-4 accent-teal-700" />{t.type}
               </label>
             ))}
           </div>
         </fieldset>
-        <div className="sm:col-span-1"><Field label="Minimum severity">
+        <div><Field label="Minimum severity">
           <select {...register("min_severity")} className={input}><option value="info">info</option><option value="warning">warning</option><option value="critical">critical</option></select>
         </Field></div>
-        <button disabled={m.isPending} className="bg-emerald-600 hover:bg-emerald-700 mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 sm:col-span-1">{m.isPending ? "Adding…" : "Add"}</button>
-        {m.isError && <p role="alert" className="text-sm text-bad sm:col-span-6">{m.error.message}</p>}
+        <button disabled={m.isPending} className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-teal-800 active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Adding…" : "Add"}</button>
+        {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>
   );
@@ -147,6 +150,30 @@ function DeliveryHistory() {
   );
 }
 
+/** The one organization-wide switch: when off, nothing is delivered by any destination (each keeps its own pause). */
+function MasterSwitch({ canEdit }: { canEdit: boolean }) {
+  const t = useT();
+  const qc = useQueryClient();
+  const enabled = useNotificationsEnabled();
+  const dests = useDestinations();
+  const toggle = useMutation({
+    mutationFn: (v: boolean) => api("settings", settingsView, undefined, { method: "PATCH", body: JSON.stringify({ values: { "notifications.enabled": v } }) }),
+    onSuccess: (view) => qc.setQueryData(["settings", "settings"], view),
+  });
+  const list = dests.data ?? [];
+  const on = list.filter((d) => d.enabled).length;
+  return (
+    <Panel index={0} icon={Power} title={t("settings.notif.master")} hint={t("settings.notif.master_hint")}>
+      <div className="flex items-center justify-between gap-3 border-t border-line/70 pt-3">
+        <span className="text-[13px] text-slate-700">{enabled === false ? t("settings.notif.master_off") : t("settings.notif.master_on")}</span>
+        <Switch label={t("settings.notif.master")} checked={enabled !== false} disabled={!canEdit || enabled === undefined || toggle.isPending} onChange={(v) => toggle.mutate(v)} />
+      </div>
+      <p className="mt-2 text-xs text-muted">{t("settings.notif.master_count", { on, total: list.length })}</p>
+      {toggle.isError && <p role="alert" className="mt-2 text-xs text-bad">{toggle.error.message}</p>}
+    </Panel>
+  );
+}
+
 export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
   const t = useT();
   const cat = useNotificationCatalog();
@@ -162,13 +189,16 @@ export function NotificationsPanel({ canEdit }: { canEdit: boolean }) {
           Running on a development stand-in: <b>{cat.data.stubbed.join(", ")}</b>. Messages on {cat.data.stubbed.length > 1 ? "these channels are" : "this channel is"} only written to the server log, nothing is actually sent.
         </p>
       )}
-      <div className="grid items-start gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Panel index={0} icon={Bell} title={t("settings.notif.destinations")} hint={t("settings.notif.destinations_hint")} className="lg:col-span-2">
           {cat.isLoading ? <Skeleton className="h-24" /> : cat.isError ? <ErrorState /> : <DestinationList canEdit={canEdit && cat.data!.configured} catalog={cat.data!} />}
         </Panel>
-        {canEdit && cat.data?.configured ? (
-          <Panel index={1} icon={Plus} title={t("settings.notif.add")} hint={t("settings.notif.add_hint")}><AddDestination catalog={cat.data} /></Panel>
-        ) : <span />}
+        <div className="flex flex-col gap-4 [&>section]:flex-1">
+          <MasterSwitch canEdit={canEdit} />
+          {canEdit && cat.data?.configured && (
+            <Panel index={1} icon={Plus} title={t("settings.notif.add")} hint={t("settings.notif.add_hint")}><AddDestination catalog={cat.data} /></Panel>
+          )}
+        </div>
       </div>
       <Panel index={2} icon={HistoryIcon} title={t("settings.notif.deliveries")} hint={t("settings.notif.deliveries_hint")}><DeliveryHistory /></Panel>
     </div>

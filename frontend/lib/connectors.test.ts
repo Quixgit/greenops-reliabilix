@@ -23,6 +23,10 @@ describe("connectorSummary", () => {
     expect(connectorSummary("kubernetes", facts({ clusters: [{ cluster: "prod", last_hour: "2026-10-11T10:00:00Z" }] }))).toMatchObject({ state: "synced", count: 1 });
     expect(clusterState({ cluster: "old", last_hour: "2026-10-01T00:00:00Z" }, NOW)).toBe("waiting");
   });
+  it("nothing is on while the organization-wide switch is off", () => {
+    const f = facts({ destinations: [{ kind: "slack", enabled: true }], notificationsEnabled: false });
+    expect(connectorSummary("slack", f).state).toBe("waiting");
+  });
   it("a channel counts only while a destination is enabled", () => {
     expect(connectorSummary("slack", facts({ destinations: [{ kind: "slack", enabled: true }] })).state).toBe("synced");
     expect(connectorSummary("slack", facts({ destinations: [{ kind: "slack", enabled: false }] })).state).toBe("waiting");

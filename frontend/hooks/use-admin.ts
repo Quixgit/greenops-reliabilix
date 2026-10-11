@@ -12,6 +12,13 @@ export const useDeliveries = () =>
     queryKey: ["notif-deliveries"], queryFn: () => api("notifications/deliveries", s.deliveries, { limit: "30" }),
     refetchInterval: (q) => (q.state.data?.some((d) => d.status === "pending") ? 4000 : false), // follow a test message until it is delivered
   });
+/** The organization-wide delivery switch (setting notifications.enabled). `undefined` while unknown; an unreadable setting counts as on. */
+export const useNotificationsEnabled = (): boolean | undefined => {
+  const q = useQuery({ queryKey: ["settings", "settings"], retry: false, queryFn: () => api("settings", s.settingsView) });
+  if (q.isLoading) return undefined;
+  const item = q.data?.items.find((i) => i.key === "notifications.enabled");
+  return item ? item.value !== false : true;
+};
 export const useTenant = () => useQuery({ queryKey: ["tenant"], queryFn: () => api("tenant", s.tenantInfo) });
 export const useAuditLog = (limit = 50) => useQuery({ queryKey: ["audit-log", limit], queryFn: () => api("audit-log", s.auditLog, { limit: String(limit) }) });
 export const useMembers = () => useQuery({ queryKey: ["members"], queryFn: () => api("members", s.members) });

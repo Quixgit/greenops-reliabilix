@@ -15,6 +15,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNotificationsEnabled } from "@/hooks/use-admin";
 import { useConnectorData } from "@/hooks/use-connectors";
 import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
@@ -67,11 +68,12 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const [connectAs, setConnectAs] = useState<Provider | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
+  const notifOn = useNotificationsEnabled();
   const conns = d.connections.data ?? [];
   const facts: ConnectorFacts = useMemo(() => ({
     connections: conns, clusters: d.clusters.data ?? [], destinations: d.destinations.data ?? [],
-    gridReadings: (d.grid.data ?? []).map((r) => r.at),
-  }), [conns, d.clusters.data, d.destinations.data, d.grid.data]);
+    gridReadings: (d.grid.data ?? []).map((r) => r.at), notificationsEnabled: notifOn,
+  }), [conns, d.clusters.data, d.destinations.data, d.grid.data, notifOn]);
   const k = useMemo(() => kpis(facts, d.runs.byId), [facts, d.runs.byId]);
   const projectName = (id: string) => d.projects.data?.find((p) => p.id === id)?.name ?? "—";
 
