@@ -19,7 +19,7 @@ func (r Postgres) DailyCost(ctx context.Context, tenantID string, project *strin
 			    WHERE d.tenant_id = $1::uuid AND ($2::uuid IS NULL OR d.project_id = $2::uuid) AND d.recorded_at >= $3 AND d.recorded_at < $4
 			    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)))::text AS c)
 			SELECT u.recorded_at::date, (SELECT c FROM cur),
-			       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date)), 0)::float8
+			       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8
 			FROM usage.usage_records u
 			WHERE u.tenant_id = $1::uuid AND ($2::uuid IS NULL OR u.project_id = $2::uuid) AND u.recorded_at >= $3 AND u.recorded_at < $4
 			GROUP BY u.recorded_at::date ORDER BY 1`, tenantID, project, from, to, currency)
@@ -56,8 +56,8 @@ func (r Postgres) AnomalyDrivers(ctx context.Context, tenantID string, project *
 			    WHERE x.tenant_id = $1::uuid AND ($2::uuid IS NULL OR x.project_id = $2::uuid) AND x.recorded_at >= w.d - 14 AND x.recorded_at < w.d)
 			SELECT service_name, region_id, today, expected FROM (
 			  SELECT u.service_name, u.region_id,
-			         COALESCE(sum(CASE WHEN u.recorded_at::date = w.d THEN finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END), 0)::float8 AS today,
-			         (COALESCE(sum(CASE WHEN u.recorded_at::date < w.d THEN finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END), 0) / (SELECT n FROM base_days))::float8 AS expected
+			         COALESCE(sum(CASE WHEN u.recorded_at::date = w.d THEN (CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END) END), 0)::float8 AS today,
+			         (COALESCE(sum(CASE WHEN u.recorded_at::date < w.d THEN (CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END) END), 0) / (SELECT n FROM base_days))::float8 AS expected
 			  FROM usage.usage_records u, w
 			  WHERE u.tenant_id = $1::uuid AND ($2::uuid IS NULL OR u.project_id = $2::uuid) AND u.recorded_at >= w.d - 14 AND u.recorded_at < w.d + 1
 			  GROUP BY u.service_name, u.region_id) x

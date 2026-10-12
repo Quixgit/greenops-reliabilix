@@ -31,7 +31,7 @@ func (r Postgres) UnitEconomics(ctx context.Context, tenantID string, project *s
 			  GROUP BY 1, 2 HAVING max(x.functional_units) IS NOT NULL
 			), cost_d AS (
 			  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day,
-			         COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date)), 0) AS cost
+			         COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost
 			  FROM usage.usage_records u
 			  WHERE u.tenant_id = $1::uuid AND ($2::uuid IS NULL OR u.project_id = $2::uuid) AND u.recorded_at >= $3 AND u.recorded_at < $4
 			  GROUP BY 1, 2

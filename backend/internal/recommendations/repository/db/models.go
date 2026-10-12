@@ -609,6 +609,19 @@ type TenantsOrganization struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
+type TenantsScimUser struct {
+	ID             string    `json:"id"`
+	OrganizationID string    `json:"organization_id"`
+	ExternalID     string    `json:"external_id"`
+	Email          string    `json:"email"`
+	DisplayName    string    `json:"display_name"`
+	Role           string    `json:"role"`
+	Active         bool      `json:"active"`
+	UserID         *string   `json:"user_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
 type TenantsSubscription struct {
 	OrganizationID string     `json:"organization_id"`
 	Plan           string     `json:"plan"`

@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.165] - 2026-10-12
+
+### Fixed
+- **Cost queries were slow in proportion to the rows read** (found by the first load test on a realistic volume, ADR-0058): the three-month summary of an organization with a million line items a year took 14 s. The reporting currency is now computed once per query and the conversion function is called only for rows in another currency. Summary 14.4 s to 1.0 s, services 6.8 to 0.4 s, trend 6.6 to 0.5 s, forecast 2.1 to 0.2 s, anomalies 2.0 to 0.12 s. Same results, checked byte for byte (also with a converted currency); no schema change.
+
+### Added
+- **Load test and figures** (phase 6): `scripts/loadtest` (a closed-loop client and a seed of 3 million usage rows), `docs/operations/performance.md` with the method, the figures at 1, 10 and 50 clients and what they are not.
+
 ## [0.1.0-alpha.164] - 2026-10-12
 
 ### Added

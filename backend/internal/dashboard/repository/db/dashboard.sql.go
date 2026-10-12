@@ -58,11 +58,12 @@ func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityPa
 }
 
 const dashboardConnectionCost = `-- name: DashboardConnectionCost :many
-SELECT c.id::text AS connection_id,
-       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
          WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
            AND d.recorded_at >= $3 AND d.recorded_at < $4
-         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost,
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT c.id::text AS connection_id,
+       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost,
        count(DISTINCT u.recorded_at::date)::int AS days,
        max(u.recorded_at)::timestamptz AS last_day
 FROM usage.usage_records u
@@ -119,20 +120,21 @@ func (q *Queries) DashboardConnectionCost(ctx context.Context, arg DashboardConn
 }
 
 const dashboardEfficiency = `-- name: DashboardEfficiency :one
-WITH carbon_d AS (
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+      WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+        AND d.recorded_at >= $3 AND d.recorded_at < $4
+      GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+carbon_d AS (
   SELECT x.project_id, date_trunc('day', x.period_start) AS day, sum(x.carbon_kg_co2e) AS kg, max(x.functional_units) AS r
   FROM carbon.calculations x
   WHERE x.tenant_id = $1 AND ($2::uuid IS NULL OR x.project_id = $2)
-    AND x.methodology_version = $3
-    AND x.period_start >= $4 AND x.period_start < $5
+    AND x.methodology_version = $5
+    AND x.period_start >= $3 AND x.period_start < $4
   GROUP BY 1, 2 HAVING max(x.functional_units) IS NOT NULL
 ), cost_d AS (
-  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
-      WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
-        AND d.recorded_at >= $4 AND d.recorded_at < $5
-      GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost FROM usage.usage_records u
   WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
-    AND u.recorded_at >= $4 AND u.recorded_at < $5
+    AND u.recorded_at >= $3 AND u.recorded_at < $4
   GROUP BY 1, 2
 )
 SELECT COALESCE(sum(c.kg) * 1000, 0)::float8 AS carbon_g,
@@ -147,9 +149,9 @@ FROM carbon_d c LEFT JOIN cost_d k ON k.project_id = c.project_id AND k.day = c.
 type DashboardEfficiencyParams struct {
 	TenantID           string    `json:"tenant_id"`
 	ProjectID          *string   `json:"project_id"`
-	MethodologyVersion string    `json:"methodology_version"`
 	FromTs             time.Time `json:"from_ts"`
 	ToTs               time.Time `json:"to_ts"`
+	MethodologyVersion string    `json:"methodology_version"`
 }
 
 type DashboardEfficiencyRow struct {
@@ -166,9 +168,9 @@ func (q *Queries) DashboardEfficiency(ctx context.Context, arg DashboardEfficien
 	row := q.db.QueryRow(ctx, dashboardEfficiency,
 		arg.TenantID,
 		arg.ProjectID,
-		arg.MethodologyVersion,
 		arg.FromTs,
 		arg.ToTs,
+		arg.MethodologyVersion,
 	)
 	var i DashboardEfficiencyRow
 	err := row.Scan(
@@ -388,10 +390,11 @@ func (q *Queries) DashboardRegionCarbon(ctx context.Context, arg DashboardRegion
 }
 
 const dashboardRegionCost = `-- name: DashboardRegionCost :many
-SELECT u.provider, u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT u.provider, u.region_id, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
 GROUP BY 1, 2
@@ -436,6 +439,10 @@ func (q *Queries) DashboardRegionCost(ctx context.Context, arg DashboardRegionCo
 }
 
 const dashboardRegionEC2Cost = `-- name: DashboardRegionEC2Cost :many
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
 SELECT u.region_id, CASE
        WHEN u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%' THEN 'aws'
        WHEN u.provider = 'aws' AND lower(u.service_name) IN ('amazon relational database service', 'amazon rds') THEN 'aws:rds'
@@ -444,10 +451,7 @@ SELECT u.region_id, CASE
        WHEN u.provider = 'gcp' AND lower(u.service_name) = 'cloud sql' THEN 'gcp:cloudsql'
        WHEN u.provider = 'gcp' THEN 'gcp:memorystore'
        WHEN lower(u.service_name) = 'virtual machines' THEN 'azure'
-       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
-      AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
   AND ((u.provider = 'aws' AND (lower(u.service_name) LIKE '%elastic compute cloud%' OR lower(u.service_name) IN ('amazon relational database service', 'amazon rds', 'amazon elasticache', 'amazon elasticache service')))
@@ -671,10 +675,11 @@ func (q *Queries) DashboardServiceCarbon(ctx context.Context, arg DashboardServi
 }
 
 const dashboardServiceCost = `-- name: DashboardServiceCost :many
-SELECT u.service_name, u.service_category, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
   AND ($5::text = '' OR u.service_category = $5::text)
@@ -722,11 +727,12 @@ func (q *Queries) DashboardServiceCost(ctx context.Context, arg DashboardService
 }
 
 const dashboardTrend = `-- name: DashboardTrend :many
-WITH cost_d AS (
-  SELECT date_trunc('day', u.recorded_at) AS d, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+cost_d AS (
+  SELECT date_trunc('day', u.recorded_at) AS d, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost FROM usage.usage_records u
   WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
     AND u.recorded_at >= $3 AND u.recorded_at < $4 GROUP BY 1
 ), carbon_d AS (

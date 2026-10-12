@@ -1,9 +1,10 @@
 -- name: DashboardTrend :many
-WITH cost_d AS (
-  SELECT date_trunc('day', u.recorded_at) AS d, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
       AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+cost_d AS (
+  SELECT date_trunc('day', u.recorded_at) AS d, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost FROM usage.usage_records u
   WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
     AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts) GROUP BY 1
 ), carbon_d AS (
@@ -23,10 +24,11 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
 GROUP BY provider HAVING sum(carbon_kg_co2e) > 0 ORDER BY 2 DESC;
 
 -- name: DashboardServiceCost :many
-SELECT u.service_name, u.service_category, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
       AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
   AND (sqlc.arg(category)::text = '' OR u.service_category = sqlc.arg(category)::text)
@@ -74,10 +76,11 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND action = ANY(sqlc.arg(actions)::text[]
 ORDER BY created_at DESC LIMIT sqlc.arg(row_limit);
 
 -- name: DashboardRegionCost :many
-SELECT u.provider, u.region_id, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
       AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT u.provider, u.region_id, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
 GROUP BY 1, 2;
@@ -114,7 +117,11 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
 -- name: DashboardEfficiency :one
 -- Carbon and cost per unit of work, over the (project, day) pairs where the customer reported functional units: never
 -- extrapolated to days without them. `units` lists the distinct unit names, so a mixed answer can be refused.
-WITH carbon_d AS (
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+      WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+        AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+      GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+carbon_d AS (
   SELECT x.project_id, date_trunc('day', x.period_start) AS day, sum(x.carbon_kg_co2e) AS kg, max(x.functional_units) AS r
   FROM carbon.calculations x
   WHERE x.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR x.project_id = sqlc.narg(project_id))
@@ -122,10 +129,7 @@ WITH carbon_d AS (
     AND x.period_start >= sqlc.arg(from_ts) AND x.period_start < sqlc.arg(to_ts)
   GROUP BY 1, 2 HAVING max(x.functional_units) IS NOT NULL
 ), cost_d AS (
-  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
-      WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
-        AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-      GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0) AS cost FROM usage.usage_records u
+  SELECT u.project_id, date_trunc('day', u.recorded_at) AS day, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost FROM usage.usage_records u
   WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
     AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
   GROUP BY 1, 2
@@ -152,6 +156,10 @@ LEFT JOIN projects.policies p ON p.project_id = u.project_id;
 -- Cost per region and price-index family: virtual machine compute (EC2, Azure Virtual Machines, Compute Engine) and Azure's managed
 -- PostgreSQL and Redis, the only costs the region price indexes describe,
 -- in the dominant currency.
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
 SELECT u.region_id, CASE
        WHEN u.provider = 'aws' AND lower(u.service_name) LIKE '%elastic compute cloud%' THEN 'aws'
        WHEN u.provider = 'aws' AND lower(u.service_name) IN ('amazon relational database service', 'amazon rds') THEN 'aws:rds'
@@ -160,10 +168,7 @@ SELECT u.region_id, CASE
        WHEN u.provider = 'gcp' AND lower(u.service_name) = 'cloud sql' THEN 'gcp:cloudsql'
        WHEN u.provider = 'gcp' THEN 'gcp:memorystore'
        WHEN lower(u.service_name) = 'virtual machines' THEN 'azure'
-       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
-    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
-      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost FROM usage.usage_records u
+       WHEN lower(u.service_name) = 'azure database for postgresql' THEN 'azure:postgresql' ELSE 'azure:redis' END AS family, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
   AND ((u.provider = 'aws' AND (lower(u.service_name) LIKE '%elastic compute cloud%' OR lower(u.service_name) IN ('amazon relational database service', 'amazon rds', 'amazon elasticache', 'amazon elasticache service')))
@@ -177,11 +182,12 @@ SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_pric
 -- name: DashboardConnectionCost :many
 -- Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the
 -- same conversion as the service table). A line belongs to the connection of its provider and account.
-SELECT c.id::text AS connection_id,
-       COALESCE(sum(finops.convert_cost(u.billed_cost, u.currency::text, finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
          WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
            AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)), u.recorded_at::date)), 0)::float8 AS cost,
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
+SELECT c.id::text AS connection_id,
+       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost,
        count(DISTINCT u.recorded_at::date)::int AS days,
        max(u.recorded_at)::timestamptz AS last_day
 FROM usage.usage_records u
