@@ -5,6 +5,7 @@ import { CountUp } from "@/components/ui/count-up";
 import { IconCheck, IconClock, IconReport, IconWarning } from "@/components/ui/icons";
 import { Info } from "@/components/ui/info";
 import { ReportBuilder } from "@/components/reports/report-builder";
+import { ReportSchedules } from "@/components/reports/report-schedules";
 import { ReportList } from "@/components/reports/report-list";
 import { useReports } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
@@ -38,6 +39,7 @@ export function ReportsView({ canCreate }: { canCreate: boolean }) {
         <Stat index={3} icon={IconWarning} tone="text-[#d9707f]" label={t("rp.stat.failed")} value={count("failed")} info={t("rp.info.failed")} />
       </div>
       {canCreate && <ReportBuilder onRequested={() => undefined} />}
+      <ReportSchedules canAct={canCreate} />
       <ReportList canAct={canCreate} />
     </div>
   );

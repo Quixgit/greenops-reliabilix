@@ -16,6 +16,7 @@ const KINDS = [
   { id: "finops", icon: IconCoin, tone: "text-[#5b8fdc]" },
   { id: "sci", icon: IconGauge, tone: "text-[#8a78d8]" },
   { id: "sustainability", icon: IconBolt, tone: "text-[#d9a441]" },
+  { id: "ghg", icon: IconLeaf, tone: "text-[#3f9d7a]" },
 ] as const;
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);

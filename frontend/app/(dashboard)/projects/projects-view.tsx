@@ -7,6 +7,7 @@ import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { PolicyPanel } from "@/components/forms/policy-panel";
 import { ProjectWizard } from "@/components/forms/project-wizard";
 import { AllocationReportCard, AllocationRulesCard, ProjectStructure, TeamsCard } from "@/components/forms/structure-panels";
+import { UnitEconomicsPanel } from "@/components/forms/unit-economics";
 import { WorkUnits } from "@/components/forms/work-units";
 import { Drawer } from "@/components/connectors/drawer";
 import { Card } from "@/components/ui/card";
@@ -28,7 +29,7 @@ const policy = z.object({
   alert_carbon_monthly_kg: z.number().nullable().optional(), auto_apply_types: z.array(z.string()).default([]),
 });
 type Policy = z.infer<typeof policy>;
-const TABS = ["projects", "teams", "budgets"] as const;
+const TABS = ["projects", "teams", "unit", "budgets"] as const;
 const PROVIDER: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google Cloud" };
 
 function Stat({ index, icon: Icon, label, value, hint, info }: { index: number; icon: typeof IconFolder; label: string; value: React.ReactNode; hint?: string; info: string }) {
@@ -199,6 +200,7 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
       {tab === "teams" && (
         <div className="space-y-5"><AllocationReportCard /><div className="grid gap-5 lg:grid-cols-2"><TeamsCard canEdit={canCreate} /><AllocationRulesCard canEdit={canCreate} /></div></div>
       )}
+      {tab === "unit" && <UnitEconomicsPanel />}
       {tab === "budgets" && <BudgetsPanel canEdit={canBudget} currency={cur} />}
 
       <Drawer open={!!open} onClose={() => setOpenId(null)} title={open?.name ?? ""} closeLabel={t("common.cancel")}>

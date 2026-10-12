@@ -167,7 +167,7 @@ function PolicyRow({ id, name, canEdit, onEdit }: { id: string; name: string; ca
           {chip(t("cd.pol.cost_warn"), p!.ci_cost_warn, "", VERDICT.WARN.chip)}{chip(t("cd.pol.cost_block"), p!.ci_cost_block, "", VERDICT.BLOCK.chip)}
         </>) : <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">{t("cd.pol.none")}</span>}
       </span>
-      <button type="button" onClick={onEdit} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-leaf-deep ring-1 ring-line transition-colors hover:bg-leaf-soft">{canEdit ? t("cd.pol.edit") : t("cd.pol.view")}</button>
+      <button type="button" onClick={onEdit} className="rounded-xl px-3 py-1.5 text-xs font-semibold text-leaf-deep ring-1 ring-line transition-colors hover:bg-leaf-soft">{canEdit ? t("cd.pol.edit") : t("cd.pol.view")}</button>
     </li>
   );
 }

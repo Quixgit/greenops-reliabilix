@@ -1,5 +1,6 @@
 "use client";
 
+import { planAmount } from "@/lib/plan-format";
 import { SelectField } from "@/components/ui/select-field";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -140,12 +141,12 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
                     {isCurrent && <span className="rounded-full bg-leaf px-2.5 py-0.5 text-[11px] font-bold text-white">{t("plan.current")}</span>}
                   </div>
                   <p className="mt-1 min-h-[2.5rem] text-xs leading-snug text-muted">{c.description}</p>
-                  <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums">
-                    {!paid ? t("bl.free_price") : price ? <>{money(price.amount, price.currency)}<span className="text-sm font-medium text-slate-500"> / {t("bl.period")}</span></> : sold ? <span className="text-base font-semibold text-slate-600">{t("bl.price_at_checkout")}</span> : <span className="text-base font-semibold text-slate-600">{t("bl.contact")}</span>}
+                  <p className="mt-3 min-h-[3.25rem] text-2xl font-bold tracking-tight tabular-nums">
+                    {!paid ? t("bl.free_price") : price ? <>{money(price.amount, price.currency)}<span className="text-sm font-medium text-slate-500"> / {t("bl.period")}</span></> : c.price_monthly_usd != null ? <><span>{money(c.price_monthly_usd, "USD")}</span><span className="text-sm font-medium text-slate-500"> / {t("bl.period")}</span><span className="block text-[11px] font-normal text-muted">{t("bl.list_price")}</span></> : <span className="text-base font-semibold text-slate-600">{t("bl.contact")}</span>}
                   </p>
                   <ul className="mt-4 space-y-2 text-sm">
                     {c.limits.map((l) => (
-                      <li key={l.key} className="flex items-center justify-between"><span className="text-slate-600">{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="font-semibold tabular-nums">{l.limit === 0 ? "∞" : l.limit}</span></li>
+                      <li key={l.key} className="flex items-center justify-between"><span className="text-slate-600">{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="font-semibold tabular-nums">{l.limit === 0 ? "∞" : planAmount(l.resource, l.limit)}</span></li>
                     ))}
                   </ul>
                   <ul className="mt-4 grid gap-1.5 border-t border-line/70 pt-4 text-sm">
@@ -244,12 +245,17 @@ function Usage({ p, onUpgrade }: { p: PlanView; onUpgrade: () => void }) {
           const pct = l.limit > 0 ? Math.min(100, (l.used / l.limit) * 100) : 0;
           return (
             <li key={l.key} className="text-sm">
-              <div className="mb-1.5 flex justify-between"><span className="font-medium">{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted"><CountUp value={l.used} format={(n) => String(Math.round(n))} /> / {l.limit === 0 ? t("plan.unlimited") : l.limit}</span></div>
+              <div className="mb-1.5 flex justify-between"><span className="font-medium">{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted"><CountUp value={l.used} format={(n) => planAmount(l.resource, Math.round(n))} /> / {l.limit === 0 ? t("plan.unlimited") : planAmount(l.resource, l.limit)}</span></div>
               <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={cn("bar-x h-full rounded-full", pct >= 100 ? "bg-[#e08b98]" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf")} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%`, "--d": `${i * 70}ms` } as CSSProperties} /></div>
             </li>
           );
         })}
       </ul>
+      {p.limits.some((l) => l.resource === "tracked_spend" && l.limit > 0 && l.used > l.limit) && (
+        <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#fbe9ec] px-3 py-2 text-sm text-[#a23b4d]">
+          <IconWarning className="mt-0.5 size-4 shrink-0" /><span>{t("bl.over_spend")} <button type="button" onClick={onUpgrade} className="font-semibold underline">{t("bl.see_plans")}</button></span>
+        </p>
+      )}
       {near.length > 0 && (
         <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-sm text-[#a9741a]">
           <IconWarning className="mt-0.5 size-4 shrink-0" /><span>{t("bl.near_limit")} <button type="button" onClick={onUpgrade} className="font-semibold underline">{t("bl.see_plans")}</button></span>

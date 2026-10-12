@@ -74,3 +74,13 @@ export function toRequest(v: Values) {
   return { project_id: v.project_id, provider: v.provider, account_ref: v.account_ref, credential_ref: v.credential_ref };
 }
 
+
+/** The key of a plain-words hint for a failed check, picked from what the platform said (null: nothing to add). */
+export function verifyHint(message: string): string | null {
+  const m = message.toLowerCase();
+  if (/denied|forbidden|unauthori|not authori|permission|access is not granted|403|401/.test(m)) return "cw.hint.denied";
+  if (/not found|does not exist|no such|404/.test(m)) return "cw.hint.not_found";
+  if (/no data|no rows|empty|not delivered|no export/.test(m)) return "cw.hint.no_data";
+  if (/timeout|timed out|unreachable|could not reach|connection refused|temporar|unavailable|503|502/.test(m)) return "cw.hint.network";
+  return null;
+}

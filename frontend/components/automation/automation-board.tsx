@@ -155,6 +155,40 @@ function ResultForm({ job, rolledBackOnly, onDone }: { job: AutomationJob; rolle
   );
 }
 
+const dryRunSchema = z.object({
+  ready: z.boolean(), executed: z.boolean(), checks: z.array(z.object({ id: z.string(), ok: z.boolean(), detail: z.string().nullish() })),
+  would_run: z.array(z.string()), held: z.array(z.string()),
+});
+
+/** Asks the platform what applying the plan would do right now; nothing is changed or run. */
+function DryRun({ id }: { id: string }) {
+  const t = useT();
+  const run = useMutation({ mutationFn: () => api(`automation/jobs/${id}/dry-run`, dryRunSchema, undefined, { method: "POST", body: "{}" }) });
+  const r = run.data;
+  return (
+    <div>
+      <button type="button" className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-leaf-soft hover:text-leaf-deep" disabled={run.isPending} onClick={() => run.mutate()}>{run.isPending ? t("au.dry.running") : t("au.dry.run")}</button>
+      {run.isError && <p role="alert" className="mt-2 text-sm text-bad">{run.error.message}</p>}
+      {r && (
+        <div className="form-swap mt-3 rounded-2xl bg-slate-50 p-4">
+          <p className={cn("text-sm font-semibold", r.ready ? "text-leaf-deep" : "text-[#a9741a]")}>{r.ready ? t("au.dry.ready") : t("au.dry.not_ready")}</p>
+          <p className="mb-2 text-xs text-muted">{t("au.dry.note")}</p>
+          <ul className="space-y-1 text-sm">
+            {r.checks.map((c) => (
+              <li key={c.id} className="flex gap-2">
+                {c.ok ? <IconCheck className="mt-0.5 size-4 shrink-0 text-leaf-deep" strokeWidth={2.4} /> : <IconWarning className="mt-0.5 size-4 shrink-0 text-[#d9a441]" />}
+                <span><span className="font-medium">{t(`au.dry.c.${c.id}`)}</span>{!c.ok && c.detail ? <span className="text-slate-600"> — {c.detail}</span> : null}</span>
+              </li>
+            ))}
+          </ul>
+          {r.would_run.length > 0 && <div className="mt-3"><CopyBlock title={t("au.dry.would_run")} text={r.would_run.join("\n")} /></div>}
+          {r.held.length > 0 && <div className="mt-3"><CopyBlock title={t("au.dry.held")} text={r.held.join("\n")} /></div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const historySchema = z.object({ items: z.array(z.object({ action: z.string(), actor: z.string(), at: z.string(), note: z.string().nullish() })) });
 
 /** Every recorded step of the plan from the audit trail, including those the plan row has since overwritten. */
@@ -255,6 +289,7 @@ function JobCard({ job, rec, project, canAct, index }: { job: AutomationJob; rec
                 <p className="whitespace-pre-line text-sm text-slate-600">{job.rollback_plan}</p>
               </div>
             )}
+            {LIVE.has(job.status) && <DryRun id={job.id} />}
             {open && <History id={job.id} />}
             <div className="flex flex-wrap items-center gap-2">
               {canAct && job.status === "planned" && <button type="button" className="btn-leaf rounded-xl px-4 py-2 text-sm font-semibold" disabled={act.isPending} onClick={() => act.mutate("approve")}>{t("automation.approve")}</button>}

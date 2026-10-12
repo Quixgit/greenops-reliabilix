@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { IconCostCarbon, IconGridMeasure, IconInsightAction, IconTrust } from "@/components/ui/icons";
 import { LoginBackdrop } from "@/components/auth/login-backdrop";
@@ -47,7 +48,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <li key={p.title} className="login-reveal flex items-start gap-3.5" style={{ "--i": i + 3 } as React.CSSProperties}>
                 <p.icon className={`login-float size-12 shrink-0 ${p.tone}`} strokeWidth={1.3} />
                 <span>
-                  <span className="block text-sm font-semibold text-slate-900">{p.title}</span>
+                  <span className="block text-sm font-semibold text-slate-900">
+                    {p.icon === IconTrust ? <Link href="/trust" className="underline decoration-slate-300 underline-offset-2 hover:decoration-slate-500">{p.title}</Link> : p.title}
+                  </span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-slate-500">{p.text}</span>
                 </span>
               </li>

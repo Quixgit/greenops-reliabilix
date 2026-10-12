@@ -94,7 +94,7 @@ function AlertRow({ a, canAct, index }: { a: Alert; canAct: boolean; index: numb
     mutationFn: (what: "acknowledge" | "mute" | "unmute") => api(`alerts/${a.id}/${what}`, alertSchema, undefined, { method: "POST", body: "{}" }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["alerts"] }),
   });
-  const btn = "rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-line transition-colors hover:bg-slate-50 disabled:opacity-60";
+  const btn = "rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ring-line transition-colors hover:bg-slate-50 disabled:opacity-60";
   return (
     <li className="rise rounded-2xl border border-line bg-white p-4" style={{ "--i": Math.min(index, 8) } as CSSProperties}>
       <div className="flex flex-wrap items-start gap-3">

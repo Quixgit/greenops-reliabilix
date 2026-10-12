@@ -83,7 +83,7 @@ function Content({ onClose }: { onClose: () => void }) {
       <p className="text-sm leading-relaxed text-slate-600">{t("allow.intro")}</p>
       {(projects.data?.length ?? 0) > 1 && (
         <label className="block text-sm"><span className="mb-1 block text-xs font-medium text-slate-600">{t("allow.project")}</span>
-          <SelectField value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-leaf-deep">
+          <SelectField value={projectId} onChange={(e) => { setProjectId(e.target.value); setPicked(null); }} className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-leaf-deep">
             {projects.data!.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </SelectField>
         </label>

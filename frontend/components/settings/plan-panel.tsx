@@ -1,5 +1,6 @@
 "use client";
 
+import { planAmount } from "@/lib/plan-format";
 import { useMutation } from "@tanstack/react-query";
 import { IconCheck as Check, IconCard as CreditCard, IconMinus as Minus, IconRepeat as Repeat, IconGauge as Gauge } from "@/components/ui/icons";
 import { useState } from "react";
@@ -46,7 +47,7 @@ export function PlanPanel({ canBuy }: { canBuy: boolean }) {
             const pct = l.limit > 0 ? Math.min(100, (l.used / l.limit) * 100) : 0;
             return (
               <li key={l.key} className="text-sm">
-                <div className="mb-1 flex justify-between"><span>{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted">{l.used} / {l.limit === 0 ? t("plan.unlimited") : l.limit}</span></div>
+                <div className="mb-1 flex justify-between"><span>{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted">{planAmount(l.resource, l.used)} / {l.limit === 0 ? t("plan.unlimited") : planAmount(l.resource, l.limit)}</span></div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${pct >= 100 ? "bg-bad" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf"}`} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%` }} /></div>
               </li>
             );

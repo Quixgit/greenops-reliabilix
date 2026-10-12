@@ -1,5 +1,6 @@
 "use client";
 
+import { planAmount } from "@/lib/plan-format";
 import Link from "next/link";
 import { IconArrowRight, IconCard } from "@/components/ui/icons";
 import { usePlan } from "@/hooks/use-admin";
@@ -51,7 +52,7 @@ export function PlanCard({ collapsed }: { collapsed: boolean }) {
       {timeLeft && <p className="mt-2 text-xs text-slate-400">{timeLeft}</p>}
       {top ? (
         <div className="mt-2.5">
-          <div className="mb-1 flex justify-between text-[11px] text-slate-400"><span>{t("plan.card.limit", { used: top.used, limit: top.limit, resource: t(`plan.resource.${top.resource}`, undefined, top.resource).toLowerCase() })}</span></div>
+          <div className="mb-1 flex justify-between text-[11px] text-slate-400"><span>{t("plan.card.limit", { used: planAmount(top.resource, top.used), limit: planAmount(top.resource, top.limit), resource: t(`plan.resource.${top.resource}`, undefined, top.resource).toLowerCase() })}</span></div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className={cn("h-full rounded-full transition-[width] duration-700", pct >= 90 ? "bg-[#eba7b3]" : pct >= 70 ? "bg-[#f2cf8a]" : "bg-leaf")} style={{ width: `${Math.max(4, pct)}%` }} /></div>
         </div>
       ) : <p className="mt-2 text-xs text-slate-400">{paid ? t("plan.card.unlimited_hint") : t("plan.card.hint_free")}</p>}

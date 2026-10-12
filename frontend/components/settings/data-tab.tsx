@@ -105,7 +105,7 @@ export function DataTab({ canEdit, isOwner }: { canEdit: boolean; isOwner: boole
       {canEdit && dirty.length > 0 && (
         <div className="rise sticky bottom-3 z-10 flex flex-wrap items-center gap-3 rounded-xl bg-white/95 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <button type="button" disabled={save.isPending} onClick={() => save.mutate(Object.fromEntries(dirty.map((k) => [k, draft[k]])))}
-            className="rounded-lg btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
+            className="rounded-xl btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
             {save.isPending ? t("settings.org.saving") : t("settings.data.save", { count: dirty.length })}
           </button>
           <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">{t("settings.data.discard")}</button>

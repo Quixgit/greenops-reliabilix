@@ -6,7 +6,7 @@ import { useMemo, type ReactNode } from "react";
 import { Info } from "@/components/ui/info";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAnomalies, useBudgets, useCarbonSummary, useFinopsSummary, useTrend } from "@/hooks/use-overview";
+import { useAnomalies, useBudgets, useCarbonSummary, useFinopsSummary, useForecast, useTrend } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { formatCost, nf } from "@/lib/formatters";
 import { monthForecast, rollup } from "@/lib/overview";
@@ -32,7 +32,9 @@ export function FinopsStrip() {
   const anomalies = useAnomalies();
   const carbon = useCarbonSummary();
   const cur = cost.data?.currency || "USD";
-  const fc = useMemo(() => monthForecast(trend.data ?? []), [trend.data]);
+  const sf = useForecast().data;
+  const linear = useMemo(() => monthForecast(trend.data ?? []), [trend.data]);
+  const fc = sf ? { forecast: sf.forecast.expected, spent: sf.forecast.spent, daysLeft: sf.forecast.days_left } : linear;
   const r = useMemo(() => rollup(trend.data ?? []), [trend.data]);
   const orgBudget = (budgets.data ?? []).find((b) => b.project_id === null && b.period === "monthly") ?? (budgets.data ?? [])[0];
   const loading = trend.isLoading || cost.isLoading;
@@ -45,7 +47,8 @@ export function FinopsStrip() {
         {fc ? (
           <>
             <p className="text-xl font-bold tabular-nums text-ink">{formatCost(fc.forecast, cur)}</p>
-            <p className="mt-0.5 text-xs text-muted">{t("ov2.fin.forecast_basis", { spent: formatCost(fc.spent, cur), days: fc.daysLeft })}</p>
+            {sf && sf.forecast.method === "seasonal" && sf.forecast.high - sf.forecast.low > 1 && <p className="text-xs font-medium text-[#3f78b8]" title={t("ov2.fin.range_hint")}>{t("ov2.fin.range", { low: formatCost(sf.forecast.low, cur), high: formatCost(sf.forecast.high, cur) })}</p>}
+            <p className="mt-0.5 text-xs text-muted">{sf && sf.forecast.method === "seasonal" ? t("ov2.fin.forecast_seasonal", { spent: formatCost(fc.spent, cur), days: fc.daysLeft }) : t("ov2.fin.forecast_basis", { spent: formatCost(fc.spent, cur), days: fc.daysLeft })}{sf && sf.forecast.lag_days > 0 ? ` ${t("ov2.fin.lag", { count: sf.forecast.lag_days })}` : ""}</p>
           </>
         ) : <p className="text-sm text-muted">{t("ov2.fin.forecast_none")}</p>}
       </Tile>
@@ -58,7 +61,7 @@ export function FinopsStrip() {
               <div className={cn("bar-x h-full rounded-full", orgBudget.state === "exceeded" ? "bg-pastel-rose" : orgBudget.state === "at_risk" ? "bg-pastel-amber" : "bg-leaf")}
                 style={{ width: `${Math.min(100, Math.max(2, orgBudget.used_pct))}%` }} />
             </div>
-            <p className="mt-1 text-xs text-muted">{orgBudget.projected > orgBudget.amount ? t("ov2.fin.will_exceed", { projected: formatCost(orgBudget.projected, orgBudget.currency) }) : t("ov2.fin.on_track")}</p>
+            <p className="mt-1 text-xs text-muted">{orgBudget.projected > orgBudget.amount ? t("ov2.fin.will_exceed", { projected: formatCost(orgBudget.projected, orgBudget.currency) }) : orgBudget.projected_high > orgBudget.amount ? t("ov2.fin.may_exceed", { high: formatCost(orgBudget.projected_high, orgBudget.currency) }) : t("ov2.fin.on_track")}</p>
           </>
         ) : (
           <p className="text-sm text-muted">{t("ov2.fin.no_budget")} <Link href="/settings" className="font-semibold text-primary hover:underline">{t("ov2.fin.set_budget")}</Link></p>
@@ -69,6 +72,7 @@ export function FinopsStrip() {
           <>
             <p className="text-xl font-bold tabular-nums text-ink">{spikes.length}</p>
             {worst && <p className="mt-0.5 text-xs text-muted">{t("ov2.fin.worst", { day: new Date(worst.day).toLocaleDateString(undefined, { month: "short", day: "numeric" }), over: formatCost(worst.cost - worst.expected, cur) })}</p>}
+            {worst?.drivers[0] && <p className="mt-0.5 text-xs font-medium text-[#a9741a]" title={worst.drivers.map((d) => `${d.service} · ${d.region}: +${formatCost(d.delta, cur)}`).join("\n")}>{t(worst.drivers[0].new ? "ov2.fin.driver_new" : "ov2.fin.driver", { service: worst.drivers[0].service, region: worst.drivers[0].region, amount: formatCost(worst.drivers[0].delta, cur) })}</p>}
           </>
         ) : <p className="text-sm text-muted">{(trend.data?.length ?? 0) < 14 ? t("ov2.fin.anomalies_short") : t("ov2.fin.anomalies_none")}</p>}
       </Tile>

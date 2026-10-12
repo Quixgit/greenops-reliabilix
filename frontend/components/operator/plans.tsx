@@ -13,7 +13,7 @@ import { PageTitle, th } from "./parts";
 import { Pill, type PillTone } from "./ui";
 
 const LIMITS: [string, string][] = [
-  ["limits.projects", "Projects"], ["limits.cloud_connections", "Cloud connections"], ["limits.members", "Members"], ["limits.notification_destinations", "Notification destinations"],
+  ["limits.projects", "Projects"], ["limits.cloud_connections", "Cloud connections"], ["limits.members", "Members"], ["limits.notification_destinations", "Notification destinations"], ["limits.tracked_spend", "Tracked spend, USD / 30 days"],
 ];
 const MODULES: [string, string][] = [
   ["modules.automation", "Automation"], ["modules.kubernetes", "Kubernetes"], ["modules.reports", "Reports"],

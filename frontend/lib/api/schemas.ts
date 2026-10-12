@@ -64,6 +64,7 @@ export const budgetStatus = z.object({
   id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(),
   period: z.enum(["monthly", "quarterly", "yearly"]), created_at: z.string(),
   period_start: z.string(), period_end: z.string(), spent: z.number(), used_pct: z.number(), projected: z.number(),
+  projected_low: z.number().default(0), projected_high: z.number().default(0), forecast_method: z.enum(["seasonal", "linear"]).default("linear"),
   state: z.enum(["ok", "at_risk", "exceeded"]),
 });
 export type BudgetStatus = z.infer<typeof budgetStatus>;
@@ -182,6 +183,12 @@ export const impactVerification = z.object({
   expected_carbon_kg_month: z.number(),
   expected_cost_month: z.number().nullable(),
   realization_pct: z.number().nullable(),
+  // Corrected for the trend of the rest of the project (the control group); null when no control was usable (ADR-0054).
+  adjusted_carbon_kg_month: z.number().nullable().default(null),
+  adjusted_cost_month: z.number().nullable().default(null),
+  control_growth_pct: z.number().nullable().default(null),
+  control_days: z.number().default(0),
+  method: z.string().default(""),
   note: z.string(),
   verified_at: z.string(),
 });
@@ -212,7 +219,7 @@ export const recommendations = items(recommendation);
 export const report = z.object({
   id: z.string(),
   project_id: z.string().nullable(),
-  kind: z.enum(["carbon", "sci", "finops", "sustainability"]),
+  kind: z.enum(["carbon", "sci", "finops", "sustainability", "ghg"]),
   format: z.enum(["csv", "json", "pdf"]),
   period_start: z.string(),
   period_end: z.string(),
@@ -284,7 +291,7 @@ export const planView = z.object({
     prices: z.record(z.string(), z.object({ amount: z.number(), currency: z.string() })).default({}),
   })),
   catalog: z.array(z.object({
-    id: z.string(), name: z.string(), description: z.string(), rank: z.number(),
+    id: z.string(), name: z.string(), description: z.string(), rank: z.number(), price_monthly_usd: z.number().nullable().optional(),
     limits: z.array(z.object({ resource: z.string(), key: z.string(), limit: z.number() })),
     modules: z.array(z.object({ key: z.string(), enabled: z.boolean() })),
   })).default([]),
@@ -301,7 +308,7 @@ export const invitation = z.object({
   id: z.string(), email: z.string(), role: z.string(), created_by: z.string(), created_at: z.string(), expires_at: z.string(), accepted_at: z.string().nullable(),
 });
 export const invitations = items(invitation);
-export const invitationCreated = z.object({ invitation, token: z.string() });
+export const invitationCreated = z.object({ invitation, token: z.string(), email_sent: z.boolean().optional() });
 export const apiKey = z.object({
   id: z.string(), name: z.string(), prefix: z.string(), role: z.string(), created_by: z.string(), created_at: z.string(),
   last_used_at: z.string().nullable(), revoked_at: z.string().nullable(),
@@ -481,7 +488,8 @@ export const settingChange = z.object({
 });
 export const settingChanges = items(settingChange);
 
-export const anomaly = z.object({ day: z.string(), cost: z.number(), expected: z.number(), stddev: z.number() });
+export const anomalyDriver = z.object({ service: z.string(), region: z.string(), cost: z.number(), expected: z.number(), delta: z.number(), new: z.boolean() });
+export const anomaly = z.object({ day: z.string(), cost: z.number(), expected: z.number(), stddev: z.number(), drivers: z.array(anomalyDriver).default([]) });
 export type Anomaly = z.infer<typeof anomaly>;
 export const anomalies = items(anomaly);
 export const carbonTrend = items(z.object({ day: z.string(), carbon_kg_co2e: z.number() }));

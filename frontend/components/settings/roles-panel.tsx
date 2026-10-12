@@ -116,7 +116,7 @@ function Editor({ view, draft, onClose }: { view: RolesView; draft: Draft; onClo
       {save.isError && <p role="alert" className="mt-2 text-sm text-bad">{save.error.message}</p>}
       <div className="mt-4 flex gap-2">
         <button type="button" disabled={save.isPending || d.name.trim().length < 2 || d.permissions.size === 0} onClick={() => save.mutate()}
-          className="rounded-lg btn-leaf px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t("common.save")}</button>
+          className="rounded-xl btn-leaf px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t("common.save")}</button>
         <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium ring-1 ring-line hover:bg-white">{t("common.cancel")}</button>
       </div>
     </Panel>

@@ -23,7 +23,7 @@ export function MethodologyView() {
   return (
     <div className="mx-auto max-w-[980px] space-y-5">
       <div className="rise">
-        <h1 className="text-[28px] font-bold tracking-tight text-ink">{t("method.title")}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink">{t("method.title")}</h1>
         <p className="mt-1 text-[15px] text-slate-600">{t("method.subtitle")}</p>
       </div>
 

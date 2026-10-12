@@ -18,7 +18,7 @@ import { Field, input } from "./project-form";
 
 /** The answer of a PUT is not used: only that it succeeded. */
 const ack = z.object({}).passthrough();
-const btn = "rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
+const btn = "rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
 const KINDS = ["production", "staging", "development", "test", "other"] as const;
 
 /** Invalidates everything that depends on the structure. */

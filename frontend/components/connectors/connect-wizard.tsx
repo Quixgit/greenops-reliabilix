@@ -11,7 +11,8 @@ import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
 import { connection, connectResponse, type ConnectResponse } from "@/lib/api/schemas";
 import { cn } from "@/lib/utils";
-import { EMPTY, schemaFor, toRequest, type Mode, type Provider, type Values } from "./connect-model";
+import { SetupAsCode } from "./setup-as-code";
+import { EMPTY, schemaFor, toRequest, verifyHint, type Mode, type Provider, type Values } from "./connect-model";
 
 const STEPS = ["cloud", "method", "details", "verify"] as const;
 const PROVIDERS: { id: Provider; name: string }[] = [{ id: "aws", name: "Amazon Web Services" }, { id: "azure", name: "Microsoft Azure" }, { id: "gcp", name: "Google Cloud" }];
@@ -168,6 +169,7 @@ export function ConnectWizard({ initialProvider, onClose }: { initialProvider?: 
             <form id="cw-form" onSubmit={handleSubmit((v) => create.mutate(toRequest(v)))} noValidate>
               <div className="flex items-center gap-3"><ProviderMark id={provider} size="lg" /><h2 className="text-2xl font-bold tracking-tight">{t("cw.details.title")}</h2></div>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{t("cw.details.body")}</p>
+              {mode !== "other" && <SetupAsCode provider={provider} account={watch("account_ref")} table={watch("credential_ref")} />}
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block text-xs font-medium text-slate-500">{t("cw.f.project")}
                   <select {...register("project_id")} defaultValue="" className={cn(field, "mt-1")}>
@@ -210,7 +212,7 @@ export function ConnectWizard({ initialProvider, onClose }: { initialProvider?: 
             <div>
               <div className="flex items-center gap-3"><ProviderMark id={provider} size="lg" /><h2 className="text-2xl font-bold tracking-tight">{t("cw.verify.title")}</h2></div>
               <div className="mt-4"><Setup created={created} /></div>
-              {verify.isError && <p role="alert" className="mt-4 rounded-xl bg-[#fdecef] px-4 py-3 text-sm text-[#c25667]">{verify.error.message} — {t("cw.verify.retry")}</p>}
+              {verify.isError && <p role="alert" className="mt-4 rounded-xl bg-[#fdecef] px-4 py-3 text-sm text-[#c25667]">{verify.error.message} — {t("cw.verify.retry")}{verifyHint(verify.error.message) && <span className="mt-1.5 block font-medium text-slate-600">{t(verifyHint(verify.error.message)!)}</span>}</p>}
             </div>
           )}
 

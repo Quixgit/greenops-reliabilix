@@ -43,9 +43,9 @@ function Row({ b, scope, canEdit }: { b: BudgetStatus; scope: string; canEdit: b
       </div>
       <p className="flex flex-wrap justify-between gap-x-4 text-xs text-muted">
         <span>{t("budgets.spent", { spent: formatCost(b.spent, b.currency), pct: b.used_pct.toFixed(0) })}</span>
-        <span className={willExceed ? "text-bad" : undefined}>{t("budgets.projected", { projected: formatCost(b.projected, b.currency) })}</span>
+        <span className={willExceed ? "text-bad" : undefined} title={b.forecast_method === "seasonal" ? t("budgets.projected_hint") : undefined}>{t("budgets.projected", { projected: formatCost(b.projected, b.currency) })}{b.forecast_method === "seasonal" && b.projected_high - b.projected_low > 1 ? ` (${formatCost(b.projected_low, b.currency)}–${formatCost(b.projected_high, b.currency)})` : ""}</span>
       </p>
-      {canEdit && <button onClick={() => del.mutate()} disabled={del.isPending} className="rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60">{t("budgets.delete")}</button>}
+      {canEdit && <button onClick={() => del.mutate()} disabled={del.isPending} className="rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60">{t("budgets.delete")}</button>}
       {del.isError && <p role="alert" className="text-xs text-bad">{del.error.message}</p>}
     </li>
   );

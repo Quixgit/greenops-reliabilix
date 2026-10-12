@@ -66,6 +66,14 @@ export const useRecommendations = (status: string) =>
   useQuery({ queryKey: ["recommendations", status], queryFn: () => api("recommendations", s.recommendations, { status: status === "all" ? undefined : status, limit: "50" }) });
 export const useReports = () =>
   useQuery({ queryKey: ["reports"], queryFn: () => api("reports", s.reports), refetchInterval: (q) => (q.state.data?.some((r) => r.status === "pending") ? 3000 : false) });
+const forecastSchema = z.object({ currency: z.string(), forecast: z.object({
+  expected: z.number(), low: z.number(), high: z.number(), method: z.enum(["seasonal", "linear"]), spent: z.number(), lag_days: z.number(), days_left: z.number(),
+}) });
+/** Where the month will end: the weekday pattern and the trend, with an 80% range; the billing lag of the last days is allowed for. */
+export const useForecast = () => {
+  const { projectId } = useUi();
+  return useQuery({ queryKey: ["forecast", projectId], queryFn: () => api("finops/forecast", forecastSchema, projectId ? { project_id: projectId } : undefined) });
+};
 export const useAnomalies = () => {
   const f = useFilters();
   return useQuery({ queryKey: ["anomalies", f], queryFn: () => api("finops/anomalies", s.anomalies, f) });

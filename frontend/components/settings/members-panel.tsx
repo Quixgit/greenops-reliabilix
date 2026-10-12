@@ -29,20 +29,22 @@ type InviteValues = z.infer<typeof inviteSchema>;
 
 function Invite() {
   const qc = useQueryClient();
+  const t = useT();
   const [token, setToken] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const { register, handleSubmit, reset, formState: { errors } } = useForm<InviteValues>({ resolver: zodResolver(inviteSchema), defaultValues: { role: "viewer" } });
   const m = useMutation({
     mutationFn: (v: InviteValues) => api("invitations", invitationCreated, undefined, { method: "POST", body: JSON.stringify(v) }),
-    onSuccess: (r) => { setToken(r.token); reset({ email: "", role: "viewer" }); void qc.invalidateQueries({ queryKey: ["invitations"] }); },
+    onSuccess: (r) => { setToken(r.token); setSentTo(r.email_sent ? r.invitation.email : null); reset({ email: "", role: "viewer" }); void qc.invalidateQueries({ queryKey: ["invitations"] }); },
   });
   return (
     <div className="space-y-3">
       {token && <SecretOnce title="Invitation token" value={token} onDismiss={() => setToken(null)} />}
-      {token && <p className="text-xs text-muted">E-mail invitations are not set up yet (stub): pass this token to the person over a secure channel. It expires in 7 days and only works for the invited address.</p>}
+      {token && <p className="text-xs text-muted">{sentTo ? t("settings.invite.sent", { email: sentTo }) : t("settings.invite.nomail")}</p>}
       <form onSubmit={handleSubmit((v) => m.mutate(v))} className="grid gap-3" noValidate>
         <Field label="E-mail" error={errors.email?.message}><input type="email" {...register("email")} className={input} placeholder="colleague@yourcompany.com" /></Field>
         <Field label="Role"><select {...register("role")} className={input}>{INVITE_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</select></Field>
-        <button disabled={m.isPending} className="mt-6 rounded-lg btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
+        <button disabled={m.isPending} className="mt-6 rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{m.isPending ? "Inviting…" : "Invite"}</button>
         {m.isError && <p role="alert" className="text-sm text-bad">{m.error.message}</p>}
       </form>
     </div>

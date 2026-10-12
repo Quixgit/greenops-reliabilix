@@ -13,7 +13,7 @@ import type { Report } from "@/lib/api/schemas";
 import { timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
-const KIND_ICON = { carbon: [IconLeaf, "text-leaf-deep"], finops: [IconCoin, "text-[#5b8fdc]"], sci: [IconGauge, "text-[#8a78d8]"], sustainability: [IconBolt, "text-[#d9a441]"] } as const;
+const KIND_ICON = { carbon: [IconLeaf, "text-leaf-deep"], finops: [IconCoin, "text-[#5b8fdc]"], sci: [IconGauge, "text-[#8a78d8]"], sustainability: [IconBolt, "text-[#d9a441]"], ghg: [IconLeaf, "text-[#3f9d7a]"] } as const;
 const STATUS = [["", "rp.f.all"], ["ready", "rp.f.ready"], ["pending", "rp.f.pending"], ["failed", "rp.f.failed"]] as const;
 
 function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: boolean; projectName: string }) {
@@ -43,7 +43,7 @@ function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: bool
           )}
           {r.status === "failed" && <span className="flex items-center gap-1.5 rounded-full bg-[#fdecef] px-2.5 py-1 text-xs font-semibold text-[#c25667]"><IconWarning className="size-3.5" />{t("rp.failed")}</span>}
           {r.status === "ready" && (
-            <a href={`/api/proxy/reports/${r.id}/download`} download className="btn-leaf inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"><IconDownload className="size-3.5" strokeWidth={2.2} />{t("rp.download")}</a>
+            <a href={`/api/proxy/reports/${r.id}/download`} download className="btn-leaf inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"><IconDownload className="size-3.5" strokeWidth={2.2} />{t("rp.download")}</a>
           )}
           {r.status === "failed" && canAct && (
             <button type="button" disabled={again.isPending} onClick={() => again.mutate({ kind: r.kind, format: r.format, project_id: r.project_id, period_start: day(r.period_start), period_end: day(r.period_end) })}
@@ -87,7 +87,7 @@ export function ReportList({ canAct }: { canAct: boolean }) {
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2">
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("rp.step.kind")}>
           <button type="button" className={chip(kind === "")} onClick={() => setKind("")}>{t("rp.f.all_kinds")}</button>
-          {(["carbon", "finops", "sci", "sustainability"] as const).map((k) => <button key={k} type="button" className={chip(kind === k)} onClick={() => setKind(k)}>{t(`rp.kind.${k}`)}</button>)}
+          {(["carbon", "finops", "sci", "sustainability", "ghg"] as const).map((k) => <button key={k} type="button" className={chip(kind === k)} onClick={() => setKind(k)}>{t(`rp.kind.${k}`)}</button>)}
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("rp.f.status")}>
           {STATUS.map(([v, k]) => <button key={v} type="button" className={chip(status === v)} onClick={() => setStatus(v)}>{t(k)}</button>)}

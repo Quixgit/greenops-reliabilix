@@ -80,7 +80,7 @@ export function Status({ ok, children }: { ok: boolean | null; children: ReactNo
   );
 }
 
-const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20 disabled:bg-slate-50 disabled:text-slate-500";
+const field = "w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none transition-shadow focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20 disabled:bg-slate-50 disabled:text-slate-500";
 
 /** A row whose value is edited in place: click it, change the number, save. The editor opens under the row. */
 function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, max, canEdit, saving, error, onOpen }: {
@@ -108,11 +108,11 @@ function EditableRow({ icon, label, display, onSave, initial, unit, hint, min, m
             {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
             <div className="flex items-center gap-2">
               <input value={v} onChange={(e) => setV(e.target.value)} inputMode="decimal" aria-label={label}
-                className="w-32 rounded-lg border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20" />
+                className="w-32 rounded-xl border border-line bg-white px-3 py-1.5 text-sm outline-none focus:border-leaf-deep focus:ring-2 focus:ring-leaf-deep/20" />
               {unit && <span className="text-xs text-muted">{unit}</span>}
               <button type="button" disabled={!valid || saving}
                 onClick={async () => { await onSave(n); setOpen(false); }}
-                className="ml-auto rounded-lg btn-leaf px-3 py-1.5 text-xs font-semibold text-white active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
+                className="ml-auto rounded-xl btn-leaf px-3 py-1.5 text-xs font-semibold text-white active:scale-[0.98] disabled:opacity-50">{saving ? t("settings.org.saving") : t("settings.org.save")}</button>
             </div>
             {error && <p role="alert" className="mt-1 text-xs text-bad">{error}</p>}
           </div>
@@ -287,7 +287,7 @@ export function OrganizationTab({ go, canManage, canEdit }: { go: (tab: string) 
             {save.isSuccess && <span role="status" className="text-xs text-leaf-deep">{t("settings.org.saved")}</span>}
             {save.isError && <span role="alert" className="text-xs text-bad">{save.error.message}</span>}
             <button type="button" onClick={() => save.mutate()} disabled={!canEdit || (!nameChanged && !currencyChanged) || nm.trim().length < 2 || save.isPending}
-              className="rounded-lg btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
+              className="rounded-xl btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">
               {save.isPending ? t("settings.org.saving") : t("settings.org.save")}
             </button>
           </div>

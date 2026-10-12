@@ -43,7 +43,7 @@ function PeriodPicker() {
   const [draft, setDraft] = useState<{ from?: string; to?: string }>({});
   const [open, setOpen] = useState(false);
   return (
-    <div className="hidden items-center gap-2 sm:flex">
+    <div className="order-last flex w-full items-center gap-2 lg:order-none lg:w-auto">
       <div role="tablist" aria-label={t("header.period")} className="flex h-10 items-center rounded-xl border border-line/80 bg-white p-1 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
         {PERIODS.map((p) => (
           <button key={p.key} role="tab" type="button" aria-selected={period === p.key} onClick={() => setPeriod(p.key)}
@@ -64,7 +64,7 @@ function PeriodPicker() {
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-line/70 px-1 pt-2.5">
               <span className="text-xs text-muted">{draft.from ? `${draft.from}${draft.to ? ` → ${draft.to}` : ""}` : t("header.pick_range")}</span>
               <button type="button" disabled={!draft.from} onClick={() => { setCustom(draft.from!, draft.to ?? draft.from!); setOpen(false); }}
-                className="rounded-lg btn-leaf px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40">{t("header.apply")}</button>
+                className="rounded-xl btn-leaf px-3 py-1.5 text-xs font-semibold text-white transition disabled:opacity-40">{t("header.apply")}</button>
             </div>
           </div>
         </DropdownPanel>
@@ -90,13 +90,13 @@ export function Header({ user }: { user: { name: string; email: string; role: Ro
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-[68px] items-center gap-3 border-b border-line/70 bg-white/85 px-4 backdrop-blur-xl lg:px-6">
+    <header className="sticky top-0 z-30 flex min-h-[68px] flex-wrap items-center gap-x-2 gap-y-2 border-b border-line/70 bg-white/85 px-4 py-2 backdrop-blur-xl sm:gap-x-3 lg:flex-nowrap lg:px-6 lg:py-0">
       <button className="rounded-xl p-2 hover:bg-slate-100 lg:hidden" aria-label={t("header.menu")} onClick={() => setNavOpen(true)}><Menu className="size-5" /></button>
 
       <DropdownRoot>
-        <DM.Trigger className={pill}>
+        <DM.Trigger className={pill} aria-label={selected?.name ?? t("header.all_projects")}>
           <IconFolder className="size-6 text-leaf-deep" />
-          <span className="max-w-44 truncate">{selected?.name ?? t("header.all_projects")}</span>
+          <span className="max-w-[5.25rem] truncate max-[430px]:hidden sm:max-w-44">{selected?.name ?? t("header.all_projects")}</span>
           <svg viewBox="0 0 12 12" className="size-3 text-slate-400 transition-transform duration-300 group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
         </DM.Trigger>
         <DropdownPanel>
@@ -109,9 +109,9 @@ export function Header({ user }: { user: { name: string; email: string; role: Ro
 
       <PeriodPicker />
 
-      <div className="ml-auto flex items-center gap-2.5">
+      <div className="ml-auto flex items-center gap-2 sm:gap-2.5">
         <QuickSearch />
-        <LanguageSwitcher className={pill} />
+        <LanguageSwitcher className={cn(pill, "max-sm:gap-0 max-sm:px-2.5 max-sm:[&>span.uppercase]:hidden max-sm:[&>svg:last-child]:hidden")} />
 
         <NotificationBell />
 

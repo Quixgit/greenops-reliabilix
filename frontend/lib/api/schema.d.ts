@@ -554,7 +554,12 @@ export interface paths {
         get: operations["getProject"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an empty project
+         * @description Requires permission `project:write`. A project that still has cloud connections or measured usage is refused
+         *     with 409; its policy, functional units, budgets and allocation settings go with it.
+         */
+        delete: operations["deleteProject"];
         options?: never;
         head?: never;
         patch?: never;
@@ -856,6 +861,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automation/jobs/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every recorded step of a job (planned, approved, results, withdrawal)
+         * @description Requires permission `automation:read`. Read from the audit trail, oldest first; keeps steps the job row overwrites (a completed change later recorded as rolled back).
+         */
+        get: operations["getAutomationJobHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automation/jobs/{id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check what applying the plan would do, without doing it
+         * @description Requires permission `automation:read`. A read: it changes no job, recommendation or cloud resource and runs
+         *     nothing (the platform never applies a plan, ADR-0017). It checks the plan against the present: status, human
+         *     approval, rollback plan, the recommendation still approved, the data-residency policy, the plan still equal to what
+         *     the planner builds today, and the shape of every command. `ready` is true only for an approved plan whose checks all
+         *     pass. `held` lists commands the plan keeps commented out on purpose.
+         */
+        post: operations["dryRunAutomationJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/automation/jobs/{id}/approve": {
         parameters: {
             query?: never;
@@ -936,6 +985,26 @@ export interface paths {
          * @description Requires permission `cloud:write`.
          */
         post: operations["connectCloudAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cloud-accounts/commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Savings Plans and reservations the connected accounts hold, as last read from the cloud
+         * @description Requires permission `cloud:read`. Read daily with the rightsizing job, for AWS (Cost Explorer; needs ce:GetSavingsPlansUtilization, ce:GetSavingsPlansCoverage, ce:GetReservationUtilization, ce:GetReservationCoverage). A figure the cloud did not give is null, never zero. ADR-0054.
+         */
+        get: operations["listExistingCommitments"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1071,6 +1140,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The bell feed - what the platform tells the people of the organization inside the product
+         * @description Requires permission `project:read` (every member). Items are filtered by the organization's display settings
+         *     (`notifications.inbox_enabled`, `inbox_min_severity`, `inbox_muted_types`); billing messages are always shown.
+         *     `unread` counts items newer than the person's last `POST /inbox/read`. `sound` is the organization's default.
+         */
+        get: operations["getInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inbox/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark everything in the bell as seen, for the caller
+         * @description Requires permission `project:read`.
+         */
+        post: operations["markInboxRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plan": {
         parameters: {
             query?: never;
@@ -1091,6 +1202,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plan/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organization's own billing events (checkouts started, requests, confirmed payments)
+         * @description Requires permission `billing:read`. Newest first, at most 50.
+         */
+        get: operations["getPlanHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/plan/checkout": {
         parameters: {
             query?: never;
@@ -1102,8 +1233,10 @@ export interface paths {
         put?: never;
         /**
          * Start a payment for a plan at a payment provider
-         * @description Requires permission `tenant:admin`. Answers a `url` to send the person to, or a `message` for providers
-         *     without a hosted page (invoice). The plan becomes active when the provider confirms the payment by webhook.
+         * @description Requires permission `billing:read` (owner, admin, billing). Answers a `url` to send the person to, or a `message` for
+         *     providers without a hosted page (invoice), with the `plan` and the `intent` (renew, upgrade, downgrade). Choosing the
+         *     current plan renews it. The plan id travels to the provider, so its confirmation names the plan that was paid for;
+         *     the plan becomes active when the provider confirms the payment by webhook.
          */
         post: operations["startCheckout"];
         delete?: never;
@@ -1362,6 +1495,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ci/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recorded CI gate decisions of a window, with counts by verdict
+         * @description Requires permission `carbon:read`. Every call of `/ci/evaluate` is recorded (project, verdict, carbon and cost of the change, reasons, source, optional `ref`).
+         */
+        get: operations["listCiEvaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ci/evaluate": {
         parameters: {
             query?: never;
@@ -1444,6 +1597,122 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/demo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the organization has the sample project
+         * @description Requires permission `project:read`.
+         */
+        get: operations["getDemo"];
+        put?: never;
+        /**
+         * Add a project with 60 days of invented cloud spend (no connection is made), and ask for its carbon and recommendations
+         * @description Requires permission `project:write`. Counts as one project against the plan's limit (402 when it is reached). Idempotent.
+         */
+        post: operations["createDemo"];
+        /**
+         * Remove the sample project and its synthetic data (only what is marked as sample)
+         * @description Requires permission `project:write`.
+         */
+        delete: operations["deleteDemo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/finops/forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Expected cost at the end of the current month, with an 80% range
+         * @description Requires permission `usage:read`. Weekday pattern of the last six weeks, trend of the last fortnight, and the last unfinished days forecast instead of trusted (ADR-0053).
+         */
+        get: operations["getCostForecast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/finops/commitments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What committing the steady part of compute and database spend would save (a report; nothing is bought)
+         * @description Requires permission `billing:read`. The baseline is the daily spend reached on 80% of days of the window; the saving is the covered share of it times the discount (a planning default per cloud, or the one given). ADR-0051.
+         */
+        get: operations["getCommitments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reports that are made again every week or month
+         * @description Requires permission `report:read`.
+         */
+        get: operations["listReportSchedules"];
+        put?: never;
+        /**
+         * Schedule a report (weekly on Monday 06:00 UTC, or monthly on the 1st) and name the members to e-mail a link to
+         * @description Requires permission `report:write`. Every recipient must be a member of the organization (422 otherwise).
+         */
+        post: operations["createReportSchedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a schedule (reports already made stay)
+         * @description Requires permission `report:write`.
+         */
+        delete: operations["deleteReportSchedule"];
+        options?: never;
+        head?: never;
+        /**
+         * Pause or resume a schedule (resuming waits for the next regular run)
+         * @description Requires permission `report:write`.
+         */
+        patch: operations["updateReportSchedule"];
         trace?: never;
     };
     "/api/v1/finops/anomalies": {
@@ -1587,6 +1856,131 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organization's support-access grants and who looked (owner or admin)
+         * @description Requires the tenant administration permission.
+         */
+        get: operations["supportAccess"];
+        put?: never;
+        /**
+         * Let the platform's operators look at the organization's working detail for a limited time
+         * @description Requires the tenant administration permission. 1 to 168 hours; a grant still open is replaced.
+         */
+        post: operations["openSupportAccess"];
+        /**
+         * Close support access now
+         * @description Requires the tenant administration permission.
+         */
+        delete: operations["closeSupportAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/support": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether an organization has opened support access (no organization data) */
+        get: operations["operatorSupportStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/support/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The working detail of an organization while its support access is open (admin operator)
+         * @description Refuses (403) without an open grant. Every read is recorded where the organization can see who looked.
+         */
+        get: operations["operatorSupportOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The platform's self-tests (operator)
+         * @description Lists the self-tests of the platform with their group and description. Any operator.
+         */
+        get: operations["operatorDiagnostics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/diagnostics/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run the platform's self-tests (admin operator)
+         * @description Runs the chosen tests (all when ids is empty) at once, each bounded to 15 seconds. They read and probe; the only write is one small object in storage that is deleted again. One run at a time (409 otherwise).
+         */
+        post: operations["operatorRunDiagnostics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/countries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * National monthly grid carbon intensity of every country (reference data, for the map)
+         * @description Requires permission `usage:read`. Ember's newest monthly national average per country (ISO 3166 alpha-3); a coarse reference for countries without a cloud region, never used in a calculation.
+         */
+        get: operations["dashboardCountries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard/regions/footprint": {
         parameters: {
             query?: never;
@@ -1619,6 +2013,26 @@ export interface paths {
          * @description Requires permission `usage:read`.
          */
         get: operations["dashboardOptimization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/unit-economics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost and carbon of one unit of work, per project and month
+         * @description Requires permission `usage:read`. Only the days the customer reported units for count; the latest two months with at least 7 reported days are compared (ADR-0053).
+         */
+        get: operations["getUnitEconomics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1811,6 +2225,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What can be requested (kinds, the formats the organization allows, limits)
+         * @description Requires permission `report:read`.
+         */
+        get: operations["reportOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The head of a report's table, without storing a report
+         * @description Requires permission `report:read`. Built the way the report itself is; the first rows and the total row count.
+         */
+        get: operations["previewReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports/{id}": {
         parameters: {
             query?: never;
@@ -1825,7 +2279,11 @@ export interface paths {
         get: operations["getReport"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a report and its file
+         * @description Requires permission `report:write`.
+         */
+        delete: operations["deleteReport"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2359,6 +2817,211 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/operator/aggregation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Source policy for grid intensity, each source and its freshness, and where the figures came from
+         * @description Platform operators only. The policy in force (priority, per-region pins, readings a source needs per day, accepted age overall and per source), each grid-intensity source with its place in the policy, licence and freshness, the share of calculation rows by the source and basis of their intensity over the last 30 days (counts only), and the rules the engine applies when it combines sources.
+         */
+        get: operations["getOperatorAggregation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/aggregation/explain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Why a region and day got the intensity it did
+         * @description Platform operators only. What every trusted source has for the region and day (readings, monthly figure, latest reading and its age), the order the policy tries them in, the verdict on each and the source the engine uses. Read from stored readings; no provider is called.
+         */
+        get: operations["explainOperatorIntensity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/jobs/{queue}/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a failed task again now
+         * @description Platform operators with the admin role only. Only a task that failed (waiting for a retry, or gave up) can be changed; a task that is running is refused with 409. The action is recorded in the operators' access log.
+         */
+        post: operations["retryOperatorJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/jobs/{queue}/{id}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove a failed task so it does not run again
+         * @description Platform operators with the admin role only. Only a task that failed (waiting for a retry, or gave up) can be changed; a task that is running is refused with 409. The action is recorded in the operators' access log.
+         */
+        post: operations["deleteOperatorJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Growth of the platform day by day, totals and the plan distribution
+         * @description Platform operators only. Counts only (organizations, users, projects, connections, reports, gate checks, recommendations, deliveries, errors, active organizations).
+         */
+        get: operations["getOperatorMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Announcements sent to the organizations
+         * @description Platform operators only. `read_by` counts the organizations where somebody has seen it.
+         */
+        get: operations["listOperatorAnnouncements"];
+        put?: never;
+        /**
+         * Send an announcement (a platform update, maintenance, a notice, an incident) to the organizations
+         * @description Operator admins only. It goes into the inbox of every matching organization (all, or the listed plans), whatever
+         *     that organization's notification switches say, and optionally by e-mail to its owners and admins.
+         */
+        post: operations["createOperatorAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/announcements/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Take an announcement back (it disappears from the inboxes)
+         * @description Operator admins only. Mail that was already sent cannot be recalled.
+         */
+        post: operations["withdrawOperatorAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One organization - what it has, when it started, when it was last active - and the trail of what happened
+         * @description Platform operators only. Counts and audit metadata, never the organization's data.
+         */
+        get: operations["getOperatorTenantOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/erasure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule the erasure of an organization (grace period, cancellable)
+         * @description Operator admins only. Same erasure and the same grace period logic as the owner's own request; recorded in the organization's audit trail with the reason.
+         */
+        post: operations["requestOperatorTenantErasure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/operator/tenants/{tenant_id}/erasure/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a scheduled erasure
+         * @description Operator admins only.
+         */
+        post: operations["cancelOperatorTenantErasure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/operator/api-usage": {
         parameters: {
             query?: never;
@@ -2816,10 +3479,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scim/v2/ServiceProviderConfig": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SCIM service provider configuration
+         * @description SCIM 2.0 (RFC 7644). Requires an API key with the `scim` role. Supports PATCH and the filter `userName eq "address"`; no bulk, sort or ETag.
+         */
+        get: operations["scimServiceProviderConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scim/v2/ResourceTypes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SCIM resource types (User only) */
+        get: operations["scimResourceTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scim/v2/Users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List provisioned people
+         * @description Pages of up to 200 (`startIndex`, `count`). Filter `userName eq "address"` looks one person up.
+         */
+        get: operations["scimListUsers"];
+        put?: never;
+        /**
+         * Provision a person
+         * @description The person becomes a member when they first sign in with the same verified e-mail. `userName` (or the primary e-mail) is the address;
+         *     `roles[].value` is one of viewer, engineer, admin, billing (default viewer; never owner). Someone who already is a member is linked and keeps their role.
+         *     The organization's allowed e-mail domains and member limit apply.
+         */
+        post: operations["scimCreateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/scim/v2/Users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a provisioned person */
+        get: operations["scimGetUser"];
+        /**
+         * Replace a person's attributes
+         * @description Deactivating (`active` false) removes the membership; owners are never removed or demoted by provisioning (409).
+         */
+        put: operations["scimReplaceUser"];
+        post?: never;
+        /**
+         * Deprovision a person
+         * @description Removes the membership (not an owner's) and the record.
+         */
+        delete: operations["scimDeleteUser"];
+        options?: never;
+        head?: never;
+        /**
+         * Change some attributes of a person
+         * @description Operations replace/add on active (a boolean or "True"/"False"), roles, displayName, externalId, userName; with or without a path.
+         */
+        patch: operations["scimPatchUser"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DemoStatus: {
+            active: boolean;
+            /** Format: uuid */
+            project_id?: string | null;
+        };
+        ReportSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            project_id?: string | null;
+            kind: string;
+            format: string;
+            /** @enum {string} */
+            cadence: "weekly" | "monthly";
+            recipients: string[];
+            enabled: boolean;
+            /** Format: date-time */
+            next_run_at: string;
+            /** Format: date-time */
+            last_run_at?: string | null;
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
         Problem: {
             title: string;
             status: number;
@@ -2941,6 +3720,8 @@ export interface components {
             invitation?: components["schemas"]["Invitation"];
             /** @description One-time token; shown once. */
             token?: string;
+            /** @description Whether the invitation e-mail (a link to /invite) went out. False when the platform has no mail transport or sending failed; the token is still returned. */
+            email_sent?: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -2964,7 +3745,7 @@ export interface components {
         ApiKeyInput: {
             name: string;
             /** @enum {string} */
-            role: "ci" | "viewer" | "agent";
+            role: "ci" | "viewer" | "agent" | "scim";
         } & {
             [key: string]: unknown;
         };
@@ -3124,6 +3905,22 @@ export interface components {
             auto_apply_types?: "time_shift"[];
         } & {
             [key: string]: unknown;
+        };
+        AutomationDryRun: {
+            /** Format: uuid */
+            job_id: string;
+            ready: boolean;
+            /** @description Always false. */
+            executed: boolean;
+            checks: {
+                /** @enum {string} */
+                id: "status" | "approval" | "rollback" | "recommendation" | "residency" | "plan_current" | "commands_safe";
+                ok: boolean;
+                detail?: string;
+            }[];
+            would_run: string[];
+            held: string[];
+            steps: string[];
         };
         AutomationJob: {
             /** Format: uuid */
@@ -3293,6 +4090,8 @@ export interface components {
             }[];
             /** @description Share of the carbon whose intensity is the mean of readings of the day itself. */
             intensity_measured_share_pct?: number | null;
+            /** @description Share of the energy (0-100) that was estimated from spend instead of measured usage; null without data. */
+            energy_cost_based_share_pct?: number | null;
             energy_kwh?: number;
             carbon_kg_co2e?: number;
             sci_score?: number | null;
@@ -3325,6 +4124,30 @@ export interface components {
                 id: string;
                 name: string;
                 plans: string[];
+                /** @description Amount per plan where the provider's price is known to the platform. */
+                prices?: {
+                    [key: string]: {
+                        amount?: number;
+                        currency?: string;
+                    };
+                };
+            }[];
+            /** @description Every plan, in order from the smallest, so the customer can compare it with the current one. */
+            catalog: {
+                id?: string;
+                name?: string;
+                description?: string;
+                rank?: number;
+                limits?: {
+                    resource?: string;
+                    key?: string;
+                    /** @description 0 means unlimited */
+                    limit?: number;
+                }[];
+                modules?: {
+                    key?: string;
+                    enabled?: boolean;
+                }[];
             }[];
         };
         ScheduleAdvice: {
@@ -3609,6 +4432,8 @@ export interface components {
         GateRequest: {
             /** Format: uuid */
             project_id: string;
+            /** @description Optional label of what is gated (a pipeline run, a commit); kept with the recorded decision. */
+            ref?: string;
             changes: components["schemas"]["GateChange"][];
             thresholds?: {
                 carbon_warn_kg?: number | null;
@@ -3687,7 +4512,12 @@ export interface components {
             period_end?: string;
             spent?: number;
             used_pct?: number;
+            /** @description Expected cost at the end of the period (seasonal forecast; linear when the history is short). */
             projected?: number;
+            projected_low?: number;
+            projected_high?: number;
+            /** @enum {string} */
+            forecast_method?: "seasonal" | "linear";
             /** @enum {string} */
             state?: "ok" | "at_risk" | "exceeded";
         } & {
@@ -3699,6 +4529,15 @@ export interface components {
             cost?: number;
             expected?: number;
             stddev?: number;
+            /** @description What moved on the day (services and regions with the biggest increase over the previous 14 days), at most 3; only the latest 10 anomalies are explained. */
+            drivers?: {
+                service?: string;
+                region?: string;
+                cost?: number;
+                expected?: number;
+                delta?: number;
+                new?: boolean;
+            }[];
         } & {
             [key: string]: unknown;
         };
@@ -3752,13 +4591,53 @@ export interface components {
                 /** @description Estimated change of the EC2 compute cost in the period if the load ran in the candidate region (list-price index; excludes discounts */
                 cost_delta?: number | null;
                 cost_basis?: string;
+                /** @description Round trip in milliseconds from where the load runs now to the candidate. Absent when a region is not on the map. */
+                latency_ms?: number;
+                distance_km?: number;
+                /**
+                 * @description Where latency_ms comes from: measured_azure (Microsoft's published inter-region table), measured_aws (CloudPing, median over a year) or estimated (from the distance, typically off by latency_error_pct).
+                 * @enum {string}
+                 */
+                latency_basis?: "measured_azure" | "measured_aws" | "estimated";
+                /** @description How far an estimate is typically off (80% of measured pairs are within it); 0 for a measured figure. */
+                latency_error_pct?: number;
+                /** @description The most the organization accepts (setting recommendations.max_latency_ms); the move was chosen inside it. */
+                latency_budget_ms?: number;
                 residency_ok?: boolean;
                 checks_required?: string[];
             } | null;
-            /** @description Why no cleaner region is proposed (residency_unknown or residency). */
+            /** @description Why no cleaner region is proposed (residency_unknown, residency or latency). */
             relocation_blocked?: string;
         } & {
             [key: string]: unknown;
+        };
+        SupportGrant: {
+            id: string;
+            granted_by: string;
+            /** Format: date-time */
+            granted_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            revoked_at?: string | null;
+            note: string;
+            active: boolean;
+        };
+        DiagnosticResult: {
+            id: string;
+            group: string;
+            name: string;
+            description: string;
+            /**
+             * @description empty in the list, set after a run
+             * @enum {string}
+             */
+            status: "ok" | "warn" | "fail" | "skipped" | "";
+            /** Format: int64 */
+            ms: number;
+            message: string;
+            /** Format: date-time */
+            at?: string;
         };
         Optimization: {
             open_count?: number;
@@ -3863,6 +4742,11 @@ export interface components {
             expected_carbon_kg_month?: number;
             expected_cost_month?: number | null;
             realization_pct?: number | null;
+            /** @description The measurement corrected for the trend of the rest of the project (the control group); null when no control was usable. */
+            adjusted_carbon_kg_month?: number | null;
+            adjusted_cost_month?: number | null;
+            control_growth_pct?: number | null;
+            control_days?: number;
             note?: string;
             /** Format: date-time */
             verified_at?: string;
@@ -3875,7 +4759,7 @@ export interface components {
             /** Format: uuid */
             project_id?: string | null;
             /** @enum {string} */
-            kind?: "carbon" | "sci" | "finops" | "sustainability";
+            kind?: "carbon" | "sci" | "finops" | "sustainability" | "ghg";
             /** @enum {string} */
             format?: "csv" | "json" | "pdf";
             /** Format: date */
@@ -3897,7 +4781,7 @@ export interface components {
             /** Format: uuid */
             project_id?: string | null;
             /** @enum {string} */
-            kind: "carbon" | "sci" | "finops" | "sustainability";
+            kind: "carbon" | "sci" | "finops" | "sustainability" | "ghg";
             /** @enum {string} */
             format: "csv" | "json" | "pdf";
             /** Format: date */
@@ -4141,6 +5025,23 @@ export interface components {
                 status: "ready" | "stub" | "missing";
                 note: string;
             }[];
+            /** @description The process that answered, taken at the moment of the request. */
+            runtime?: {
+                /** Format: date-time */
+                started_at?: string;
+                go_version?: string;
+                goroutines?: number;
+                heap_mb?: number;
+                cpus?: number;
+            };
+            /** @description The API's connection pool and the time of one round trip to the database. */
+            database?: {
+                ok?: boolean;
+                ping_ms?: number;
+                connections?: number;
+                in_use?: number;
+                max?: number;
+            };
         };
         OperatorError: {
             /** Format: uuid */
@@ -5163,6 +6064,30 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
+    deleteProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
     listFunctionalUnits: {
         parameters: {
             query?: never;
@@ -5700,6 +6625,65 @@ export interface operations {
             404: components["responses"]["Problem"];
         };
     };
+    getAutomationJobHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @enum {string} */
+                            action?: "planned" | "approved" | "completed" | "failed" | "rolled_back" | "cancelled";
+                            actor?: string;
+                            /** Format: date-time */
+                            at?: string;
+                            note?: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    dryRunAutomationJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationDryRun"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     approveAutomationJob: {
         parameters: {
             query?: never;
@@ -5839,6 +6823,48 @@ export interface operations {
             403: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    listExistingCommitments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            connection_id?: string;
+                            provider?: string;
+                            account?: string;
+                            /** @enum {string} */
+                            kind?: "savings_plans" | "reservations";
+                            /** Format: date-time */
+                            period_from?: string;
+                            /** Format: date-time */
+                            period_to?: string;
+                            currency?: string;
+                            utilization_pct?: number | null;
+                            coverage_pct?: number | null;
+                            commitment?: number | null;
+                            unused?: number | null;
+                            net_savings?: number | null;
+                            /** Format: date-time */
+                            fetched_at?: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
         };
     };
     getCloudAccount: {
@@ -6056,6 +7082,64 @@ export interface operations {
             403: components["responses"]["Problem"];
         };
     };
+    getInbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id?: string;
+                            type?: string;
+                            /** @enum {string} */
+                            severity?: "info" | "warning" | "critical";
+                            title?: string;
+                            body?: string;
+                            path?: string;
+                            /** Format: date-time */
+                            created_at?: string;
+                            unread?: boolean;
+                        }[];
+                        unread: number;
+                        sound: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    markInboxRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
     getPlan: {
         parameters: {
             query?: never;
@@ -6072,6 +7156,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanView"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getPlanHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: date-time */
+                            at?: string;
+                            provider?: string;
+                            /** @enum {string} */
+                            kind?: "started" | "requested" | "applied";
+                            plan?: string;
+                            detail?: string;
+                        }[];
+                    };
                 };
             };
             401: components["responses"]["Problem"];
@@ -6104,6 +7220,9 @@ export interface operations {
                     "application/json": {
                         url?: string;
                         message?: string;
+                        plan?: string;
+                        /** @enum {string} */
+                        intent?: "renew" | "upgrade" | "downgrade";
                     };
                 };
             };
@@ -6440,6 +7559,65 @@ export interface operations {
             422: components["responses"]["Problem"];
         };
     };
+    listCiEvaluations: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                verdict?: "PASS" | "WARN" | "BLOCK";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id?: string;
+                            /** Format: uuid */
+                            project_id?: string;
+                            /** @enum {string} */
+                            verdict?: "PASS" | "WARN" | "BLOCK";
+                            carbon_kg_month?: number;
+                            cost_delta_month?: number;
+                            reasons?: string[];
+                            changes?: number;
+                            regions?: string[];
+                            thresholds_applied?: boolean;
+                            /** @enum {string} */
+                            source?: "api_key" | "console";
+                            ref?: string;
+                            /** Format: date-time */
+                            created_at?: string;
+                        }[];
+                        summary: {
+                            total?: number;
+                            pass?: number;
+                            warn?: number;
+                            block?: number;
+                            carbon_blocked_kg_month?: number;
+                            cost_blocked_month?: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
     evaluateCiGate: {
         parameters: {
             query?: never;
@@ -6570,6 +7748,290 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoStatus"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    createDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoStatus"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            402: components["responses"]["Problem"];
+        };
+    };
+    deleteDemo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getCostForecast: {
+        parameters: {
+            query?: {
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        currency: string;
+                        forecast: {
+                            expected?: number;
+                            low?: number;
+                            high?: number;
+                            /** @enum {string} */
+                            method?: "seasonal" | "linear";
+                            spent?: number;
+                            /** Format: date-time */
+                            trusted_through?: string;
+                            lag_days?: number;
+                            days_left?: number;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    getCommitments: {
+        parameters: {
+            query?: {
+                project_id?: components["parameters"]["project_id"];
+                lookback_days?: number;
+                term_years?: 1 | 3;
+                coverage_pct?: number;
+                discount_aws?: number;
+                discount_azure?: number;
+                discount_gcp?: number;
+                /** @description What the customer typed about commitments already held (also azure, gcp); wins over what was read. */
+                existing_coverage_aws?: number;
+                existing_utilization_aws?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        currency: string;
+                        /** Format: date */
+                        from: string;
+                        /** Format: date */
+                        to: string;
+                        lookback_days?: number;
+                        term_years?: number;
+                        coverage_pct?: number;
+                        total_monthly_saving: number;
+                        total_annual_saving: number;
+                        default_discount_pct?: {
+                            [key: string]: number;
+                        };
+                        providers: {
+                            provider: string;
+                            /** @enum {string} */
+                            status: "ok" | "not_enough_data";
+                            data_days: number;
+                            baseline_daily?: number;
+                            discount_pct?: number;
+                            commitment_per_hour?: number;
+                            monthly_saving?: number;
+                            annual_saving?: number;
+                            break_even_utilization?: number;
+                            possibly_committed?: boolean;
+                            /** @enum {string} */
+                            existing_source?: "" | "read" | "entered";
+                            existing_coverage_pct?: number | null;
+                            existing_utilization_pct?: number | null;
+                            existing_unused_monthly?: number | null;
+                            additional_coverage_pct?: number;
+                            /** @enum {string} */
+                            advice?: "buy" | "hold" | "reduce";
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    listReportSchedules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ReportSchedule"][];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+        };
+    };
+    createReportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    project_id?: string | null;
+                    /** @enum {string} */
+                    kind: "carbon" | "sci" | "finops" | "sustainability" | "ghg";
+                    /** @enum {string} */
+                    format: "pdf" | "csv" | "json";
+                    /** @enum {string} */
+                    cadence: "weekly" | "monthly";
+                    recipients?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSchedule"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteReportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    updateReportSchedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportSchedule"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };
     };
@@ -6791,6 +8253,227 @@ export interface operations {
             403: components["responses"]["Problem"];
         };
     };
+    supportAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        grants: components["schemas"]["SupportGrant"][];
+                        views: {
+                            operator: string;
+                            what: string;
+                            /** Format: date-time */
+                            at: string;
+                        }[];
+                        min_hours: number;
+                        max_hours: number;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    openSupportAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    hours: number;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportGrant"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    closeSupportAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Closed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    operatorSupportStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        active: boolean;
+                        /** Format: date-time */
+                        expires_at?: string;
+                        granted_by?: string;
+                        note?: string;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    operatorSupportOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    operatorDiagnostics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DiagnosticResult"][];
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    operatorRunDiagnostics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    ids?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DiagnosticResult"][];
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    dashboardCountries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @description ISO 3166 alpha-3 */
+                            code: string;
+                            /**
+                             * @description ember: a published national monthly average; inventory: national power-sector emissions divided by generation of a year (direct emissions, a lower bound of the life-cycle figure)
+                             * @enum {string}
+                             */
+                            source: "ember" | "inventory";
+                            g_per_kwh: number;
+                            /** Format: date-time */
+                            month: string;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
     dashboardRegionFootprint: {
         parameters: {
             query?: {
@@ -6849,6 +8532,50 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    getUnitEconomics: {
+        parameters: {
+            query?: {
+                project_id?: components["parameters"]["project_id"];
+                months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        currency: string;
+                        projects: {
+                            /** Format: uuid */
+                            project_id?: string;
+                            name?: string;
+                            unit?: string;
+                            cost_change_pct?: number | null;
+                            carbon_change_pct?: number | null;
+                            months?: {
+                                month?: string;
+                                days?: number;
+                                units?: number;
+                                cost?: number;
+                                carbon_g?: number;
+                                cost_per_unit?: number | null;
+                                carbon_g_per_unit?: number | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
         };
     };
     dashboardEfficiency: {
@@ -7118,6 +8845,70 @@ export interface operations {
             422: components["responses"]["Problem"];
         };
     };
+    reportOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        kinds?: string[];
+                        formats?: string[];
+                        max_days?: number;
+                        pdf_rows?: number;
+                        preview_rows?: number;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    previewReport: {
+        parameters: {
+            query: {
+                kind: "carbon" | "sci" | "finops" | "sustainability" | "ghg";
+                period_start: string;
+                period_end: string;
+                project_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        title?: string;
+                        period?: string;
+                        notes?: string[];
+                        headers?: string[];
+                        rows?: string[][];
+                        total_rows?: number;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
     getReport: {
         parameters: {
             query?: never;
@@ -7137,6 +8928,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Report"];
                 };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    deleteReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
@@ -7928,6 +9742,353 @@ export interface operations {
             403: components["responses"]["Problem"];
         };
     };
+    getOperatorAggregation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        policy?: {
+                            [key: string]: unknown;
+                        };
+                        sources?: {
+                            [key: string]: unknown;
+                        }[];
+                        provenance?: {
+                            [key: string]: unknown;
+                        };
+                        rules?: {
+                            [key: string]: unknown;
+                        }[];
+                        regions_in_use?: number;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    explainOperatorIntensity: {
+        parameters: {
+            query: {
+                region: string;
+                /** @description UTC day within the last three years. */
+                day: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    retryOperatorJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                queue: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        changed?: boolean;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    deleteOperatorJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                queue: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        changed?: boolean;
+                    };
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    getOperatorMetrics: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        days?: number;
+                        series?: {
+                            [key: string]: unknown;
+                        }[];
+                        totals?: {
+                            [key: string]: unknown;
+                        };
+                        plans?: {
+                            [key: string]: unknown;
+                        }[];
+                        subscriptions?: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    listOperatorAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    createOperatorAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    kind: "update" | "maintenance" | "notice" | "incident";
+                    /** @enum {string} */
+                    severity: "info" | "warning" | "critical";
+                    title: string;
+                    body?: string;
+                    /** @description An app-relative link */
+                    path?: string;
+                    /** @description Empty means every organization */
+                    audience_plans?: string[];
+                    email_copy?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Sent */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        recipients?: number;
+                        mailed_organizations?: number;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    withdrawOperatorAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        removed?: number;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    getOperatorTenantOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        overview?: {
+                            [key: string]: unknown;
+                        };
+                        timeline?: {
+                            [key: string]: unknown;
+                        }[];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    requestOperatorTenantErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    grace_days: number;
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Scheduled */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    cancelOperatorTenantErasure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
     getOperatorApiUsage: {
         parameters: {
             query?: never;
@@ -8624,6 +10785,356 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    scimServiceProviderConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    scimResourceTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    scimListUsers: {
+        parameters: {
+            query?: {
+                filter?: string;
+                startIndex?: number;
+                count?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Unsupported filter (SCIM error) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    scimCreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid value (SCIM error) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description The address is already provisioned (SCIM error) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    scimGetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description Not found (SCIM error) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    scimReplaceUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid value (SCIM error) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description Not found (SCIM error) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Conflict (SCIM error) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    scimDeleteUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deprovisioned */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description Not found (SCIM error) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description An owner cannot be removed (SCIM error) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    scimPatchUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/scim+json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Invalid value (SCIM error) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            /** @description Not found (SCIM error) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Conflict (SCIM error) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/scim+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
         };
     };
 }

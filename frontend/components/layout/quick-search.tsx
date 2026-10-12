@@ -38,8 +38,8 @@ export function QuickSearchBox({ all }: { all: QuickItem[] }) {
           else if (e.key === "Enter") { e.preventDefault(); go(cur); }
           else if (e.key === "Escape") { setOpen(false); box.current?.blur(); }
         }}
-        className="h-10 w-60 rounded-xl border border-line/80 bg-white pl-11 pr-14 text-sm text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] placeholder:text-slate-400 lg:w-72" />
-      <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">⌘K</kbd>
+        className="h-10 w-40 rounded-xl border border-line/80 bg-white pl-11 pr-4 text-sm text-ink shadow-[0_1px_2px_rgba(16,24,40,0.04)] placeholder:text-slate-400 lg:w-56 xl:w-72 xl:pr-14" />
+      <kbd className="pointer-events-none absolute right-3 hidden xl:block top-1/2 -translate-y-1/2 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">⌘K</kbd>
       {open && items.length > 0 && (
         <ul id="quick-search" role="listbox" className="info-pop absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-[0_18px_44px_rgba(31,52,110,0.16)]">
           {items.map((it, i) => (

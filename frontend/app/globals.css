@@ -222,6 +222,8 @@ html[data-motion="reduced"] .phoenix-live { animation: none; }
 /* ---- Overview ---------------------------------------------------------------------------------------------------- */
 .fade-in { animation: fade 0.9s ease-out both; }
 @keyframes bar-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.bar-y { transform-origin: bottom center; animation: bar-rise 0.7s var(--ease-out-soft) both; animation-delay: var(--d, 0ms); }
+@media (prefers-reduced-motion: reduce) { .bar-y { animation: none; } }
 .bar-x { transform-origin: left center; animation: bar-in 0.8s var(--ease-out-soft) both; animation-delay: var(--d, 0ms); }
 @media (prefers-reduced-motion: reduce) { .fade-in, .bar-x { animation: none; } }
 
@@ -343,3 +345,11 @@ li:hover > .del-btn, .del-btn:focus-visible { opacity: 1; transform: scale(1) ro
 @keyframes bar-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .bar-rise { animation: bar-rise .6s var(--ease-out-soft) both; transform-box: fill-box; }
 @media (prefers-reduced-motion: reduce) { .bar-rise { animation: none; } }
+
+/* ---- Small controls: their look stays, their target is at least 24 px (WCAG 2.2, 2.5.8) -------------------------------------- */
+button.cursor-help, a[class*="text-xs"][class*="font-semibold"][class*="text-primary"], a[class*="text-xs"][class*="font-semibold"][class*="text-leaf-deep"],
+button[class*="text-xs"][class*="font-semibold"][class*="text-leaf-deep"], a[class*="inline-flex"][class*="font-medium"][class*="text-primary"],
+button[class*="inline-flex"][class*="font-medium"][class*="text-primary"] { position: relative; }
+button.cursor-help::after, a[class*="text-xs"][class*="font-semibold"][class*="text-primary"]::after, a[class*="text-xs"][class*="font-semibold"][class*="text-leaf-deep"]::after,
+button[class*="text-xs"][class*="font-semibold"][class*="text-leaf-deep"]::after, a[class*="inline-flex"][class*="font-medium"][class*="text-primary"]::after,
+button[class*="inline-flex"][class*="font-medium"][class*="text-primary"]::after { content: ""; position: absolute; inset: -4px -3px; }

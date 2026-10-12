@@ -21,7 +21,7 @@ export function OverviewHeader() {
   const last = conns.map((c) => c.last_sync_at).filter((x): x is string => !!x).sort().pop();
   return (
     <div className="rise">
-      <h1 className="text-[28px] font-bold tracking-tight text-ink">{content.pageTitle}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-ink">{content.pageTitle}</h1>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[15px] text-slate-600">
         <span>{name}</span><span aria-hidden>·</span><span>{label}</span><span aria-hidden>·</span>
         <span>{last ? t("ov.head.synced", { when: timeAgo(last) }) : t("ov.head.no_sync")}</span>

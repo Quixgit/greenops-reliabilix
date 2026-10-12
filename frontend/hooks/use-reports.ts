@@ -40,3 +40,21 @@ export function useDeleteReport() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["reports"] }),
   });
 }
+
+const schedule = z.object({
+  id: z.string(), project_id: z.string().nullable(), kind: z.string(), format: z.string(), cadence: z.enum(["weekly", "monthly"]),
+  recipients: z.array(z.string()), enabled: z.boolean(), next_run_at: z.string(), last_run_at: z.string().nullable(), created_by: z.string(), created_at: z.string(),
+});
+export type ReportSchedule = z.infer<typeof schedule>;
+export type ScheduleRequest = { kind: string; format: string; cadence: "weekly" | "monthly"; project_id: string | null; recipients: string[] };
+
+/** Reports made again every week or month, with the members who are e-mailed when each is ready. */
+export const useReportSchedules = () => useQuery({ queryKey: ["report-schedules"], queryFn: () => api("reports/schedules", z.object({ items: z.array(schedule) })).then((r) => r.items) });
+
+function useScheduleMutation<V>(fn: (v: V) => Promise<unknown>) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: fn, onSuccess: () => void qc.invalidateQueries({ queryKey: ["report-schedules"] }) });
+}
+export const useCreateSchedule = () => useScheduleMutation((v: ScheduleRequest) => api("reports/schedules", schedule, undefined, { method: "POST", body: JSON.stringify(v) }));
+export const useToggleSchedule = () => useScheduleMutation((v: { id: string; enabled: boolean }) => api(`reports/schedules/${v.id}`, schedule, undefined, { method: "PATCH", body: JSON.stringify({ enabled: v.enabled }) }));
+export const useDeleteSchedule = () => useScheduleMutation((id: string) => apiVoid(`reports/schedules/${id}`, { method: "DELETE" }));

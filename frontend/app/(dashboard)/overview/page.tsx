@@ -1,5 +1,7 @@
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { DataQuality } from "@/components/dashboard/data-quality";
+import { DemoBanner } from "@/components/dashboard/demo-banner";
+import { FirstFindings } from "@/components/dashboard/first-findings";
 import { FinopsStrip } from "@/components/dashboard/finops-strip";
 import { FootprintSplit } from "@/components/dashboard/footprint-split";
 import { KpiStrip } from "@/components/dashboard/kpi-strip";
@@ -13,14 +15,20 @@ import { StatCardsNotice } from "@/components/dashboard/stat-cards";
 import { TrendPanel } from "@/components/dashboard/trend-panel";
 import { WorkloadEfficiency } from "@/components/dashboard/workload-efficiency";
 
+import { getUser } from "@/lib/auth/session";
+import { canWrite } from "@/lib/permissions";
+
 export const metadata = { title: "Overview · Reliabilix GreenOps" };
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  const user = (await getUser())!;
   return (
     <div className="mx-auto max-w-[1680px] space-y-5">
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-5">
           <OverviewHeader />
+          <DemoBanner canWrite={canWrite(user.role)} />
+          <FirstFindings />
           <KpiStrip />
           <StatCardsNotice />
           <FinopsStrip />

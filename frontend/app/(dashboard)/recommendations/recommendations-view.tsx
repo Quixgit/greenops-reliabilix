@@ -15,6 +15,7 @@ import { useRecommendations } from "@/hooks/use-overview";
 import { CompareOptions, LatencyChip, Metric, parseOptions } from "@/components/dashboard/region-options";
 import { regionName } from "@/lib/regions";
 import { formatCost } from "@/lib/formatters";
+import { CommitmentsPanel } from "@/components/recommendations/commitments-panel";
 import { useT } from "@/i18n/provider";
 
 const FILTERS = ["open", "approved", "applied", "verified", "dismissed", "all"] as const;
@@ -33,7 +34,7 @@ function Row({ r, canDecide, canPlan }: { r: Recommendation; canDecide: boolean;
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ["recommendations"] }); void qc.invalidateQueries({ queryKey: ["activity"] }); },
   });
   const passed = r.compliance_check.residency === "passed" || r.compliance_check.residency === "not_applicable";
-  const btn = "rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
+  const btn = "rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ring-line hover:bg-slate-50 disabled:opacity-60";
   return (
     <li className="space-y-2 py-3 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -108,12 +109,23 @@ const OUTCOME: Record<string, { label: string; tone: "good" | "warn" | "bad" | "
 
 /** The measured result, always next to the forecast and never mixed with it. */
 function VerifiedImpact({ v }: { v: ImpactVerification }) {
+  const t = useT();
   const o = OUTCOME[v.outcome];
   return (
     <div className="rounded-lg bg-slate-50 p-3 text-xs ring-1 ring-line">
       <p className="flex items-center gap-2 font-semibold"><Badge tone={o.tone}>{o.label}</Badge>
         {v.realization_pct !== null && <span>{v.realization_pct.toFixed(0)}% of the expected carbon reduction</span>}</p>
-      {v.measured_carbon_kg_month !== null && (
+      {v.adjusted_carbon_kg_month !== null ? (
+        <>
+          <p className="mt-1">
+            {t("vf.measured_vs_control", { kg: v.adjusted_carbon_kg_month.toFixed(1), expected: v.expected_carbon_kg_month.toFixed(1) })}
+            {v.adjusted_cost_month !== null && <> · {t(v.adjusted_cost_month >= 0 ? "vf.cost_saving" : "vf.cost_increase", { amount: Math.abs(v.adjusted_cost_month).toFixed(2) })}
+              {v.expected_cost_month !== null && <> ({t("vf.expected", { amount: v.expected_cost_month.toFixed(2) })})</>}</>}
+          </p>
+          <p className="mt-1 text-muted">{t("vf.control", { growth: `${(v.control_growth_pct ?? 0) > 0 ? "+" : ""}${(v.control_growth_pct ?? 0).toFixed(1)}`, days: v.control_days })}
+            {v.measured_carbon_kg_month !== null && <> {t("vf.raw", { kg: v.measured_carbon_kg_month.toFixed(1) })}</>}</p>
+        </>
+      ) : v.measured_carbon_kg_month !== null && (
         <p className="mt-1">
           Measured {v.measured_carbon_kg_month.toFixed(1)} kg CO₂e/month (expected {v.expected_carbon_kg_month.toFixed(1)})
           {v.measured_cost_month !== null && <> · cost {v.measured_cost_month >= 0 ? "saving" : "increase"} {Math.abs(v.measured_cost_month).toFixed(2)}/month
@@ -126,12 +138,21 @@ function VerifiedImpact({ v }: { v: ImpactVerification }) {
 }
 
 export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean; canPlan: boolean }) {
+  const t = useT();
+  const [tab, setTab] = useState<"moves" | "commitments">("moves");
   const [status, setStatus] = useState<(typeof FILTERS)[number]>("open");
   const q = useRecommendations(status);
   const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
+      <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Recommendations">
+        {(["moves", "commitments"] as const).map((k) => (
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${tab === k ? "bg-white text-ink shadow-sm" : "text-slate-500 hover:text-ink"}`}>{t(`cm.tab.${k}`)}</button>
+        ))}
+      </div>
+      {tab === "commitments" ? <div className="form-swap"><CommitmentsPanel /></div> : <>
       <div className="flex flex-wrap gap-2" role="tablist">
         {FILTERS.map((f) => (
           <button key={f} role="tab" aria-selected={f === status} onClick={() => setStatus(f)}
@@ -145,6 +166,7 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
           )}
         <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
       </Card>
+      </>}
     </div>
   );
 }
