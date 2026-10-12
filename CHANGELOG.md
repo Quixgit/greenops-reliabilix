@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.179] - 2026-10-12
+
+### Changed
+- **The cloud switch is a slim pill**: icon and name per cloud, no amounts, no underline; a thumb glides to the chosen cloud (arrow keys
+  work). The cloud's bill in its own currency and how fresh its data is are in the tooltip. With many clouds it wraps instead of growing.
+
 ## [0.1.0-alpha.178] - 2026-10-12
 
 ### Changed
