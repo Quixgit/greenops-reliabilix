@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/i18n"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/reports/domain"
 )
@@ -15,6 +16,9 @@ import (
 func (s Service) digestBody(ctx context.Context, tenantID string, r domain.Report, body string) string {
 	if s.Head == nil {
 		return body
+	}
+	if clouds, ok := domain.NormalizeClouds(r.Clouds); ok && len(clouds) > 0 {
+		ctx = database.WithCloudScope(ctx, strings.Join(clouds, ",")) // the e-mail speaks about the same clouds as the file
 	}
 	h, err := s.Head.Headline(ctx, tenantID, r.ProjectID, r.PeriodStart, r.PeriodEnd.AddDate(0, 0, 1))
 	if err != nil || (h.Cost == 0 && h.CarbonKg == 0) {

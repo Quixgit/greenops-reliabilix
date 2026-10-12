@@ -15,7 +15,7 @@ import { useConnection, useConnectionCosts, useProjects, useSyncRuns } from "@/h
 import { useT } from "@/i18n/provider";
 import { connectionState, stateTone } from "@/lib/connection-state";
 import { api, apiVoid } from "@/lib/api/client";
-import { formatCost } from "@/lib/formatters";
+import { formatCost, formatNative } from "@/lib/formatters";
 import { z } from "zod";
 import type { DataQuality } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
@@ -90,7 +90,7 @@ export function AccountView({ id, canWrite }: { id: string; canWrite: boolean })
                 <dt className="text-muted">Status</dt><dd><Badge tone={stateTone(connectionState(c))}>{t(`connection.state.${connectionState(c)}`)}</Badge></dd>
                 <dt className="text-muted">Last sync</dt><dd>{c.last_sync_at ? shortTime(c.last_sync_at) : "never"}</dd>
                 <dt className="text-muted">Data read up to</dt><dd>{c.synced_through ? shortTime(c.synced_through) : "—"}</dd>
-                {(() => { const m = costs.data?.find((x) => x.connection_id === c.id); return m ? <><dt className="text-muted">{t("account.cost")}</dt><dd>{formatCost(m.cost)} · {t("connectors.days_with_data", { count: m.days })}</dd></> : null; })()}
+                {(() => { const m = costs.data?.find((x) => x.connection_id === c.id); return m ? <><dt className="text-muted">{t("account.cost")}</dt><dd>{m.currency ? formatNative(m.native_cost, m.currency) : formatCost(m.cost)} · {t("connectors.days_with_data", { count: m.days })}</dd></> : null; })()}
                 <dt className="text-muted">Last error</dt><dd className={c.last_error ? "text-bad" : ""}>{c.last_error ?? "none"}</dd>
               </dl>
             </Card>

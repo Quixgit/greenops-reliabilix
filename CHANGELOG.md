@@ -5,6 +5,27 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.175] - 2026-10-12
+
+### Changed
+- **No "all clouds" total anywhere on the Overview.** Clouds are separate providers with their own currency, metrics and emissions, so the
+  switch under the title now has one tab per cloud (each with what it was billed in its own currency) and the page is always about one
+  of them; the remembered choice is kept, otherwise the biggest cloud is shown. A query waits until the cloud is known, so a mixed answer is
+  never drawn first. The same switch now sits on **Carbon & Energy**, **Recommendations** and **Projects** (allocation, showback, unit
+  economics, commitments are narrowed to the chosen cloud). With more than four clouds the tabs shrink to icon and name.
+- **Connectors and an account's page show a connection's cost in the currency it is billed in** (`CAD 1,560`), not converted into the
+  reporting currency under a bare `$`. `GET /dashboard/connections` items gain `currency` and `native_cost`.
+- Carbon, Reports and Projects tiles, the Recommendations tabs and status filter use the same tile and switch components as the Overview.
+
+### Added
+- **Reports choose their clouds.** When a project has more than one cloud the builder offers "All clouds of the project" or a tick per
+  cloud (each marked with its billing currency); the file, the preview and the e-mail of a schedule cover only those clouds, every one in
+  its own currency. Reports and schedules gain `clouds` (migration 0081; an empty list is every cloud); the cloud scope takes a list.
+  `POST /reports`, `GET /reports/preview?clouds=aws,azure`, `POST /reports/schedules`.
+- **Budgets can belong to a cloud** (migration 0082): measured on that cloud's own spend, in the budget's currency (USD 1,500 for AWS,
+  CAD 2,000 for Azure). The Overview shows the budget of the cloud on view. `POST /finops/budgets` accepts `cloud`.
+  `contract/api` 0.52.0.
+
 ## [0.1.0-alpha.174] - 2026-10-12
 
 ### Fixed

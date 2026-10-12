@@ -21,7 +21,7 @@ import { useT } from "@/i18n/provider";
 import { api } from "@/lib/api/client";
 import { connectionState, stateTone, type ConnectionState } from "@/lib/connection-state";
 import { connectorSummary, formatDuration, kpis, type ConnectorFacts } from "@/lib/connectors";
-import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
+import { formatCarbon, formatCost, formatNative, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { CostImportPanel } from "@/components/connectors/cost-import";
 import { CATALOG, CATEGORIES, type CatalogItem } from "./catalog";
@@ -194,7 +194,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
               <p className="px-5 py-10 text-center text-sm text-muted">{t("connectors.no_match")}</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-sm">
+                <table className="w-full min-w-[600px] text-sm">
                   <thead>
                     <tr className="text-left text-xs uppercase tracking-wide text-muted">
                       <th className="px-5 py-2.5 font-medium">{t("connectors.col.source")}</th>
@@ -231,7 +231,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
                               <td className="whitespace-nowrap px-3 py-3 text-right">
                                 {money ? (
                                   <>
-                                    <p className="font-medium tabular-nums">{formatCost(money.cost)}</p>
+                                    <p className="font-medium tabular-nums">{money.currency ? formatNative(money.native_cost, money.currency) : formatCost(money.cost)}</p>
                                     <p className="text-xs text-muted tabular-nums">{carbon !== null ? `${formatCarbon(carbon)} · ` : ""}{t("connectors.days_with_data", { count: money.days })}</p>
                                   </>
                                 ) : <span className="text-muted">—</span>}

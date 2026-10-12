@@ -143,8 +143,8 @@ func (r Postgres) Summary(ctx context.Context, tenantID string, project *string,
 	return s, err
 }
 
-func toBudget(id string, project *string, amount float64, currency, period string, created time.Time) domain.Budget {
-	return domain.Budget{ID: id, ProjectID: project, Amount: amount, Currency: currency, Period: period, CreatedAt: created}
+func toBudget(id string, project *string, amount float64, currency, period string, created time.Time, cloud *string) domain.Budget {
+	return domain.Budget{ID: id, ProjectID: project, Amount: amount, Currency: currency, Period: period, CreatedAt: created, Cloud: cloud}
 }
 
 func (r Postgres) ListBudgets(ctx context.Context, tenantID string) ([]domain.Budget, error) {
@@ -152,7 +152,7 @@ func (r Postgres) ListBudgets(ctx context.Context, tenantID string) ([]domain.Bu
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).ListBudgets(ctx, tenantID)
 		for _, x := range rows {
-			out = append(out, toBudget(x.ID, x.ProjectID, x.Amount, x.Currency, x.Period, x.CreatedAt))
+			out = append(out, toBudget(x.ID, x.ProjectID, x.Amount, x.Currency, x.Period, x.CreatedAt, x.Cloud))
 		}
 		return err
 	})
@@ -161,11 +161,11 @@ func (r Postgres) ListBudgets(ctx context.Context, tenantID string) ([]domain.Bu
 
 func (r Postgres) CreateBudget(ctx context.Context, tenantID string, b domain.Budget) (domain.Budget, error) {
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
-		x, err := db.New(tx).CreateBudget(ctx, db.CreateBudgetParams{TenantID: tenantID, ProjectID: b.ProjectID, Amount: b.Amount, Currency: b.Currency, Period: b.Period})
+		x, err := db.New(tx).CreateBudget(ctx, db.CreateBudgetParams{TenantID: tenantID, ProjectID: b.ProjectID, Amount: b.Amount, Currency: b.Currency, Period: b.Period, Cloud: b.Cloud})
 		if err != nil {
 			return err
 		}
-		b = toBudget(x.ID, x.ProjectID, x.Amount, x.Currency, x.Period, x.CreatedAt)
+		b = toBudget(x.ID, x.ProjectID, x.Amount, x.Currency, x.Period, x.CreatedAt, x.Cloud)
 		return audit.Record(ctx, tx, "budget.created", "budget:"+b.ID, map[string]any{"amount": b.Amount, "period": b.Period})
 	})
 	return b, err

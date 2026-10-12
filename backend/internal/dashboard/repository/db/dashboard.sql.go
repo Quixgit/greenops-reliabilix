@@ -61,16 +61,21 @@ const dashboardConnectionCost = `-- name: DashboardConnectionCost :many
 WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
          WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
            AND d.recorded_at >= $3 AND d.recorded_at < $4
-         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
-SELECT c.id::text AS connection_id,
-       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost,
-       count(DISTINCT u.recorded_at::date)::int AS days,
-       max(u.recorded_at)::timestamptz AS last_day
-FROM usage.usage_records u
-JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
-WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
-  AND u.recorded_at >= $3 AND u.recorded_at < $4
-GROUP BY c.id
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+g AS (
+  SELECT c.id::text AS connection_id, u.currency::text AS currency, sum(u.billed_cost) AS native,
+         COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost,
+         count(DISTINCT u.recorded_at::date) AS days, max(u.recorded_at) AS last_day
+  FROM usage.usage_records u
+  JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
+  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+    AND u.recorded_at >= $3 AND u.recorded_at < $4
+  GROUP BY c.id, u.currency
+)
+SELECT DISTINCT ON (connection_id) connection_id, (sum(cost) OVER w)::float8 AS cost, (max(days) OVER w)::int AS days,
+       (max(last_day) OVER w)::timestamptz AS last_day, currency, native::float8 AS native_cost
+FROM g WINDOW w AS (PARTITION BY connection_id)
+ORDER BY connection_id, native DESC
 `
 
 type DashboardConnectionCostParams struct {
@@ -85,10 +90,13 @@ type DashboardConnectionCostRow struct {
 	Cost         float64   `json:"cost"`
 	Days         int32     `json:"days"`
 	LastDay      time.Time `json:"last_day"`
+	Currency     string    `json:"currency"`
+	NativeCost   float64   `json:"native_cost"`
 }
 
 // Billed cost and data coverage of every connection over the period, in the organization's reporting currency (the
 // same conversion as the service table). A line belongs to the connection of its provider and account.
+// one row per connection: the amount in the currency it is billed in (its main one) beside the converted total
 func (q *Queries) DashboardConnectionCost(ctx context.Context, arg DashboardConnectionCostParams) ([]DashboardConnectionCostRow, error) {
 	rows, err := q.db.Query(ctx, dashboardConnectionCost,
 		arg.TenantID,
@@ -108,6 +116,8 @@ func (q *Queries) DashboardConnectionCost(ctx context.Context, arg DashboardConn
 			&i.Cost,
 			&i.Days,
 			&i.LastDay,
+			&i.Currency,
+			&i.NativeCost,
 		); err != nil {
 			return nil, err
 		}

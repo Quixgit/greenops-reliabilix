@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -86,6 +87,7 @@ func (h Handlers) create(w http.ResponseWriter, r *http.Request) {
 		Format      domain.Format `json:"format"`
 		PeriodStart string        `json:"period_start"`
 		PeriodEnd   string        `json:"period_end"`
+		Clouds      []string      `json:"clouds"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil || (in.ProjectID != nil && !httpx.ParseUUID(*in.ProjectID)) {
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
@@ -93,11 +95,12 @@ func (h Handlers) create(w http.ResponseWriter, r *http.Request) {
 	}
 	start, err1 := time.Parse(time.DateOnly, in.PeriodStart)
 	end, err2 := time.Parse(time.DateOnly, in.PeriodEnd)
-	if err1 != nil || err2 != nil {
+	clouds, okClouds := domain.NormalizeClouds(in.Clouds)
+	if err1 != nil || err2 != nil || !okClouds {
 		fail(w, r, domain.ErrInvalidReport)
 		return
 	}
-	rep, err := h.Svc.Create(r.Context(), c.TenantID, c.Subject, domain.Report{ProjectID: in.ProjectID, Kind: in.Kind, Format: in.Format, PeriodStart: start, PeriodEnd: end})
+	rep, err := h.Svc.Create(r.Context(), c.TenantID, c.Subject, domain.Report{ProjectID: in.ProjectID, Kind: in.Kind, Format: in.Format, PeriodStart: start, PeriodEnd: end, Clouds: clouds})
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -137,6 +140,11 @@ func (h Handlers) options(w http.ResponseWriter, r *http.Request) {
 
 func (h Handlers) preview(w http.ResponseWriter, r *http.Request) {
 	c, _ := auth.FromContext(r.Context())
+	// a ';' makes Go drop the pair it is in: a malformed clouds list would silently widen the report to every cloud
+	if strings.ContainsRune(r.URL.RawQuery, ';') {
+		fail(w, r, domain.ErrInvalidReport)
+		return
+	}
 	q := r.URL.Query()
 	var project *string
 	if v := q.Get("project_id"); v != "" {
@@ -152,7 +160,7 @@ func (h Handlers) preview(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, domain.ErrInvalidReport)
 		return
 	}
-	p, err := h.Svc.Preview(r.Context(), c.TenantID, domain.Report{ProjectID: project, Kind: domain.Kind(q.Get("kind")), PeriodStart: start, PeriodEnd: end})
+	p, err := h.Svc.Preview(r.Context(), c.TenantID, domain.Report{ProjectID: project, Kind: domain.Kind(q.Get("kind")), PeriodStart: start, PeriodEnd: end, Clouds: previewClouds(q.Get("clouds"))})
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -192,12 +200,13 @@ func (h Handlers) createSchedule(w http.ResponseWriter, r *http.Request) {
 		Format     domain.Format  `json:"format"`
 		Cadence    domain.Cadence `json:"cadence"`
 		Recipients []string       `json:"recipients"`
+		Clouds     []string       `json:"clouds"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil || (in.ProjectID != nil && !httpx.ParseUUID(*in.ProjectID)) {
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
-	s, err := h.Svc.CreateSchedule(r.Context(), c.TenantID, c.Subject, domain.Schedule{ProjectID: in.ProjectID, Kind: in.Kind, Format: in.Format, Cadence: in.Cadence, Recipients: in.Recipients})
+	s, err := h.Svc.CreateSchedule(r.Context(), c.TenantID, c.Subject, domain.Schedule{ProjectID: in.ProjectID, Kind: in.Kind, Format: in.Format, Cadence: in.Cadence, Recipients: in.Recipients, Clouds: scheduleClouds(in.Clouds)})
 	if err != nil {
 		fail(w, r, err)
 		return
@@ -239,4 +248,20 @@ func (h Handlers) removeSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// previewClouds reads ?clouds=aws,azure; a malformed name is kept as written so the report is refused by validation, not narrowed silently.
+func previewClouds(v string) []string {
+	if v == "" {
+		return nil
+	}
+	return strings.Split(v, ",")
+}
+
+func scheduleClouds(in []string) []string {
+	out, ok := domain.NormalizeClouds(in)
+	if !ok {
+		return in // refused by Validate
+	}
+	return out
 }

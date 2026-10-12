@@ -41,6 +41,8 @@ type Schedule struct {
 	LastRunAt  *time.Time `json:"last_run_at"`
 	CreatedBy  string     `json:"created_by"`
 	CreatedAt  time.Time  `json:"created_at"`
+	// Clouds narrows the reports it makes to some of the clouds of its scope; empty means every cloud.
+	Clouds []string `json:"clouds"`
 }
 
 // Normalize lower-cases and de-duplicates the recipients.
@@ -59,7 +61,7 @@ func (s *Schedule) Normalize() {
 
 // Validate rejects unknown kinds, formats and cadences and malformed or too many recipients.
 func (s Schedule) Validate() error {
-	if err := (Report{Kind: s.Kind, Format: s.Format}).Validate(); err != nil {
+	if err := (Report{Kind: s.Kind, Format: s.Format, Clouds: s.Clouds}).Validate(); err != nil {
 		return ErrInvalidSchedule
 	}
 	if s.Cadence != Weekly && s.Cadence != Monthly {

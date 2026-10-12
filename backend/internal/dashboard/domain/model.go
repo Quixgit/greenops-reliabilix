@@ -149,6 +149,10 @@ type ConnectionCost struct {
 	Cost         float64   `json:"cost"`
 	Days         int       `json:"days"`
 	LastDay      time.Time `json:"last_day"`
+	// Currency is what the connection is billed in and NativeCost the amount in it: an account billed in dollars is shown in dollars,
+	// next to what it comes to in the reporting currency.
+	Currency   string  `json:"currency"`
+	NativeCost float64 `json:"native_cost"`
 }
 
 // GridSource is one provider of grid carbon intensity the platform has readings from.

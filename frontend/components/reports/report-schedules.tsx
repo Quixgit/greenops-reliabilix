@@ -7,10 +7,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SelectField } from "@/components/ui/select-field";
 import { useMembers } from "@/hooks/use-admin";
 import { useProjects } from "@/hooks/use-overview";
-import { useCreateSchedule, useDeleteSchedule, useReportOptions, useReportSchedules, useToggleSchedule, type ReportSchedule } from "@/hooks/use-reports";
+import { useCreateSchedule, useDeleteSchedule, useProjectClouds, useReportOptions, useReportSchedules, useToggleSchedule, type ReportSchedule } from "@/hooks/use-reports";
+import { CloudPicker } from "@/components/reports/cloud-picker";
 import { useT } from "@/i18n/provider";
 import { shortTime } from "@/lib/format-time";
 import { cn } from "@/lib/utils";
+import { cloudMeta } from "@/lib/clouds";
 
 const KINDS = ["carbon", "finops", "sci", "sustainability", "ghg"] as const;
 
@@ -30,7 +32,7 @@ function Row({ s, i, canAct, project }: { s: ReportSchedule; i: number; canAct: 
             <span className="rounded-md bg-leaf-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-leaf-deep">{t(`rs.cadence.${s.cadence}`)}</span>
           </p>
           <p className="mt-0.5 truncate text-xs text-muted">
-            {project} · {s.enabled ? `${t("rs.next")}: ${shortTime(s.next_run_at)}` : t("rs.paused")}
+            {project}{s.clouds.length > 0 && <> ({s.clouds.map((c) => cloudMeta(c).name).join(", ")})</>} · {s.enabled ? `${t("rs.next")}: ${shortTime(s.next_run_at)}` : t("rs.paused")}
             {s.recipients.length > 0 && <> · <IconMail className="-mt-0.5 inline size-3" /> {s.recipients.join(", ")}</>}
           </p>
         </div>
@@ -69,7 +71,13 @@ function NewSchedule({ onDone }: { onDone: () => void }) {
   const [cadence, setCadence] = useState<"weekly" | "monthly">("weekly");
   const [format, setFormat] = useState("pdf");
   const [project, setProject] = useState("");
+  const [pickedClouds, setClouds] = useState<string[] | null>(null);
   const [to, setTo] = useState<string[]>([]);
+  const today = new Date().toISOString().slice(0, 10), monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const available = useProjectClouds(project || null, monthAgo, today).data ?? [];
+  const picked = pickedClouds === null ? null : pickedClouds.filter((c) => available.some((a) => a.provider === c));
+  const pickedValue = picked !== null && picked.length === 0 ? null : picked;
+  const clouds = pickedValue === null || pickedValue.length >= available.length ? [] : pickedValue;
   const formats = opts?.formats ?? ["pdf", "csv", "json"];
   const chosen = formats.includes(format) ? format : formats[0];
   const people = (members.data ?? []).filter((m) => m.email);
@@ -103,6 +111,7 @@ function NewSchedule({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       </div>
+      {available.length > 1 && <div className="mt-4"><CloudPicker clouds={available} value={pickedValue} onChange={setClouds} /></div>}
       <div className="mt-4">
         <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rs.recipients")}</p>
         {members.isLoading ? <Skeleton className="h-8" /> : members.isError || people.length === 0 ? <p className="text-xs text-muted">{t("rs.recipients_none")}</p> : (
@@ -123,7 +132,7 @@ function NewSchedule({ onDone }: { onDone: () => void }) {
       <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
         {create.isError && <span role="alert" className="text-sm text-bad">{create.error.message}</span>}
         <button type="button" onClick={onDone} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">{t("rs.cancel")}</button>
-        <button type="button" disabled={create.isPending} onClick={() => create.mutate({ kind, format: chosen, cadence, project_id: project || null, recipients: to }, { onSuccess: onDone })}
+        <button type="button" disabled={create.isPending} onClick={() => create.mutate({ kind, format: chosen, cadence, project_id: project || null, recipients: to, clouds }, { onSuccess: onDone })}
           className="btn-leaf inline-flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold"><IconClock className="size-4" strokeWidth={2} />{create.isPending ? t("rs.saving") : t("rs.create")}</button>
       </div>
     </div>

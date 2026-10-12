@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.51.0
+  version: 0.52.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -3015,6 +3015,8 @@ paths:
                         cost: {type: number}
                         days: {type: integer, description: Days of the period that have data.}
                         last_day: {type: string, format: date-time}
+                        currency: {type: string, description: The currency the connection is billed in.}
+                        native_cost: {type: number, description: The cost in that currency (`cost` is in the reporting currency).}
         '400':
           $ref: '#/components/responses/Problem'
         '401':

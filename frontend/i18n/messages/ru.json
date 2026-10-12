@@ -2064,5 +2064,12 @@
   "ov3.recs.more": "Ещё {n}",
   "ov3.recs.impact_tip": "Высокий: оценка снижения выбросов от 40%, средний: от 15%",
   "ov3.accounts.title": "Подключённые аккаунты",
-  "ov3.accounts.connect": "Подключить"
+  "ov3.accounts.connect": "Подключить",
+  "rp.step.clouds": "Облака",
+  "rp.clouds.all": "Все облака проекта",
+  "rp.clouds.hint_all": "Все облака проекта, каждое в своей валюте: суммы разных валют не складываются.",
+  "rp.clouds.hint_some": "Только выбранные облака ({count}); остальные не входят ни в одну цифру файла.",
+  "budgets.cloud": "Облако",
+  "budgets.cloud_all": "Все облака",
+  "ov3.budget.none_cloud": "Для {cloud} бюджета нет."
 }

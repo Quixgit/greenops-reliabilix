@@ -1,14 +1,14 @@
 -- name: InsertReport :one
-INSERT INTO reports.reports (tenant_id, project_id, kind, format, period_start, period_end, requested_by)
-VALUES (sqlc.arg(tenant_id), sqlc.narg(project_id), sqlc.arg(kind), sqlc.arg(format), sqlc.arg(period_start), sqlc.arg(period_end), sqlc.arg(requested_by))
-RETURNING id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at;
+INSERT INTO reports.reports (tenant_id, project_id, kind, format, period_start, period_end, requested_by, clouds)
+VALUES (sqlc.arg(tenant_id), sqlc.narg(project_id), sqlc.arg(kind), sqlc.arg(format), sqlc.arg(period_start), sqlc.arg(period_end), sqlc.arg(requested_by), sqlc.arg(clouds)::text[])
+RETURNING id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds;
 
 -- name: ListReports :many
-SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at
+SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds
 FROM reports.reports WHERE tenant_id = sqlc.arg(tenant_id) ORDER BY created_at DESC LIMIT 100;
 
 -- name: GetReport :one
-SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at
+SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds
 FROM reports.reports WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);
 
 -- name: SetReportReady :exec

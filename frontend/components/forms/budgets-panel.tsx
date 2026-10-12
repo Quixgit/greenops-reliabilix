@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Panel } from "@/components/settings/organization-tab";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBudgets, useProjects } from "@/hooks/use-overview";
+import { useBudgets, useCloudList, useProjects } from "@/hooks/use-overview";
+import { cloudMeta } from "@/lib/clouds";
 import { useT } from "@/i18n/provider";
 import { api, apiVoid } from "@/lib/api/client";
 import { budget, type BudgetStatus } from "@/lib/api/schemas";
@@ -34,7 +35,7 @@ function Row({ b, scope, canEdit }: { b: BudgetStatus; scope: string; canEdit: b
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-medium">{scope}</p>
-          <p className="text-muted">{t(`budgets.period.${b.period}`)} · {formatCost(b.amount, b.currency)}</p>
+          <p className="text-muted">{b.cloud ? `${cloudMeta(b.cloud).name} · ` : ""}{t(`budgets.period.${b.period}`)} · {formatCost(b.amount, b.currency)}</p>
         </div>
         <Badge tone={TONE[b.state]}>{t(`budgets.state.${b.state}`)}</Badge>
       </div>
@@ -56,23 +57,36 @@ function NewBudget({ currency }: { currency: string }) {
   const qc = useQueryClient();
   const projects = useProjects();
   const [scope, setScope] = useState("");
+  const [cloud, setCloud] = useState("");
+  const clouds = useCloudList().data ?? [];
   const [amount, setAmount] = useState("");
-  const [cur, setCur] = useState(CURRENCIES.includes(currency) ? currency : "USD");
+  const [curPicked, setCur] = useState<string | null>(null);
+  // a cloud's budget is in the currency that cloud is billed in unless the person chooses another
+  const ownCur = clouds.find((c) => c.provider === cloud)?.native[0]?.currency;
+  const cur = curPicked ?? (ownCur && CURRENCIES.includes(ownCur) ? ownCur : CURRENCIES.includes(currency) ? currency : "USD");
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>("monthly");
   const value = Number(amount.replace(/\s/g, "").replace(",", "."));
   const valid = Number.isFinite(value) && value > 0;
   const create = useMutation({
-    mutationFn: () => api("finops/budgets", budget, undefined, { method: "POST", body: JSON.stringify({ project_id: scope || null, amount: value, currency: cur, period }) }),
+    mutationFn: () => api("finops/budgets", budget, undefined, { method: "POST", body: JSON.stringify({ project_id: scope || null, amount: value, currency: cur, period, cloud: cloud || null }) }),
     onSuccess: () => { setAmount(""); void qc.invalidateQueries({ queryKey: ["budgets"] }); void qc.invalidateQueries({ queryKey: ["alerts"] }); },
   });
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (valid) create.mutate(); }} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_0.8fr_1fr_auto] lg:items-start" noValidate>
+    <form onSubmit={(e) => { e.preventDefault(); if (valid) create.mutate(); }} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_0.8fr_1fr_auto] lg:items-start" noValidate>
       <Field label={t("budgets.scope")}>
         <SelectField value={scope} onChange={(e) => setScope(e.target.value)} className={input}>
           <option value="">{t("budgets.scope_org")}</option>
           {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </SelectField>
       </Field>
+      {clouds.length > 1 ? (
+        <Field label={t("budgets.cloud")}>
+          <SelectField value={cloud} onChange={(e) => { setCloud(e.target.value); setCur(null); }} className={input}>
+            <option value="">{t("budgets.cloud_all")}</option>
+            {clouds.map((c) => <option key={c.provider} value={c.provider}>{cloudMeta(c.provider).name}</option>)}
+          </SelectField>
+        </Field>
+      ) : <span className="hidden lg:block" />}
       <Field label={t("budgets.amount")} error={amount !== "" && !valid ? t("budgets.amount_invalid") : undefined}>
         <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="5000" className={input} />
       </Field>
@@ -85,7 +99,7 @@ function NewBudget({ currency }: { currency: string }) {
         </SelectField>
       </Field>
       <button disabled={create.isPending || !valid} className="brand-gradient mt-6 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{t("budgets.create")}</button>
-      {create.isError && <p role="alert" className="text-sm text-bad sm:col-span-2 lg:col-span-5">{create.error.message}</p>}
+      {create.isError && <p role="alert" className="text-sm text-bad sm:col-span-2 lg:col-span-6">{create.error.message}</p>}
     </form>
   );
 }

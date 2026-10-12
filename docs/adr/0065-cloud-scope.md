@@ -1,6 +1,6 @@
 # ADR-0065: One cloud at a time, in its own currency
 
-Status: accepted · 0.1.0-alpha.174
+Status: accepted · 0.1.0-alpha.174, extended in 0.1.0-alpha.175
 
 ## Context
 A project can hold two clouds billed in two currencies (AWS in US dollars, Azure in Canadian dollars). The Overview poured both into one
@@ -37,3 +37,9 @@ figure in the reporting currency. That is a valid total, but it hid three real p
   large tenant relies on it.
 - A request that reads these tables for another purpose and carries `cloud` is scoped too: only the Overview sends the parameter.
 - DigitalOcean has no connector yet; the UI (colour, mark, switch) is ready for it, a billing connector is the missing part.
+
+## Extension (alpha.175)
+- The scope value may be a list (`app.cloud` = `aws,azure`; migration 0081): a report is narrowed to the clouds its author ticked.
+- "All clouds" is no longer a view of the Overview: there is no figure that adds clouds billed in different currencies. The switch has a
+  tab per cloud and the pages that show cost or carbon of several clouds carry it (Overview, Carbon, Recommendations, Projects).
+- Budgets may belong to a cloud (`finops.budgets.cloud`, migration 0082) and are then evaluated inside that cloud's scope.

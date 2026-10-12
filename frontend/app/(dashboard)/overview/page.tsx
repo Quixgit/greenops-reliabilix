@@ -1,4 +1,3 @@
-import { CloudCosts } from "@/components/dashboard/cloud-costs";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { DataQuality } from "@/components/dashboard/data-quality";
 import { DemoBanner } from "@/components/dashboard/demo-banner";
@@ -31,7 +30,6 @@ export default async function OverviewPage() {
           <DemoBanner canWrite={canWrite(user.role)} />
           <FirstFindings />
           <KpiStrip />
-          <CloudCosts />
           <StatCardsNotice />
           <FinopsStrip />
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[1100px]:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">

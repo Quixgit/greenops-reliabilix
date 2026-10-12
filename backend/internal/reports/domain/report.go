@@ -4,6 +4,8 @@ package domain
 import (
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -57,10 +59,35 @@ type Report struct {
 	RequestedBy string     `json:"requested_by"`
 	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`
+	// Clouds narrows the report to some of the clouds of its scope (aws, azure, gcp, ...); empty means every cloud.
+	Clouds []string `json:"clouds"`
+}
+
+var cloudNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
+
+// NormalizeClouds lower-cases and de-duplicates a cloud list; ok is false for a malformed name or more than eight clouds.
+func NormalizeClouds(in []string) (out []string, ok bool) {
+	out = []string{}
+	seen := map[string]bool{}
+	for _, c := range in {
+		c = strings.ToLower(strings.TrimSpace(c))
+		if c == "" || seen[c] {
+			continue
+		}
+		if !cloudNameRe.MatchString(c) {
+			return nil, false
+		}
+		seen[c] = true
+		out = append(out, c)
+	}
+	return out, len(out) <= 8
 }
 
 // Validate rejects unknown kinds/formats and periods that are empty, inverted or longer than 400 days.
 func (r Report) Validate() error {
+	if _, ok := NormalizeClouds(r.Clouds); !ok {
+		return ErrInvalidReport
+	}
 	switch r.Kind {
 	case KindCarbon, KindSCI, KindFinops, KindSustainability, KindGHG:
 	default:

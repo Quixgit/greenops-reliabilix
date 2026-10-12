@@ -67,12 +67,13 @@ func (h Handlers) createBudget(w http.ResponseWriter, r *http.Request) {
 		Amount    float64 `json:"amount"`
 		Currency  string  `json:"currency"`
 		Period    string  `json:"period"`
+		Cloud     *string `json:"cloud"`
 	}
 	if err := httpx.DecodeJSON(r, &in); err != nil || (in.ProjectID != nil && !httpx.ParseUUID(*in.ProjectID)) {
 		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
-	b, err := h.Svc.CreateBudget(r.Context(), c.TenantID, domain.Budget{ProjectID: in.ProjectID, Amount: in.Amount, Currency: in.Currency, Period: in.Period})
+	b, err := h.Svc.CreateBudget(r.Context(), c.TenantID, domain.Budget{ProjectID: in.ProjectID, Amount: in.Amount, Currency: in.Currency, Period: in.Period, Cloud: in.Cloud})
 	switch {
 	case errors.Is(err, domain.ErrInvalidBudget):
 		httpx.WriteProblem(w, r, http.StatusUnprocessableEntity, "invalid budget", "amount >= 0, 3-letter currency, period monthly|quarterly|yearly")

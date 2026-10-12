@@ -28,7 +28,9 @@ export function FinopsStrip() {
   const linear = useMemo(() => monthForecast(trend.data ?? []), [trend.data]);
   const fc = sf ? { forecast: sf.forecast.expected, spent: sf.forecast.spent, daysLeft: sf.forecast.days_left } : linear;
   const r = useMemo(() => rollup(trend.data ?? []), [trend.data]);
-  const orgBudget = (budgets.data ?? []).find((b) => b.project_id === null && b.period === "monthly") ?? (budgets.data ?? [])[0];
+  // the budget of the cloud on view (measured on that cloud alone, in its currency); a budget of all clouds only when there is one cloud
+  const mine = (budgets.data ?? []).filter((b) => (b.cloud ?? null) === scope);
+  const orgBudget = mine.find((b) => b.project_id === null && b.period === "monthly") ?? mine[0];
   const staleCloud = (sf?.forecast.by_provider ?? []).find((p) => p.stale_days > STALE_AFTER);
   const loading = trend.isLoading || cost.isLoading;
   const spikes = anomalies.data ?? [];
@@ -48,13 +50,12 @@ export function FinopsStrip() {
       <Tile index={5} icon="pie" tone="green" label={t("ov2.fin.budget")} info={t("info.fin_budget")} loading={loading || budgets.isLoading}
         value={orgBudget ? `${Math.round(orgBudget.used_pct)}%` : null}
         delta={orgBudget ? <span className="text-[11px] font-medium text-muted">{formatCost(orgBudget.spent, orgBudget.currency)} / {formatCost(orgBudget.amount, orgBudget.currency)}</span> : undefined}
-        empty={<span>{t("ov2.fin.no_budget")} <Link href="/settings" className="font-semibold text-primary hover:underline">{t("ov2.fin.set_budget")}</Link></span>}
+        empty={<span>{scope ? t("ov3.budget.none_cloud", { cloud: cloudMeta(scope).name }) : t("ov2.fin.no_budget")} <Link href="/projects" className="font-semibold text-primary hover:underline">{t("ov2.fin.set_budget")}</Link></span>}
         foot={orgBudget && <>
           <span className="mb-1 block h-1.5 overflow-hidden rounded-full bg-slate-100">
             <span className={cn("bar-x block h-full rounded-full", orgBudget.state === "exceeded" ? "bg-pastel-rose" : orgBudget.state === "at_risk" ? "bg-pastel-amber" : "bg-leaf")} style={{ width: `${Math.min(100, Math.max(2, orgBudget.used_pct))}%` }} />
           </span>
           <span className="block">{orgBudget.projected > orgBudget.amount ? t("ov2.fin.will_exceed", { projected: formatCost(orgBudget.projected, orgBudget.currency) }) : orgBudget.projected_high > orgBudget.amount ? t("ov2.fin.may_exceed", { high: formatCost(orgBudget.projected_high, orgBudget.currency) }) : t("ov2.fin.on_track")}</span>
-          {scope && <span className="block text-muted">{t("ov3.budget.all_clouds")}</span>}
         </>} />
       <Tile index={6} icon="pulse" tone={spikes.length ? "amber" : "slate"} label={t("ov2.fin.anomalies")} info={t("info.fin_anomalies")} loading={loading || anomalies.isLoading}
         value={spikes.length || (trend.data?.length ?? 0) >= 14 ? String(spikes.length) : null}

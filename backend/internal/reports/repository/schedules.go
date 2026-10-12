@@ -12,14 +12,17 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/reports/domain"
 )
 
-const scheduleCols = `id::text, project_id::text, kind, format, cadence, recipients, enabled, next_run_at, last_run_at, created_by, created_at`
+const scheduleCols = `id::text, project_id::text, kind, format, cadence, recipients, enabled, next_run_at, last_run_at, created_by, created_at, clouds`
 
 func scanSchedule(row pgx.Row) (s domain.Schedule, err error) {
 	var kind, format, cadence string
-	err = row.Scan(&s.ID, &s.ProjectID, &kind, &format, &cadence, &s.Recipients, &s.Enabled, &s.NextRunAt, &s.LastRunAt, &s.CreatedBy, &s.CreatedAt)
+	err = row.Scan(&s.ID, &s.ProjectID, &kind, &format, &cadence, &s.Recipients, &s.Enabled, &s.NextRunAt, &s.LastRunAt, &s.CreatedBy, &s.CreatedAt, &s.Clouds)
 	s.Kind, s.Format, s.Cadence = domain.Kind(kind), domain.Format(format), domain.Cadence(cadence)
 	if s.Recipients == nil {
 		s.Recipients = []string{}
+	}
+	if s.Clouds == nil {
+		s.Clouds = []string{}
 	}
 	return
 }
@@ -28,9 +31,9 @@ func scanSchedule(row pgx.Row) (s domain.Schedule, err error) {
 
 func (r Postgres) CreateSchedule(ctx context.Context, tenantID string, s domain.Schedule) (out domain.Schedule, err error) {
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
-		out, err = scanSchedule(tx.QueryRow(ctx, `INSERT INTO reports.schedules (tenant_id, project_id, kind, format, cadence, recipients, next_run_at, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING `+scheduleCols,
-			tenantID, s.ProjectID, string(s.Kind), string(s.Format), string(s.Cadence), s.Recipients, s.NextRunAt, s.CreatedBy))
+		out, err = scanSchedule(tx.QueryRow(ctx, `INSERT INTO reports.schedules (tenant_id, project_id, kind, format, cadence, recipients, next_run_at, created_by, clouds)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING `+scheduleCols,
+			tenantID, s.ProjectID, string(s.Kind), string(s.Format), string(s.Cadence), s.Recipients, s.NextRunAt, s.CreatedBy, nonNil(s.Clouds)))
 		if err != nil {
 			return err
 		}

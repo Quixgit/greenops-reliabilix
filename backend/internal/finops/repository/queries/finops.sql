@@ -26,13 +26,13 @@ WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL O
   AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts);
 
 -- name: ListBudgets :many
-SELECT id, tenant_id, project_id, amount, currency::text AS currency, period, created_at
+SELECT id, tenant_id, project_id, amount, currency::text AS currency, period, created_at, cloud
 FROM finops.budgets WHERE tenant_id = sqlc.arg(tenant_id) ORDER BY created_at DESC LIMIT 200;
 
 -- name: CreateBudget :one
-INSERT INTO finops.budgets (tenant_id, project_id, amount, currency, period)
-VALUES (sqlc.arg(tenant_id), sqlc.narg(project_id), sqlc.arg(amount), sqlc.arg(currency), sqlc.arg(period))
-RETURNING id, tenant_id, project_id, amount, currency::text AS currency, period, created_at;
+INSERT INTO finops.budgets (tenant_id, project_id, amount, currency, period, cloud)
+VALUES (sqlc.arg(tenant_id), sqlc.narg(project_id), sqlc.arg(amount), sqlc.arg(currency), sqlc.arg(period), sqlc.narg(cloud))
+RETURNING id, tenant_id, project_id, amount, currency::text AS currency, period, created_at, cloud;
 
 -- name: DeleteBudget :execrows
 DELETE FROM finops.budgets WHERE tenant_id = sqlc.arg(tenant_id) AND id = sqlc.arg(id);

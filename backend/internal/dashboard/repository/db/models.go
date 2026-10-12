@@ -188,6 +188,7 @@ type FinopsBudget struct {
 	Currency  string    `json:"currency"`
 	Period    string    `json:"period"`
 	CreatedAt time.Time `json:"created_at"`
+	Cloud     *string   `json:"cloud"`
 }
 
 type FinopsFxRate struct {
@@ -517,6 +518,7 @@ type ReportsReport struct {
 	RequestedBy string     `json:"requested_by"`
 	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`
+	Clouds      []string   `json:"clouds"`
 }
 
 type ReportsSchedule struct {
@@ -532,6 +534,7 @@ type ReportsSchedule struct {
 	LastRunAt  *time.Time `json:"last_run_at"`
 	CreatedBy  string     `json:"created_by"`
 	CreatedAt  time.Time  `json:"created_at"`
+	Clouds     []string   `json:"clouds"`
 }
 
 type ReportsScheduleRun struct {

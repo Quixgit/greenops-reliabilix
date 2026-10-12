@@ -9,11 +9,13 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"io"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/audit"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
@@ -78,6 +80,10 @@ func (s Service) Get(ctx context.Context, tenantID, id string) (domain.Report, e
 // table builds the dataset of a report. The period end is inclusive, the queries take an exclusive end.
 func (s Service) table(ctx context.Context, tenantID string, r domain.Report) (domain.Table, error) {
 	from, to := r.PeriodStart, r.PeriodEnd.AddDate(0, 0, 1)
+	// the chosen clouds only: the scope binds every read of this dataset (cost, carbon, recommendations) to them
+	if clouds, ok := domain.NormalizeClouds(r.Clouds); ok && len(clouds) > 0 {
+		ctx = database.WithCloudScope(ctx, strings.Join(clouds, ","))
+	}
 	switch r.Kind {
 	case domain.KindCarbon:
 		return s.Repo.CarbonTable(ctx, tenantID, r.ProjectID, from, to)
@@ -336,7 +342,7 @@ func (s Service) RunDueSchedules(ctx context.Context) (int, error) {
 			continue
 		}
 		start, end := domain.Period(sc.Cadence, now)
-		rep, err := s.Create(audit.WithTenant(ctx, d[0]), d[0], "schedule:"+sc.ID, domain.Report{ProjectID: sc.ProjectID, Kind: sc.Kind, Format: sc.Format, PeriodStart: start, PeriodEnd: end})
+		rep, err := s.Create(audit.WithTenant(ctx, d[0]), d[0], "schedule:"+sc.ID, domain.Report{ProjectID: sc.ProjectID, Kind: sc.Kind, Format: sc.Format, PeriodStart: start, PeriodEnd: end, Clouds: sc.Clouds})
 		if err != nil {
 			if first == nil {
 				first = err

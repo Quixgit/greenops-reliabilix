@@ -219,9 +219,9 @@ func (q *Queries) CostDays(ctx context.Context, arg CostDaysParams) (int32, erro
 }
 
 const createBudget = `-- name: CreateBudget :one
-INSERT INTO finops.budgets (tenant_id, project_id, amount, currency, period)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, tenant_id, project_id, amount, currency::text AS currency, period, created_at
+INSERT INTO finops.budgets (tenant_id, project_id, amount, currency, period, cloud)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, tenant_id, project_id, amount, currency::text AS currency, period, created_at, cloud
 `
 
 type CreateBudgetParams struct {
@@ -230,6 +230,7 @@ type CreateBudgetParams struct {
 	Amount    float64 `json:"amount"`
 	Currency  string  `json:"currency"`
 	Period    string  `json:"period"`
+	Cloud     *string `json:"cloud"`
 }
 
 type CreateBudgetRow struct {
@@ -240,6 +241,7 @@ type CreateBudgetRow struct {
 	Currency  string    `json:"currency"`
 	Period    string    `json:"period"`
 	CreatedAt time.Time `json:"created_at"`
+	Cloud     *string   `json:"cloud"`
 }
 
 func (q *Queries) CreateBudget(ctx context.Context, arg CreateBudgetParams) (CreateBudgetRow, error) {
@@ -249,6 +251,7 @@ func (q *Queries) CreateBudget(ctx context.Context, arg CreateBudgetParams) (Cre
 		arg.Amount,
 		arg.Currency,
 		arg.Period,
+		arg.Cloud,
 	)
 	var i CreateBudgetRow
 	err := row.Scan(
@@ -259,6 +262,7 @@ func (q *Queries) CreateBudget(ctx context.Context, arg CreateBudgetParams) (Cre
 		&i.Currency,
 		&i.Period,
 		&i.CreatedAt,
+		&i.Cloud,
 	)
 	return i, err
 }
@@ -281,7 +285,7 @@ func (q *Queries) DeleteBudget(ctx context.Context, arg DeleteBudgetParams) (int
 }
 
 const listBudgets = `-- name: ListBudgets :many
-SELECT id, tenant_id, project_id, amount, currency::text AS currency, period, created_at
+SELECT id, tenant_id, project_id, amount, currency::text AS currency, period, created_at, cloud
 FROM finops.budgets WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 200
 `
 
@@ -293,6 +297,7 @@ type ListBudgetsRow struct {
 	Currency  string    `json:"currency"`
 	Period    string    `json:"period"`
 	CreatedAt time.Time `json:"created_at"`
+	Cloud     *string   `json:"cloud"`
 }
 
 func (q *Queries) ListBudgets(ctx context.Context, tenantID string) ([]ListBudgetsRow, error) {
@@ -312,6 +317,7 @@ func (q *Queries) ListBudgets(ctx context.Context, tenantID string) ([]ListBudge
 			&i.Currency,
 			&i.Period,
 			&i.CreatedAt,
+			&i.Cloud,
 		); err != nil {
 			return nil, err
 		}

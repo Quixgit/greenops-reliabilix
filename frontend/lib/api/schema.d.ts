@@ -8512,6 +8512,10 @@ export interface operations {
                             days: number;
                             /** Format: date-time */
                             last_day: string;
+                            /** @description The currency the connection is billed in. */
+                            currency?: string;
+                            /** @description The cost in that currency (`cost` is in the reporting currency). */
+                            native_cost?: number;
                         }[];
                     };
                 };

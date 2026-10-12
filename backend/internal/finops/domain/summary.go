@@ -4,6 +4,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"regexp"
 	"time"
 )
 
@@ -66,6 +67,8 @@ type Budget struct {
 	Currency  string    `json:"currency"`
 	Period    string    `json:"period"` // monthly | quarterly | yearly
 	CreatedAt time.Time `json:"created_at"`
+	// Cloud ties the budget to one cloud: it is measured on that cloud's own spend, in the budget's currency. nil = all clouds.
+	Cloud *string `json:"cloud"`
 }
 
 // BudgetStatus is a budget with its consumption in the current period.
@@ -114,12 +117,17 @@ func (b Budget) Validate() error {
 	if b.Amount < 0 || len(b.Currency) != 3 {
 		return ErrInvalidBudget
 	}
+	if b.Cloud != nil && !cloudRe.MatchString(*b.Cloud) {
+		return ErrInvalidBudget
+	}
 	switch b.Period {
 	case "monthly", "quarterly", "yearly":
 		return nil
 	}
 	return ErrInvalidBudget
 }
+
+var cloudRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
 
 // PeriodBounds returns [start, end) of the budget period containing now.
 func PeriodBounds(period string, now time.Time) (time.Time, time.Time) {

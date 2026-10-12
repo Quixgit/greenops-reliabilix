@@ -1,6 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Segmented } from "@/components/ui/controls";
+import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
 import { IconBulb as Lightbulb } from "@/components/ui/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -147,20 +149,13 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
   const pg = usePaged(q.data ?? [], 10);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
-      <div className="inline-flex gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Recommendations">
-        {(["moves", "commitments"] as const).map((k) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-all ${tab === k ? "bg-white text-ink shadow-sm" : "text-slate-500 hover:text-ink"}`}>{t(`cm.tab.${k}`)}</button>
-        ))}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
+        <CloudSwitcher />
       </div>
+      <Segmented label="Recommendations" value={tab} onChange={setTab} options={(["moves", "commitments"] as const).map((k) => ({ value: k, label: t(`cm.tab.${k}`) }))} />
       {tab === "commitments" ? <div className="form-swap"><CommitmentsPanel /></div> : <>
-      <div className="flex flex-wrap gap-2" role="tablist">
-        {FILTERS.map((f) => (
-          <button key={f} role="tab" aria-selected={f === status} onClick={() => setStatus(f)}
-            className={`rounded-full px-3 py-1 text-xs font-medium capitalize ring-1 ring-line ${f === status ? "bg-primary text-white" : "bg-white"}`}>{f}</button>
-        ))}
-      </div>
+      <Segmented size="sm" label="Status" value={status} onChange={setStatus} options={FILTERS.map((f) => ({ value: f, label: <span className="capitalize">{f}</span> }))} className="max-w-full overflow-x-auto" />
       <Card>
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
           <EmptyState icon={Lightbulb} text="No recommendations here yet. They appear after a cloud account is synced and carbon is calculated. Moves to a cleaner region are only proposed into regions you allow: set the allowed regions in a project's policy." action={{ href: "/settings", label: "Open project policy" }} /> : (

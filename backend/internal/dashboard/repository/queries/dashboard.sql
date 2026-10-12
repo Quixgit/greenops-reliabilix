@@ -186,16 +186,22 @@ SELECT provider AS family, region_id, idx::float8 AS idx FROM finops.region_pric
 WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
          WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
            AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
-         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
-SELECT c.id::text AS connection_id,
-       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost,
-       count(DISTINCT u.recorded_at::date)::int AS days,
-       max(u.recorded_at)::timestamptz AS last_day
-FROM usage.usage_records u
-JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
-WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
-  AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
-GROUP BY c.id;
+         GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+g AS (
+  SELECT c.id::text AS connection_id, u.currency::text AS currency, sum(u.billed_cost) AS native,
+         COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0) AS cost,
+         count(DISTINCT u.recorded_at::date) AS days, max(u.recorded_at) AS last_day
+  FROM usage.usage_records u
+  JOIN cloudaccounts.connections c ON c.tenant_id = u.tenant_id AND c.provider = u.provider AND c.account_ref = u.account_ref
+  WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
+    AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+  GROUP BY c.id, u.currency
+)
+-- one row per connection: the amount in the currency it is billed in (its main one) beside the converted total
+SELECT DISTINCT ON (connection_id) connection_id, (sum(cost) OVER w)::float8 AS cost, (max(days) OVER w)::int AS days,
+       (max(last_day) OVER w)::timestamptz AS last_day, currency, native::float8 AS native_cost
+FROM g WINDOW w AS (PARTITION BY connection_id)
+ORDER BY connection_id, native DESC;
 
 -- name: DashboardGridSources :many
 -- Reference data (no tenant): every source of grid carbon intensity the platform has readings from, with the newest

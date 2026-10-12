@@ -1996,5 +1996,12 @@
   "ov3.recs.more": "Show {n} more",
   "ov3.recs.impact_tip": "High: 40% or more estimated carbon reduction, medium: 15% or more",
   "ov3.accounts.title": "Connected accounts",
-  "ov3.accounts.connect": "Connect"
+  "ov3.accounts.connect": "Connect",
+  "rp.step.clouds": "Clouds",
+  "rp.clouds.all": "All clouds of the project",
+  "rp.clouds.hint_all": "Every cloud of the project, each kept in its own currency: nothing is added across currencies.",
+  "rp.clouds.hint_some": "Only the {count} chosen cloud(s); the others are left out of every figure of the file.",
+  "budgets.cloud": "Cloud",
+  "budgets.cloud_all": "All clouds",
+  "ov3.budget.none_cloud": "No budget for {cloud}."
 }

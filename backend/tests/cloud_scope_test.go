@@ -75,6 +75,29 @@ func TestCloudScopeIsOwnCurrencyAndOwnRows(t *testing.T) {
 			t.Errorf("azure scope lists a %v service", p)
 		}
 	}
+	// a report narrowed to a cloud contains that cloud alone
+	day := at.Format(time.DateOnly)
+	pv := c.must("GET", "/api/v1/reports/preview?kind=finops&period_start="+day+"&period_end="+day+"&clouds=azure", alice, "", 200)
+	if tr, _ := pv["total_rows"].(float64); tr != 1 {
+		t.Errorf("azure-only report has %v rows, want 1: %v", pv["total_rows"], pv)
+	}
+	both := c.must("GET", "/api/v1/reports/preview?kind=finops&period_start="+day+"&period_end="+day, alice, "", 200)
+	if tr, _ := both["total_rows"].(float64); tr != 2 {
+		t.Errorf("unnarrowed report has %v rows, want 2", both["total_rows"])
+	}
+	c.must("GET", "/api/v1/reports/preview?kind=finops&period_start="+day+"&period_end="+day+"&clouds=aws;drop", alice, "", 422)
+	// a budget of a cloud is measured on that cloud alone, in its own currency
+	c.must("POST", "/api/v1/finops/budgets", alice, `{"amount":1000,"currency":"USD","period":"monthly","cloud":"aws"}`, 201)
+	var spent float64 = -1
+	for _, b := range items(c.must("GET", "/api/v1/finops/budgets", alice, "", 200)) {
+		m := b.(map[string]any)
+		if m["cloud"] == "aws" {
+			spent = m["spent"].(float64)
+		}
+	}
+	if spent != 100 {
+		t.Errorf("aws budget spent = %v, want 100 (Azure's CAD 200 must not count)", spent)
+	}
 	// a scope on a write is ignored: nothing is partially written
 	c.must("POST", "/api/v1/projects?cloud=aws", alice, `{"name":"scoped write","functional_unit":"req"}`, 201)
 }

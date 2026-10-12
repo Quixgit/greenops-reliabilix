@@ -68,14 +68,14 @@ export type FinopsSummary = z.infer<typeof finopsSummary>;
 /** A budget with the consumption of its current period (in the budget's own currency). */
 export const budgetStatus = z.object({
   id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(),
-  period: z.enum(["monthly", "quarterly", "yearly"]), created_at: z.string(),
+  period: z.enum(["monthly", "quarterly", "yearly"]), created_at: z.string(), cloud: z.string().nullable().default(null),
   period_start: z.string(), period_end: z.string(), spent: z.number(), used_pct: z.number(), projected: z.number(),
   projected_low: z.number().default(0), projected_high: z.number().default(0), forecast_method: z.enum(["seasonal", "linear"]).default("linear"),
   state: z.enum(["ok", "at_risk", "exceeded"]),
 });
 export type BudgetStatus = z.infer<typeof budgetStatus>;
 export const budgetList = z.object({ items: z.array(budgetStatus) }).transform((o) => o.items);
-export const budget = z.object({ id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(), period: z.string() });
+export const budget = z.object({ id: z.string(), project_id: z.string().nullable(), amount: z.number(), currency: z.string(), period: z.string(), cloud: z.string().nullable().default(null) });
 
 const items = <T extends z.ZodTypeAny>(t: T) => z.object({ items: z.array(t) }).transform((o) => o.items);
 
@@ -95,7 +95,8 @@ export const regions = items(z.object({
 }));
 // What one cloud connection delivered over the period: billed cost in the organization's currency and data coverage.
 export const gridSources = items(z.object({ provider: z.string(), last_at: z.string(), regions: z.number() }));
-export const connectionCosts = items(z.object({ connection_id: z.string(), cost: z.number(), days: z.number(), last_day: z.string() }));
+// currency / native_cost: what the connection is billed in and the amount in it (cost is the same in the reporting currency)
+export const connectionCosts = items(z.object({ connection_id: z.string(), cost: z.number(), days: z.number(), last_day: z.string(), currency: z.string().default(""), native_cost: z.number().default(0) }));
 export type ConnectionCost = z.infer<typeof connectionCosts>[number];
 export type RegionIntensity = z.infer<typeof regions>[number];
 
@@ -232,6 +233,8 @@ export const report = z.object({
   status: z.enum(["pending", "ready", "failed"]),
   error: z.string().nullable().optional(),
   created_at: z.string(),
+  // the clouds the report was narrowed to; empty = every cloud of its scope
+  clouds: z.array(z.string()).default([]),
 });
 export type Report = z.infer<typeof report>;
 export const reports = items(report);

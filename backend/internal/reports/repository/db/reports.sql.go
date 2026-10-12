@@ -11,7 +11,7 @@ import (
 )
 
 const getReport = `-- name: GetReport :one
-SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at
+SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds
 FROM reports.reports WHERE tenant_id = $1 AND id = $2
 `
 
@@ -37,14 +37,15 @@ func (q *Queries) GetReport(ctx context.Context, arg GetReportParams) (ReportsRe
 		&i.RequestedBy,
 		&i.CreatedAt,
 		&i.CompletedAt,
+		&i.Clouds,
 	)
 	return i, err
 }
 
 const insertReport = `-- name: InsertReport :one
-INSERT INTO reports.reports (tenant_id, project_id, kind, format, period_start, period_end, requested_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at
+INSERT INTO reports.reports (tenant_id, project_id, kind, format, period_start, period_end, requested_by, clouds)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8::text[])
+RETURNING id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds
 `
 
 type InsertReportParams struct {
@@ -55,6 +56,7 @@ type InsertReportParams struct {
 	PeriodStart time.Time `json:"period_start"`
 	PeriodEnd   time.Time `json:"period_end"`
 	RequestedBy string    `json:"requested_by"`
+	Clouds      []string  `json:"clouds"`
 }
 
 func (q *Queries) InsertReport(ctx context.Context, arg InsertReportParams) (ReportsReport, error) {
@@ -66,6 +68,7 @@ func (q *Queries) InsertReport(ctx context.Context, arg InsertReportParams) (Rep
 		arg.PeriodStart,
 		arg.PeriodEnd,
 		arg.RequestedBy,
+		arg.Clouds,
 	)
 	var i ReportsReport
 	err := row.Scan(
@@ -82,12 +85,13 @@ func (q *Queries) InsertReport(ctx context.Context, arg InsertReportParams) (Rep
 		&i.RequestedBy,
 		&i.CreatedAt,
 		&i.CompletedAt,
+		&i.Clouds,
 	)
 	return i, err
 }
 
 const listReports = `-- name: ListReports :many
-SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at
+SELECT id, tenant_id, project_id, kind, format, period_start, period_end, status, object_key, error, requested_by, created_at, completed_at, clouds
 FROM reports.reports WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 100
 `
 
@@ -114,6 +118,7 @@ func (q *Queries) ListReports(ctx context.Context, tenantID string) ([]ReportsRe
 			&i.RequestedBy,
 			&i.CreatedAt,
 			&i.CompletedAt,
+			&i.Clouds,
 		); err != nil {
 			return nil, err
 		}

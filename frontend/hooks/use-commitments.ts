@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useCloudQuery } from "@/hooks/use-overview";
 import { z } from "zod";
 import { api } from "@/lib/api/client";
 import { useUi } from "@/lib/store";
@@ -33,12 +34,15 @@ export type CommitmentChoice = { lookback: number; term: 1 | 3; coverage: number
 /** What committing the steady part of compute and database spend would save. A report: nothing is bought. */
 export function useCommitments(c: CommitmentChoice) {
   const { projectId } = useUi();
+  const { cloud, ready } = useCloudQuery();
   const q: Record<string, string> = { lookback_days: String(c.lookback), term_years: String(c.term), coverage_pct: String(c.coverage) };
   if (projectId) q.project_id = projectId;
+  if (cloud) q.cloud = cloud;
   for (const [p, v] of Object.entries(c.discounts)) if (v !== undefined) q[`discount_${p}`] = String(v);
   for (const [p, e] of Object.entries(c.existing ?? {})) {
     if (e?.coverage !== undefined) q[`existing_coverage_${p}`] = String(e.coverage);
     if (e?.utilization !== undefined) q[`existing_utilization_${p}`] = String(e.utilization);
   }
-  return useQuery({ queryKey: ["commitments", q], queryFn: () => api("finops/commitments", commitments, q), placeholderData: (prev) => prev, retry: false });
+  const res = useQuery({ queryKey: ["commitments", q], enabled: ready, queryFn: () => api("finops/commitments", commitments, q), placeholderData: (prev) => prev, retry: false });
+  return ready ? res : ({ ...res, isLoading: true, isPending: true } as typeof res);
 }

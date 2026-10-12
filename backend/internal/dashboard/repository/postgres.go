@@ -116,7 +116,7 @@ func (r Postgres) ConnectionCosts(ctx context.Context, f domain.Filter) ([]domai
 			return err
 		}
 		for _, x := range rows {
-			out = append(out, domain.ConnectionCost{ConnectionID: x.ConnectionID, Cost: x.Cost, Days: int(x.Days), LastDay: x.LastDay})
+			out = append(out, domain.ConnectionCost{ConnectionID: x.ConnectionID, Cost: x.Cost, Days: int(x.Days), LastDay: x.LastDay, Currency: x.Currency, NativeCost: x.NativeCost})
 		}
 		return nil
 	})

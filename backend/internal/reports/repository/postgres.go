@@ -24,18 +24,25 @@ type Postgres struct{ Pool *pgxpool.Pool }
 func toDomain(x db.ReportsReport) domain.Report {
 	return domain.Report{ID: x.ID, ProjectID: x.ProjectID, Kind: domain.Kind(x.Kind), Format: domain.Format(x.Format), PeriodStart: x.PeriodStart,
 		PeriodEnd: x.PeriodEnd, Status: domain.Status(x.Status), ObjectKey: x.ObjectKey, Error: x.Error, RequestedBy: x.RequestedBy,
-		CreatedAt: x.CreatedAt, CompletedAt: x.CompletedAt}
+		CreatedAt: x.CreatedAt, CompletedAt: x.CompletedAt, Clouds: nonNil(x.Clouds)}
+}
+
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }
 
 func (r Postgres) Insert(ctx context.Context, tenantID string, rep domain.Report) (out domain.Report, err error) {
 	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		x, err := db.New(tx).InsertReport(ctx, db.InsertReportParams{TenantID: tenantID, ProjectID: rep.ProjectID, Kind: string(rep.Kind), Format: string(rep.Format),
-			PeriodStart: rep.PeriodStart, PeriodEnd: rep.PeriodEnd, RequestedBy: rep.RequestedBy})
+			PeriodStart: rep.PeriodStart, PeriodEnd: rep.PeriodEnd, RequestedBy: rep.RequestedBy, Clouds: nonNil(rep.Clouds)})
 		if err != nil {
 			return err
 		}
 		out = toDomain(db.ReportsReport(x))
-		return audit.Record(ctx, tx, "report.requested", "report:"+out.ID, map[string]any{"kind": rep.Kind, "format": rep.Format})
+		return audit.Record(ctx, tx, "report.requested", "report:"+out.ID, map[string]any{"kind": rep.Kind, "format": rep.Format, "clouds": len(rep.Clouds)})
 	})
 	return
 }

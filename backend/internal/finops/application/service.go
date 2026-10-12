@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 )
 
 // ExistingSource tells the commitments report what the organization's clouds already hold (a port; the composition root wires the cloud
@@ -76,11 +77,15 @@ func (s Service) Budgets(ctx context.Context, tenantID string) ([]domain.BudgetS
 	out := make([]domain.BudgetStatus, 0, len(bs))
 	for _, b := range bs {
 		start, end := domain.PeriodBounds(b.Period, now)
-		spent, err := s.Repo.Spent(ctx, tenantID, b.ProjectID, b.Currency, start, end)
+		bctx := ctx
+		if b.Cloud != nil { // a cloud's budget is measured on that cloud alone
+			bctx = database.WithCloudScope(ctx, *b.Cloud)
+		}
+		spent, err := s.Repo.Spent(bctx, tenantID, b.ProjectID, b.Currency, start, end)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, domain.EvaluateWith(b, spent, now, s.periodForecast(ctx, tenantID, b.ProjectID, b.Currency, start, end, now)))
+		out = append(out, domain.EvaluateWith(b, spent, now, s.periodForecast(bctx, tenantID, b.ProjectID, b.Currency, start, end, now)))
 	}
 	return out, nil
 }

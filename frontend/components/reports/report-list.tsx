@@ -1,5 +1,6 @@
 "use client";
 
+import { cloudMeta } from "@/lib/clouds";
 import { useState, type CSSProperties } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
@@ -32,7 +33,7 @@ function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: bool
             {t(`rp.kind.${r.kind}`)}
             <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">{r.format}</span>
           </p>
-          <p className="mt-0.5 truncate text-xs text-muted">{projectName} · {day(r.period_start)} → {day(r.period_end)} · {timeAgo(r.created_at)}</p>
+          <p className="mt-0.5 truncate text-xs text-muted">{projectName}{r.clouds.length > 0 && <> ({r.clouds.map((c) => cloudMeta(c).name).join(", ")})</>} · {day(r.period_start)} → {day(r.period_end)} · {timeAgo(r.created_at)}</p>
         </div>
         <div className="flex items-center gap-2">
           {r.status === "pending" && (
@@ -46,7 +47,7 @@ function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: bool
             <a href={`/api/proxy/reports/${r.id}/download`} download className="btn-leaf inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"><IconDownload className="size-3.5" strokeWidth={2.2} />{t("rp.download")}</a>
           )}
           {r.status === "failed" && canAct && (
-            <button type="button" disabled={again.isPending} onClick={() => again.mutate({ kind: r.kind, format: r.format, project_id: r.project_id, period_start: day(r.period_start), period_end: day(r.period_end) })}
+            <button type="button" disabled={again.isPending} onClick={() => again.mutate({ kind: r.kind, format: r.format, project_id: r.project_id, period_start: day(r.period_start), period_end: day(r.period_end), clouds: r.clouds })}
               className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-leaf-soft hover:text-leaf-deep"><IconRefresh className="size-3.5" />{t("rp.retry")}</button>
           )}
           {canAct && r.status !== "pending" && (

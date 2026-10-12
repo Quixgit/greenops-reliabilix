@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { api } from "@/lib/api/client";
 import { periodRange, useUi } from "@/lib/store";
+import { useCloudQuery } from "@/hooks/use-overview";
 
 const tagKeys = z.object({ currency: z.string(), items: z.array(z.object({ key: z.string(), values: z.number(), coverage_pct: z.number() })) });
 const showback = z.object({
@@ -17,7 +18,8 @@ function useFilters() {
   const { projectId, period, custom } = useUi();
   void custom;
   const { from, to } = periodRange(period);
-  return { from, to, project_id: projectId ?? undefined };
+  const { cloud } = useCloudQuery();
+  return { from, to, project_id: projectId ?? undefined, cloud };
 }
 
 /** The tag keys with cost in the selected period, and how much of the bill each explains. */

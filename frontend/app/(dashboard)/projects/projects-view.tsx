@@ -1,5 +1,8 @@
 "use client";
 
+import { Tile } from "@/components/dashboard/tile";
+import type { GlyphName, Tone } from "@/components/ui/glyphs";
+import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { z } from "zod";
@@ -33,17 +36,8 @@ type Policy = z.infer<typeof policy>;
 const TABS = ["projects", "teams", "showback", "unit", "budgets"] as const;
 const PROVIDER: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google Cloud" };
 
-function Stat({ index, icon: Icon, label, value, hint, info }: { index: number; icon: typeof IconFolder; label: string; value: React.ReactNode; hint?: string; info: string }) {
-  return (
-    <Card index={index} className="flex items-center gap-4 p-4">
-      <Icon className="size-11 shrink-0 text-leaf-deep" strokeWidth={1.4} />
-      <div className="min-w-0">
-        <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}<Info>{info}</Info></p>
-        <div className="mt-0.5 text-2xl font-bold leading-tight tracking-tight tabular-nums">{value}</div>
-        {hint && <p className="truncate text-xs text-muted">{hint}</p>}
-      </div>
-    </Card>
-  );
+function Stat({ index, glyph, tone, label, value, hint, info }: { index: number; glyph: GlyphName; tone: Tone; label: string; value: React.ReactNode; hint?: string; info: string }) {
+  return <Tile index={index} icon={glyph} tone={tone} label={label} info={info} value={value} foot={hint} />;
 }
 
 function Chip({ on, children, title }: { on: boolean; children: React.ReactNode; title?: string }) {
@@ -156,6 +150,7 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
           <h1 className="text-2xl font-bold tracking-tight">{t("proj.title")}</h1>
           <p className="mt-1 text-sm text-muted">{t("proj.subtitle")}</p>
         </div>
+        <CloudSwitcher />
         {canCreate && !adding && (
           <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white ">
             <IconPlus className="size-4" strokeWidth={2.2} />{t("proj.new")}
@@ -172,10 +167,10 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat index={0} icon={IconFolder} label={t("proj.stat.projects")} info={t("proj.info.projects")} value={q.isLoading ? <Skeleton className="h-7 w-10" /> : <CountUp value={projects.length} format={(n) => String(Math.round(n))} />} />
-        <Stat index={1} icon={IconWallet} label={t("proj.stat.cost")} info={t("proj.info.cost")} value={alloc.isLoading ? <Skeleton className="h-7 w-24" /> : <CountUp value={total} format={(n) => formatCost(n, cur)} />} hint={t("proj.stat.cost_hint")} />
-        <Stat index={2} icon={IconGlobe} label={t("proj.stat.regions")} info={t("proj.info.regions")} value={`${withRegions}/${projects.length}`} hint={t("proj.stat.regions_hint")} />
-        <Stat index={3} icon={IconShield} label={t("proj.stat.budgets")} info={t("proj.info.budgets")} value={budgets.isError ? "—" : `${overBudget}`} hint={overBudget ? t("proj.stat.over") : t("proj.stat.ok")} />
+        <Stat index={0} glyph="list" tone="green" label={t("proj.stat.projects")} info={t("proj.info.projects")} value={q.isLoading ? <Skeleton className="h-7 w-10" /> : <CountUp value={projects.length} format={(n) => String(Math.round(n))} />} />
+        <Stat index={1} glyph="wallet" tone="blue" label={t("proj.stat.cost")} info={t("proj.info.cost")} value={alloc.isLoading ? <Skeleton className="h-7 w-24" /> : <CountUp value={total} format={(n) => formatCost(n, cur)} />} hint={t("proj.stat.cost_hint")} />
+        <Stat index={2} glyph="pin" tone="sky" label={t("proj.stat.regions")} info={t("proj.info.regions")} value={`${withRegions}/${projects.length}`} hint={t("proj.stat.regions_hint")} />
+        <Stat index={3} glyph="shield" tone="violet" label={t("proj.stat.budgets")} info={t("proj.info.budgets")} value={budgets.isError ? "—" : `${overBudget}`} hint={overBudget ? t("proj.stat.over") : t("proj.stat.ok")} />
       </div>
 
       <div role="tablist" className="flex gap-1 border-b border-line">

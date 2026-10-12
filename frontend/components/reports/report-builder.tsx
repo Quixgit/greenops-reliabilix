@@ -7,7 +7,8 @@ import { DateField } from "@/components/ui/date-field";
 import { IconBolt, IconCheck, IconCoin, IconDownload, IconGauge, IconLeaf, IconReport } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects, useReports } from "@/hooks/use-overview";
-import { useReportOptions, useReportPreview, useRequestReport } from "@/hooks/use-reports";
+import { useProjectClouds, useReportOptions, useReportPreview, useRequestReport } from "@/hooks/use-reports";
+import { CloudPicker } from "@/components/reports/cloud-picker";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
   const [kind, setKind] = useState<string>("carbon");
   const [format, setFormat] = useState<string>("pdf");
   const [project, setProject] = useState<string>("");
+  const [chosenClouds, setClouds] = useState<string[] | null>(null);
   const [preset, setPreset] = useState<string>("30d");
   const [range, setRange] = useState<[string, string]>(() => PRESETS[1].range());
   const [from, to] = range;
@@ -70,15 +72,21 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
   const days = from && to ? daysBetween(from, to) : 0;
   const problem = !from || !to ? t("rp.err.dates") : days < 1 ? t("rp.err.order") : days > maxDays ? t("rp.err.long", { max: maxDays }) : null;
   const ok = !problem && !!chosenFormat;
-  const preview = useReportPreview({ kind, project_id: project || null, period_start: from, period_end: to }, ok);
+  const available = useProjectClouds(project || null, from, to).data ?? [];
+  // a remembered choice that this project does not have is dropped: the report never narrows to a cloud that is not there
+  const picked = chosenClouds === null ? null : chosenClouds.filter((c) => available.some((a) => a.provider === c));
+  const pickedValue = picked !== null && picked.length === 0 ? null : picked;
+  // every cloud ticked is the same report as "all": the request says so with an empty list
+  const clouds = pickedValue === null || pickedValue.length >= available.length ? [] : pickedValue;
+  const preview = useReportPreview({ kind, project_id: project || null, period_start: from, period_end: to, clouds }, ok);
   const p = preview.data;
   const projectName = projects.find((x) => x.id === project)?.name ?? t("rp.all_projects");
-  const summary = useMemo(() => `${t(`rp.kind.${kind}`)} · ${chosenFormat?.toUpperCase()} · ${projectName} · ${from} → ${to}`, [t, kind, chosenFormat, projectName, from, to]);
+  const summary = useMemo(() => `${t(`rp.kind.${kind}`)} · ${chosenFormat?.toUpperCase()} · ${projectName}${clouds.length ? ` (${clouds.join(", ")})` : ""} · ${from} → ${to}`, [t, kind, chosenFormat, projectName, clouds, from, to]);
 
   const setPresetRange = (id: string) => { setPreset(id); setRange(PRESETS.find((x) => x.id === id)!.range()); };
   const submit = () => {
     setPct(4); setPhase("run");
-    request.mutate({ kind, format: chosenFormat, project_id: project || null, period_start: from, period_end: to }, {
+    request.mutate({ kind, format: chosenFormat, project_id: project || null, period_start: from, period_end: to, clouds }, {
       onSuccess: (r) => { setJobId(r.id); onRequested(); },
       onError: () => { setPhase("idle"); setPct(0); },
     });
@@ -120,6 +128,7 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
               {projects.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
             </SelectField>
           </div>
+          <CloudPicker clouds={available} value={pickedValue} onChange={setClouds} />
           <div>
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rp.step.format")}</p>
             <div className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm" role="radiogroup" aria-label={t("rp.step.format")}>
@@ -159,7 +168,7 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
           : preview.isLoading ? <div className="p-4"><Skeleton className="h-32" /></div>
           : preview.isError ? <p role="alert" className="px-4 py-8 text-center text-sm text-bad">{preview.error.message}</p>
           : !p || p.rows.length === 0 ? <p className="px-4 py-8 text-center text-sm text-muted">{t("rp.preview_empty")}</p> : (
-            <div key={`${kind}${project}${from}${to}`} className="form-swap overflow-x-auto">
+            <div key={`${kind}${project}${clouds.join()}${from}${to}`} className="form-swap overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead><tr className="text-slate-500">{p.headers.map((h) => <th key={h} className="whitespace-nowrap px-4 py-2 font-semibold">{h}</th>)}</tr></thead>
                 <tbody>

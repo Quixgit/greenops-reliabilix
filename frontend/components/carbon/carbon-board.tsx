@@ -4,7 +4,7 @@ import { SelectField } from "@/components/ui/select-field";
 import Link from "next/link";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { IntensityChart, SOURCE_LABEL } from "@/components/charts/intensity-chart";
-import { Kpi } from "@/components/dashboard/kpi-strip";
+import { Tile } from "@/components/dashboard/tile";
 import { Card, CardHeader } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
 import { DeltaBadge } from "@/components/ui/delta-badge";
@@ -47,17 +47,17 @@ export function CarbonKpis() {
   const cleanest = [...(regions.data ?? [])].filter((r) => r.g_per_kwh !== null).sort((a, z) => a.g_per_kwh! - z.g_per_kwh!)[0];
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Kpi index={0} icon={IconLeaf} tone="text-leaf-deep" label={t("cb.kpi.emissions")} info={t("cb.info.emissions")} loading={q.isLoading || trend.isLoading}
+    <div className="grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 min-[1000px]:grid-cols-4">
+      <Tile index={0} icon="leaf" tone="green" label={t("cb.kpi.emissions")} info={t("cb.info.emissions")} loading={q.isLoading || trend.isLoading}
         value={parts ? <CountUp value={parts.n} format={(n) => nf(1).format(n)} /> : null} unit={parts ? `${parts.unit} CO₂e` : undefined}
         delta={has && c!.comparable ? <DeltaBadge pct={pctChange(c!.carbon_kg_co2e, c!.previous.carbon_kg_co2e)} /> : null}
         spark={series} sparkColor="#6fc3a8" empty={empty}
         foot={<><span className="font-semibold text-slate-800">{nf(perDay < 10 ? 2 : 1).format(perDay)} kg</span> {t("ov2.per_day")}<span className="block text-muted">{t("ov2.operational_only")}</span></>} />
-      <Kpi index={1} icon={IconBolt} tone="text-[#d9a441]" label={t("carbon.energy")} info={t("cb.info.energy")} loading={q.isLoading || trend.isLoading}
+      <Tile index={1} icon="bolt" tone="amber" label={t("carbon.energy")} info={t("cb.info.energy")} loading={q.isLoading || trend.isLoading}
         value={has ? <CountUp value={c!.energy_kwh} format={(n) => nf(c!.energy_kwh < 100 ? 1 : 0).format(n)} /> : null} unit="kWh"
         delta={has && c!.comparable ? <DeltaBadge pct={pctChange(c!.energy_kwh, c!.previous.energy_kwh)} /> : null} empty={empty}
         foot={<><span>{(c?.energy_cost_based_share_pct ?? 0) >= 50 ? t("cb.kpi.energy_cost_based", { pct: Math.round(c!.energy_cost_based_share_pct!) }) : t("cb.kpi.energy_note")}</span></>} />
-      <Kpi index={2} icon={IconGlobe} tone="text-[#5b8fdc]" label={t("carbon.grid_intensity")} info={t("cb.info.intensity")} loading={q.isLoading || trend.isLoading}
+      <Tile index={2} icon="pin" tone="sky" label={t("carbon.grid_intensity")} info={t("cb.info.intensity")} loading={q.isLoading || trend.isLoading}
         value={intensity !== null ? <CountUp value={intensity} format={(n) => nf(0).format(n)} /> : null} unit="gCO₂e/kWh" empty={empty}
         delta={b ? <span className="text-xs font-semibold text-muted">{t(`ov2.band.${b.key}`)}</span> : null}
         foot={<>
@@ -68,7 +68,7 @@ export function CarbonKpis() {
           )}
           {cleanest ? t("cb.kpi.cleanest", { region: regionName(cleanest.region), g: nf(0).format(cleanest.g_per_kwh!) }) : t("ov2.energy_weighted")}
         </>} />
-      <Kpi index={3} icon={IconGauge} tone="text-[#8a78d8]" label="SCI" info={t("cb.info.sci")} loading={q.isLoading || trend.isLoading}
+      <Tile index={3} icon="gauge" tone="violet" label="SCI" info={t("cb.info.sci")} loading={q.isLoading || trend.isLoading}
         value={has && c!.sci_score !== null ? <CountUp value={c!.sci_score} format={(n) => nf(2).format(n)} /> : null} unit={t("cb.kpi.sci_unit")}
         empty={<span>{t("cb.kpi.sci_empty")} <Link href="/projects" className="font-semibold text-primary hover:underline">{t("cb.kpi.sci_link")}</Link></span>}
         foot={<>{t("cb.kpi.sci_note")}</>} />

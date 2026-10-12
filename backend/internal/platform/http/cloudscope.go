@@ -7,7 +7,8 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/database"
 )
 
-var cloudRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
+// one cloud, or a comma-separated list of up to eight
+var cloudRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}(,[a-z0-9][a-z0-9_-]{0,31}){0,7}$`)
 
 // CloudScope narrows a read to one cloud when the request carries ?cloud=aws (or azure, gcp, ...): the Overview shows one cloud at a time, in
 // that cloud's own currency and by its own arithmetic, instead of a sum over clouds billed in different currencies. Only GET requests are

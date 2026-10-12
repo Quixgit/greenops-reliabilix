@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconLeaf, IconReport } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCarbonSummary, useMethodologyVersions } from "@/hooks/use-overview";
+import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
 import { useT } from "@/i18n/provider";
 
 export function CarbonView() {
@@ -24,6 +25,7 @@ export function CarbonView() {
           <h1 className="text-2xl font-bold tracking-tight">{t("carbon.title")}</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted">{t("cb.subtitle")}</p>
         </div>
+        <CloudSwitcher />
         {m && (
           <Link href="/methodology" className="group inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-leaf/50 hover:text-ink">
             <span className={`size-2 rounded-full ${m.status === "verified" ? "bg-leaf" : "bg-pastel-amber"}`} />
