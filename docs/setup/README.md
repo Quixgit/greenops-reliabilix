@@ -20,7 +20,8 @@ storage and no external APIs.
 3. `DATABASE_URL` for api/scheduler uses `greenops_api`, for the worker `greenops_worker`.
    Use `sslmode=verify-full` outside a private network. `doctor` rejects `sslmode=disable`
    and default passwords when `ENV` is not `dev`.
-4. Back up daily and test a restore; usage tables are partitioned by month and the
+4. Back up and test a restore: targets (RPO 15 min, RTO 4 h), what to keep (the sealing key too) and the restore check
+   are in [docs/operations/backup-and-recovery.md](../operations/backup-and-recovery.md). Usage tables are partitioned by month and the
    scheduler creates the next partitions (`admin partitions` does it manually).
 
 ## 2. Redis

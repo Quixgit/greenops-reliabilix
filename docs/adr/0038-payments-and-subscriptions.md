@@ -30,7 +30,8 @@ Status: accepted · 0.1.0-alpha.35 · implements the billing part of [ADR-0022](
    operator assigns the plan with its period when the money arrived.
 
 ## Consequences
-- Prices live at the providers (price ids, amounts in the console), not in the plan catalog.
+- What is charged lives at the providers (price ids, amounts in the console). The plan catalog carries only a **list price** in USD
+  (`price_monthly_usd`, null for Enterprise = by quote), which the plan page shows while a provider has no amount of its own (alpha.149).
 - A subscription with automatic renewal (Stripe, Paddle, LiqPay) keeps itself current through the provider's events; a
   provider that sells periods (WayForPay) needs the customer to pay again at the end, and the plan returns to Free if not.
 - Taxes and invoices are the providers' job (Paddle as merchant of record).

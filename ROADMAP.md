@@ -40,7 +40,7 @@ Broader coverage and smarter advice.
 | 🗓️ | Azure connector (Cost Management API) |
 | ✅ | GCP connector (Cloud Billing export in BigQuery, ownership proof, measured compute and storage) |
 | 🚧 | Kubernetes: Kepler → Prometheus → agent → ingestion API: ingestion, storage and screens done ([ADR-0030](docs/adr/0030-kubernetes-energy-agent.md)); the packaged agent image and measured CPU/memory utilization done; right-sizing recommendations done ([ADR-0031](docs/adr/0031-kubernetes-rightsizing.md)); percentile data and applying them next |
-| 🗓️ | WattTime as secondary grid-data provider |
+| 🚧 | WattTime as secondary grid-data provider: client for marginal intensity written and tested ([ADR-0049](docs/adr/0049-watttime-marginal-client.md)); waits for an account to connect |
 | 🗓️ | More recommendation types: rightsizing, time shifting, spot migration |
 | 🗓️ | Scheduled reports, invitation e-mails, more channels (Teams, PagerDuty, SMS), more event types (budget, anomaly, new recommendation), SCI self-certification assistant |
 

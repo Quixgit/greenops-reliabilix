@@ -5,6 +5,171 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.163] - 2026-10-12
+
+### Added
+- **"A change plan is waiting for approval"** (phase 5): a new event type `automation.plan_waiting`, sent when a plan is made for an approved recommendation, so the people who can approve hear about it (inbox, e-mail, webhook, Slack).
+- **Slack message with a button**: an event that asks for an action shows a "Review and approve" button that opens the page in the app. It is a link button on purpose: Slack cannot prove which member pressed it, so the decision (role check, second approval, repeated compliance check) stays in the app. Approving inside Slack would need a Slack app with a signing secret and a link between Slack and platform accounts; not built.
+
+## [0.1.0-alpha.162] - 2026-10-12
+
+### Added
+- **Digest e-mails** (phase 5): the e-mail of a scheduled report now opens with the figures of its period: spend and its change against the equally long period before, carbon and its change, and the service that cost most; the link and the file follow as before. Spend is shown in the currency that carries most of it (currencies are never added). The text is in the platform default language for now (English).
+
+## [0.1.0-alpha.161] - 2026-10-12
+
+### Added
+- **Invitations by e-mail** (phase 5): inviting someone now sends them a message (in the inviter's language) with a link to the new `/invite` page, which signs them in and joins the organization with one click; the one-time token is used by the click, not by opening the link. The message says why it was sent. The token is not stored anywhere new and is still shown once to the inviter as a fallback; the response says `email_sent`. Settings tells which of the two happened. Needs the platform e-mail transport (SMTP in the operator console); in development it is only logged.
+
+### Fixed
+- Signing in from a protected link kept only the path, so an invitation link lost its token; the query now stays.
+
+## [0.1.0-alpha.160] - 2026-10-12
+
+### Added
+- **SCIM 2.0 provisioning** (phase 4, ADR-0056, migration 0073, guide `docs/setup/scim.md`): an identity provider pushes people with an API key of the new role `scim` (Settings > API keys). A pushed person becomes a member at their first sign-in with the same verified e-mail, with the pushed role; deactivating or deleting them removes the membership. Owners are never removed or demoted by provisioning. Users with list, `userName eq` filter, create, read, replace, patch (Okta and Azure styles) and delete; audited. `contract/api` 0.43.0.
+
+### Changed
+- The trust page now says SCIM exists and only SAML sign-in is missing.
+
+## [0.1.0-alpha.159] - 2026-10-12
+
+### Added
+- **Trust page** at `/trust` (phase 4), public, in both languages, linked from the sign-in page: isolation, access, how the platform reaches a cloud, data and leaving, the services it can use, and a plain list of what is not there yet (no pen test or SOC 2 / ISO 27001, no SAML or SCIM, provisional emission coefficients).
+- A working draft of the data processing agreement, `docs/legal/dpa-draft.md`, written from what the platform does; marked as needing a lawyer, with the open points listed.
+
+### Fixed
+- The GHG report no longer shows float noise (`0.13829476600000004`) and the PDF shows tonnes with four decimals when small, and its inventory values no longer get cut off.
+
+## [0.1.0-alpha.158] - 2026-10-12
+
+### Added
+- **GHG Protocol Scope 3 / ESRS E1 report** (phase 4, ADR-0055, migration 0072): a new report kind `ghg` in Reports (CSV, JSON, PDF, schedules). Cloud services as Scope 3 category 3.1 in tCO2e: inventory frame, gross total, measured against spend-based share, by provider, month and service, and what is not included (embodied emissions, own Scope 1 and 2). Carries the methodology status; provisional coefficients are flagged as unfit for a published statement. `contract/api` 0.42.0.
+
+### Fixed
+- `openapi.yaml` had a duplicated `method` key in the verification schema, which stopped type generation.
+
+## [0.1.0-alpha.157] - 2026-10-12
+
+### Added
+- **Existing commitments are read** (phase 3, ADR-0054, migration 0071): for AWS the daily job reads the Savings Plans and reservations of each connection (utilization, coverage, unused commitment, net savings) and keeps the latest reading; `GET /cloud-accounts/commitments`. Four optional read permissions were added to the setup policy and the Terraform/CLI snippets; without them nothing is read and the connection stays healthy. Azure and Google Cloud are not read (their APIs could not be checked without real accounts): the report has input fields for coverage and utilization, which also correct a reading.
+- **Purchase advice** in the commitments report: per cloud, Buy more / Hold / Fix first. Under 90% utilization no purchase is advised and the unused commitment is shown; otherwise only the part of the target not yet covered is counted. With nothing known the page says to check the console first.
+- **Savings verified against a control group** (migration 0070): the change of a service is corrected for how the rest of the project moved over the same windows (growth or shrinkage of the whole workload no longer counts as a saving or a loss). Both the plain and the corrected figures are kept; the Overview's verified saving uses the corrected one. A control that is too small, too short or moved too much is not used, and the note says why.
+
+## [0.1.0-alpha.156] - 2026-10-11
+
+### Added
+- **Seasonal month-end forecast** (phase 2, ADR-0053): weekday pattern of the last six weeks, trend of the last fortnight, an 80% range, and the last unfinished days (billing lag) forecast instead of trusted. `GET /finops/forecast`; budgets now return `projected_low`, `projected_high` and `forecast_method`; the Overview and the budget list show the range, and the Overview warns when the high end could cross the budget. With under 14 days of history it says `linear`.
+- **Anomaly drivers**: each of the latest ten anomalous days names the services and regions that moved it (a new service is marked new); the Overview shows the biggest.
+- **Unit economics**: Projects > Unit economics, `GET /dashboard/unit-economics`: cost and CO2e per unit of work per project and month, with the change between the two latest comparable months.
+
+### Fixed
+- The anomaly drivers query ordered by constants; it now orders by the real increase.
+
+## [0.1.0-alpha.154] - 2026-10-11
+
+### Added
+- **"What we found"** on the Overview (phase 1 of [docs/product/08-phases.md](docs/product/08-phases.md), ADR-0052): after the first sync, the yearly money and carbon the open recommendations are worth, the commitment saving apart, and the three best moves; it can be hidden.
+- **Access as code** in the connection wizard: Terraform and CLI for the read-only credential of AWS, Azure and Google Cloud, filled with the ids typed so far, read access only (tested). **Plain hints** under a failed check (denied, not found, no data yet, network).
+- **Sample data** (migration 0069): `GET/POST/DELETE /demo` and a banner on the Overview. One click adds a project with 60 days of invented spend, no connection (the connection limit is untouched), carbon and recommendations calculated by the real engine; one click removes it. Marked in `projects.demo_markers`; removal never touches an unmarked project.
+
+## [0.1.0-alpha.153] - 2026-10-11
+
+### Added
+- **Commitments report** (ADR-0051): the Recommendations page has a Commitments tab and `GET /finops/commitments`. It finds the steady part of
+  the compute and database spend (the level reached on 80% of days), and shows, per cloud, the saving a month and a year, the commitment per
+  hour, a chart of the daily spend with the steady level, and what happens at 100%, 80% and 60% use (the break-even is `1 - discount`).
+  Term (1 or 3 years), the window (30, 60, 90 days), the share to commit and each cloud's discount are inputs; the discounts start from
+  planning figures, not quotes, and the page says so. A report only: nothing is bought. Fewer than 14 days of data gives no figure.
+
+### Fixed
+- Scheduled reports are requested by the worker, which now has the INSERT it needs, and the job names the organization for the audit log.
+
+### Changed
+- The gap list no longer lists the Azure/GCP price estimate for region moves (done in alpha.99-144), the limit on tracked spend and the report schedules.
+
+## [0.1.0-alpha.152] - 2026-10-11
+
+### Added
+- **Limit on tracked spend** (`limits.tracked_spend`, USD of cloud spend over the last 30 days; Free $2,500, Team $10,000, Business $40,000, Enterprise none). The plan page and the plan card show the use in dollars, turn red above 100% and say what happens; a new cloud connection is refused above 120% (HTTP 402, as every plan limit). Spend already tracked is never removed. Operators set it per plan and per organization like the other limits (ADR-0050).
+- **Scheduled reports** (migration 0068, ADR-0050): on the Reports page, pick a report, weekly (Mondays 06:00 UTC, the seven days before) or monthly (the 1st, the month before), a format and the members to tell. Each run makes the report and e-mails the chosen members a link (the file stays behind the sign-in); recipients must be members, checked when the schedule is made and again at every send. Pause, resume and delete from the list. `GET/POST /reports/schedules`, `PATCH/DELETE /reports/schedules/{id}`; hourly job `reports:run_schedules`.
+
+## [0.1.0-alpha.151] - 2026-10-11
+
+### Changed
+- **List prices set as the lasting ones, slightly below the market: Team $45, Business $225 a month** (were $39 and $149 launch prices; the
+  planned post-alpha $49 and $249 are dropped). About 10% under the top of what comparable products charge (Vantage Pro up to ~$50,
+  Business ~$200-250), so no later price rise is planned. See [docs/product/07-pricing.md](docs/product/07-pricing.md).
+
+## [0.1.0-alpha.150] - 2026-10-11
+
+### Changed
+- **List prices lowered to launch prices: Team $39, Business $149 a month** (were $49 and $249). Checked against what comparable products
+  charge for the same cloud spend (Vantage, Datadog Cloud Cost Management, Cloudability) and against what the panel really does: it is an
+  alpha with no references and no commitment (Savings Plans) management, so it should sit below the nearest comparable; the planned
+  post-alpha prices are $49 and $249, to be decided then. The reasoning, the three customer sizes and the weak spots (no limit on tracked
+  spend, so large-spend customers are underpriced until Enterprise) are in [docs/product/07-pricing.md](docs/product/07-pricing.md).
+
+## [0.1.0-alpha.149] - 2026-10-11
+
+### Added
+- **The plan page shows a price**: every plan card has its monthly list price (Free $0, Team and Business priced in alpha.150, Enterprise by
+  quote) next to its limits and included modules. Before, cards showed "Individual terms" until a payment provider had an amount
+  configured. A provider's own amount, when there is one, still wins and is what is charged.
+
+## [0.1.0-alpha.148] - 2026-10-11
+
+### Changed
+- **Plan limits revised against the market** ([docs/product/07-pricing.md](docs/product/07-pricing.md)): members Team 15 -> 10 and
+  Business 100 -> 50, notification destinations Business 50 -> 30; Free, the cloud-account and project limits and the modules are
+  unchanged. The plan separates by connected cloud accounts (what costs the platform money); seats stay bounded like the market (3, 5, 10).
+  Organizations keep their present values until a plan is assigned again (ADR-0033).
+
+### Added
+- **Pricing document**: what comparable products charge (indicative: from aggregators, not vendor pages), the proposed list prices to
+  set at the payment providers (Team $49, Business $249 a month, Enterprise by quote), and what the plans do not do yet (no limit on
+  tracked spend, the market's main axis; retention is not per plan).
+
+## [0.1.0-alpha.147] - 2026-10-11
+
+### Added
+- **Dry run for automation plans** ([ADR-0048](docs/adr/0048-automation-dry-run.md)): `POST /automation/jobs/{id}/dry-run` and a
+  "Dry run" button on every open plan. It changes and runs nothing; it checks the plan against the present (open, approved by a
+  person, rollback plan, recommendation still approved, data residency still allows it, the plan still equals what the planner
+  builds today, every command has a safe shape) and lists what would run, in order, and what the plan holds back on purpose (the final
+  terminate). `ready` is true only for an approved plan whose checks all pass.
+- **Backup and recovery** ([docs/operations/backup-and-recovery.md](docs/operations/backup-and-recovery.md)): what holds state (the
+  sealing key is part of the backup), the targets (RPO 15 minutes with WAL archiving, 24 hours at the very least; RTO 4 hours),
+  retention against erasure, the recovery procedure. `scripts/backup-restore-check.sh` dumps a database, restores it into a throwaway
+  container and compares the rows of every table and the RLS policies, indexes and constraints. First run on the stand: passed, 59 tables,
+  252,522 rows, 7 s. WAL archiving and point-in-time replay are not tested by it.
+- **WattTime client for marginal intensity** ([ADR-0049](docs/adr/0049-watttime-marginal-client.md)), `carbon/providers/watttime`:
+  login with token renewal, region from location, history, forecast, units read from the response and refused when unknown. Tested against a
+  stand-in server; **not connected** to ingestion until an account exists (the ADR lists the three steps left).
+
+### Changed
+- API contract 0.41.0 (the dry-run endpoint).
+
+### Checked
+- EIA (United States) was already a grid source since alpha.121; the gap list still showed it open and now says it is done.
+
+## [0.1.0-alpha.146] - 2026-10-11
+
+### Fixed
+- **The workspace header did not fit a tablet or a phone** (a page was 1,041 px wide on an 820 px screen, 433 on a 390 px one, so the
+  search, language, bell and account were cut off, and the period was not reachable on a phone at all). Below 1,024 px the period moves to
+  a second row; the search narrows, the language shows its icon only on a phone, the project shows its folder only under 430 px (its name is
+  the button's label for screen readers). All 31 client and console pages now fit at 1,360, 820 and 390 px.
+- **One style of buttons and fields**: action buttons and text fields that were drawn with a smaller corner (8 px) than the rest (12 px)
+  in recommendations, alerts, CI/CD, reports, budgets, settings and the carbon calculator now match; the two page titles set at 28 px are 24 px
+  like every other.
+- **Small controls have a 24 px target**: the "i" help buttons (18 px) and the small text links (16–20 px high) keep their look and are
+  easier to hit (WCAG 2.2, target size).
+
+### Checked (31 pages x 3 widths)
+- No console error or failed request, one `h1` per page, a title per page, no control without a name or a label, no image without `alt`,
+  no native `<select>`, one font (Inter) and one card corner (16 px) everywhere.
+
 ## [0.1.0-alpha.144] - 2026-10-11
 
 ### Added

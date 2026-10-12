@@ -19,7 +19,7 @@
 | E-mail / Slack / webhook | notifications | ✅ | `channel/*` | доставка событий |
 | Teams | notifications | 🗓️ фаза 2 | — | |
 | Electricity Maps | data | ✅ платформенный | `connector/electricitymaps` | интенсивность сети |
-| WattTime | data | 🗓️ фаза 2 | — | вторичный источник |
+| WattTime | data | 🚧 клиент готов, не подключён | `carbon/providers/watttime` | предельная (marginal) интенсивность, ADR-0049 |
 
 ## Жизненный цикл подключения
 
