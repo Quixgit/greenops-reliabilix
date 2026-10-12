@@ -4797,6 +4797,13 @@ export interface components {
                     currency?: string;
                     amount?: number;
                 }[];
+                /** @description Days of the window this cloud has cost on. */
+                days_with_data?: number;
+                /**
+                 * Format: date-time
+                 * @description The newest day this cloud has cost for (not limited to the window); a day well before today means its data stopped arriving.
+                 */
+                last_day?: string | null;
             }[];
             /** @description False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then. */
             previous_comparable?: boolean;
@@ -4851,6 +4858,8 @@ export interface components {
             [key: string]: unknown;
         });
         Anomaly: {
+            /** @description The cloud the day was unusual for; every cloud is judged against its own previous days, not against the sum. */
+            provider?: string;
             /** Format: date-time */
             day?: string;
             cost?: number;
@@ -4873,6 +4882,10 @@ export interface components {
             day?: string;
             cost?: number;
             carbon_kg_co2e?: number;
+            /** @description Cost of the day per cloud, in the same currency as `cost`. */
+            cost_by_provider?: {
+                [key: string]: number;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -8173,6 +8186,18 @@ export interface operations {
                             trusted_through?: string;
                             lag_days?: number;
                             days_left?: number;
+                            /** @description Each cloud forecast on its own history; the totals above are their sum. */
+                            by_provider?: {
+                                provider?: string;
+                                expected?: number;
+                                spent?: number;
+                                /** @enum {string} */
+                                method?: "seasonal" | "linear";
+                                /** Format: date-time */
+                                last_day?: string;
+                                /** @description Whole days before today the cloud has no data for. */
+                                stale_days?: number;
+                            }[];
                         };
                     };
                 };

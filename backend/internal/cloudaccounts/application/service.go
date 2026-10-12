@@ -527,6 +527,14 @@ func (s Service) RunRightsizing(ctx context.Context, tenantID, connectionID stri
 // tagWindowDays is how far back tags are read on every sync, whatever the cost window is.
 const tagWindowDays = 31
 
+func openMonthStart(today time.Time) time.Time {
+	first := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
+	if today.Day() <= 5 {
+		return first.AddDate(0, -1, 0)
+	}
+	return first
+}
+
 func (s Service) window(c domain.Connection) (from, to time.Time) {
 	to = s.now().Truncate(24 * time.Hour) // today is excluded: its cost is still estimated
 	days := s.BackfillDays
@@ -536,6 +544,11 @@ func (s Service) window(c domain.Connection) (from, to time.Time) {
 	from = to.AddDate(0, 0, -days)
 	if c.SyncedThrough != nil {
 		from = c.SyncedThrough.UTC().AddDate(0, 0, -(overlapDays - 1))
+		// AWS Cost Explorer publishes the open month as an estimate and changes figures of the open month until it closes: re-read it from
+		// its first day, and, in the first days of a new month, the month before too (its invoice is final a few days after it ends).
+		if open := openMonthStart(to); c.Provider == domain.AWS && c.Export == nil && open.Before(from) {
+			from = open
+		}
 		if min := to.AddDate(0, 0, -365); from.Before(min) {
 			from = min
 		}

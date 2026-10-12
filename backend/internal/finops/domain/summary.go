@@ -29,6 +29,10 @@ type ProviderCost struct {
 	Provider string         `json:"provider"`
 	Cost     float64        `json:"cost"` // in the reporting currency
 	Native   []NativeAmount `json:"native"`
+	// DaysWithData counts the days of the window this cloud has cost on; LastDay is the newest day it has cost for at all (not only inside
+	// the window), so a cloud whose data stopped arriving shows how far behind it is instead of quietly lowering the total.
+	DaysWithData int        `json:"days_with_data"`
+	LastDay      *time.Time `json:"last_day"`
 }
 
 // NativeAmount is what was billed in one currency.
@@ -80,10 +84,12 @@ type BudgetStatus struct {
 }
 
 type Anomaly struct {
-	Day    time.Time `json:"day"`
-	Cost   float64   `json:"cost"`
-	Mean   float64   `json:"expected"`
-	Stddev float64   `json:"stddev"`
+	// Provider is the cloud the day was unusual for: each cloud is measured against its own recent days, never against the sum of clouds.
+	Provider string    `json:"provider"`
+	Day      time.Time `json:"day"`
+	Cost     float64   `json:"cost"`
+	Mean     float64   `json:"expected"`
+	Stddev   float64   `json:"stddev"`
 	// Drivers are the services and regions that moved the day the most, biggest increase first (ADR-0053).
 	Drivers []Driver `json:"drivers"`
 }
@@ -175,9 +181,10 @@ type Repository interface {
 	Spent(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) (float64, error)
 	Anomalies(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]Anomaly, error)
 	// AnomalyDrivers lists what moved on a day (ADR-0053).
-	AnomalyDrivers(ctx context.Context, tenantID string, project *string, day time.Time, limit int) ([]Driver, error)
-	// DailyCost is the cost per day of [from, to) in the currency given or, when empty, the reporting currency.
-	DailyCost(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) ([]DayPoint, string, error)
+	AnomalyDrivers(ctx context.Context, tenantID string, project *string, provider string, day time.Time, limit int) ([]Driver, error)
+	// DailyCostByProvider is the cost per cloud and day of [from, to) in the currency given or, when empty, the reporting currency. Every cloud
+	// is forecast on its own history: one cloud whose data lags must not read as a drop of the whole bill.
+	DailyCostByProvider(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) ([]ProviderDays, string, error)
 	// TagKeys lists the tag keys with cost in [from, to) and how much of the bill each explains (ADR-0061).
 	TagKeys(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]TagKeyInfo, string, error)
 	// Showback splits [from, to) by the values of one tag key, in the reporting currency.

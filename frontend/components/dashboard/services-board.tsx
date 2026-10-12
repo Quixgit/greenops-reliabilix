@@ -3,16 +3,19 @@
 import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconDrive as HardDrive, IconNetwork as Network, IconServer as Server, IconTable as Table2, IconCluster as Boxes, IconDatabase as Database } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Pagination, usePaged } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PillTabs } from "@/components/ui/tabs";
+import { Segmented } from "@/components/ui/controls";
+import { Glyph } from "@/components/ui/glyphs";
+import { Info } from "@/components/ui/info";
 import { Sparkline } from "@/components/charts/sparkline";
 import { useFinopsSummary, useServices } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { formatCarbon, formatCost, formatPct, halfTrend } from "@/lib/formatters";
-import { PROVIDER_NAME, share } from "@/lib/overview";
+import { share } from "@/lib/overview";
+import { cloudMeta } from "@/lib/clouds";
 import { useUi } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -34,18 +37,16 @@ export function ServicesBoard() {
   const focus = useUi((s) => s.focusService);
   const setFocus = useUi((s) => s.setFocusService);
   useEffect(() => { if (!focus) return; const id = setTimeout(() => setFocus(null), 4000); return () => clearTimeout(id); }, [focus, setFocus]);
-  const [cloud, setCloud] = useState("all");
   const clouds = useMemo(() => [...new Set((q.data ?? []).map((r) => r.provider).filter(Boolean))], [q.data]);
-  const rows = useMemo(() => [...(q.data ?? [])].filter((r) => cloud === "all" || r.provider === cloud || !clouds.includes(cloud)).sort((a, b) => b.cost - a.cost), [q.data, cloud, clouds]);
+  const rows = useMemo(() => [...(q.data ?? [])].sort((a, b) => b.cost - a.cost), [q.data]);
   const totalCost = rows.reduce((n, r) => n + r.cost, 0), totalCarbon = rows.reduce((n, r) => n + r.carbon_kg_co2e, 0);
   const pg = usePaged(rows, 10);
 
   return (
-    <Card index={10} interactive={false} id="services-table" className="min-w-0">
-      <CardHeader title={t("ov2.svc.title")} info={t("info.services")} />
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <PillTabs value={tab} onChange={(v) => { setTab(v); pg.setPage(1); }} tabs={CATS.map((c) => ({ value: c, label: t(`ov2.cat.${c}`) }))} />
-        {clouds.length > 1 && <PillTabs value={clouds.includes(cloud) ? cloud : "all"} onChange={(v) => { setCloud(v); pg.setPage(1); }} tabs={[{ value: "all", label: t("ov2.svc.all_clouds") }, ...clouds.map((c) => ({ value: c, label: PROVIDER_NAME[c] ?? c }))]} />}
+    <Card index={10} interactive={false} id="services-table" className="min-w-0 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="layers" className="size-[18px] text-[#7461d4]" />{t("ov2.svc.title")}<Info>{t("info.services")}</Info></h2>
+        <Segmented size="sm" label={t("ov2.svc.title")} value={tab} onChange={(v) => { setTab(v); pg.setPage(1); }} options={CATS.map((c) => ({ value: c, label: t(`ov2.cat.${c}`) }))} className="max-w-full overflow-x-auto" />
       </div>
       {q.isLoading ? <Skeleton className="h-64" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Table2} text={t("ov2.svc.empty")} /> : (
         <div key={tab}>
@@ -59,12 +60,12 @@ export function ServicesBoard() {
               const heavy = sk > 4 && sk > sc * 1.6; // emits much more than it costs
               const trend = halfTrend(r.trend), good = trend !== null && trend <= 0;
               return (
-                <li key={`${r.provider}|${r.service}`} className={cn("rise group grid items-center gap-x-4 gap-y-2 rounded-xl border-t border-line/70 px-2 py-2.5 transition-colors first:border-t-0 hover:bg-slate-50/80 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_96px_96px_132px]",
+                <li key={`${r.provider}|${r.service}`} className={cn("rise group grid items-center gap-x-4 gap-y-2 rounded-xl border-t border-line/70 px-2 py-1.5 transition-colors first:border-t-0 hover:bg-slate-50/80 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_96px_96px_132px]",
                   focus === r.service && "bg-sky-50 ring-2 ring-inset ring-sky-200")} style={{ "--i": i } as CSSProperties}>
                   <span className="flex min-w-0 items-center gap-3">
-                    <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm transition-transform duration-300 group-hover:scale-110", meta.tile)}><meta.icon className="size-[18px]" strokeWidth={1.8} /></span>
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow-sm transition-transform duration-300 group-hover:scale-110", meta.tile)}><meta.icon className="size-4" strokeWidth={1.8} /></span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium" title={r.service}>{r.service.replace(/^Amazon |^AWS /, "")}{clouds.length > 1 && r.provider && <span className="ml-1.5 align-middle rounded-md bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">{PROVIDER_NAME[r.provider] ?? r.provider}</span>}</span>
+                      <span className="block truncate text-sm font-medium" title={r.service}>{r.service.replace(/^Amazon |^AWS /, "")}{clouds.length > 1 && r.provider && <span className="ml-1.5 align-middle rounded-md bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">{cloudMeta(r.provider).name}</span>}</span>
                       {heavy && <span className="mt-0.5 inline-block rounded-md bg-orange-50 px-1.5 py-px text-[10px] font-semibold text-orange-700 ring-1 ring-orange-200" title={t("ov2.svc.heavy_tip")}>{t("ov2.svc.heavy")}</span>}
                     </span>
                   </span>

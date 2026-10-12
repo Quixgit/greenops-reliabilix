@@ -27,6 +27,7 @@ func NewRouter(cfg config.Config, log *slog.Logger, v auth.Verifier, res auth.Re
 		// 1 MiB for everything but the cost-file upload (a vendor export is a file: 8 MiB plus the form around it)
 		httpx.MaxBodyFor(1<<20, map[string]int64{"/api/v1/imports/cost": 8<<20 + 64<<10}),
 		httpx.AccessLog(log),
+		httpx.CloudScope(),
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Get("/version", func(w http.ResponseWriter, req *http.Request) {

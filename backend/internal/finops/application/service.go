@@ -92,7 +92,7 @@ func (s Service) Anomalies(ctx context.Context, tenantID string, project *string
 		return nil, err
 	}
 	for i := len(as) - 1; i >= 0 && len(as)-i <= 10; i-- {
-		d, err := s.Repo.AnomalyDrivers(ctx, tenantID, project, as[i].Day, 3)
+		d, err := s.Repo.AnomalyDrivers(ctx, tenantID, project, as[i].Provider, as[i].Day, 3)
 		if err != nil {
 			return nil, err
 		}
@@ -109,34 +109,53 @@ func (s Service) Anomalies(ctx context.Context, tenantID string, project *string
 // historyDays is how far back the weekday pattern looks: six weeks plus the two weeks the trend compares.
 const historyDays = 56
 
-// periodForecast forecasts the cost of [start, end) from the history before now; nil when there is no data to go by (the caller keeps
-// its linear projection).
+// periodForecast forecasts the cost of [start, end) from the history before now, cloud by cloud; nil when there is no data to go by (the
+// caller keeps its linear projection).
 func (s Service) periodForecast(ctx context.Context, tenantID string, project *string, currency string, start, end, now time.Time) *domain.Forecast {
+	f, _, _, err := s.monthForecast(ctx, tenantID, project, currency, start, end, now)
+	if err != nil || f == nil {
+		return nil
+	}
+	return f
+}
+
+func (s Service) monthForecast(ctx context.Context, tenantID string, project *string, currency string, start, end, now time.Time) (*domain.Forecast, []domain.CloudForecast, string, error) {
 	from := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -historyDays)
 	if start.Before(from) {
 		from = start
 	}
-	pts, _, err := s.Repo.DailyCost(ctx, tenantID, project, currency, from, now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1))
-	if err != nil || len(pts) == 0 {
-		return nil
+	series, cur, err := s.Repo.DailyCostByProvider(ctx, tenantID, project, currency, from, now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1))
+	if err != nil {
+		return nil, nil, "", err
 	}
-	f := domain.BuildForecast(pts, start, end, now)
-	return &f
+	if len(series) == 0 {
+		return nil, nil, cur, nil
+	}
+	f, parts := domain.BuildForecastByProvider(series, start, end, now)
+	return &f, parts, cur, nil
+}
+
+// MonthForecast is the expected cost at the end of the current month and each cloud's part of it.
+type MonthForecast struct {
+	domain.Forecast
+	ByProvider []domain.CloudForecast `json:"by_provider"`
 }
 
 // Forecast is the expected cost at the end of the current month for the whole organization or one project, in the reporting currency.
-func (s Service) Forecast(ctx context.Context, tenantID string, project *string) (domain.Forecast, string, error) {
+func (s Service) Forecast(ctx context.Context, tenantID string, project *string) (MonthForecast, string, error) {
 	now := s.now()
 	start, end := domain.PeriodBounds("monthly", now)
-	from := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -historyDays)
-	if start.Before(from) {
-		from = start
-	}
-	pts, cur, err := s.Repo.DailyCost(ctx, tenantID, project, "", from, now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1))
+	f, parts, cur, err := s.monthForecast(ctx, tenantID, project, "", start, end, now)
 	if err != nil {
-		return domain.Forecast{}, "", err
+		return MonthForecast{}, "", err
 	}
-	return domain.BuildForecast(pts, start, end, now), cur, nil
+	if f == nil {
+		return MonthForecast{Forecast: domain.BuildForecast(nil, start, end, now), ByProvider: []domain.CloudForecast{}}, cur, nil
+	}
+	if parts == nil {
+		parts = []domain.CloudForecast{}
+	}
+	return MonthForecast{Forecast: *f, ByProvider: parts}, cur, nil
 }
 
 // Commitments reports what committing the steady part of the compute and database spend would save (ADR-0051). The window ends at the

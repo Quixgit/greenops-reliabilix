@@ -1,8 +1,9 @@
 "use client";
 
-import { IconShield as ShieldCheck } from "@/components/ui/icons";
 import Link from "next/link";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Glyph } from "@/components/ui/glyphs";
+import { Info } from "@/components/ui/info";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SOURCE_LABEL } from "@/components/charts/intensity-chart";
 import { useConnectionRuns } from "@/hooks/use-connectors";
@@ -26,13 +27,15 @@ export function DataQuality() {
   const verified = checks.filter((q) => q.status === "ok").length;
   const basis = (b: string) => t(`ov.basis.${b}`, undefined, b);
   return (
-    <Card index={6} interactive={false}>
-      <CardHeader title={t("ov.dq.title")} icon={<ShieldCheck className="size-4 text-leaf-deep" />} info={t("info.quality")}
-        action={<Link href="/methodology" className="text-xs font-semibold text-primary hover:underline">{t("ov.dq.methodology")}</Link>} />
+    <Card index={6} interactive={false} className="p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="shield" className="size-[18px] text-[#2f8f78]" />{t("ov.dq.title")}<Info>{t("info.quality")}</Info></h2>
+        <Link href="/methodology" className="text-xs font-semibold text-primary hover:underline">{t("ov.dq.methodology")}</Link>
+      </div>
       {carbon.isLoading || conns.isLoading ? <Skeleton className="h-24" /> : !c?.has_data ? (
         <p className="text-sm text-muted">{t("ov.dq.empty")}</p>
       ) : (
-        <div className="space-y-3 text-sm">
+        <div className="space-y-2.5 text-[13px]">
           <div>
             <div className="flex items-baseline justify-between"><span className="text-muted">{t("ov.dq.measured")}</span>
               <span className="font-semibold tabular-nums">{measured === null ? "—" : `${nf(0).format(measured)}%`}</span></div>

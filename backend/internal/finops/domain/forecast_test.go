@@ -73,3 +73,39 @@ func TestTrendIsKeptWithinBounds(t *testing.T) {
 		t.Errorf("trend %v must be capped", tr)
 	}
 }
+
+// A cloud whose data stopped arriving must not read as a drop of the whole bill: it is forecast at its usual level and flagged stale.
+func TestBuildForecastByProviderStaleCloud(t *testing.T) {
+	now := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
+	mk := func(last time.Time, n int, cost float64) []DayPoint {
+		var out []DayPoint
+		for i := n - 1; i >= 0; i-- {
+			out = append(out, DayPoint{Day: last.AddDate(0, 0, -i), Cost: cost})
+		}
+		return out
+	}
+	series := []ProviderDays{
+		{Provider: "azure", Days: mk(time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC), 56, 50)},
+		{Provider: "aws", Days: mk(time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC), 56, 40)},
+	}
+	start, end := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	f, parts := BuildForecastByProvider(series, start, end, now)
+	if len(parts) != 2 {
+		t.Fatalf("want 2 clouds, got %d", len(parts))
+	}
+	want := 31 * (50.0 + 40.0)
+	if f.Expected < want*0.97 || f.Expected > want*1.03 {
+		t.Errorf("expected ~%.0f, got %.0f", want, f.Expected)
+	}
+	if f.Spent != 11*50 {
+		t.Errorf("spent counts booked days only: want %d, got %.0f", 11*50, f.Spent)
+	}
+	for _, p := range parts {
+		if p.Provider == "aws" && p.StaleDays != 11 {
+			t.Errorf("aws stale days: want 11, got %d", p.StaleDays)
+		}
+		if p.Provider == "azure" && p.StaleDays != 0 {
+			t.Errorf("azure stale days: want 0, got %d", p.StaleDays)
+		}
+	}
+}

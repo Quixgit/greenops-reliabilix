@@ -31,6 +31,14 @@ export function formatCost(v: number, currency = defaultCurrency): string {
   return new Intl.NumberFormat(formatLocale, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
 }
 
+/**
+ * An amount in the currency it was billed in, named by its ISO code ("USD 783"): a bare "$" is read as the reporting currency when that is
+ * also a dollar (Canadian), so a bill in another currency is never written with a symbol that could be mistaken for it.
+ */
+export function formatNative(v: number, currency: string): string {
+  return new Intl.NumberFormat(formatLocale, { style: "currency", currency, currencyDisplay: "code", maximumFractionDigits: 0 }).format(v).replace(/\u00a0/g, " ");
+}
+
 /** Cost with cents below 100 (a namespace that costs 0.94 must not read as 0), whole units above. */
 export function formatCostFine(v: number, currency = defaultCurrency): string {
   const d = Math.abs(v) < 100 ? 2 : 0;

@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -41,10 +42,39 @@ func (r Postgres) Trend(ctx context.Context, f domain.Filter) ([]domain.TrendPoi
 	err := database.WithTenantTx(ctx, r.Pool, f.TenantID, func(tx pgx.Tx) error {
 		rows, err := db.New(tx).DashboardTrend(ctx, db.DashboardTrendParams{TenantID: f.TenantID, ProjectID: f.Project,
 			MethodologyVersion: methodology.Version, FromTs: f.From, ToTs: f.To})
-		for _, x := range rows {
-			out = append(out, domain.TrendPoint{Day: x.Day, Cost: x.Cost, CO2eKg: x.CarbonKgCo2e})
+		if err != nil {
+			return err
 		}
-		return err
+		idx := map[string]int{}
+		for _, x := range rows {
+			idx[x.Day.UTC().Format("2006-01-02")] = len(out)
+			out = append(out, domain.TrendPoint{Day: x.Day, Cost: x.Cost, CO2eKg: x.CarbonKgCo2e, CostByProvider: map[string]float64{}})
+		}
+		pr, err := tx.Query(ctx, `
+			WITH cur AS (SELECT finops.reporting_currency($1::uuid, (SELECT d.currency FROM usage.usage_records d
+			    WHERE d.tenant_id = $1::uuid AND ($2::uuid IS NULL OR d.project_id = $2::uuid) AND d.recorded_at >= $3 AND d.recorded_at < $4
+			    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS c)
+			SELECT u.recorded_at::date, u.provider,
+			       COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8
+			FROM usage.usage_records u
+			WHERE u.tenant_id = $1::uuid AND ($2::uuid IS NULL OR u.project_id = $2::uuid) AND u.recorded_at >= $3 AND u.recorded_at < $4
+			GROUP BY 1, 2`, f.TenantID, f.Project, f.From, f.To)
+		if err != nil {
+			return err
+		}
+		defer pr.Close()
+		for pr.Next() {
+			var day time.Time
+			var prov string
+			var cost float64
+			if err := pr.Scan(&day, &prov, &cost); err != nil {
+				return err
+			}
+			if i, ok := idx[day.Format("2006-01-02")]; ok {
+				out[i].CostByProvider[prov] += cost
+			}
+		}
+		return pr.Err()
 	})
 	return out, err
 }

@@ -100,7 +100,7 @@ export function StatCards() {
 /** What the figures rest on, in the API's own words: provisional methodology and what it leaves out. */
 function MethodologyNotice({ m }: { m: MethodologyInfo }) {
   return (
-    <details className="rise rounded-xl bg-amber-50 px-4 py-2.5 text-xs text-amber-900 ring-1 ring-amber-200" style={{ "--i": 4 } as React.CSSProperties}>
+    <details className="rise rounded-xl bg-amber-50/80 px-3 py-1.5 text-xs text-amber-900 ring-1 ring-amber-200" style={{ "--i": 4 } as React.CSSProperties}>
       <summary className="cursor-pointer font-medium">Provisional estimates (methodology {m.version}) — <Link href="/methodology" className="underline" onClick={(e) => e.stopPropagation()}>read before using these figures externally</Link></summary>
       <ul className="mt-2 list-disc space-y-1 pl-5">{m.caveats.map((t) => <li key={t}>{t}</li>)}</ul>
     </details>

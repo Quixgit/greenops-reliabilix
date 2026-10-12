@@ -25,8 +25,9 @@ type envelope struct {
 
 type Normalizer struct{}
 
-// Normalize converts a payload into FOCUS records. Periods AWS still marks as estimated are skipped:
-// they are final one sync later, and the sync window overlaps the most recent days.
+// Normalize converts a payload into FOCUS records. Periods AWS marks as estimated are kept: Cost Explorer marks every day of the
+// open billing month as estimated until the month closes, so skipping them left the current month empty. The sync window rewinds to
+// the start of the open month, so each day is re-read until AWS finalizes it and the stored figure is replaced.
 func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 	var env envelope
 	if err := json.Unmarshal(raw.Payload, &env); err != nil {
@@ -41,9 +42,6 @@ func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 	merged := map[key]*sums{}
 	var order []key
 	for _, res := range env.ResultsByTime {
-		if res.Estimated {
-			continue
-		}
 		start, err := time.Parse(time.DateOnly, res.TimePeriod.Start)
 		if err != nil {
 			return nil, fmt.Errorf("awsce: bad period start %q", res.TimePeriod.Start)

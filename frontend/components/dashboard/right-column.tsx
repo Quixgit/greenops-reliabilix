@@ -1,11 +1,14 @@
 "use client";
 
 import { latencyBasisLabel } from "@/lib/latency-basis";
-import { IconServer as Server, IconSparkles as Sparkles, IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
+import { IconServer as Server, IconArrowRight as ArrowRight, IconBulb as Lightbulb, IconLeaf as Leaf, IconPin as MapPin } from "@/components/ui/icons";
 import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import Link from "next/link";
-import type { CSSProperties } from "react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { useState, type CSSProperties } from "react";
+import { Glyph } from "@/components/ui/glyphs";
+import { Info } from "@/components/ui/info";
+import { cloudMeta } from "@/lib/clouds";
+import { Card } from "@/components/ui/card";
 import { AllowRegions } from "./allow-regions";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -60,7 +63,7 @@ function PotentialSummary() {
   // From the projects' policies: only types a project explicitly lets the platform apply count as automatic.
   const auto = o.auto_apply_count;
   return (
-    <div className="mb-3 rounded-xl bg-sky-50/70 px-3 py-2.5 text-xs leading-relaxed text-sky-900 ring-1 ring-sky-100">
+    <div className="mb-2 rounded-xl bg-sky-50/70 px-3 py-2 text-[11.5px] leading-snug text-sky-900 ring-1 ring-sky-100">
       <p className="text-sm font-semibold text-ink">
         −{formatCarbon(o.potential_carbon_kg_month)} CO₂e/mo
         <span className="ml-2 text-xs font-normal text-slate-600">{o.potential_saving_month > 0 ? t("ov.opt.saving", { amount: formatCost(o.potential_saving_month, cur) }) : t("ov.opt.cost_unknown")}</span>
@@ -82,43 +85,50 @@ export function TopRecommendations() {
   const t = useT();
   useFinopsSummary(); // re-render when the reporting currency is known
   const q = useRecommendations("open");
-  const top = [...(q.data ?? [])].sort((a, b) => b.carbon_reduction_kg_month - a.carbon_reduction_kg_month).slice(0, 5);
+  const [more, setMore] = useState(false);
+  const sorted = [...(q.data ?? [])].sort((a, b) => b.carbon_reduction_kg_month - a.carbon_reduction_kg_month);
+  const top = sorted.slice(0, more ? 8 : 4);
   return (
-    <Card index={2} interactive={false}>
-      <CardHeader icon={<Sparkles className="size-[18px] text-blue-500" />} title="Top Recommendations" info={t("info.recs")}
-        action={<Link href="/recommendations" className="text-xs font-semibold text-primary hover:underline">View all →</Link>} />
+    <Card index={2} interactive={false} className="p-4">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="spark" className="size-[18px] text-[#7461d4]" />{t("ov3.recs.title")}<Info>{t("info.recs")}</Info></h2>
+        <Link href="/recommendations" className="text-xs font-semibold text-primary hover:underline">{t("ov3.recs.all")}</Link>
+      </div>
       <PotentialSummary />
-      {q.isLoading ? <Skeleton className="h-56" /> : q.isError ? <ErrorState /> : top.length === 0 ? <div><EmptyState icon={Lightbulb} text={t("ov2.recs.empty")} /><div className="-mt-3 mb-2 text-center"><AllowRegions /></div></div> : (
-        <ul className="divide-y divide-line/70">
-          {top.map((r, i) => {
-            const m = ICONS[r.type] ?? FALLBACK, impact = impactOf(r);
-            return (
-              <li key={r.id} className="rise group" style={{ "--i": i + 3 } as CSSProperties}>
-                <Link href="/recommendations" className="flex items-center gap-3 rounded-xl py-3 transition-colors hover:bg-slate-50/80">
-                  <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3", m.tone)}><m.icon className="size-5" strokeWidth={1.8} /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{r.title}</span>
-                    <span className="mt-1 flex flex-wrap gap-1.5">
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium uppercase text-slate-600">{r.provider}</span>
-                      <span title="High: 40% or more estimated carbon reduction, medium: 15% or more" className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset", impact.cls)}>{impact.label}</span>
-                      {r.details?.latency_ms && <span title={t("rec.latency_hint", { from: regionName(r.current_region), to: regionName(r.recommended_region), km: r.details.distance_km ?? "?", budget: r.details.latency_budget_ms ?? "?", basis: latencyBasisLabel(t, r.details.latency_basis, r.details.latency_error_pct) })} className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-[#3f78b8] ring-1 ring-inset ring-sky-100">{t(r.details.latency_basis === "estimated" || !r.details.latency_basis ? "ov2.reg.latency_chip" : "ov2.reg.latency_chip_measured", { ms: r.details.latency_ms })}</span>}
+      {q.isLoading ? <Skeleton className="h-40" /> : q.isError ? <ErrorState /> : top.length === 0 ? <div><EmptyState icon={Lightbulb} text={t("ov2.recs.empty")} /><div className="-mt-3 mb-2 text-center"><AllowRegions /></div></div> : (
+        <>
+          <ul className="space-y-1">
+            {top.map((r, i) => {
+              const m = ICONS[r.type] ?? FALLBACK, impact = impactOf(r);
+              return (
+                <li key={r.id} className="rise group" style={{ "--i": i + 3 } as CSSProperties}>
+                  <Link href="/recommendations" className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-colors hover:bg-slate-50/80">
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-300 group-hover:scale-110", m.tone)}><m.icon className="size-4" strokeWidth={1.8} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium leading-tight" title={r.title}>{r.title}</span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                        <span className="rounded px-1 py-px text-[10px] font-semibold uppercase" style={{ background: cloudMeta(r.provider).soft, color: cloudMeta(r.provider).ink }}>{cloudMeta(r.provider).name}</span>
+                        <span title={t("ov3.recs.impact_tip")} className={cn("rounded px-1 py-px text-[10px] font-medium ring-1 ring-inset", impact.cls)}>{impact.label}</span>
+                        {r.details?.latency_ms && <span title={t("rec.latency_hint", { from: regionName(r.current_region), to: regionName(r.recommended_region), km: r.details.distance_km ?? "?", budget: r.details.latency_budget_ms ?? "?", basis: latencyBasisLabel(t, r.details.latency_basis, r.details.latency_error_pct) })} className="rounded bg-sky-50 px-1 py-px text-[10px] font-medium text-[#3f78b8] ring-1 ring-inset ring-sky-100">{t(r.details.latency_basis === "estimated" || !r.details.latency_basis ? "ov2.reg.latency_chip" : "ov2.reg.latency_chip_measured", { ms: r.details.latency_ms })}</span>}
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 text-right leading-tight">
-                    {r.estimated_cost_impact === null
-                      ? <span className="block text-xs text-muted" title={t(`ov.rec.reason.${r.type}`, undefined, t("ov.rec.reason.other"))}>{t("ov.rec.cost_waiting")}</span>
-                      : r.estimated_cost_impact === 0
-                        ? <span className="block text-xs text-muted" title={t("ov.rec.reason.same_price")}>{t("ov.rec.cost_same")}</span>
-                        : r.cost_basis === "region_price_list"
-                          ? <span className="block text-sm font-semibold" title={t("rec.cost_basis_list")}>{r.estimated_cost_impact < 0 ? "−" : "+"}{t("ov.rec.cost_rough", { amount: formatCost(Math.abs(r.estimated_cost_impact)) })}</span>
-                          : <span className="block text-sm font-semibold">{r.estimated_cost_impact < 0 ? "−" : "+"}{formatCost(Math.abs(r.estimated_cost_impact))}/mo</span>}
-                    <span className="mt-0.5 flex items-center justify-end gap-1 text-xs font-medium text-leaf-deep"><Leaf className="size-3" />−{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="shrink-0 text-right leading-tight">
+                      <span className="flex items-center justify-end gap-1 text-xs font-semibold text-leaf-deep"><Leaf className="size-3" />−{r.carbon_reduction_kg_month.toFixed(1)} kg</span>
+                      {r.estimated_cost_impact === null
+                        ? <span className="block text-[10.5px] text-muted" title={t(`ov.rec.reason.${r.type}`, undefined, t("ov.rec.reason.other"))}>{t("ov.rec.cost_waiting")}</span>
+                        : r.estimated_cost_impact === 0
+                          ? <span className="block text-[10.5px] text-muted" title={t("ov.rec.reason.same_price")}>{t("ov.rec.cost_same")}</span>
+                          : r.cost_basis === "region_price_list"
+                            ? <span className="block text-[10.5px] font-medium text-slate-600" title={t("rec.cost_basis_list")}>{r.estimated_cost_impact < 0 ? "−" : "+"}{t("ov.rec.cost_rough", { amount: formatCost(Math.abs(r.estimated_cost_impact)) })}</span>
+                            : <span className="block text-[10.5px] font-medium text-slate-600">{r.estimated_cost_impact < 0 ? "−" : "+"}{formatCost(Math.abs(r.estimated_cost_impact))}/mo</span>}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {sorted.length > 4 && <button type="button" onClick={() => setMore((o) => !o)} className="mx-auto mt-1 block text-xs font-semibold text-leaf-deep hover:underline">{more ? t("act.show_less") : t("ov3.recs.more", { n: sorted.length - 4 })}</button>}
+        </>
       )}
     </Card>
   );

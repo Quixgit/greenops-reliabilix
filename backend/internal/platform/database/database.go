@@ -29,6 +29,22 @@ func Connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+type cloudScopeKey struct{}
+
+// WithCloudScope marks a request as looking at one cloud only: every tenant transaction opened with the returned context also binds
+// app.cloud, and restrictive row policies (migration 0080) then hide the rows of the other clouds, in every query of the request. The
+// reporting currency of such a request is the cloud's own (finops.reporting_currency). Only reads are ever scoped (the middleware sets it
+// on GET requests), so a write path never sees a partial table.
+func WithCloudScope(ctx context.Context, cloud string) context.Context {
+	return context.WithValue(ctx, cloudScopeKey{}, cloud)
+}
+
+// CloudScope is the cloud the context is scoped to, or "".
+func CloudScope(ctx context.Context) string {
+	c, _ := ctx.Value(cloudScopeKey{}).(string)
+	return c
+}
+
 // WithTenantTx runs fn in a transaction with the transaction-local setting
 // app.tenant_id bound to tenantID. Row Level Security policies read it, so a
 // forgotten "WHERE tenant_id" can never return another tenant's rows. Every
@@ -49,6 +65,11 @@ func WithTenantTxOpts(ctx context.Context, pool *pgxpool.Pool, tenantID string, 
 	defer func() { _ = tx.Rollback(ctx) }() // no-op after Commit
 	if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID); err != nil {
 		return err
+	}
+	if cloud := CloudScope(ctx); cloud != "" {
+		if _, err := tx.Exec(ctx, "SELECT set_config('app.cloud', $1, true)", cloud); err != nil {
+			return err
+		}
 	}
 	if err := fn(tx); err != nil {
 		return err

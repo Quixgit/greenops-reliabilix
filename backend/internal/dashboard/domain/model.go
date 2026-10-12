@@ -12,6 +12,8 @@ type TrendPoint struct {
 	Day    time.Time `json:"day"`
 	Cost   float64   `json:"cost"`
 	CO2eKg float64   `json:"carbon_kg_co2e"`
+	// CostByProvider splits Cost over the clouds of the day (same currency as Cost): the chart stacks them, so two clouds are seen as two.
+	CostByProvider map[string]float64 `json:"cost_by_provider"`
 }
 
 type ProviderShare struct {

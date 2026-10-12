@@ -21,8 +21,8 @@ func TestNormalizeFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(recs) != 3 {
-		t.Fatalf("got %d records, want 3 (zero-cost and estimated rows dropped): %+v", len(recs), recs)
+	if len(recs) != 4 {
+		t.Fatalf("got %d records, want 4 (zero-cost rows dropped, estimated days kept): %+v", len(recs), recs)
 	}
 	ec2 := recs[0]
 	if ec2.ServiceName != "Amazon Elastic Compute Cloud - Compute" || ec2.ServiceCategory != "compute" || ec2.RegionID != "eu-central-1" ||

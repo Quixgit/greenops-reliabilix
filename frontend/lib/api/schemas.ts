@@ -56,7 +56,11 @@ export const finopsSummary = z.object({
   currency: z.string(),
   by_service: z.array(z.object({ service: z.string(), cost: z.number() })),
   // The cost per cloud in the reporting currency, with what each was billed in its own currency.
-  by_provider: z.array(z.object({ provider: z.string(), cost: z.number(), native: z.array(z.object({ currency: z.string(), amount: z.number() })) })).default([]),
+  by_provider: z.array(z.object({
+    provider: z.string(), cost: z.number(), native: z.array(z.object({ currency: z.string(), amount: z.number() })),
+    // days of the window with cost, and the newest day this cloud has cost for (null when unknown): a stale cloud is flagged, never silently short
+    days_with_data: z.number().default(0), last_day: z.string().nullable().default(null),
+  })).default([]),
   excluded: z.array(z.object({ currency: z.string(), rows: z.number() })).default([]),
 });
 export type FinopsSummary = z.infer<typeof finopsSummary>;
@@ -75,7 +79,7 @@ export const budget = z.object({ id: z.string(), project_id: z.string().nullable
 
 const items = <T extends z.ZodTypeAny>(t: T) => z.object({ items: z.array(t) }).transform((o) => o.items);
 
-export const trend = items(z.object({ day: z.string(), cost: z.number(), carbon_kg_co2e: z.number() }));
+export const trend = items(z.object({ day: z.string(), cost: z.number(), carbon_kg_co2e: z.number(), cost_by_provider: z.record(z.string(), z.number()).default({}) }));
 export type TrendPoint = z.infer<typeof trend>[number];
 
 export const providers = items(z.object({ provider: z.string(), carbon_kg_co2e: z.number(), share_pct: z.number() }));
@@ -491,7 +495,7 @@ export const settingChange = z.object({
 export const settingChanges = items(settingChange);
 
 export const anomalyDriver = z.object({ service: z.string(), region: z.string(), cost: z.number(), expected: z.number(), delta: z.number(), new: z.boolean() });
-export const anomaly = z.object({ day: z.string(), cost: z.number(), expected: z.number(), stddev: z.number(), drivers: z.array(anomalyDriver).default([]) });
+export const anomaly = z.object({ provider: z.string().default(""), day: z.string(), cost: z.number(), expected: z.number(), stddev: z.number(), drivers: z.array(anomalyDriver).default([]) });
 export type Anomaly = z.infer<typeof anomaly>;
 export const anomalies = items(anomaly);
 export const carbonTrend = items(z.object({ day: z.string(), carbon_kg_co2e: z.number() }));

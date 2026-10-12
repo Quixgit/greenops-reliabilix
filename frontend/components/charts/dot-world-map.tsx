@@ -135,11 +135,18 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitM
     const from = selected ? REGION_GEO[selected] : undefined;
     if (!selected || !from) return [];
     const a = project(from.lat, from.lon);
-    return own.filter((o) => o !== selected && REGION_GEO[o]).map((o) => {
+    const raw = own.filter((o) => o !== selected && REGION_GEO[o]).map((o) => {
       const g = REGION_GEO[o], b = project(g.lat, g.lon), lat = latencyBetween(selected, o), km = lat?.km ?? null, ms = lat?.ms ?? null;
       const cx = (a[0] + b[0]) / 2, cy = Math.min(a[1], b[1]) - Math.hypot(a[0] - b[0], a[1] - b[1]) * 0.22;
       return { key: o, a, b, cx, cy, mx: 0.25 * a[0] + 0.5 * cx + 0.25 * b[0], my: 0.25 * a[1] + 0.5 * cy + 0.25 * b[1], km, ms, basis: lat?.basis, errorPct: lat?.errorPct ?? 0, city: g.city, over: ms !== null && ms > limitMs };
     });
+    // labels of nearby routes would sit on top of each other (N. Virginia, Virginia and Ireland are one corner of the map): push each down until clear
+    const placed: { mx: number; my: number }[] = [];
+    for (const l of [...raw].sort((x, y) => x.mx - y.mx || x.my - y.my)) {
+      while (placed.some((p) => Math.abs(p.mx - l.mx) < 58 && Math.abs(p.my - l.my) < 11)) l.my += 11;
+      placed.push(l);
+    }
+    return raw;
   }, [selected, own, limitMs]);
 
   // Canvas resolution: the real width on screen, a little extra for zooming; never more than 2400 px.
@@ -391,15 +398,19 @@ function Detail({ r, fp, t }: { r: RegionIntensity; fp?: RegionFootprint; t: Ret
 }
 
 /** World map of grid carbon intensity. A small card version that opens into a full-screen explorer. */
-export function RegionMap({ regions, footprint = [], selected = null, onSelect, limitMs = 60 }: {
+export function RegionMap({ regions, footprint = [], selected = null, onSelect, limitMs = 60, mode: modeProp, onModeChange }: {
   regions: RegionIntensity[]; footprint?: RegionFootprint[];
   /** The organization's latency limit, to colour the links that exceed it. */
   limitMs?: number;
   /** Controlled selection: a click on a marker selects it for the page's own detail panel instead of opening the modal. */
   selected?: string | null; onSelect?: (region: string | null) => void;
+  /** Controlled layer: when the page owns the switch (in its header) the map shows no switch of its own under it. */
+  mode?: MapMode; onModeChange?: (m: MapMode) => void;
 }) {
   const t = useT();
-  const [mode, setMode] = useState<MapMode>("intensity");
+  const [modeState, setModeState] = useState<MapMode>("intensity");
+  const mode = modeProp ?? modeState;
+  const setMode = onModeChange ?? setModeState;
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState<string | null>(null);
   useEffect(() => {
@@ -439,8 +450,13 @@ export function RegionMap({ regions, footprint = [], selected = null, onSelect, 
           className="absolute right-2.5 top-2.5 grid size-8 place-items-center rounded-xl border border-line bg-white/90 text-muted shadow-sm transition hover:scale-105 hover:text-ink">
           <Maximize2 className="size-4" />
         </button>
-        <Legend t={t} mode={mode} />
-        <ModeSwitch mode={mode} onChange={setMode} t={t} disabled={footprint.length === 0} />
+        <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-2 rounded-lg bg-white/80 px-2 py-1 text-[10px] text-muted shadow-sm ring-1 ring-black/5 backdrop-blur">
+          <span>{t("map.clean", undefined, "Clean")}</span>
+          <span className="h-1.5 w-20 rounded-full" style={{ background: `linear-gradient(90deg,${STOPS.map(([g, c]) => `rgb(${c.join(",")}) ${(g / 600) * 100}%`).join(",")})` }} />
+          <span>{t("map.dirty", undefined, "High carbon")}</span>
+          <span className="hidden border-l border-line pl-2 sm:inline">gCO₂e/kWh</span>
+        </div>
+        {modeProp === undefined && <ModeSwitch mode={mode} onChange={setMode} t={t} disabled={footprint.length === 0} />}
       </div>
       {open && createPortal(
         <div className="map-backdrop fixed inset-0 z-50 grid place-items-center bg-[#0f1b33]/40 p-3 sm:p-8" onClick={() => setOpen(false)}>

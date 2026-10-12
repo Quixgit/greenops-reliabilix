@@ -163,7 +163,17 @@ func BuildForecast(history []DayPoint, start, end, now time.Time) Forecast {
 
 	if len(trusted) < minTrustedDays {
 		f.Method = "linear"
-		elapsed := math.Max(1, today.Sub(start).Hours()/24)
+		// a cloud connected mid-period is measured from its first day, not from the start of the period
+		from := start
+		for _, p := range pts {
+			if !p.Day.Before(start) {
+				if p.Day.After(from) {
+					from = p.Day
+				}
+				break
+			}
+		}
+		elapsed := math.Max(1, today.Sub(from).Hours()/24)
 		total := end.Sub(start).Hours() / 24
 		f.Expected = f.Spent * total / elapsed
 		f.Low, f.High = f.Expected, f.Expected
@@ -218,4 +228,68 @@ func stddev(v []float64) float64 {
 		s += (x - m) * (x - m)
 	}
 	return math.Sqrt(s / float64(len(v)-1))
+}
+
+// ProviderDays is one cloud's daily cost in the reporting currency.
+type ProviderDays struct {
+	Provider string     `json:"provider"`
+	Days     []DayPoint `json:"days"`
+}
+
+// CloudForecast is one cloud's part of the forecast.
+type CloudForecast struct {
+	Provider string  `json:"provider"`
+	Expected float64 `json:"expected"`
+	Spent    float64 `json:"spent"`
+	Method   string  `json:"method"`
+	// LastDay is the newest day with cost; StaleDays is how many whole days before today it ended without data (0 = up to yesterday).
+	LastDay   time.Time `json:"last_day"`
+	StaleDays int       `json:"stale_days"`
+}
+
+// BuildForecastByProvider forecasts every cloud on its own history and adds them up. The bill of two clouds is two rhythms and two lags: one
+// cloud that has not delivered its last days is forecast like the days to come, while the other keeps its booked figures. The band adds the
+// clouds' misses as independent errors.
+func BuildForecastByProvider(series []ProviderDays, start, end, now time.Time) (Forecast, []CloudForecast) {
+	total := Forecast{Method: "seasonal"}
+	var parts []CloudForecast
+	var varLow, varHigh float64
+	today := day(now)
+	for _, s := range series {
+		if len(s.Days) == 0 {
+			continue
+		}
+		f := BuildForecast(s.Days, start, end, now)
+		last := day(s.Days[0].Day)
+		for _, p := range s.Days {
+			if d := day(p.Day); d.After(last) {
+				last = d
+			}
+		}
+		stale := int(today.Sub(last).Hours()/24) - 1
+		if stale < 0 {
+			stale = 0
+		}
+		parts = append(parts, CloudForecast{Provider: s.Provider, Expected: f.Expected, Spent: f.Spent, Method: f.Method, LastDay: last, StaleDays: stale})
+		total.Expected += f.Expected
+		total.Spent += f.Spent
+		varLow += (f.Expected - f.Low) * (f.Expected - f.Low)
+		varHigh += (f.High - f.Expected) * (f.High - f.Expected)
+		if f.Method != "seasonal" {
+			total.Method = "linear"
+		}
+		if f.LagDays > total.LagDays {
+			total.LagDays = f.LagDays
+		}
+		if f.DaysLeft > total.DaysLeft {
+			total.DaysLeft = f.DaysLeft
+		}
+		if total.TrustedThrough.IsZero() || f.TrustedThrough.Before(total.TrustedThrough) {
+			total.TrustedThrough = f.TrustedThrough
+		}
+	}
+	total.Low = math.Max(total.Spent, total.Expected-math.Sqrt(varLow))
+	total.High = total.Expected + math.Sqrt(varHigh)
+	sort.Slice(parts, func(i, j int) bool { return parts[i].Expected > parts[j].Expected })
+	return total, parts
 }

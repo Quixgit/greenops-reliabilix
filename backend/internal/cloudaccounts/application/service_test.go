@@ -208,7 +208,9 @@ func TestRunSyncIncrementalOverlap(t *testing.T) {
 	if err := newSvc(newRepo(c), prov, fakeIngestor{}, &recorder{}).RunSync(context.Background(), "t", "c1"); err != nil {
 		t.Fatal(err)
 	}
-	if !prov.gotReq.From.Equal(day("2026-09-28")) { // synced_through - 6 days = 7-day overlap, inclusive
+	// synced_through - 6 days is 09-28, but Cost Explorer keeps a month an estimate until it closes, and today is in the first days of
+	// October: the month before is re-read too.
+	if !prov.gotReq.From.Equal(day("2026-09-01")) {
 		t.Errorf("incremental from = %v", prov.gotReq.From)
 	}
 }

@@ -5,6 +5,54 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.174] - 2026-10-12
+
+### Fixed
+- **AWS cost of the open month was never read.** Cost Explorer marks every day of the month that has not closed as estimated, and the
+  normalizer dropped estimated days, so a connection showed the closed months and nothing for the current one (the stand: AWS ended on
+  30 September while Azure ran to yesterday). Estimated days are kept now and the sync window re-reads the open month (and the month
+  before in its first five days) until AWS finalizes it. Run Connectors > Sync now once to fill October.
+- **Month-end forecast, "spent so far", budget and run-rate were wrong with two clouds** because the daily history was one sum: a
+  cloud that stopped delivering looked like a drop of the whole bill. The forecast is now built per cloud on its own weekday
+  pattern and lag, then added up (the band adds the clouds' misses as independent errors); a cloud with no data for days is counted at
+  its usual level and flagged. `GET /finops/forecast` gains `forecast.by_provider`.
+- **Cost per request showed `0.0001 CAD`.** Workload efficiency now picks the batch in which the cost is at least a cent
+  (per request, per 1,000, per 1,000,000) and writes the basis plainly.
+
+- **The "auto" reporting currency changed with the window.** With AWS in dollars and Azure in Canadian dollars the dominant currency of
+  the 30-day window was CAD and of the 56-day window the forecast reads USD, so the forecast (USD 2,546) was printed as CA$2,546 while the
+  budget, in CAD, projected CA$3,627. Without an explicit choice the currency is now the one carrying most of the organization's cost over
+  the last 90 days, in euro-equivalent, the same for every query and every project filter (migration 0079; the window's dominant currency
+  is only the fallback). Pick a fixed currency in Settings > Organization to override.
+- **Anomalies are judged per cloud.** Each cloud's day is compared with that cloud's own previous days (three standard deviations over
+  its trailing mean), not with the sum, so a cloud returning after a gap no longer reads as a spike of the whole bill and a small cloud's
+  spike is not hidden by a big one. Its drivers are listed for that cloud. `GET /finops/anomalies` items gain `provider`.
+
+### Added
+- **One cloud at a time** (ADR-0065). A switch under the Overview title: All clouds, AWS, Azure, ... Each choice shows that cloud's
+  figures only, in the currency it is billed in, computed on its own rows (cost, forecast, anomalies, carbon, services, regions,
+  recommendations). A request that carries `?cloud=aws` binds `app.cloud`; migration 0080 adds restrictive read policies on usage,
+  tagged cost, carbon calculations, recommendations and connections, and the reporting currency of such a request is the cloud's own.
+  "All clouds" stays the comparison, with the converted total and the cloud cards (click one to open its dashboard).
+- **Month by month** on the Overview: the last twelve months from the same daily figures, cost stacked by cloud and CO₂e under it, the
+  month in progress hatched and never compared with a closed one.
+
+### Changed
+- **Overview shows each cloud in the currency it is billed in.** A new Clouds band: one card per cloud with its own amount ("USD 783",
+  never a bare "$" next to a Canadian dollar), what it comes to in the reporting currency and at which rate, share of the bill, CO₂e,
+  month-end figure, a sparkline and how fresh its data is (a cloud days behind says so, with the days it covers). Clicking a card
+  filters the services table; chips above it switch the currency every total is shown in (saved as the organization's reporting
+  currency). The header lists data freshness per cloud; the cost chart stacks the clouds; breakdown rows carry the
+  cloud's mark and colour. One colour and one mark per cloud everywhere (AWS, Azure, Google Cloud, DigitalOcean, Kubernetes, SaaS).
+- **The Overview is redrawn compact.** One tile style for every figure (tinted glyph, number, change, one line of context, shape), gaps
+  between blocks cut to a third, segmented switches with a sliding thumb, on/off switches and check chips instead of tabs and links: the
+  main chart has Daily / Monthly, Both / Cost / CO₂e, a 7-day switch and one chip per cloud to hide a layer; breakdown, services, map layer
+  and the regions use the same controls. The map's legend sits on the map and the latency labels of nearby routes no longer overlap. The
+  right column is slim (setup steps collapse to what is left, four recommendations with "show more", accounts as a 2x2 grid) and sits under
+  the main column below 1500 px. Consecutive syncs that read nothing are one line in Recent activity.
+- `GET /finops/summary` `by_provider` gains `days_with_data` and `last_day`; `GET /dashboard/trend` points gain `cost_by_provider`.
+  `contract/api` 0.51.0.
+
 ## [0.1.0-alpha.173] - 2026-10-12
 
 ### Changed

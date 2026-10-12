@@ -17,6 +17,8 @@ type UiState = {
   setProject: (id: string | null) => void;
   setPeriod: (p: PeriodKey) => void;
   setCustom: (from: string, to: string) => void;
+  cloudFilter: string | null; // the cloud the Overview is scoped to (null = all): every figure of the page is that cloud's, in its own currency
+  setCloudFilter: (c: string | null) => void;
   focusService: string | null; // a service picked on a chart: its row in Details by Service is highlighted
   setFocusService: (s: string | null) => void;
   navOpen: boolean; // mobile sidebar
@@ -33,6 +35,8 @@ export const useUi = create<UiState>()(persist((set) => ({
   setProject: (projectId) => set({ projectId }),
   setPeriod: (period) => set({ period }),
   setCustom: (from, to) => set({ period: "custom", custom: from <= to ? { from, to } : { from: to, to: from } }),
+  cloudFilter: null,
+  setCloudFilter: (cloudFilter) => set({ cloudFilter }),
   focusService: null,
   setFocusService: (focusService) => set({ focusService }),
   navOpen: false,
@@ -42,7 +46,7 @@ export const useUi = create<UiState>()(persist((set) => ({
 }), {
   // The filters follow the user between sections and reloads (a chart that links to a detail page keeps them).
   name: "rlx-filters", skipHydration: true, // restored after mount (providers.tsx): the server render never knows the filters
-   partialize: (s) => ({ projectId: s.projectId, period: s.period, custom: s.custom, navCollapsed: s.navCollapsed }),
+   partialize: (s) => ({ projectId: s.projectId, period: s.period, custom: s.custom, navCollapsed: s.navCollapsed, cloudFilter: s.cloudFilter }),
   storage: { getItem: (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
     setItem: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
     removeItem: (k) => { try { localStorage.removeItem(k); } catch { /* private mode */ } } },

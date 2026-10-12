@@ -86,6 +86,36 @@ func (r Postgres) Summary(ctx context.Context, tenantID string, project *string,
 			s.ByProvider[i].Native = append(s.ByProvider[i].Native, domain.NativeAmount{Currency: x.Currency, Amount: x.Native})
 		}
 		sort.Slice(s.ByProvider, func(i, j int) bool { return s.ByProvider[i].Cost > s.ByProvider[j].Cost })
+		// freshness per cloud: days with cost inside the window and the newest day with cost (no upper bound: how far behind the cloud is now)
+		fr, err := tx.Query(ctx, `SELECT provider, (count(DISTINCT recorded_at::date) FILTER (WHERE recorded_at < $4))::int, max(recorded_at::date)
+			FROM usage.usage_records WHERE tenant_id = $1::uuid AND ($2::uuid IS NULL OR project_id = $2::uuid) AND recorded_at >= $3
+			GROUP BY provider`, tenantID, project, from, to)
+		if err != nil {
+			return err
+		}
+		type fresh struct {
+			days int
+			last time.Time
+		}
+		freshness := map[string]fresh{}
+		for fr.Next() {
+			var prov string
+			var f fresh
+			if err := fr.Scan(&prov, &f.days, &f.last); err != nil {
+				fr.Close()
+				return err
+			}
+			freshness[prov] = f
+		}
+		if err := fr.Err(); err != nil {
+			return err
+		}
+		for i := range s.ByProvider {
+			if f, ok := freshness[s.ByProvider[i].Provider]; ok {
+				last := f.last
+				s.ByProvider[i].DaysWithData, s.ByProvider[i].LastDay = f.days, &last
+			}
+		}
 		ex, err := q.UnconvertedCost(ctx, db.UnconvertedCostParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
 		if err != nil {
 			return err
@@ -163,13 +193,5 @@ func (r Postgres) Spent(ctx context.Context, tenantID string, project *string, c
 }
 
 func (r Postgres) Anomalies(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.Anomaly, error) {
-	out := []domain.Anomaly{}
-	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
-		rows, err := db.New(tx).Anomalies(ctx, db.AnomaliesParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
-		for _, x := range rows {
-			out = append(out, domain.Anomaly{Day: x.Day, Cost: x.Cost, Mean: x.Mean, Stddev: x.Stddev})
-		}
-		return err
-	})
-	return out, err
+	return r.AnomaliesByProvider(ctx, tenantID, project, from, to)
 }

@@ -1,19 +1,42 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { z } from "zod";
 import { api } from "@/lib/api/client";
 import * as s from "@/lib/api/schemas";
 import { setDefaultCurrency } from "@/lib/formatters";
 import { periodRange, useUi } from "@/lib/store";
 
-/** Filters shared by every Overview query; changing project/period refetches all of them. */
+/**
+ * The cloud the Overview is looking at, or null for all of them. The scope belongs to the Overview only: another page that reuses these
+ * hooks (Carbon, Kubernetes) keeps showing everything, so a scope chosen here never leaks into a page that has no switcher.
+ */
+export function useCloudScope(): string | null {
+  const cloud = useUi((s) => s.cloudFilter);
+  return usePathname() === "/overview" ? cloud : null;
+}
+
+/** Filters shared by every Overview query; changing project/period/cloud refetches all of them. */
 function useFilters() {
   const { projectId, period, custom } = useUi();
   void custom; // a new custom range re-renders the queries that depend on the period
+  const cloud = useCloudScope();
   const { from, to } = periodRange(period);
-  return { from, to, project_id: projectId ?? undefined };
+  return { from, to, project_id: projectId ?? undefined, cloud: cloud ?? undefined };
 }
+
+/** Every cloud with cost in the period, whatever the scope: what the switcher offers (each with the currency it is billed in). */
+export const useCloudList = () => {
+  const { projectId, period, custom } = useUi();
+  void custom;
+  const { from, to } = periodRange(period);
+  return useQuery({
+    queryKey: ["cloud-list", from, to, projectId],
+    queryFn: async () => (await api("finops/summary", s.finopsSummary, { from, to, project_id: projectId ?? undefined })).by_provider,
+    staleTime: 60_000,
+  });
+};
 
 export const useCarbonSummary = () => {
   const f = useFilters();
@@ -62,17 +85,21 @@ export const useEfficiency = () => {
 export const useActivity = () => useQuery({ queryKey: ["activity"], queryFn: () => api("dashboard/activity", s.activity, { limit: "20" }) });
 export const useProjects = () => useQuery({ queryKey: ["projects"], queryFn: () => api("projects", s.projects) });
 export const useConnections = () => useQuery({ queryKey: ["connections"], queryFn: () => api("cloud-accounts", s.connections) });
-export const useRecommendations = (status: string) =>
-  useQuery({ queryKey: ["recommendations", status], queryFn: () => api("recommendations", s.recommendations, { status: status === "all" ? undefined : status, limit: "50" }) });
+export const useRecommendations = (status: string) => {
+  const cloud = useCloudScope();
+  return useQuery({ queryKey: ["recommendations", status, cloud], queryFn: () => api("recommendations", s.recommendations, { status: status === "all" ? undefined : status, limit: "50", cloud: cloud ?? undefined }) });
+};
 export const useReports = () =>
   useQuery({ queryKey: ["reports"], queryFn: () => api("reports", s.reports), refetchInterval: (q) => (q.state.data?.some((r) => r.status === "pending") ? 3000 : false) });
 const forecastSchema = z.object({ currency: z.string(), forecast: z.object({
   expected: z.number(), low: z.number(), high: z.number(), method: z.enum(["seasonal", "linear"]), spent: z.number(), lag_days: z.number(), days_left: z.number(),
+  by_provider: z.array(z.object({ provider: z.string(), expected: z.number(), spent: z.number(), method: z.string(), last_day: z.string(), stale_days: z.number() })).default([]),
 }) });
 /** Where the month will end: the weekday pattern and the trend, with an 80% range; the billing lag of the last days is allowed for. */
 export const useForecast = () => {
   const { projectId } = useUi();
-  return useQuery({ queryKey: ["forecast", projectId], queryFn: () => api("finops/forecast", forecastSchema, projectId ? { project_id: projectId } : undefined) });
+  const cloud = useCloudScope();
+  return useQuery({ queryKey: ["forecast", projectId, cloud], queryFn: () => api("finops/forecast", forecastSchema, { project_id: projectId ?? undefined, cloud: cloud ?? undefined }) });
 };
 export const useAnomalies = () => {
   const f = useFilters();

@@ -5,7 +5,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { MiniArea } from "@/components/charts/mini-area";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { Segmented } from "@/components/ui/controls";
+import { Glyph } from "@/components/ui/glyphs";
+import type { MapMode } from "@/components/charts/dot-world-map";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Info } from "@/components/ui/info";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -185,6 +188,7 @@ export function RegionExplorer() {
   const fp = useRegionFootprint();
   const cur = useFinopsSummary().data?.currency || "USD";
   const [sel, setSel] = useState<string | null>(null);
+  const [mode, setMode] = useState<MapMode>("intensity");
   const limit = (fp.data ?? []).map((f) => f.alternative?.latency_budget_ms).find((v) => v) ?? 60;
 
   const rows: Row[] = useMemo(() => {
@@ -202,37 +206,41 @@ export function RegionExplorer() {
   const maxCarbon = Math.max(1, ...used.map((r) => r.fp!.carbon_kg_co2e));
 
   return (
-    <Card index={11} interactive={false}>
-      <CardHeader icon={<Globe2 className="size-[18px] text-leaf-deep" />} title={t("ov.reg.title")}
-        info={t("info.regions")}
-        action={<Link href="/carbon" className="text-xs font-semibold text-primary hover:underline">{t("ov.svc.link")}</Link>} />
-      {q.isLoading ? <Skeleton className="h-80" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Globe2} text={t("ov.reg.empty")} /> : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <div className="flex min-w-0 flex-col gap-4">
-            <RegionMap limitMs={limit} regions={q.data!} footprint={fp.data ?? []} selected={current?.region ?? null} onSelect={setSel} />
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">{t("ov2.reg.yours")}<Info>{t("info.regions_yours")}</Info></p>
-              {used.length === 0 ? <p className="text-sm text-muted">{t("ov.reg.no_resources")}</p> : (
-                <ul className="grid gap-2 sm:grid-cols-2">
-                  {used.slice(0, 6).map((r, i) => (
-                    <li key={r.region} className="rise" style={{ "--i": i } as CSSProperties}>
-                      <button type="button" onClick={() => setSel(r.region)} aria-pressed={current?.region === r.region}
-                        className={cn("w-full rounded-xl border px-3 py-2 text-left transition-all duration-200 hover:-translate-y-0.5",
-                          current?.region === r.region ? "border-leaf-deep/60 bg-leaf-soft/60 shadow-sm" : "border-line bg-white hover:border-slate-300 hover:shadow-sm")}>
-                        <span className="flex items-center justify-between gap-2 text-sm">
-                          <span className="flex min-w-0 items-center gap-2 font-medium"><span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/5" style={{ background: r.g === null ? "#e4eaf3" : intensityColor(r.g) }} /><span className="truncate">{regionName(r.region)}</span></span>
-                          <span className="shrink-0 tabular-nums text-xs text-muted">{formatCarbon(r.fp!.carbon_kg_co2e)}</span>
-                        </span>
-                        <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-leaf" style={{ width: `${Math.max(4, (r.fp!.carbon_kg_co2e / maxCarbon) * 100)}%`, "--d": `${i * 60}ms` } as CSSProperties} /></span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+    <Card index={11} interactive={false} className="p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">
+          <Glyph name="pin" className="size-[18px] text-[#2f8f78]" />{t("ov.reg.title")}<Info>{t("info.regions")}</Info>
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented size="sm" label={t("ov3.map.layer")} value={mode} onChange={setMode}
+            options={[
+              { value: "intensity", label: t("map.layer_intensity", undefined, "Grid intensity") },
+              { value: "footprint", label: t("map.layer_footprint", undefined, "My footprint"), disabled: (fp.data ?? []).length === 0 },
+              { value: "relocation", label: t("map.layer_relocation", undefined, "Relocation"), disabled: (fp.data ?? []).length === 0 },
+            ]} />
+          <Link href="/carbon" className="text-xs font-semibold text-primary hover:underline">{t("ov.svc.link")}</Link>
+        </div>
+      </div>
+      {q.isLoading ? <Skeleton className="h-72" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Globe2} text={t("ov.reg.empty")} /> : (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-3">
+            <RegionMap limitMs={limit} regions={q.data!} footprint={fp.data ?? []} selected={current?.region ?? null} onSelect={setSel} mode={mode} onModeChange={setMode} />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t("ov2.reg.yours")}<Info>{t("info.regions_yours")}</Info></span>
+              {used.length === 0 ? <span className="text-xs text-muted">{t("ov.reg.no_resources")}</span> : used.slice(0, 6).map((r, i) => (
+                <button key={r.region} type="button" onClick={() => setSel(r.region)} aria-pressed={current?.region === r.region} style={{ "--i": i } as CSSProperties}
+                  className={cn("rise group relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition-all duration-200",
+                    current?.region === r.region ? "bg-leaf-soft/70 text-ink ring-leaf-deep/40" : "bg-white text-slate-700 ring-line hover:ring-slate-300")}>
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: r.g === null ? "#e4eaf3" : intensityColor(r.g) }} />
+                  {regionName(r.region)}
+                  <span className="tabular-nums text-muted">{formatCarbon(r.fp!.carbon_kg_co2e)}</span>
+                  <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-leaf/70" style={{ transform: `scaleX(${Math.max(0.05, r.fp!.carbon_kg_co2e / maxCarbon)})` }} />
+                </button>
+              ))}
             </div>
             {ranked.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="font-medium">{t("ov2.reg.cleanest_now")}</span>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t("ov2.reg.cleanest_now")}</span>
                 {ranked.slice(0, 3).map((r) => (
                   <button key={r.region} type="button" onClick={() => setSel(r.region)} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 font-medium text-slate-700 ring-1 ring-line transition-colors hover:bg-leaf-soft">
                     <span className="size-2 rounded-full" style={{ background: intensityColor(r.g!) }} />{regionName(r.region)} · {nf(0).format(r.g!)}
@@ -241,11 +249,11 @@ export function RegionExplorer() {
               </div>
             )}
           </div>
-          <div className="min-w-0 rounded-2xl border border-line/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <div className="min-w-0 rounded-2xl bg-slate-50/60 p-3.5 ring-1 ring-line/70">
             {current ? <Detail row={current} rows={rows} cur={cur} limit={limit} /> : null}
           </div>
         </div>
       )}
-          </Card>
+    </Card>
   );
 }

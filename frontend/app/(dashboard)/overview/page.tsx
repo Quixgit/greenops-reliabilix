@@ -1,3 +1,4 @@
+import { CloudCosts } from "@/components/dashboard/cloud-costs";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 import { DataQuality } from "@/components/dashboard/data-quality";
 import { DemoBanner } from "@/components/dashboard/demo-banner";
@@ -23,27 +24,28 @@ export const metadata = { title: "Overview · Reliabilix GreenOps" };
 export default async function OverviewPage() {
   const user = (await getUser())!;
   return (
-    <div className="mx-auto max-w-[1680px] space-y-5">
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="min-w-0 space-y-5">
+    <div className="mx-auto max-w-[1680px] space-y-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[1500px]:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-3">
           <OverviewHeader />
           <DemoBanner canWrite={canWrite(user.role)} />
           <FirstFindings />
           <KpiStrip />
+          <CloudCosts />
           <StatCardsNotice />
           <FinopsStrip />
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[1100px]:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
             <TrendPanel />
             <FootprintSplit />
           </div>
           <ServicesBoard />
           <RegionExplorer />
-          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-3 min-[900px]:grid-cols-2">
             <WorkloadEfficiency />
             <DataQuality />
           </div>
         </div>
-        <div className="col-divider space-y-5 xl:pt-1">
+        <div className="col-divider grid grid-cols-[minmax(0,1fr)] content-start items-start gap-3 min-[760px]:max-[1499px]:grid-cols-2 min-[1500px]:pt-0">
           <SetupGuide />
           <TopRecommendations />
           <ConnectedAccounts />

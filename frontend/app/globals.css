@@ -51,7 +51,7 @@ body {
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 6px 16px rgba(31, 52, 110, 0.05);
 }
 /* Thin vertical rule between the main content and the right column; it fades out at both ends. */
-@media (min-width: 1280px) {
+@media (min-width: 1500px) {
   .col-divider { position: relative; }
   .col-divider::before {
     content: ""; position: absolute; top: 0; bottom: 0; left: -10px; width: 1px;

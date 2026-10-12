@@ -215,6 +215,13 @@ export const IconKubernetes = mark("kubernetes",
     <path d="M16 13.2V8.6M18.8 14.8l4-2.2M18.6 18.2l3.6 3M13.4 18.2l-3.6 3M13.2 14.8l-4-2.2" stroke="#6f8fe0" strokeWidth="1.8" />
   </>);
 
+export const IconDigitalOcean = mark("digitalocean",
+  <>
+    <circle cx="16" cy="16" r="12.4" fill="#d9f0fb" stroke="#6cc4e0" strokeWidth="1.6" />
+    <path d="M16 23.6v-4.2a3.4 3.4 0 0 0 3.4-3.4 3.4 3.4 0 0 0-3.4-3.4 7.4 7.4 0 1 0 7.4 7.4h-4.2" stroke="#4aa9cf" strokeWidth="2.2" />
+    <path d="M12 23.6h4v-4h-4z" fill="#4aa9cf" stroke="none" />
+  </>);
+
 /* Second batch: the glyphs the operator console and the rarer forms still took from the stock set. */
 export const IconServer = make("server",
   <path d="M4.4 4.6c0-.6.5-1.1 1.1-1.1h13c.6 0 1.1.5 1.1 1.1v3.6c0 .6-.5 1.1-1.1 1.1h-13c-.6 0-1.1-.5-1.1-1.1z" />,

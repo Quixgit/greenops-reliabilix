@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.50.0
+  version: 0.51.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -2714,6 +2714,18 @@ paths:
                       trusted_through: {type: string, format: date-time}
                       lag_days: {type: integer}
                       days_left: {type: integer}
+                      by_provider:
+                        type: array
+                        description: Each cloud forecast on its own history; the totals above are their sum.
+                        items:
+                          type: object
+                          properties:
+                            provider: {type: string}
+                            expected: {type: number}
+                            spent: {type: number}
+                            method: {type: string, enum: [seasonal, linear]}
+                            last_day: {type: string, format: date-time}
+                            stale_days: {type: integer, description: Whole days before today the cloud has no data for.}
         '400':
           $ref: '#/components/responses/Problem'
         '401':
@@ -7750,6 +7762,14 @@ components:
                       type: string
                     amount:
                       type: number
+              days_with_data:
+                type: integer
+                description: Days of the window this cloud has cost on.
+              last_day:
+                type: string
+                format: date-time
+                nullable: true
+                description: The newest day this cloud has cost for (not limited to the window); a day well before today means its data stopped arriving.
         previous_comparable:
           type: boolean
           description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
@@ -7842,6 +7862,9 @@ components:
     Anomaly:
       type: object
       properties:
+        provider:
+          type: string
+          description: The cloud the day was unusual for; every cloud is judged against its own previous days, not against the sum.
         day:
           type: string
           format: date-time
@@ -7874,6 +7897,10 @@ components:
           type: number
         carbon_kg_co2e:
           type: number
+        cost_by_provider:
+          type: object
+          additionalProperties: {type: number}
+          description: Cost of the day per cloud, in the same currency as `cost`.
       additionalProperties: true
     ProviderShare:
       type: object
