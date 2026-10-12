@@ -1,6 +1,13 @@
 {
+  "digest.flat": "no change",
+  "digest.headline": "Spend {cost} {currency} ({cost_change} vs the previous period). Carbon {carbon} kgCO2e ({carbon_change}).",
+  "digest.new": "new",
+  "digest.top": "Largest service: {service} ({cost} {currency}).",
   "email.footer": "Sent by Reliabilix GreenOps Platform",
   "email.greeting": "Hello,",
+  "invite.body": "You have been invited to join {org} as {role}. Open the link and sign in with this e-mail address to accept. The link works for {days} days and only for this address.",
+  "invite.footer": "You received this e-mail because someone invited you to Reliabilix. If you did not expect it, you can ignore it.",
+  "invite.subject": "You are invited to {org} on Reliabilix",
   "lang.name": "English",
   "problem.conflict": "Conflict",
   "problem.forbidden": "You do not have access to this",

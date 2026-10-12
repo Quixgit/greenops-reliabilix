@@ -65,6 +65,8 @@ type Service struct {
 	// the minimum interval between data pulls come from the organization's settings (ADR-0023).
 	Settings settings.Reader
 	Limits   entitlements.Gate
+	// Commitments keeps the Savings Plans and reservations read from the cloud (optional; without it they are not read).
+	Commitments domain.CommitmentStore
 	// Notify is optional: a connection that starts to need customer action is announced (best effort).
 	Notify notify.Notifier
 	Log    *slog.Logger
@@ -198,9 +200,9 @@ func (s Service) setup(c domain.Connection) Setup {
 		ExternalID:        c.ExternalID,
 		PlatformAccountID: s.PlatformAWSAccountID,
 		// GetRightsizingRecommendation is optional: without it only the rightsizing advice is missing.
-		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"},
+		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation", "ce:GetSavingsPlansUtilization", "ce:GetSavingsPlansCoverage", "ce:GetReservationUtilization", "ce:GetReservationCoverage"},
 		PermissionsPolicy: map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
-			{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"}, "Resource": "*"}}},
+			{"Effect": "Allow", "Action": awsReadActions, "Resource": "*"}}},
 	}
 	if s.PlatformAWSAccountID != "" {
 		st.TrustPolicy = map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{{
@@ -216,10 +218,10 @@ func (s Service) setup(c domain.Connection) Setup {
 func (s Service) awsKeySetup(c domain.Connection) Setup {
 	id, _ := domain.ParseAWSKeyRef(c.CredentialRef)
 	policy := map[string]any{"Version": "2012-10-17", "Statement": []map[string]any{
-		{"Effect": "Allow", "Action": []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"}, "Resource": "*"}}}
+		{"Effect": "Allow", "Action": awsReadActions, "Resource": "*"}}}
 	return Setup{
 		ExternalID:          c.ExternalID,
-		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation"},
+		RequiredPermissions: []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation", "ce:GetSavingsPlansUtilization", "ce:GetSavingsPlansCoverage", "ce:GetReservationUtilization", "ce:GetReservationCoverage"},
 		PermissionsPolicy:   policy,
 		Steps: []string{
 			"Cost Explorer must be enabled in the AWS account (Billing > Cost Explorer); the first data can take up to 24 hours.",
@@ -681,4 +683,52 @@ func safeMessage(err error) string {
 	default:
 		return "Sync failed; it will be retried automatically."
 	}
+}
+
+// awsReadActions are the read-only Cost Explorer actions the platform asks for. Only GetCostAndUsage is required; the rest are optional and a
+// role without them just gets no rightsizing findings and no reading of its Savings Plans and reservations.
+var awsReadActions = []string{"ce:GetCostAndUsage", "ce:GetRightsizingRecommendation", "ce:GetSavingsPlansUtilization", "ce:GetSavingsPlansCoverage", "ce:GetReservationUtilization", "ce:GetReservationCoverage"}
+
+// commitmentDays is how many days of utilization and coverage a reading looks at.
+const commitmentDays = 30
+
+// RunCommitments reads the Savings Plans and reservations of one connection and keeps them. Best effort like rightsizing: a role without
+// the optional permissions simply has no reading, and that never marks the connection unhealthy.
+func (s Service) RunCommitments(ctx context.Context, tenantID, connectionID string) error {
+	if s.Commitments == nil {
+		return nil
+	}
+	c, err := s.Repo.Get(ctx, tenantID, connectionID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	p, err := s.Providers.Get(c.Provider)
+	if err != nil {
+		return err
+	}
+	cp, ok := p.(domain.CommitmentProvider)
+	if !ok {
+		return nil
+	}
+	to := s.now().Truncate(24 * time.Hour)
+	snaps, err := cp.GetCommitments(ctx, c, to.AddDate(0, 0, -commitmentDays), to)
+	if err != nil {
+		if errors.Is(err, domain.ErrAccessDenied) {
+			s.Log.Info("commitments not permitted for this connection; add the ce:Get*Utilization and ce:Get*Coverage permissions to read them", "connection", connectionID)
+			return nil
+		}
+		return err
+	}
+	return s.Commitments.SaveCommitments(ctx, tenantID, connectionID, snaps)
+}
+
+// ExistingCommitments lists what the organization's accounts hold, as last read.
+func (s Service) ExistingCommitments(ctx context.Context, tenantID string) ([]domain.CommitmentSnapshot, error) {
+	if s.Commitments == nil {
+		return []domain.CommitmentSnapshot{}, nil
+	}
+	return s.Commitments.ListCommitments(ctx, tenantID)
 }

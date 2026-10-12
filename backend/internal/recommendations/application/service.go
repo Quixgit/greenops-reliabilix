@@ -209,12 +209,21 @@ func (s Service) VerifyApplied(ctx context.Context, tenantID, projectID string) 
 		if err != nil {
 			return done, err
 		}
-		v := domain.Verify(r, before, after, now)
+		// The control group: the rest of the project over the same two windows (the project's total less the service).
+		totalBefore, _, err := s.Repo.DailySeries(ctx, tenantID, projectID, "", bFrom, bTo)
+		if err != nil {
+			return done, err
+		}
+		totalAfter, _, err := s.Repo.DailySeries(ctx, tenantID, projectID, "", aFrom, aTo)
+		if err != nil {
+			return done, err
+		}
+		v := domain.VerifyControlled(r, before, after, domain.ControlSeries(totalBefore, before), domain.ControlSeries(totalAfter, after), now)
 		if v.Outcome == domain.Inconclusive && !domain.Expired(*r.AppliedAt, now) {
 			continue // data may still arrive (late billing export)
 		}
 		if cur != "" && curAfter != "" && cur != curAfter { // a currency change would make the cost delta meaningless
-			v.MeasuredCostMonth, v.ExpectedCostMonth = nil, nil
+			v.MeasuredCostMonth, v.ExpectedCostMonth, v.AdjustedCostMonth = nil, nil, nil
 			v.Note += " Cost not compared: the billing currency changed."
 		}
 		if cur == "" {

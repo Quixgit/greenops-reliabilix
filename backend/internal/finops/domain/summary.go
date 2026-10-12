@@ -55,8 +55,12 @@ type BudgetStatus struct {
 	PeriodEnd   time.Time `json:"period_end"`
 	Spent       float64   `json:"spent"`
 	UsedPct     float64   `json:"used_pct"`
-	Projected   float64   `json:"projected"` // linear projection to the end of the period
-	State       string    `json:"state"`     // ok | at_risk | exceeded
+	Projected   float64   `json:"projected"` // expected cost at the end of the period (seasonal forecast, or linear when the history is short)
+	// ProjectedLow and ProjectedHigh bound it (an 80% range); ForecastMethod says which method gave it.
+	ProjectedLow   float64 `json:"projected_low"`
+	ProjectedHigh  float64 `json:"projected_high"`
+	ForecastMethod string  `json:"forecast_method"`
+	State          string  `json:"state"` // ok | at_risk | exceeded
 }
 
 type Anomaly struct {
@@ -64,6 +68,18 @@ type Anomaly struct {
 	Cost   float64   `json:"cost"`
 	Mean   float64   `json:"expected"`
 	Stddev float64   `json:"stddev"`
+	// Drivers are the services and regions that moved the day the most, biggest increase first (ADR-0053).
+	Drivers []Driver `json:"drivers"`
+}
+
+// Driver is one service in one region that cost more on an anomalous day than on a usual one.
+type Driver struct {
+	Service  string  `json:"service"`
+	Region   string  `json:"region"`
+	Cost     float64 `json:"cost"`     // on the day
+	Expected float64 `json:"expected"` // the daily average of the 14 days before
+	Delta    float64 `json:"delta"`
+	New      bool    `json:"new"` // nothing like it before: a new service or region
 }
 
 var (
@@ -101,6 +117,11 @@ func PeriodBounds(period string, now time.Time) (time.Time, time.Time) {
 // Evaluate computes consumption, a linear projection and the state: exceeded (spent > amount),
 // at_risk (projected > amount or >= 80% used), otherwise ok.
 func Evaluate(b Budget, spent float64, now time.Time) BudgetStatus {
+	return EvaluateWith(b, spent, now, nil)
+}
+
+// EvaluateWith is Evaluate with the seasonal forecast of the period when there is one (nil: the linear projection).
+func EvaluateWith(b Budget, spent float64, now time.Time, f *Forecast) BudgetStatus {
 	start, end := PeriodBounds(b.Period, now)
 	elapsed := now.UTC().Sub(start)
 	if elapsed < 24*time.Hour {
@@ -108,6 +129,10 @@ func Evaluate(b Budget, spent float64, now time.Time) BudgetStatus {
 	}
 	s := BudgetStatus{Budget: b, PeriodStart: start, PeriodEnd: end, Spent: spent}
 	s.Projected = spent * float64(end.Sub(start)) / float64(elapsed)
+	s.ProjectedLow, s.ProjectedHigh, s.ForecastMethod = s.Projected, s.Projected, "linear"
+	if f != nil {
+		s.Projected, s.ProjectedLow, s.ProjectedHigh, s.ForecastMethod = f.Expected, f.Low, f.High, f.Method
+	}
 	if b.Amount > 0 {
 		s.UsedPct = spent / b.Amount * 100
 	}
@@ -123,6 +148,8 @@ func Evaluate(b Budget, spent float64, now time.Time) BudgetStatus {
 }
 
 type Repository interface {
+	// CommittableDaily is the compute and database spend per provider and day (ADR-0051).
+	CommittableDaily(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]DayCost, string, error)
 	LatestRateDay(ctx context.Context) (time.Time, error)
 	SaveRates(ctx context.Context, rates []FXRate) error
 	Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (Summary, error)
@@ -131,4 +158,8 @@ type Repository interface {
 	DeleteBudget(ctx context.Context, tenantID, id string) error
 	Spent(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) (float64, error)
 	Anomalies(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]Anomaly, error)
+	// AnomalyDrivers lists what moved on a day (ADR-0053).
+	AnomalyDrivers(ctx context.Context, tenantID string, project *string, day time.Time, limit int) ([]Driver, error)
+	// DailyCost is the cost per day of [from, to) in the currency given or, when empty, the reporting currency.
+	DailyCost(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) ([]DayPoint, string, error)
 }

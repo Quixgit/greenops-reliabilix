@@ -57,8 +57,28 @@ func Text(e notify.Event) string {
 	return b.String()
 }
 
+// message is the payload of one event. An event that names an action ("Review and approve") gets a button to its page: a link
+// button, which opens the app where the person signs in and where the decision, with its role check and second approval,
+// is made. Slack never approves anything itself: it cannot prove which member pressed the button.
+func message(e notify.Event) map[string]any {
+	msg := map[string]any{"text": Text(e), "link_names": 0, "unfurl_links": false}
+	label := strings.TrimSpace(e.Attrs["action"])
+	u, err := url.Parse(e.Link)
+	if label == "" || err != nil || e.Link == "" || (u.Scheme != "https" && u.Scheme != "http") {
+		return msg
+	}
+	if r := []rune(label); len(r) > 75 {
+		label = string(r[:75])
+	}
+	msg["blocks"] = []map[string]any{
+		{"type": "section", "text": map[string]any{"type": "mrkdwn", "text": strings.SplitN(Text(e), "\n<", 2)[0]}},
+		{"type": "actions", "elements": []map[string]any{{"type": "button", "text": map[string]any{"type": "plain_text", "text": label}, "url": e.Link, "style": "primary"}}},
+	}
+	return msg
+}
+
 func (c *Channel) Send(ctx context.Context, t domain.Target, m domain.Message) error {
-	body, err := json.Marshal(map[string]any{"text": Text(m.Event), "link_names": 0, "unfurl_links": false})
+	body, err := json.Marshal(message(m.Event))
 	if err != nil {
 		return domain.Permanent(err)
 	}

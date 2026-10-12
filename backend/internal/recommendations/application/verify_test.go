@@ -21,7 +21,9 @@ func (v *verifyRepo) AppliedAwaitingVerification(context.Context, string, string
 	return v.recs, nil
 }
 func (v *verifyRepo) DailySeries(_ context.Context, _, _, service string, from, _ time.Time) ([]domain.DayPoint, string, error) {
-	v.scopeOf = service
+	if service != "" { // the project-wide calls make the control group; the service's own calls must be scoped
+		v.scopeOf = service
+	}
 	if from.Before(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)) {
 		return v.before, "USD", nil
 	}

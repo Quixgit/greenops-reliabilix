@@ -61,3 +61,28 @@ func TestSendPostsText(t *testing.T) {
 		t.Errorf("body = %v", got)
 	}
 }
+
+func TestActionEventGetsALinkButton(t *testing.T) {
+	m := message(notify.Event{Title: "A change plan is waiting", Body: "x", Link: "https://app.example.com/automation", Attrs: map[string]string{"action": "Review and approve"}})
+	blocks, ok := m["blocks"].([]map[string]any)
+	if !ok || len(blocks) != 2 {
+		t.Fatalf("blocks: %#v", m["blocks"])
+	}
+	btn := blocks[1]["elements"].([]map[string]any)[0]
+	if btn["url"] != "https://app.example.com/automation" || btn["type"] != "button" {
+		t.Fatalf("button: %#v", btn)
+	}
+	if _, has := btn["action_id"]; has {
+		t.Fatal("a link button must not be interactive")
+	}
+	// no action, no link, or an unsafe link: plain text as before
+	for _, e := range []notify.Event{
+		{Title: "t", Link: "https://a.example/x"},
+		{Title: "t", Attrs: map[string]string{"action": "Go"}},
+		{Title: "t", Link: "javascript:alert(1)", Attrs: map[string]string{"action": "Go"}},
+	} {
+		if _, has := message(e)["blocks"]; has {
+			t.Errorf("unexpected blocks for %+v", e)
+		}
+	}
+}

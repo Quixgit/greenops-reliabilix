@@ -19,6 +19,11 @@ type Service struct {
 	// Settings and Limits are optional: without them the catalog defaults apply and nothing is limited.
 	Settings settings.Reader
 	Limits   entitlements.Gate
+	// SCIM is the store of people an identity provider pushed; without it provisioning is not offered.
+	SCIM domain.SCIMStore
+	// Mail and BaseURL deliver invitations by e-mail (optional: without them the token is shown to the inviter only).
+	Mail    InviteMailer
+	BaseURL string
 }
 
 func (s Service) cfg() settings.Reader {

@@ -55,6 +55,7 @@ func main() {
 		"25 5 * * *":     queue.TaskPurgeErrors,         // drop handled error groups past retention
 		"35 5 * * *":     queue.TaskPurgeOperatorLog,    // operator access records past retention
 		"20 * * * *":     queue.TaskEvaluateAlerts,      // budget and connection alerts
+		"7 * * * *":      queue.TaskRunReportSchedules,  // scheduled reports: weekly on Monday, monthly on the 1st, 06:00 UTC
 		"5 8 * * *":      queue.TaskBillingReminders,    // renewal reminders: in the bell and by e-mail
 		"15 * * * *":     queue.TaskExpireSubscriptions, // subscriptions whose period has ended return to the Free plan
 		"10 * * * *":     queue.TaskEraseDue,            // organizations whose erasure grace period is over

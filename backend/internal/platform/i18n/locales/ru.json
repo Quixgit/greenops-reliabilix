@@ -1,6 +1,13 @@
 {
+  "digest.flat": "без изменений",
+  "digest.headline": "Расходы {cost} {currency} ({cost_change} к прошлому периоду). Углерод {carbon} кгCO2e ({carbon_change}).",
+  "digest.new": "новое",
+  "digest.top": "Крупнейший сервис: {service} ({cost} {currency}).",
   "email.footer": "Отправлено платформой Reliabilix GreenOps",
   "email.greeting": "Здравствуйте,",
+  "invite.body": "Вас пригласили в организацию {org} с ролью {role}. Откройте ссылку и войдите с этим адресом e-mail, чтобы принять приглашение. Ссылка действует {days} дн. и только для этого адреса.",
+  "invite.footer": "Вы получили это письмо, потому что кто-то пригласил вас в Reliabilix. Если вы его не ждали, просто проигнорируйте.",
+  "invite.subject": "Вас приглашают в {org} в Reliabilix",
   "lang.name": "Русский",
   "problem.conflict": "Конфликт",
   "problem.forbidden": "Нет доступа",

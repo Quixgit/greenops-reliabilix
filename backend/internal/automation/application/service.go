@@ -51,8 +51,15 @@ func (s Service) Plan(ctx context.Context, tenantID string, who auth.Claims, rec
 	if err != nil {
 		return domain.Job{}, err
 	}
-	return s.Repo.Insert(ctx, tenantID, domain.Job{ProjectID: info.ProjectID, RecommendationID: info.ID, Kind: pr.Kind, Plan: pr.Plan,
+	j, err := s.Repo.Insert(ctx, tenantID, domain.Job{ProjectID: info.ProjectID, RecommendationID: info.ID, Kind: pr.Kind, Plan: pr.Plan,
 		Risk: pr.Risk, RollbackPlan: pr.RollbackPlan, CreatedBy: who.Subject})
+	if err == nil {
+		// "action" makes a chat message carry a button to the page where a person with the right approves; the decision stays there.
+		s.announce(ctx, tenantID, notify.Event{Type: notify.TypeAutomationWaiting, Severity: notify.Info,
+			Title: "A change plan is waiting for approval", Body: j.Plan.Summary, Path: "/automation", DedupeKey: "automation:" + j.ID + ":waiting",
+			Attrs: map[string]string{"job_id": j.ID, "kind": string(j.Kind), "action": "Review and approve"}})
+	}
+	return j, err
 }
 
 func (s Service) List(ctx context.Context, tenantID string, limit int) ([]domain.Job, error) {
@@ -132,4 +139,19 @@ func (s Service) Report(ctx context.Context, tenantID, id string, who auth.Claim
 			Path: "/automation", DedupeKey: "automation:" + id + ":" + string(to), Attrs: map[string]string{"job_id": id, "outcome": string(to)}})
 	}
 	return j, err
+}
+
+// DryRun reports what applying the plan would do, against the state of right now, and changes nothing. A person
+// (or a pipeline) reads it before running the commands; it is available for any live plan, approved or not.
+func (s Service) DryRun(ctx context.Context, tenantID, id string) (domain.DryRunReport, error) {
+	j, err := s.Repo.Get(ctx, tenantID, id)
+	if err != nil {
+		return domain.DryRunReport{}, err
+	}
+	in := domain.DryRunInput{Job: j}
+	in.Rec, in.RecErr = s.Recs.Get(ctx, tenantID, j.RecommendationID)
+	if in.RecErr == nil {
+		in.RecheckErr = s.Recs.Recheck(ctx, tenantID, j.RecommendationID)
+	}
+	return domain.DryRun(in), nil
 }

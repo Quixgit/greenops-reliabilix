@@ -49,7 +49,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Notify: d.Notify, Settings: d.Settings, Limits: d.Limits, Queue: d.Queue,
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Providers: d.Providers, Ingestor: d.Ingestor, Rightsizing: d.Rightsizing, Commitments: repository.Postgres{Pool: d.Pool}, Notify: d.Notify, Settings: d.Settings, Limits: d.Limits, Queue: d.Queue,
 		Secrets: d.Secrets, Log: d.Log, PlatformAWSAccountID: d.PlatformAWSAccountID, PlatformGCPServiceAccount: d.PlatformGCPServiceAccount, PlatformAzureAppID: d.PlatformAzureAppID, BackfillDays: d.BackfillDays}
 	return &Module{h: chttp.Handlers{Svc: svc}, svc: svc, Svc: svc}
 }
@@ -71,6 +71,10 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 		p, err := queue.Decode(t)
 		if err != nil {
 			return err
+		}
+		// The same daily job also reads the commitments the account holds; that reading must not fail the rightsizing one.
+		if cerr := m.svc.RunCommitments(ctx, p.TenantID, p.RefID); cerr != nil {
+			m.svc.Log.Warn("commitments reading failed", "connection", p.RefID, "err", cerr)
 		}
 		return m.svc.RunRightsizing(ctx, p.TenantID, p.RefID)
 	})

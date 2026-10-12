@@ -24,8 +24,14 @@ type fakeCE struct {
 	failFrom int
 	failErr  error
 
-	rs      []*costexplorer.GetRightsizingRecommendationOutput
-	rsCalls []*costexplorer.GetRightsizingRecommendationInput
+	rs []*costexplorer.GetRightsizingRecommendationOutput
+	// commitments: served as given; an *Err makes that call fail
+	spUtil    *costexplorer.GetSavingsPlansUtilizationOutput
+	spCov     *costexplorer.GetSavingsPlansCoverageOutput
+	riUtil    *costexplorer.GetReservationUtilizationOutput
+	riCov     *costexplorer.GetReservationCoverageOutput
+	spUtilErr error
+	rsCalls   []*costexplorer.GetRightsizingRecommendationInput
 }
 
 func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndUsageInput, _ ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error) {
@@ -256,4 +262,32 @@ func TestAccessKeyConnectionSignsWithTheOpenedSecretAndNeverAssumesARole(t *test
 	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "NOTIFICATIONS_SECRET_KEY") || strings.Contains(pe.Message, "cipher") {
 		t.Errorf("unopenable secret: %v", err)
 	}
+}
+
+func (f *fakeCE) GetSavingsPlansUtilization(context.Context, *costexplorer.GetSavingsPlansUtilizationInput, ...func(*costexplorer.Options)) (*costexplorer.GetSavingsPlansUtilizationOutput, error) {
+	if f.spUtilErr != nil {
+		return nil, f.spUtilErr
+	}
+	if f.spUtil == nil {
+		return &costexplorer.GetSavingsPlansUtilizationOutput{}, nil
+	}
+	return f.spUtil, nil
+}
+func (f *fakeCE) GetSavingsPlansCoverage(context.Context, *costexplorer.GetSavingsPlansCoverageInput, ...func(*costexplorer.Options)) (*costexplorer.GetSavingsPlansCoverageOutput, error) {
+	if f.spCov == nil {
+		return &costexplorer.GetSavingsPlansCoverageOutput{}, nil
+	}
+	return f.spCov, nil
+}
+func (f *fakeCE) GetReservationUtilization(context.Context, *costexplorer.GetReservationUtilizationInput, ...func(*costexplorer.Options)) (*costexplorer.GetReservationUtilizationOutput, error) {
+	if f.riUtil == nil {
+		return &costexplorer.GetReservationUtilizationOutput{}, nil
+	}
+	return f.riUtil, nil
+}
+func (f *fakeCE) GetReservationCoverage(context.Context, *costexplorer.GetReservationCoverageInput, ...func(*costexplorer.Options)) (*costexplorer.GetReservationCoverageOutput, error) {
+	if f.riCov == nil {
+		return &costexplorer.GetReservationCoverageOutput{}, nil
+	}
+	return f.riCov, nil
 }

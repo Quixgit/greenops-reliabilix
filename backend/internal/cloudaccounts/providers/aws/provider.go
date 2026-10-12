@@ -50,6 +50,10 @@ var (
 type CEAPI interface {
 	GetCostAndUsage(ctx context.Context, in *costexplorer.GetCostAndUsageInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error)
 	GetRightsizingRecommendation(ctx context.Context, in *costexplorer.GetRightsizingRecommendationInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetRightsizingRecommendationOutput, error)
+	GetSavingsPlansUtilization(ctx context.Context, in *costexplorer.GetSavingsPlansUtilizationInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetSavingsPlansUtilizationOutput, error)
+	GetSavingsPlansCoverage(ctx context.Context, in *costexplorer.GetSavingsPlansCoverageInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetSavingsPlansCoverageOutput, error)
+	GetReservationUtilization(ctx context.Context, in *costexplorer.GetReservationUtilizationInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetReservationUtilizationOutput, error)
+	GetReservationCoverage(ctx context.Context, in *costexplorer.GetReservationCoverageInput, opts ...func(*costexplorer.Options)) (*costexplorer.GetReservationCoverageOutput, error)
 }
 
 // Assumer returns a Cost Explorer client acting as roleARN with the given ExternalId.

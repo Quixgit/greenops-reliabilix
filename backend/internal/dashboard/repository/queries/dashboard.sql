@@ -106,8 +106,8 @@ WHERE r.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL
 -- What applied recommendations were MEASURED to save (per 30 days), from the impact verification.
 SELECT count(*) FILTER (WHERE outcome IN ('realized','partial'))::int AS verified_count,
        count(*) FILTER (WHERE outcome = 'not_realized')::int AS not_realized_count,
-       COALESCE(sum(measured_carbon_kg_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_carbon_kg_month,
-       COALESCE(sum(measured_cost_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_saving_month
+       COALESCE(sum(COALESCE(adjusted_carbon_kg_month, measured_carbon_kg_month)) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_carbon_kg_month,
+       COALESCE(sum(COALESCE(adjusted_cost_month, measured_cost_month)) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_saving_month
 FROM recommendations.impact_verifications
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id));
 

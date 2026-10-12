@@ -22,6 +22,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(write).Post("/automation/jobs", h.plan)
 	r.With(read).Get("/automation/jobs/{id}", h.get)
 	r.With(read).Get("/automation/jobs/{id}/history", h.history)
+	r.With(read).Post("/automation/jobs/{id}/dry-run", h.dryRun)
 	r.With(approve).Post("/automation/jobs/{id}/approve", h.approve)
 	r.With(write).Post("/automation/jobs/{id}/result", h.result)
 	r.With(write).Post("/automation/jobs/{id}/cancel", h.cancel)
@@ -160,4 +161,19 @@ func (h Handlers) result(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, j)
+}
+
+// dryRun answers what applying the plan would do right now. It is a read: it changes no state.
+func (h Handlers) dryRun(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	id, ok := jobID(w, r)
+	if !ok {
+		return
+	}
+	rep, err := h.Svc.DryRun(r.Context(), c.TenantID, id)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, rep)
 }

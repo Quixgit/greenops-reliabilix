@@ -29,6 +29,12 @@ func New(pool *pgxpool.Pool) *Module {
 	return &Module{h: fhttp.Handlers{Svc: svc}, Svc: svc}
 }
 
+// SetExisting wires the source of commitments the organization's clouds already hold (before the routes are served).
+func (m *Module) SetExisting(e application.ExistingSource) {
+	m.Svc.Existing = e
+	m.h.Svc.Existing = e
+}
+
 func (*Module) Name() string          { return "finops" }
 func (m *Module) Routes(r chi.Router) { m.h.Routes(r) }
 

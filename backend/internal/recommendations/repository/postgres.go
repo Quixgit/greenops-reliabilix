@@ -23,7 +23,8 @@ func toVerification(x db.RecommendationsImpactVerification) domain.Verification 
 	v := domain.Verification{Outcome: domain.Outcome(x.Outcome), Method: x.Method, BaselineFrom: x.BaselineFrom, BaselineTo: x.BaselineTo,
 		AfterFrom: x.AfterFrom, AfterTo: x.AfterTo, BaselineDays: int(x.BaselineDays), AfterDays: int(x.AfterDays),
 		MeasuredCarbonKgMonth: x.MeasuredCarbonKgMonth, MeasuredCostMonth: x.MeasuredCostMonth, ExpectedCarbonKgMonth: x.ExpectedCarbonKgMonth,
-		ExpectedCostMonth: x.ExpectedCostMonth, RealizationPct: x.RealizationPct, Note: x.Note, VerifiedAt: x.VerifiedAt}
+		ExpectedCostMonth: x.ExpectedCostMonth, RealizationPct: x.RealizationPct, Note: x.Note, VerifiedAt: x.VerifiedAt,
+		AdjustedCarbonKgMonth: x.AdjustedCarbonKgMonth, AdjustedCostMonth: x.AdjustedCostMonth, ControlGrowthPct: x.ControlGrowthPct, ControlDays: int(x.ControlDays)}
 	return v
 }
 
@@ -328,7 +329,8 @@ func (r Postgres) SaveVerification(ctx context.Context, tenantID, id string, v d
 			BaselineFrom: v.BaselineFrom, BaselineTo: v.BaselineTo, AfterFrom: v.AfterFrom, AfterTo: v.AfterTo,
 			BaselineDays: int32(v.BaselineDays), AfterDays: int32(v.AfterDays), //nolint:gosec // bounded by the window length
 			MeasuredCarbonKgMonth: v.MeasuredCarbonKgMonth, MeasuredCostMonth: v.MeasuredCostMonth, ExpectedCarbonKgMonth: v.ExpectedCarbonKgMonth,
-			ExpectedCostMonth: v.ExpectedCostMonth, RealizationPct: v.RealizationPct, Currency: cur, Note: v.Note, VerifiedAt: v.VerifiedAt}); err != nil {
+			ExpectedCostMonth: v.ExpectedCostMonth, RealizationPct: v.RealizationPct, Currency: cur, Note: v.Note, VerifiedAt: v.VerifiedAt,
+			AdjustedCarbonKgMonth: v.AdjustedCarbonKgMonth, AdjustedCostMonth: v.AdjustedCostMonth, ControlGrowthPct: v.ControlGrowthPct, ControlDays: int32(v.ControlDays)}); err != nil { //nolint:gosec // bounded by the window length
 			return err
 		}
 		n, err := q.MarkVerified(ctx, db.MarkVerifiedParams{TenantID: tenantID, ID: id})

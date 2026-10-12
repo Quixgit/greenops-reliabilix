@@ -16,6 +16,7 @@ const (
 	Connections  Resource = "cloud connections"
 	Members      Resource = "members"
 	Destinations Resource = "notification destinations"
+	TrackedSpend Resource = "tracked monthly spend (USD; a new cloud connection is refused above 120% of it)"
 )
 
 // ErrLimitReached is returned when creating another resource would exceed the organization's limit.

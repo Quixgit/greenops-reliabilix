@@ -64,6 +64,7 @@ const (
 	KeyLimitConnections  = "limits.cloud_connections"
 	KeyLimitMembers      = "limits.members"
 	KeyLimitDestinations = "limits.notification_destinations"
+	KeyLimitTrackedSpend = "limits.tracked_spend"
 	KeyProvidersAllowed  = "connectors.allowed_providers"
 
 	KeyModuleAutomation      = "modules.automation"
@@ -134,6 +135,7 @@ func definitions() []Def {
 		intDef(KeyLimitProjects, "limits", "Projects", "Maximum number of projects.", ScopeOperator, 0, 0, 10000, "", "Existing projects are never removed when a limit is lowered; only new ones are refused."),
 		intDef(KeyLimitConnections, "limits", "Cloud connections", "Maximum number of cloud connections.", ScopeOperator, 0, 0, 10000, "", ""),
 		intDef(KeyLimitMembers, "limits", "Members", "Maximum number of members, counting invitations that are still open.", ScopeOperator, 0, 0, 100000, "", ""),
+		intDef(KeyLimitTrackedSpend, "limits", "Tracked monthly spend (USD)", "Cloud spend of the last 30 days the organization may bring under management, in US dollars.", ScopeOperator, 0, 0, 1000000000, "", "0 means no limit. Above 100% the plan page warns; above 120% a new cloud connection is refused. Spend already tracked is never removed."),
 		intDef(KeyLimitDestinations, "limits", "Notification destinations", "Maximum number of notification destinations.", ScopeOperator, 20, 0, 200, "", "0 means the platform maximum of 200."),
 
 		// ---- organization status (operator) ----

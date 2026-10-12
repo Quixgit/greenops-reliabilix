@@ -284,12 +284,13 @@ func (q *Queries) InsertRecommendation(ctx context.Context, arg InsertRecommenda
 const insertVerification = `-- name: InsertVerification :exec
 INSERT INTO recommendations.impact_verifications (tenant_id, recommendation_id, project_id, outcome, method, baseline_from, baseline_to,
     after_from, after_to, baseline_days, after_days, measured_carbon_kg_month, measured_cost_month, expected_carbon_kg_month,
-    expected_cost_month, realization_pct, currency, note, verified_at)
+    expected_cost_month, realization_pct, currency, note, verified_at, adjusted_carbon_kg_month, adjusted_cost_month, control_growth_pct, control_days)
 SELECT r.tenant_id, r.id, r.project_id, $1, $2, $3, $4,
     $5, $6, $7, $8, $9,
     $10, $11, $12, $13,
-    $14, $15, $16
-FROM recommendations.recommendations r WHERE r.tenant_id = $17 AND r.id = $18
+    $14, $15, $16, $17, $18,
+    $19, $20
+FROM recommendations.recommendations r WHERE r.tenant_id = $21 AND r.id = $22
 ON CONFLICT (tenant_id, recommendation_id) DO NOTHING
 `
 
@@ -310,6 +311,10 @@ type InsertVerificationParams struct {
 	Currency              pgtype.Text `json:"currency"`
 	Note                  string      `json:"note"`
 	VerifiedAt            time.Time   `json:"verified_at"`
+	AdjustedCarbonKgMonth *float64    `json:"adjusted_carbon_kg_month"`
+	AdjustedCostMonth     *float64    `json:"adjusted_cost_month"`
+	ControlGrowthPct      *float64    `json:"control_growth_pct"`
+	ControlDays           int32       `json:"control_days"`
 	TenantID              string      `json:"tenant_id"`
 	ID                    string      `json:"id"`
 }
@@ -332,6 +337,10 @@ func (q *Queries) InsertVerification(ctx context.Context, arg InsertVerification
 		arg.Currency,
 		arg.Note,
 		arg.VerifiedAt,
+		arg.AdjustedCarbonKgMonth,
+		arg.AdjustedCostMonth,
+		arg.ControlGrowthPct,
+		arg.ControlDays,
 		arg.TenantID,
 		arg.ID,
 	)
@@ -353,9 +362,9 @@ ORDER BY region_id, (ts < now() - carbon.source_max_age(provider)), array_positi
 `
 
 type LatestIntensitiesRow struct {
-	RegionID string    `json:"region_id"`
-	GPerKwh  float64   `json:"g_per_kwh"`
-	Ts       time.Time `json:"ts"`
+	RegionID string      `json:"region_id"`
+	GPerKwh  float64     `json:"g_per_kwh"`
+	Ts       interface{} `json:"ts"`
 }
 
 // One source per region: the most trusted one that has a reading (platform setting carbon.provider_priority). The figure is
@@ -447,7 +456,7 @@ func (q *Queries) ListRecommendations(ctx context.Context, arg ListRecommendatio
 }
 
 const listVerifications = `-- name: ListVerifications :many
-SELECT id, tenant_id, recommendation_id, project_id, outcome, method, baseline_from, baseline_to, after_from, after_to, baseline_days, after_days, measured_carbon_kg_month, measured_cost_month, expected_carbon_kg_month, expected_cost_month, realization_pct, currency, note, verified_at FROM recommendations.impact_verifications WHERE tenant_id = $1 AND recommendation_id = ANY($2::uuid[])
+SELECT id, tenant_id, recommendation_id, project_id, outcome, method, baseline_from, baseline_to, after_from, after_to, baseline_days, after_days, measured_carbon_kg_month, measured_cost_month, expected_carbon_kg_month, expected_cost_month, realization_pct, currency, note, verified_at, adjusted_carbon_kg_month, adjusted_cost_month, control_growth_pct, control_days FROM recommendations.impact_verifications WHERE tenant_id = $1 AND recommendation_id = ANY($2::uuid[])
 `
 
 type ListVerificationsParams struct {
@@ -485,6 +494,10 @@ func (q *Queries) ListVerifications(ctx context.Context, arg ListVerificationsPa
 			&i.Currency,
 			&i.Note,
 			&i.VerifiedAt,
+			&i.AdjustedCarbonKgMonth,
+			&i.AdjustedCostMonth,
+			&i.ControlGrowthPct,
+			&i.ControlDays,
 		); err != nil {
 			return nil, err
 		}

@@ -15,6 +15,8 @@ const (
 	KindFinops Kind = "finops"
 	// KindSustainability is the executive summary: totals, data quality, top services and regions, recommendations.
 	KindSustainability Kind = "sustainability"
+	// KindGHG is the GHG Protocol Scope 3 (category 1, cloud services) inventory laid out for ESRS E1-6 / CSRD reporting.
+	KindGHG Kind = "ghg"
 )
 
 type Format string
@@ -60,7 +62,7 @@ type Report struct {
 // Validate rejects unknown kinds/formats and periods that are empty, inverted or longer than 400 days.
 func (r Report) Validate() error {
 	switch r.Kind {
-	case KindCarbon, KindSCI, KindFinops, KindSustainability:
+	case KindCarbon, KindSCI, KindFinops, KindSustainability, KindGHG:
 	default:
 		return ErrInvalidReport
 	}
@@ -113,6 +115,7 @@ type Repository interface {
 	FinopsTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SCITable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	SustainabilityTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
+	GHGTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (Table, error)
 	// Scope names the organization and the project (empty project: all of them) a report is about.
 	Scope(ctx context.Context, tenantID string, project *string) (org, projectName string, err error)
 	// Delete removes the metadata row and returns what it was (the caller removes the stored file).

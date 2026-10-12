@@ -42,6 +42,12 @@ type Resolver interface {
 	Resolve(ctx context.Context, subject, wantedTenant string) (tenantID string, role Role, err error)
 }
 
+// Claimer is implemented by a Resolver that can attach a first-time sign-in to an organization whose identity provider
+// provisioned the person (SCIM). It is asked only for a verified e-mail and returns "" when nothing was provisioned.
+type Claimer interface {
+	ClaimProvisioned(ctx context.Context, subject, email string) (tenantID string, err error)
+}
+
 // PermissionResolver is implemented by a Resolver that also knows custom roles: it returns the permissions of a member
 // whose Resolve answered RoleCustom.
 type PermissionResolver interface {
@@ -94,6 +100,16 @@ func Authenticate(v Verifier, res Resolver) httpx.Middleware {
 					return
 				}
 				t, role, err := res.Resolve(r.Context(), c.Subject, r.Header.Get("X-Tenant-ID"))
+				if errors.Is(err, ErrNoMembership) && c.KeyID == "" && c.EmailVerified && c.Email != "" {
+					if cl, ok := res.(Claimer); ok {
+						if joined, cerr := cl.ClaimProvisioned(r.Context(), c.Subject, c.Email); cerr != nil {
+							httpx.Internal(w, r, cerr)
+							return
+						} else if joined != "" {
+							t, role, err = res.Resolve(r.Context(), c.Subject, r.Header.Get("X-Tenant-ID"))
+						}
+					}
+				}
 				if err != nil {
 					if errors.Is(err, ErrNoMembership) {
 						httpx.WriteProblem(w, r, http.StatusForbidden, "no tenant membership", "onboarding_required")

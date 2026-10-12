@@ -109,3 +109,41 @@ func TestRequire(t *testing.T) {
 		}
 	}
 }
+
+type claimingResolver struct {
+	joined  bool
+	claimed []string
+}
+
+func (c *claimingResolver) Resolve(context.Context, string, string) (string, Role, error) {
+	if c.joined {
+		return "T9", RoleViewer, nil
+	}
+	return "", "", ErrNoMembership
+}
+
+func (c *claimingResolver) ClaimProvisioned(_ context.Context, sub, email string) (string, error) {
+	c.claimed = append(c.claimed, sub+"/"+email)
+	c.joined = email == "pushed@acme.io"
+	if c.joined {
+		return "T9", nil
+	}
+	return "", nil
+}
+
+func TestAuthenticateClaimsAProvisionedPerson(t *testing.T) {
+	res := &claimingResolver{}
+	mw := Authenticate(DevVerifier{}, res)
+	if code, c := call(mw, "dev:erin:-:-:pushed@acme.io", ""); code != 200 || c.TenantID != "T9" || c.Role != RoleViewer {
+		t.Fatalf("a pushed person joins on first sign-in: %d %+v", code, c)
+	}
+	// nobody pushed this address: onboarding as before; no e-mail (unverified): the claim is not even asked
+	res = &claimingResolver{}
+	mw = Authenticate(DevVerifier{}, res)
+	if code, _ := call(mw, "dev:frank:-:-:other@acme.io", ""); code != 403 {
+		t.Errorf("not pushed = %d, want 403", code)
+	}
+	if code, _ := call(mw, "dev:gina:-:-", ""); code != 403 || len(res.claimed) != 1 {
+		t.Errorf("without a verified e-mail the claim is not asked: %d %v", code, res.claimed)
+	}
+}

@@ -12,12 +12,17 @@ import (
 
 // Plan is one entry of the catalog. Limits use 0 for "unlimited" (the platform maximum applies where the setting says so).
 type Plan struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Limits      map[string]int  `json:"limits"`  // settings key -> value
-	Modules     map[string]bool `json:"modules"` // settings key -> enabled
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// PriceMonthlyUSD is the list price shown to customers: 0 is free, nil is "individual terms". It is what the plan page
+	// shows while a payment provider has no amount of its own; the provider's amount is what is charged (ADR-0038).
+	PriceMonthlyUSD *int            `json:"price_monthly_usd"`
+	Limits          map[string]int  `json:"limits"`  // settings key -> value
+	Modules         map[string]bool `json:"modules"` // settings key -> enabled
 }
+
+func usd(n int) *int { return &n }
 
 func modules(automation, kubernetes bool) map[string]bool {
 	return map[string]bool{
@@ -26,20 +31,23 @@ func modules(automation, kubernetes bool) map[string]bool {
 	}
 }
 
-func limits(projects, connections, members, destinations int) map[string]int {
+func limits(projects, connections, members, destinations, trackedSpend int) map[string]int {
 	return map[string]int{
 		settings.KeyLimitProjects: projects, settings.KeyLimitConnections: connections,
-		settings.KeyLimitMembers: members, settings.KeyLimitDestinations: destinations,
+		settings.KeyLimitMembers: members, settings.KeyLimitDestinations: destinations, settings.KeyLimitTrackedSpend: trackedSpend,
 	}
 }
 
-// Catalog returns the plans in display order. The numbers are a proposal to confirm before the first paying customer.
+// Catalog returns the plans in display order. The numbers are a proposal to confirm before the first paying customer; the
+// reasoning, the market comparison and the list prices to set at the payment providers are in docs/product/07-pricing.md.
+// What costs the platform money is the number of connected cloud accounts (each one is synced, recalculated and drives grid
+// data requests), so that is the limit that separates the plans; seats are cheap and stay generous but bounded.
 func Catalog() []Plan {
 	return []Plan{
-		{ID: "free", Name: "Free", Description: "Try the platform with one cloud account.", Limits: limits(3, 1, 3, 2), Modules: modules(false, false)},
-		{ID: "team", Name: "Team", Description: "A product team: several accounts, Kubernetes and automation plans.", Limits: limits(10, 5, 15, 10), Modules: modules(true, true)},
-		{ID: "business", Name: "Business", Description: "Many teams and accounts.", Limits: limits(50, 25, 100, 50), Modules: modules(true, true)},
-		{ID: "enterprise", Name: "Enterprise", Description: "No platform quotas; individual terms are set per organization.", Limits: limits(0, 0, 0, 0), Modules: modules(true, true)},
+		{ID: "free", Name: "Free", Description: "Try the platform with one cloud account.", PriceMonthlyUSD: usd(0), Limits: limits(3, 1, 3, 2, 2500), Modules: modules(false, false)},
+		{ID: "team", Name: "Team", Description: "A product team: several accounts, Kubernetes and automation plans.", PriceMonthlyUSD: usd(45), Limits: limits(10, 5, 10, 10, 10000), Modules: modules(true, true)},
+		{ID: "business", Name: "Business", Description: "Many teams and accounts.", PriceMonthlyUSD: usd(225), Limits: limits(50, 25, 50, 30, 40000), Modules: modules(true, true)},
+		{ID: "enterprise", Name: "Enterprise", Description: "No platform quotas; individual terms are set per organization.", Limits: limits(0, 0, 0, 0, 0), Modules: modules(true, true)},
 	}
 }
 

@@ -20,6 +20,7 @@ func (h Handlers) Routes(r chi.Router) {
 	read, write := auth.Require(auth.PermCloudRead), auth.Require(auth.PermCloudWrite)
 	r.With(read).Get("/cloud-accounts", h.list)
 	r.With(write).Post("/cloud-accounts", h.create)
+	r.With(read).Get("/cloud-accounts/commitments", h.commitments)
 	r.With(read).Get("/cloud-accounts/{id}", h.get)
 	r.With(write).Delete("/cloud-accounts/{id}", h.delete)
 	r.With(write).Put("/cloud-accounts/{id}/export", h.setExport)
@@ -216,6 +217,17 @@ func (h Handlers) runs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	items, err := h.Svc.Runs(r.Context(), c.TenantID, id)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
+// commitments lists the Savings Plans and reservations the connected accounts hold, as last read (ADR-0054).
+func (h Handlers) commitments(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	items, err := h.Svc.ExistingCommitments(r.Context(), c.TenantID)
 	if err != nil {
 		fail(w, r, err)
 		return

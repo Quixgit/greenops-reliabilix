@@ -104,7 +104,11 @@ func (c *Channel) Message(to string, m domain.Message, now time.Time) ([]byte, s
 	if m.Event.Link != "" {
 		body.WriteString("\n" + m.Event.Link + "\n")
 	}
-	body.WriteString("\n--\nYou receive this because your organization set up e-mail notifications in Reliabilix.\n")
+	footer := "You receive this because your organization set up e-mail notifications in Reliabilix."
+	if f := m.Event.Attrs["footer"]; f != "" { // a producer that is not a notification (an invitation) says why the person got it
+		footer = f
+	}
+	body.WriteString("\n--\n" + footer + "\n")
 
 	var buf bytes.Buffer
 	h := func(k, v string) { buf.WriteString(k + ": " + v + "\r\n") }

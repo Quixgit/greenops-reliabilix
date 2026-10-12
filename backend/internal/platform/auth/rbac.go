@@ -16,6 +16,7 @@ const (
 	RoleBilling  Role = "billing"
 	RoleCI       Role = "ci"
 	RoleAgent    Role = "agent" // API keys of the Kubernetes agent: may push workload energy and nothing else
+	RoleSCIM     Role = "scim"  // API keys of an identity provider: may provision members through /scim/v2 and nothing else
 	// RoleCustom is what a member with an organization-defined role resolves to; the permissions come with the claims.
 	RoleCustom Role = "custom"
 )
@@ -43,6 +44,7 @@ const (
 	PermAlertWrite       Permission = "alert:write"       // acknowledge and mute alerts
 	PermTenantData       Permission = "tenant:data"       // export all organization data and schedule its erasure: owners only
 	PermCIEvaluate       Permission = "ci:evaluate"
+	PermSCIM             Permission = "scim:provision" // SCIM user provisioning (identity-provider keys only)
 
 	// Notifications: where events are delivered. Destinations carry addresses and endpoints, so only people who manage
 	// the organization change them; engineers can see what is configured and whether deliveries work.
@@ -83,6 +85,7 @@ var matrix = map[Role]map[Permission]struct{}{
 	RoleBilling:  perms([]Permission{PermUsageRead, PermCarbonRead, PermReportRead, PermReportWrite, PermBillingRead, PermBudgetWrite}),
 	RoleCI:       perms([]Permission{PermCIEvaluate}),
 	RoleAgent:    perms([]Permission{PermKubernetesIngest}),
+	RoleSCIM:     perms([]Permission{PermSCIM}),
 }
 
 // Can reports whether the role grants the permission. Unknown roles grant nothing.
@@ -121,7 +124,7 @@ func Permissions() []PermissionInfo {
 		g("alerts_notifications", true, PermAlertWrite, PermNotificationRead, PermNotificationWrite),
 		g("settings_audit", true, PermSettingsRead, PermSettingsWrite, PermAuditRead),
 		g("ci", true, PermCIEvaluate),
-		g("administration", false, PermTenantAdmin, PermTenantData, PermKubernetesIngest),
+		g("administration", false, PermTenantAdmin, PermTenantData, PermKubernetesIngest, PermSCIM),
 	} {
 		out = append(out, part...)
 	}

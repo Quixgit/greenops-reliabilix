@@ -107,11 +107,12 @@ GROUP BY 1 ORDER BY 1;
 -- name: InsertVerification :exec
 INSERT INTO recommendations.impact_verifications (tenant_id, recommendation_id, project_id, outcome, method, baseline_from, baseline_to,
     after_from, after_to, baseline_days, after_days, measured_carbon_kg_month, measured_cost_month, expected_carbon_kg_month,
-    expected_cost_month, realization_pct, currency, note, verified_at)
+    expected_cost_month, realization_pct, currency, note, verified_at, adjusted_carbon_kg_month, adjusted_cost_month, control_growth_pct, control_days)
 SELECT r.tenant_id, r.id, r.project_id, sqlc.arg(outcome), sqlc.arg(method), sqlc.arg(baseline_from), sqlc.arg(baseline_to),
     sqlc.arg(after_from), sqlc.arg(after_to), sqlc.arg(baseline_days), sqlc.arg(after_days), sqlc.narg(measured_carbon_kg_month),
     sqlc.narg(measured_cost_month), sqlc.arg(expected_carbon_kg_month), sqlc.narg(expected_cost_month), sqlc.narg(realization_pct),
-    sqlc.narg(currency), sqlc.arg(note), sqlc.arg(verified_at)
+    sqlc.narg(currency), sqlc.arg(note), sqlc.arg(verified_at), sqlc.narg(adjusted_carbon_kg_month), sqlc.narg(adjusted_cost_month),
+    sqlc.narg(control_growth_pct), sqlc.arg(control_days)
 FROM recommendations.recommendations r WHERE r.tenant_id = sqlc.arg(tenant_id) AND r.id = sqlc.arg(id)
 ON CONFLICT (tenant_id, recommendation_id) DO NOTHING;
 

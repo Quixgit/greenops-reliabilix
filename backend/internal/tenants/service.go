@@ -22,10 +22,13 @@ type Deps struct {
 	Pool     *pgxpool.Pool
 	Settings settings.Reader
 	Limits   entitlements.Gate
+	// Mail sends invitation e-mails and BaseURL is the public address of the web app (both optional).
+	Mail    application.InviteMailer
+	BaseURL string
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Settings: d.Settings, Limits: d.Limits}
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Settings: d.Settings, Limits: d.Limits, SCIM: repository.Postgres{Pool: d.Pool}, Mail: d.Mail, BaseURL: d.BaseURL}
 	return &Module{h: thttp.Handlers{Svc: svc, Support: repository.Postgres{Pool: d.Pool}}, Svc: svc}
 }
 

@@ -166,6 +166,7 @@ type Repository interface {
 	RegionFootprint(ctx context.Context, f Filter) ([]RegionFootprint, error)
 	Optimization(ctx context.Context, f Filter) (Optimization, error)
 	Efficiency(ctx context.Context, f Filter) (Efficiency, error)
+	UnitEconomics(ctx context.Context, tenantID string, project *string, months int) (UnitEconomics, error)
 	Activity(ctx context.Context, tenantID string, limit int) ([]Activity, error)
 }
 

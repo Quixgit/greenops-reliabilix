@@ -669,6 +669,10 @@ func summarySections(pdf *fpdf.Fpdf, txt func(string) string, t domain.Table, y 
 			v := r.value
 			if f, ok := parseNum(v); ok {
 				v = thousands(f, map[bool]int{true: 0, false: 2}[f == math.Trunc(f)])
+				if strings.HasPrefix(r.unit, "tCO2e") && f != math.Trunc(f) && math.Abs(f) < 10 {
+					// tonnes of a small footprint need more than two decimals (0.14 hides 0.138)
+					v = thousands(f, 4)
+				}
 			}
 			pdf.CellFormat(contentW*0.24, 6.2, fit(pdf, txt(v), contentW*0.24-2), "", 0, "R", zebra, 0, "")
 			pdf.SetFont("Helvetica", "", 8)

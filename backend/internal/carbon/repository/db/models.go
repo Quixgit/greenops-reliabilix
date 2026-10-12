@@ -106,6 +106,22 @@ type CarbonCalculationsDefault struct {
 	CalculatedAt       time.Time `json:"calculated_at"`
 }
 
+type CarbonGateEvaluation struct {
+	ID                string          `json:"id"`
+	TenantID          string          `json:"tenant_id"`
+	ProjectID         string          `json:"project_id"`
+	Verdict           string          `json:"verdict"`
+	CarbonKgMonth     float64         `json:"carbon_kg_month"`
+	CostDeltaMonth    float64         `json:"cost_delta_month"`
+	Reasons           json.RawMessage `json:"reasons"`
+	Changes           int32           `json:"changes"`
+	Regions           []string        `json:"regions"`
+	ThresholdsApplied bool            `json:"thresholds_applied"`
+	Source            string          `json:"source"`
+	Ref               *string         `json:"ref"`
+	CreatedAt         time.Time       `json:"created_at"`
+}
+
 type CarbonGridIntensity struct {
 	Provider    string    `json:"provider"`
 	RegionID    string    `json:"region_id"`
@@ -114,6 +130,21 @@ type CarbonGridIntensity struct {
 	IsForecast  bool      `json:"is_forecast"`
 	Measure     string    `json:"measure"`
 	Resolution  string    `json:"resolution"`
+}
+
+type CloudaccountsCommitmentSnapshot struct {
+	ConnectionID   string    `json:"connection_id"`
+	TenantID       string    `json:"tenant_id"`
+	Kind           string    `json:"kind"`
+	PeriodFrom     time.Time `json:"period_from"`
+	PeriodTo       time.Time `json:"period_to"`
+	Currency       string    `json:"currency"`
+	UtilizationPct *float64  `json:"utilization_pct"`
+	CoveragePct    *float64  `json:"coverage_pct"`
+	Commitment     *float64  `json:"commitment"`
+	Unused         *float64  `json:"unused"`
+	NetSavings     *float64  `json:"net_savings"`
+	FetchedAt      time.Time `json:"fetched_at"`
 }
 
 type CloudaccountsConnection struct {
@@ -229,6 +260,40 @@ type NotificationsDestination struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type NotificationsInbox struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	Type      string    `json:"type"`
+	Severity  string    `json:"severity"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	Path      string    `json:"path"`
+	DedupeKey *string   `json:"dedupe_key"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type NotificationsInboxState struct {
+	TenantID  string    `json:"tenant_id"`
+	UserID    string    `json:"user_id"`
+	ReadUntil time.Time `json:"read_until"`
+}
+
+type PlatformAnnouncement struct {
+	ID            string     `json:"id"`
+	Kind          string     `json:"kind"`
+	Severity      string     `json:"severity"`
+	Title         string     `json:"title"`
+	Body          string     `json:"body"`
+	Path          string     `json:"path"`
+	AudiencePlans []string   `json:"audience_plans"`
+	EmailCopy     bool       `json:"email_copy"`
+	CreatedBy     string     `json:"created_by"`
+	CreatedAt     time.Time  `json:"created_at"`
+	Recipients    int32      `json:"recipients"`
+	WithdrawnAt   *time.Time `json:"withdrawn_at"`
+	WithdrawnBy   *string    `json:"withdrawn_by"`
+}
+
 type PlatformApiUsage struct {
 	Provider string    `json:"provider"`
 	Day      time.Time `json:"day"`
@@ -309,6 +374,12 @@ type ProjectsAllocationTarget struct {
 	Weight    float64 `json:"weight"`
 }
 
+type ProjectsDemoMarker struct {
+	ProjectID string    `json:"project_id"`
+	TenantID  string    `json:"tenant_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type ProjectsEnvironment struct {
 	ID        string    `json:"id"`
 	TenantID  string    `json:"tenant_id"`
@@ -383,6 +454,10 @@ type RecommendationsImpactVerification struct {
 	Currency              pgtype.Text `json:"currency"`
 	Note                  string      `json:"note"`
 	VerifiedAt            time.Time   `json:"verified_at"`
+	AdjustedCarbonKgMonth *float64    `json:"adjusted_carbon_kg_month"`
+	AdjustedCostMonth     *float64    `json:"adjusted_cost_month"`
+	ControlGrowthPct      *float64    `json:"control_growth_pct"`
+	ControlDays           int32       `json:"control_days"`
 }
 
 type RecommendationsRecommendation struct {
@@ -424,6 +499,27 @@ type ReportsReport struct {
 	RequestedBy string     `json:"requested_by"`
 	CreatedAt   time.Time  `json:"created_at"`
 	CompletedAt *time.Time `json:"completed_at"`
+}
+
+type ReportsSchedule struct {
+	ID         string     `json:"id"`
+	TenantID   string     `json:"tenant_id"`
+	ProjectID  *string    `json:"project_id"`
+	Kind       string     `json:"kind"`
+	Format     string     `json:"format"`
+	Cadence    string     `json:"cadence"`
+	Recipients []string   `json:"recipients"`
+	Enabled    bool       `json:"enabled"`
+	NextRunAt  time.Time  `json:"next_run_at"`
+	LastRunAt  *time.Time `json:"last_run_at"`
+	CreatedBy  string     `json:"created_by"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type ReportsScheduleRun struct {
+	ReportID   string `json:"report_id"`
+	TenantID   string `json:"tenant_id"`
+	ScheduleID string `json:"schedule_id"`
 }
 
 type SettingsHistory struct {
@@ -522,6 +618,25 @@ type TenantsSubscription struct {
 	PeriodEnd      *time.Time `json:"period_end"`
 	UpdatedBy      string     `json:"updated_by"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type TenantsSupportGrant struct {
+	ID        string     `json:"id"`
+	TenantID  string     `json:"tenant_id"`
+	GrantedBy string     `json:"granted_by"`
+	GrantedAt time.Time  `json:"granted_at"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	RevokedAt *time.Time `json:"revoked_at"`
+	Note      string     `json:"note"`
+}
+
+type TenantsSupportView struct {
+	ID       int64     `json:"id"`
+	TenantID string    `json:"tenant_id"`
+	GrantID  string    `json:"grant_id"`
+	Operator string    `json:"operator"`
+	What     string    `json:"what"`
+	At       time.Time `json:"at"`
 }
 
 type TenantsUser struct {

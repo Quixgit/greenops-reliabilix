@@ -78,3 +78,13 @@ FROM recommendations.recommendations
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
   AND created_at < sqlc.arg(to_ts)
 GROUP BY status ORDER BY status;
+
+-- name: ReportGhgBreakdown :many
+-- GHG inventory rows: calendar month, provider, service and method, so each can be listed on its own (ADR-0055).
+SELECT to_char(date_trunc('month', period_start), 'YYYY-MM')::text AS month, provider, service_name, method,
+       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
+  AND methodology_version = sqlc.arg(methodology_version)
+  AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
+GROUP BY month, provider, service_name, method ORDER BY month, provider, service_name, method;

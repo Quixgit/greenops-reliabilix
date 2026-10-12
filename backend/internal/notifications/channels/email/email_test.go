@@ -112,3 +112,21 @@ func TestMask(t *testing.T) {
 		}
 	}
 }
+
+func TestInvitationMessageSaysWhyAndCarriesTheLink(t *testing.T) {
+	c := New("Reliabilix <n@example.com>", nil)
+	raw, _, err := c.Message("new@acme.io", domain.Message{Event: notify.Event{Type: "member.invited", Title: "You are invited to Acme on Reliabilix", Body: "Open the link.",
+		Link: "https://app.example.com/invite?token=grk_x%2By", Attrs: map[string]string{"footer": "Someone invited you."}}}, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := mail.ReadMessage(strings.NewReader(string(raw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(quotedprintable.NewReader(m.Body))
+	body := string(b)
+	if !strings.Contains(body, "https://app.example.com/invite?token=grk_x%2By") || !strings.Contains(body, "Someone invited you.") || strings.Contains(body, "set up e-mail notifications") {
+		t.Fatalf("body: %q", body)
+	}
+}

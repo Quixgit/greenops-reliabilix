@@ -139,8 +139,9 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		return int(cfgr.Int(ctx, "", settings.KeyMaxRequestsPerDay(provider)))
 	}
 	limits := limitsGate{pool: pool, cfg: cfgr}
-	tenantsM := tenants.New(tenants.Deps{Pool: pool, Settings: cfgr, Limits: limits})
-	notifyM, err := buildNotifications(cfg, log, pool, q, tenantsM.Svc, o.errors, cfgr, limits, ints, box)
+	emailCh := newEmailChannel(cfg, log, ints)
+	tenantsM := tenants.New(tenants.Deps{Pool: pool, Settings: cfgr, Limits: limits, Mail: inviteMailer{ch: emailCh}, BaseURL: cfg.PublicBaseURL})
+	notifyM, err := buildNotifications(cfg, log, emailCh, pool, q, tenantsM.Svc, o.errors, cfgr, limits, ints, box)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +155,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	cloudM := cloudaccounts.New(cloudaccounts.Deps{Pool: pool, Log: log, Queue: q, Providers: registry,
 		Ingestor: cloudapp.Ingestor(ingestionM.Svc), Rightsizing: rightsizingSink{recs: recsM.Svc}, Notify: notifyM.Svc, Settings: cfgr, Limits: limits, PlatformAWSAccountID: cfg.PlatformAWSAccountID, PlatformGCPServiceAccount: cfg.PlatformGCPServiceAccount, PlatformAzureAppID: cfg.PlatformAzureClientID, Secrets: box, BackfillDays: cfg.SyncBackfillDays})
 	finopsM := finops.New(pool)
+	finopsM.SetExisting(existingCommitments{cloud: cloudM.Svc})
 	reportsM := reports.New(reports.Deps{Pool: pool, Store: store, Queue: q, Notify: notifyM.Svc, Settings: cfgr})
 
 	alertsM := alerts.New(alerts.Deps{Pool: pool, Budgets: alertBudgets{finops: finopsM.Svc}, Connections: alertConnections{cloud: cloudM.Svc}, Carbon: alertCarbon{carbon: carbonM.Svc}, ProjectsCarbon: alertProjectCarbon{projects: projectsM.Svc, carbon: carbonM.Svc}, Settings: cfgr,
@@ -166,7 +168,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
 		dashboard.New(pool, cfgr), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc, store, func(ctx context.Context, region string, day time.Time) (any, error) {
 			return carbonM.Svc.ExplainIntensity(ctx, region, day)
-		}), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM,
+		}), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM, demoModule{pool: pool, q: q, limits: limits},
 	}
 	c.Settings = cfgr
 	c.BackfillIntensity = carbonM.Svc.BackfillIntensity

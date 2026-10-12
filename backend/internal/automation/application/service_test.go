@@ -217,11 +217,16 @@ func TestApprovalAndResultAreAnnounced(t *testing.T) {
 	if _, err := s.Report(ctx, "t", "job1", alice, domain.OutcomeFailed, "the window was missed"); err != nil {
 		t.Fatal(err)
 	}
-	if len(n.events) != 2 || n.events[0].Type != notify.TypeAutomationApproved || n.events[1].Type != notify.TypeAutomationResult || n.events[1].Severity != notify.Warning {
+	if len(n.events) != 3 || n.events[0].Type != notify.TypeAutomationWaiting || n.events[1].Type != notify.TypeAutomationApproved || n.events[2].Type != notify.TypeAutomationResult || n.events[2].Severity != notify.Warning {
 		t.Fatalf("events: %+v", n.events)
 	}
-	if err := n.events[0].Validate(); err != nil {
-		t.Fatalf("the approval event must be valid: %v", err)
+	for _, e := range n.events[:2] {
+		if err := e.Validate(); err != nil {
+			t.Fatalf("the %s event must be valid: %v", e.Type, err)
+		}
+	}
+	if n.events[0].Attrs["action"] == "" {
+		t.Fatal("the waiting event asks chat for a button")
 	}
 }
 

@@ -8,9 +8,17 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops/domain"
 )
 
+// ExistingSource tells the commitments report what the organization's clouds already hold (a port; the composition root wires the cloud
+// accounts module to it).
+type ExistingSource interface {
+	ExistingCommitments(ctx context.Context, tenantID string) ([]domain.Existing, error)
+}
+
 type Service struct {
 	Repo domain.Repository
-	Now  func() time.Time
+	// Existing is optional: without it nothing is known about commitments already held.
+	Existing ExistingSource
+	Now      func() time.Time
 }
 
 func (s Service) now() time.Time {
@@ -72,11 +80,79 @@ func (s Service) Budgets(ctx context.Context, tenantID string) ([]domain.BudgetS
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, domain.Evaluate(b, spent, now))
+		out = append(out, domain.EvaluateWith(b, spent, now, s.periodForecast(ctx, tenantID, b.ProjectID, b.Currency, start, end, now)))
 	}
 	return out, nil
 }
 
+// Anomalies lists the unusual days and, for each, what moved (at most 10 days are explained, the latest first).
 func (s Service) Anomalies(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.Anomaly, error) {
-	return s.Repo.Anomalies(ctx, tenantID, project, from, to)
+	as, err := s.Repo.Anomalies(ctx, tenantID, project, from, to)
+	if err != nil {
+		return nil, err
+	}
+	for i := len(as) - 1; i >= 0 && len(as)-i <= 10; i-- {
+		d, err := s.Repo.AnomalyDrivers(ctx, tenantID, project, as[i].Day, 3)
+		if err != nil {
+			return nil, err
+		}
+		as[i].Drivers = d
+	}
+	for i := range as {
+		if as[i].Drivers == nil {
+			as[i].Drivers = []domain.Driver{}
+		}
+	}
+	return as, nil
+}
+
+// historyDays is how far back the weekday pattern looks: six weeks plus the two weeks the trend compares.
+const historyDays = 56
+
+// periodForecast forecasts the cost of [start, end) from the history before now; nil when there is no data to go by (the caller keeps
+// its linear projection).
+func (s Service) periodForecast(ctx context.Context, tenantID string, project *string, currency string, start, end, now time.Time) *domain.Forecast {
+	from := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -historyDays)
+	if start.Before(from) {
+		from = start
+	}
+	pts, _, err := s.Repo.DailyCost(ctx, tenantID, project, currency, from, now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1))
+	if err != nil || len(pts) == 0 {
+		return nil
+	}
+	f := domain.BuildForecast(pts, start, end, now)
+	return &f
+}
+
+// Forecast is the expected cost at the end of the current month for the whole organization or one project, in the reporting currency.
+func (s Service) Forecast(ctx context.Context, tenantID string, project *string) (domain.Forecast, string, error) {
+	now := s.now()
+	start, end := domain.PeriodBounds("monthly", now)
+	from := now.UTC().Truncate(24*time.Hour).AddDate(0, 0, -historyDays)
+	if start.Before(from) {
+		from = start
+	}
+	pts, cur, err := s.Repo.DailyCost(ctx, tenantID, project, "", from, now.UTC().Truncate(24*time.Hour).AddDate(0, 0, 1))
+	if err != nil {
+		return domain.Forecast{}, "", err
+	}
+	return domain.BuildForecast(pts, start, end, now), cur, nil
+}
+
+// Commitments reports what committing the steady part of the compute and database spend would save (ADR-0051). The window ends at the
+// start of today, so a day still being loaded never lowers the baseline.
+func (s Service) Commitments(ctx context.Context, tenantID string, project *string, p domain.CommitmentParams) (domain.Commitments, error) {
+	end := s.now().UTC().Truncate(24 * time.Hour)
+	p.To, p.From = end, end.AddDate(0, 0, -p.LookbackDays)
+	days, cur, err := s.Repo.CommittableDaily(ctx, tenantID, project, p.From, p.To)
+	if err != nil {
+		return domain.Commitments{}, err
+	}
+	p.Currency = cur
+	if s.Existing != nil {
+		if p.Read, err = s.Existing.ExistingCommitments(ctx, tenantID); err != nil {
+			return domain.Commitments{}, err
+		}
+	}
+	return domain.BuildCommitments(days, p), nil
 }

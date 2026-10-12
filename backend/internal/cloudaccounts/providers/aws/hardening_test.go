@@ -30,7 +30,10 @@ func TestCostExplorerPaginationLimitIsAnErrorNotATruncation(t *testing.T) {
 	}
 }
 
-type endlessCE struct{ calls int }
+type endlessCE struct {
+	fakeCE // the commitment calls are never made by what this fake is used for
+	calls  int
+}
 
 func (e *endlessCE) GetCostAndUsage(context.Context, *costexplorer.GetCostAndUsageInput, ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error) {
 	e.calls++

@@ -52,5 +52,35 @@ func (g limitsGate) Allow(ctx context.Context, tenantID string, r entitlements.R
 	if used >= limit {
 		return entitlements.LimitError{Resource: r, Limit: limit}
 	}
+	if r == entitlements.Connections {
+		return g.allowSpend(ctx, tenantID)
+	}
+	return nil
+}
+
+// trackedSpendSQL is the cloud spend of the last 30 days in US dollars at each day's reference rate; an amount in a
+// currency without a rate is left out (the same rule as every other total). Shared with the plan page.
+const trackedSpendSQL = `SELECT COALESCE(sum(finops.convert_cost(billed_cost, currency::text, 'USD', recorded_at::date)), 0)::bigint
+	FROM usage.usage_records WHERE recorded_at >= now() - interval '30 days'`
+
+// spendRefusalPercent is how far above the plan's tracked spend a new connection is still allowed: the plan page warns at
+// 100%, and only a customer well past it is asked to change the plan (ADR-0050). Data already tracked is never touched.
+const spendRefusalPercent = 120
+
+// allowSpend refuses one more cloud connection once the spend already under management is above the plan's limit by the margin.
+func (g limitsGate) allowSpend(ctx context.Context, tenantID string) error {
+	limit := g.cfg.Int(ctx, tenantID, settings.KeyLimitTrackedSpend)
+	if limit == 0 {
+		return nil
+	}
+	var spent int64
+	if err := database.WithTenantTx(ctx, g.pool, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, trackedSpendSQL).Scan(&spent)
+	}); err != nil {
+		return err
+	}
+	if spent*100 > limit*spendRefusalPercent {
+		return entitlements.LimitError{Resource: entitlements.TrackedSpend, Limit: limit}
+	}
 	return nil
 }

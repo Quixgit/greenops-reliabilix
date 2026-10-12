@@ -26,6 +26,7 @@ func (h Handlers) Routes(r chi.Router) {
 	read.Get("/dashboard/regions/footprint", h.footprint)
 	read.Get("/dashboard/optimization", h.optimization)
 	read.Get("/dashboard/efficiency", h.efficiency)
+	read.Get("/dashboard/unit-economics", h.unitEconomics)
 	read.Get("/dashboard/activity", h.activity)
 }
 
@@ -134,6 +135,31 @@ func (h Handlers) efficiency(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v, err := h.Repo.Efficiency(r.Context(), f)
+	if err != nil {
+		httpx.Internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, v)
+}
+
+// unitEconomics is the cost and carbon of one unit of work, per project and month (ADR-0053).
+func (h Handlers) unitEconomics(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	project, ok := httpx.OptionalUUID(r, "project_id")
+	months := 6
+	if v := r.URL.Query().Get("months"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 2 || n > 12 {
+			ok = false
+		} else {
+			months = n
+		}
+	}
+	if !ok {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "months 2-12, project_id a UUID")
+		return
+	}
+	v, err := h.Repo.UnitEconomics(r.Context(), c.TenantID, project, months)
 	if err != nil {
 		httpx.Internal(w, r, err)
 		return

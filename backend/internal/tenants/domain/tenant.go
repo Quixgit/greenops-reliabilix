@@ -124,7 +124,7 @@ func ValidInviteRole(r auth.Role) bool { return assignable[r] && r != auth.RoleO
 
 // ValidKeyRole: API keys are machine credentials with minimal roles.
 func ValidKeyRole(r auth.Role) bool {
-	return r == auth.RoleCI || r == auth.RoleViewer || r == auth.RoleAgent
+	return r == auth.RoleCI || r == auth.RoleViewer || r == auth.RoleAgent || r == auth.RoleSCIM
 }
 
 var emailRe = regexp.MustCompile(`^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$`)

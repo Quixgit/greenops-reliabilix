@@ -11,6 +11,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/entitlements"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/i18n"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/application"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/tenants/domain"
 )
@@ -46,6 +47,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(admin).Delete("/api-keys/{id}", h.revokeAPIKey)
 	r.With(auth.Require(auth.PermAuditRead)).Get("/audit-log", h.auditLog)
 	h.supportRoutes(r)
+	h.scimRoutes(r)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -292,8 +294,9 @@ func (h Handlers) invite(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, err)
 		return
 	}
-	// The token is shown once; share it with the invitee (no email delivery in phase 1).
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"invitation": inv, "token": token})
+	// The e-mail is best effort: the token is still shown once to the inviter, who can pass it on if no mail went out.
+	sent := h.Svc.SendInvitation(r.Context(), c.TenantID, i18n.Negotiate(r.Header.Get("Accept-Language")), inv, token)
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"invitation": inv, "token": token, "email_sent": sent})
 }
 
 func (h Handlers) apiKeys(w http.ResponseWriter, r *http.Request) {

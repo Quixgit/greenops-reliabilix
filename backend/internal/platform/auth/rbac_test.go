@@ -55,3 +55,19 @@ func TestRoleCan(t *testing.T) {
 		}
 	}
 }
+
+func TestSCIMRoleHoldsOnlyProvisioning(t *testing.T) {
+	if !RoleSCIM.Can(PermSCIM) {
+		t.Fatal("scim keys provision")
+	}
+	for _, p := range []Permission{PermTenantAdmin, PermProjectRead, PermUsageRead, PermCIEvaluate, PermKubernetesIngest, PermAutomationApprove} {
+		if RoleSCIM.Can(p) {
+			t.Errorf("scim key must not hold %s", p)
+		}
+	}
+	for _, r := range []Role{RoleOwner, RoleAdmin, RoleEngineer, RoleViewer, RoleBilling, RoleCI, RoleAgent} {
+		if r.Can(PermSCIM) {
+			t.Errorf("%s must not provision", r)
+		}
+	}
+}

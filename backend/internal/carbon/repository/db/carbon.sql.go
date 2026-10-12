@@ -217,7 +217,7 @@ type IntensityDayStatsRow struct {
 	N int32   `json:"n"`
 }
 
-// a published monthly figure may be revised; an hourly reading never is
+// a published monthly or annual figure may be revised; an hourly reading never is
 // Mean and count of one source's stored (non-forecast) AVERAGE-intensity readings inside [from, to). Sources are never
 // averaged together: the caller asks one source at a time, in policy order. With six or more readings, one that is more than
 // 2.5 times above or below the median of the period is left out of the mean (a spike of the source, not the grid); n still

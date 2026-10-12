@@ -134,12 +134,14 @@ type priceRow struct {
 
 // catalogRow is one plan of the catalog as a customer sees it: what it includes.
 type catalogRow struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Rank        int         `json:"rank"` // position in the catalog: higher is a bigger plan
-	Limits      []limitRow  `json:"limits"`
-	Modules     []moduleRow `json:"modules"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Rank        int    `json:"rank"` // position in the catalog: higher is a bigger plan
+	// PriceMonthlyUSD is the list price (0 free, null by quote); a payment provider's own amount, when known, is what is charged.
+	PriceMonthlyUSD *int        `json:"price_monthly_usd"`
+	Limits          []limitRow  `json:"limits"`
+	Modules         []moduleRow `json:"modules"`
 }
 
 var usage = []struct {
@@ -149,7 +151,12 @@ var usage = []struct {
 	{"cloud_connections", settings.KeyLimitConnections, `SELECT count(*) FROM cloudaccounts.connections`},
 	{"members", settings.KeyLimitMembers, `SELECT (SELECT count(*) FROM tenants.memberships) + (SELECT count(*) FROM tenants.invitations WHERE accepted_at IS NULL AND expires_at > now())`},
 	{"notification_destinations", settings.KeyLimitDestinations, `SELECT count(*) FROM notifications.destinations`},
+	{"tracked_spend", settings.KeyLimitTrackedSpend, trackedSpendSQL},
 }
+
+// trackedSpendSQL is the cloud spend of the last 30 days in US dollars (the same figure the connection gate in internal/app uses).
+const trackedSpendSQL = `SELECT COALESCE(sum(finops.convert_cost(billed_cost, currency::text, 'USD', recorded_at::date)), 0)::bigint
+	FROM usage.usage_records WHERE recorded_at >= now() - interval '30 days'`
 
 var moduleKeys = []string{settings.KeyModuleAutomation, settings.KeyModuleKubernetes, settings.KeyModuleReports, settings.KeyModuleRecommendations, settings.KeyModuleNotifications, settings.KeyModuleCIGate}
 
@@ -205,7 +212,7 @@ func (m *Module) plan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	for i, p := range plans.Catalog() {
-		row := catalogRow{ID: p.ID, Name: p.Name, Description: p.Description, Rank: i, Limits: []limitRow{}, Modules: []moduleRow{}}
+		row := catalogRow{ID: p.ID, Name: p.Name, Description: p.Description, Rank: i, PriceMonthlyUSD: p.PriceMonthlyUSD, Limits: []limitRow{}, Modules: []moduleRow{}}
 		for _, u := range usage {
 			row.Limits = append(row.Limits, limitRow{Resource: u.Resource, Key: u.Key, Limit: int64(p.Limits[u.Key])})
 		}

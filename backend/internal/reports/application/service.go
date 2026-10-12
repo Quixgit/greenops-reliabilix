@@ -4,6 +4,7 @@ package application
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/hibiken/asynq"
 
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/audit"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/notify"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
@@ -27,7 +29,11 @@ type Service struct {
 	Notify notify.Notifier
 	// Settings is optional: it supplies the formats the organization allows (catalog default: all).
 	Settings settings.Reader
-	Now      func() time.Time
+	// Sched stores report schedules; optional (without it there are none).
+	Sched domain.ScheduleRepository
+	// Head gives a scheduled report's e-mail its headline figures; optional.
+	Head domain.HeadlineReader
+	Now  func() time.Time
 }
 
 func (s Service) announce(ctx context.Context, tenantID string, e notify.Event) {
@@ -79,6 +85,8 @@ func (s Service) table(ctx context.Context, tenantID string, r domain.Report) (d
 		return s.Repo.SCITable(ctx, tenantID, r.ProjectID, from, to)
 	case domain.KindSustainability:
 		return s.Repo.SustainabilityTable(ctx, tenantID, r.ProjectID, from, to)
+	case domain.KindGHG:
+		return s.Repo.GHGTable(ctx, tenantID, r.ProjectID, from, to)
 	default:
 		return s.Repo.FinopsTable(ctx, tenantID, r.ProjectID, from, to)
 	}
@@ -118,12 +126,31 @@ func (s Service) Generate(ctx context.Context, tenantID, id string) error {
 	if err := s.Repo.SetReady(ctx, tenantID, id, key); err != nil {
 		return err
 	}
-	s.announce(ctx, tenantID, notify.Event{Type: notify.TypeReportReady, Severity: notify.Info,
+	ev := notify.Event{Type: notify.TypeReportReady, Severity: notify.Info,
 		Title: fmt.Sprintf("Your %s report is ready", r.Kind),
 		Body:  fmt.Sprintf("Period %s to %s, format %s.", r.PeriodStart.Format(time.DateOnly), r.PeriodEnd.Format(time.DateOnly), r.Format),
 		Path:  "/reports", DedupeKey: "report:" + id + ":ready",
-		Attrs: map[string]string{"report_id": id, "kind": string(r.Kind), "format": string(r.Format)}})
+		Attrs: map[string]string{"report_id": id, "kind": string(r.Kind), "format": string(r.Format)}}
+	s.announceReady(ctx, tenantID, r, ev)
 	return nil
+}
+
+// announceReady tells the destinations and, for a report a schedule made, e-mails the schedule's recipients. The membership of
+// each recipient is checked again now: someone who left the organization since the schedule was made is not written to.
+func (s Service) announceReady(ctx context.Context, tenantID string, r domain.Report, ev notify.Event) {
+	if s.Sched != nil {
+		if rec, found, err := s.Sched.RunRecipients(ctx, tenantID, r.ID); err == nil && found {
+			ev.Title = "Your scheduled " + ev.Title[len("Your "):]
+			ev.Body = s.digestBody(ctx, tenantID, r, ev.Body)
+			if members, err := s.Sched.MemberEmails(ctx, tenantID, rec); err == nil && len(members) > 0 {
+				if cp, ok := s.Notify.(notify.CopyPublisher); ok {
+					_ = cp.PublishWithCopy(ctx, tenantID, ev, members)
+					return
+				}
+			}
+		}
+	}
+	s.announce(ctx, tenantID, ev)
 }
 
 // MarkFailed records a terminal failure after retries are exhausted.
@@ -221,4 +248,105 @@ func (s Service) Delete(ctx context.Context, tenantID, id string) error {
 		_ = s.Store.Delete(ctx, *r.ObjectKey) // best effort: the row is the source of truth
 	}
 	return nil
+}
+
+// ErrSchedulesUnavailable: the service was built without a schedule store.
+var ErrSchedulesUnavailable = errors.New("report schedules are not available")
+
+// CreateSchedule validates a schedule, checks that the format is allowed and every recipient is a member, and sets its first run.
+func (s Service) CreateSchedule(ctx context.Context, tenantID, createdBy string, sc domain.Schedule) (domain.Schedule, error) {
+	if s.Sched == nil {
+		return domain.Schedule{}, ErrSchedulesUnavailable
+	}
+	sc.Normalize()
+	if err := sc.Validate(); err != nil {
+		return domain.Schedule{}, err
+	}
+	if s.Settings != nil && !slices.Contains(s.Settings.Strings(ctx, tenantID, settings.KeyReportFormats), string(sc.Format)) {
+		return domain.Schedule{}, domain.ErrFormatNotAllowed
+	}
+	if len(sc.Recipients) > 0 {
+		members, err := s.Sched.MemberEmails(ctx, tenantID, sc.Recipients)
+		if err != nil {
+			return domain.Schedule{}, err
+		}
+		if len(members) != len(sc.Recipients) {
+			return domain.Schedule{}, domain.ErrRecipientNotMember
+		}
+	}
+	sc.CreatedBy = createdBy
+	sc.NextRunAt = domain.NextRun(sc.Cadence, s.now())
+	return s.Sched.CreateSchedule(ctx, tenantID, sc)
+}
+
+func (s Service) Schedules(ctx context.Context, tenantID string) ([]domain.Schedule, error) {
+	if s.Sched == nil {
+		return []domain.Schedule{}, nil
+	}
+	return s.Sched.ListSchedules(ctx, tenantID)
+}
+
+// SetScheduleEnabled pauses or resumes a schedule; resuming waits for the next regular run instead of replaying the missed ones.
+func (s Service) SetScheduleEnabled(ctx context.Context, tenantID, id string, enabled bool) (domain.Schedule, error) {
+	if s.Sched == nil {
+		return domain.Schedule{}, ErrSchedulesUnavailable
+	}
+	cur, err := s.Sched.ListSchedules(ctx, tenantID)
+	if err != nil {
+		return domain.Schedule{}, err
+	}
+	for _, c := range cur {
+		if c.ID == id {
+			return s.Sched.SetScheduleEnabled(ctx, tenantID, id, enabled, domain.NextRun(c.Cadence, s.now()))
+		}
+	}
+	return domain.Schedule{}, domain.ErrNotFound
+}
+
+func (s Service) DeleteSchedule(ctx context.Context, tenantID, id string) error {
+	if s.Sched == nil {
+		return ErrSchedulesUnavailable
+	}
+	return s.Sched.DeleteSchedule(ctx, tenantID, id)
+}
+
+// RunDueSchedules makes the reports whose schedules are due (the hourly job) and returns how many it asked for. A schedule is moved
+// to its next run before its report is requested, so a retry of the job never makes the same report twice; a run that fails to be
+// requested is skipped, and the next regular run goes on.
+func (s Service) RunDueSchedules(ctx context.Context) (int, error) {
+	if s.Sched == nil {
+		return 0, nil
+	}
+	now := s.now()
+	due, err := s.Sched.DueSchedules(ctx, now)
+	if err != nil {
+		return 0, err
+	}
+	made := 0
+	var first error
+	for _, d := range due {
+		sc, ok, err := s.Sched.ClaimSchedule(ctx, d[0], d[1], now)
+		if err != nil {
+			if first == nil {
+				first = err
+			}
+			continue
+		}
+		if !ok {
+			continue
+		}
+		start, end := domain.Period(sc.Cadence, now)
+		rep, err := s.Create(audit.WithTenant(ctx, d[0]), d[0], "schedule:"+sc.ID, domain.Report{ProjectID: sc.ProjectID, Kind: sc.Kind, Format: sc.Format, PeriodStart: start, PeriodEnd: end})
+		if err != nil {
+			if first == nil {
+				first = err
+			}
+			continue
+		}
+		if err := s.Sched.LinkSchedule(ctx, d[0], rep.ID, sc.ID); err != nil && first == nil {
+			first = err
+		}
+		made++
+	}
+	return made, first
 }

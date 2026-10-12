@@ -28,6 +28,7 @@ const (
 	TaskSyncGCP             = "cloudaccounts:sync_gcp_billing"        // phase 2
 	TaskSyncKubernetes      = "kubernetes:sync"                       // phase 2
 	TaskGenerateReport      = "reports:generate"                      // phase 2
+	TaskRunReportSchedules  = "reports:run_schedules"                 // scheduled reports whose time has come (hourly)
 	TaskCalcRecommendation  = "recommendations:calculate"             // phase 2
 	TaskDeliverNotification = "notifications:deliver"                 // one outbox delivery (fast path; the sweep is the safety net)
 	TaskSweepNotifications  = "notifications:sweep"                   // re-queue due or stuck deliveries (every minute)

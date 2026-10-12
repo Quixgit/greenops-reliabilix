@@ -256,6 +256,67 @@ func (q *Queries) ReportCostDaily(ctx context.Context, arg ReportCostDailyParams
 	return items, nil
 }
 
+const reportGhgBreakdown = `-- name: ReportGhgBreakdown :many
+SELECT to_char(date_trunc('month', period_start), 'YYYY-MM')::text AS month, provider, service_name, method,
+       sum(energy_kwh)::float8 AS energy_kwh, sum(carbon_kg_co2e)::float8 AS carbon_kg
+FROM carbon.calculations
+WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
+  AND methodology_version = $3
+  AND period_start >= $4 AND period_start < $5
+GROUP BY month, provider, service_name, method ORDER BY month, provider, service_name, method
+`
+
+type ReportGhgBreakdownParams struct {
+	TenantID           string    `json:"tenant_id"`
+	ProjectID          *string   `json:"project_id"`
+	MethodologyVersion string    `json:"methodology_version"`
+	FromTs             time.Time `json:"from_ts"`
+	ToTs               time.Time `json:"to_ts"`
+}
+
+type ReportGhgBreakdownRow struct {
+	Month       string  `json:"month"`
+	Provider    string  `json:"provider"`
+	ServiceName string  `json:"service_name"`
+	Method      string  `json:"method"`
+	EnergyKwh   float64 `json:"energy_kwh"`
+	CarbonKg    float64 `json:"carbon_kg"`
+}
+
+// GHG inventory rows: calendar month, provider, service and method, so each can be listed on its own (ADR-0055).
+func (q *Queries) ReportGhgBreakdown(ctx context.Context, arg ReportGhgBreakdownParams) ([]ReportGhgBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, reportGhgBreakdown,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.MethodologyVersion,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReportGhgBreakdownRow{}
+	for rows.Next() {
+		var i ReportGhgBreakdownRow
+		if err := rows.Scan(
+			&i.Month,
+			&i.Provider,
+			&i.ServiceName,
+			&i.Method,
+			&i.EnergyKwh,
+			&i.CarbonKg,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const reportSCIDaily = `-- name: ReportSCIDaily :many
 SELECT p.name AS project, p.functional_unit, date_trunc('day', c.period_start)::timestamptz AS day,
        sum(c.carbon_kg_co2e)::float8 AS carbon_kg_co2e, coalesce(max(c.functional_units), 0)::float8 AS functional_units,

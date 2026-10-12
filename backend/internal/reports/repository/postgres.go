@@ -4,6 +4,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
 	"strconv"
 	"time"
 
@@ -252,3 +254,78 @@ func (r Postgres) Delete(ctx context.Context, tenantID, id string) (domain.Repor
 	})
 	return rep, err
 }
+
+// GHGTable is the Scope 3 category 1 inventory (purchased cloud services) of the window, laid out as the figures a
+// GHG Protocol / ESRS E1-6 disclosure asks for. It states what is and is not inside the boundary (ADR-0055).
+func (r Postgres) GHGTable(ctx context.Context, tenantID string, project *string, from, to time.Time) (t domain.Table, err error) {
+	t = domain.Table{Title: "GHG Protocol Scope 3 inventory (ESRS E1)", Period: period(from, to),
+		Notes: append(methodologyNotes(),
+			"Boundary: the emissions of cloud services the organization buys (Scope 3, category 3.1 Purchased goods and services), location-based, in tCO2e. The cloud providers' own Scope 1 and 2 are theirs; the organization's own Scope 1 and 2 are not in this report.",
+			"Embodied emissions of the hardware (category 3.2 and the M term of SCI) are not included; market-based Scope 2 accounting and provider-reported figures are not used. Rows from spend are an average-data estimate, not primary data.",
+			"Use with the methodology status above: provisional coefficients are not suitable for a published CSRD statement."),
+		Headers: []string{"section", "item", "value", "unit"}}
+	add := func(section, item, value, unit string) { t.Rows = append(t.Rows, []string{section, item, value, unit}) }
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := db.New(tx).ReportGhgBreakdown(ctx, db.ReportGhgBreakdownParams{TenantID: tenantID, ProjectID: project,
+			MethodologyVersion: methodology.Version, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		var energy, carbon, measured float64
+		byProvider, byService, byMonth := map[string]float64{}, map[string]float64{}, map[string]float64{}
+		for _, x := range rows {
+			energy += x.EnergyKwh
+			carbon += x.CarbonKg
+			if x.Method == "usage_based" {
+				measured += x.CarbonKg
+			}
+			byProvider[x.Provider] += x.CarbonKg
+			byService[x.Provider+" / "+x.ServiceName] += x.CarbonKg
+			byMonth[x.Month] += x.CarbonKg
+		}
+		add("Inventory", "Standard", "GHG Protocol Scope 3 Standard", "")
+		add("Inventory", "Category", "3.1 Purchased goods and services (cloud)", "")
+		add("Inventory", "Disclosure", "ESRS E1-6 gross Scope 3 GHG emissions", "")
+		add("Inventory", "Approach", "Location-based, mixed data", "")
+		add("Scope 3 category 1", "Gross emissions", t6(carbon/1000), "tCO2e")
+		add("Scope 3 category 1", "Energy", t6(energy), "kWh")
+		if carbon > 0 {
+			add("Data quality", "From measured usage", t6(measured/carbon*100), "%")
+			add("Data quality", "Estimated from spend", t6((carbon-measured)/carbon*100), "%")
+		}
+		for _, k := range sortedKeys(byProvider) {
+			add("By provider", k, t6(byProvider[k]/1000), "tCO2e")
+		}
+		for _, k := range sortedKeys(byMonth) {
+			add("By month", k, t6(byMonth[k]/1000), "tCO2e")
+		}
+		for i, k := range sortedByValue(byService) {
+			if i == 25 {
+				break
+			}
+			add("By service (top 25)", k, t6(byService[k]/1000), "tCO2e")
+		}
+		add("Not included", "Embodied emissions of hardware (category 3.2)", "0", "tCO2e")
+		add("Not included", "Scope 1 and 2 of the organization", "not covered", "")
+		return nil
+	})
+	return
+}
+
+func sortedKeys(m map[string]float64) []string {
+	k := make([]string, 0, len(m))
+	for x := range m {
+		k = append(k, x)
+	}
+	sort.Strings(k)
+	return k
+}
+
+func sortedByValue(m map[string]float64) []string {
+	k := sortedKeys(m)
+	sort.SliceStable(k, func(i, j int) bool { return m[k[i]] > m[k[j]] })
+	return k
+}
+
+// t6 rounds to six decimals (a gram of CO2e in tonnes) so float noise does not reach a disclosure table.
+func t6(v float64) string { return strconv.FormatFloat(math.Round(v*1e6)/1e6, 'f', -1, 64) }

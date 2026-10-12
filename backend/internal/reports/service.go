@@ -33,7 +33,8 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Store: d.Store, Queue: d.Queue, Notify: d.Notify, Settings: d.Settings}
+	repo := repository.Postgres{Pool: d.Pool}
+	svc := application.Service{Repo: repo, Sched: repo, Head: repo, Store: d.Store, Queue: d.Queue, Notify: d.Notify, Settings: d.Settings}
 	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc}
 }
 
@@ -42,6 +43,10 @@ func (m *Module) Routes(r chi.Router) { m.h.Routes(r) }
 
 // RegisterJobs implements queue.JobRegistrar.
 func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
+	mux.HandleFunc(queue.TaskRunReportSchedules, func(ctx context.Context, _ *asynq.Task) error {
+		_, err := m.svc.RunDueSchedules(ctx)
+		return err
+	})
 	mux.HandleFunc(queue.TaskGenerateReport, func(ctx context.Context, t *asynq.Task) error {
 		p, err := queue.Decode(t)
 		if err != nil {

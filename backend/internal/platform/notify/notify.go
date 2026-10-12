@@ -43,6 +43,7 @@ const (
 	TypeRecommendationVerified = "recommendation.verified"
 	TypeAlertOpened            = "alert.opened"
 	TypeAutomationApproved     = "automation.plan_approved"
+	TypeAutomationWaiting      = "automation.plan_waiting" // a change plan was made and waits for a person to approve it
 	TypeBillingRenewalDue      = "billing.renewal_due"
 	TypeBillingPaymentReceived = "billing.payment_received"
 	TypeBillingPaymentFailed   = "billing.payment_failed"
@@ -75,6 +76,7 @@ func Catalog() []TypeInfo {
 		{TypeBillingPaymentReceived, "A payment was received and the plan is active", Info},
 		{TypeBillingPaymentFailed, "A payment did not go through", Warning},
 		{TypeBillingPlanEnded, "The paid period ended and the organization is back on the Free plan", Warning},
+		{TypeAutomationWaiting, "A change plan is waiting for approval", Info},
 		{TypeAutomationApproved, "A change plan was approved and is ready to be applied", Info},
 		{TypeAutomationResult, "The result of applying a change plan was reported (applied, failed or rolled back)", Info},
 	}

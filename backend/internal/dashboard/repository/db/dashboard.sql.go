@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 )
 
@@ -23,11 +24,11 @@ type DashboardActivityParams struct {
 }
 
 type DashboardActivityRow struct {
-	ID        int64     `json:"id"`
-	Action    string    `json:"action"`
-	Target    string    `json:"target"`
-	CreatedAt time.Time `json:"created_at"`
-	Metadata  []byte    `json:"metadata"`
+	ID        int64           `json:"id"`
+	Action    string          `json:"action"`
+	Target    string          `json:"target"`
+	CreatedAt time.Time       `json:"created_at"`
+	Metadata  json.RawMessage `json:"metadata"`
 }
 
 func (q *Queries) DashboardActivity(ctx context.Context, arg DashboardActivityParams) ([]DashboardActivityRow, error) {
@@ -468,7 +469,9 @@ type DashboardRegionEC2CostRow struct {
 	Cost     float64 `json:"cost"`
 }
 
-// EC2 instance compute cost per region (the only cost the region price index describes), in the dominant currency.
+// Cost per region and price-index family: virtual machine compute (EC2, Azure Virtual Machines, Compute Engine) and Azure's managed
+// PostgreSQL and Redis, the only costs the region price indexes describe,
+// in the dominant currency.
 func (q *Queries) DashboardRegionEC2Cost(ctx context.Context, arg DashboardRegionEC2CostParams) ([]DashboardRegionEC2CostRow, error) {
 	rows, err := q.db.Query(ctx, dashboardRegionEC2Cost,
 		arg.TenantID,
@@ -570,7 +573,7 @@ WITH newest AS (
   WHERE NOT gi.is_forecast AND gi.measure = 'average' ORDER BY gi.region_id, gi.ts DESC
 )
 SELECT l.region_id, l.g::float8 AS g_per_kwh, l.ts AS at, p.g AS prev_g_per_kwh
-FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g;
+FROM latest l LEFT JOIN prev p USING (region_id) ORDER BY l.g
 `
 
 type DashboardRegionsRow struct {
@@ -779,8 +782,8 @@ func (q *Queries) DashboardTrend(ctx context.Context, arg DashboardTrendParams) 
 const dashboardVerified = `-- name: DashboardVerified :one
 SELECT count(*) FILTER (WHERE outcome IN ('realized','partial'))::int AS verified_count,
        count(*) FILTER (WHERE outcome = 'not_realized')::int AS not_realized_count,
-       COALESCE(sum(measured_carbon_kg_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_carbon_kg_month,
-       COALESCE(sum(measured_cost_month) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_saving_month
+       COALESCE(sum(COALESCE(adjusted_carbon_kg_month, measured_carbon_kg_month)) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_carbon_kg_month,
+       COALESCE(sum(COALESCE(adjusted_cost_month, measured_cost_month)) FILTER (WHERE outcome IN ('realized','partial')), 0)::float8 AS verified_saving_month
 FROM recommendations.impact_verifications
 WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
 `
