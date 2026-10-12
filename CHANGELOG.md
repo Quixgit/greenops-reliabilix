@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.180] - 2026-10-12
+
+### Changed
+- **Top recommendations on the Overview use one soft grey** for the cloud, impact and latency badges and for the row icon, instead of
+  a different colour for each.
+
 ## [0.1.0-alpha.179] - 2026-10-12
 
 ### Changed

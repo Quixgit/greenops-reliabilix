@@ -39,17 +39,19 @@ export function PromoBanner() {
 }
 
 const ICONS: Record<string, { icon: LucideIcon; tone: string }> = {
-  region_shift: { icon: MapPin, tone: "bg-leaf-soft text-leaf-deep" },
-  rightsizing: { icon: Server, tone: "bg-violet-50 text-violet-600" },
+  region_shift: { icon: MapPin, tone: "bg-slate-100 text-slate-500" },
+  rightsizing: { icon: Server, tone: "bg-slate-100 text-slate-500" },
 };
-const FALLBACK = { icon: Lightbulb, tone: "bg-amber-50 text-amber-600" };
+const FALLBACK = { icon: Lightbulb, tone: "bg-slate-100 text-slate-500" };
 
 /** Impact tier derived from the estimated carbon reduction: the rule is shown in the badge's tooltip. */
 function impactOf(r: Recommendation): { label: string; cls: string } {
   const p = r.estimated_carbon_reduction_pct;
-  if (p >= 40) return { label: "High impact", cls: "bg-orange-50 text-orange-700 ring-orange-200" };
-  if (p >= 15) return { label: "Medium impact", cls: "bg-amber-50 text-amber-700 ring-amber-200" };
-  return { label: "Low impact", cls: "bg-slate-100 text-slate-600 ring-slate-200" };
+  // one soft grey for every tier: the label carries the level, a rainbow of badges next to every line only adds noise
+  const cls = "bg-slate-100 text-slate-600 ring-slate-200";
+  if (p >= 40) return { label: "High impact", cls };
+  if (p >= 15) return { label: "Medium impact", cls };
+  return { label: "Low impact", cls };
 }
 
 /** One line under the title: what all open recommendations together are worth, what was verified, what can run itself. */
@@ -107,9 +109,9 @@ export function TopRecommendations() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13px] font-medium leading-tight" title={r.title}>{r.title}</span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-1">
-                        <span className="rounded px-1 py-px text-[10px] font-semibold uppercase" style={{ background: cloudMeta(r.provider).soft, color: cloudMeta(r.provider).ink }}>{cloudMeta(r.provider).name}</span>
+                        <span className="rounded bg-slate-100 px-1 py-px text-[10px] font-semibold uppercase text-slate-600 ring-1 ring-inset ring-slate-200">{cloudMeta(r.provider).name}</span>
                         <span title={t("ov3.recs.impact_tip")} className={cn("rounded px-1 py-px text-[10px] font-medium ring-1 ring-inset", impact.cls)}>{impact.label}</span>
-                        {r.details?.latency_ms && <span title={t("rec.latency_hint", { from: regionName(r.current_region), to: regionName(r.recommended_region), km: r.details.distance_km ?? "?", budget: r.details.latency_budget_ms ?? "?", basis: latencyBasisLabel(t, r.details.latency_basis, r.details.latency_error_pct) })} className="rounded bg-sky-50 px-1 py-px text-[10px] font-medium text-[#3f78b8] ring-1 ring-inset ring-sky-100">{t(r.details.latency_basis === "estimated" || !r.details.latency_basis ? "ov2.reg.latency_chip" : "ov2.reg.latency_chip_measured", { ms: r.details.latency_ms })}</span>}
+                        {r.details?.latency_ms && <span title={t("rec.latency_hint", { from: regionName(r.current_region), to: regionName(r.recommended_region), km: r.details.distance_km ?? "?", budget: r.details.latency_budget_ms ?? "?", basis: latencyBasisLabel(t, r.details.latency_basis, r.details.latency_error_pct) })} className="rounded bg-slate-100 px-1 py-px text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-200">{t(r.details.latency_basis === "estimated" || !r.details.latency_basis ? "ov2.reg.latency_chip" : "ov2.reg.latency_chip_measured", { ms: r.details.latency_ms })}</span>}
                       </span>
                     </span>
                     <span className="shrink-0 text-right leading-tight">
