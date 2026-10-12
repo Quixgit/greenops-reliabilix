@@ -5,6 +5,15 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.176] - 2026-10-12
+
+### Fixed
+- **Erasing an organization failed whenever it had a report schedule, a commitment snapshot or a support view** (found by the
+  integration test, which failed on a clean checkout too). The erasure runs as `greenops-fanout` and deletes from every tenant table, but
+  `reports.schedules`, `reports.schedule_runs` and `cloudaccounts.commitment_snapshots` were never granted to it, and
+  `tenants.support_views` had DELETE without SELECT: the whole erasure was rolled back with "permission denied". Migration 0083 grants
+  them, and `TestEveryTenantTableCanBeErased` now lists every tenant table that role cannot empty, so the next one is caught in CI.
+
 ## [0.1.0-alpha.175] - 2026-10-12
 
 ### Changed

@@ -203,3 +203,34 @@ func TestRetentionDropsOnlyOldWholeMonths(t *testing.T) {
 		t.Fatalf("old rows %d (want 0), current rows %d (want 1)", old2, cur)
 	}
 }
+
+// Organization erasure runs as greenops_fanout and deletes from every table with a tenant column: a table added later and never granted to
+// it makes erasing any organization that has data in it fail. This lists the tables the role cannot empty, so the next one is caught here.
+func TestEveryTenantTableCanBeErased(t *testing.T) {
+	owner := pool(t, "TEST_OWNER_DSN")
+	rows, err := owner.Query(context.Background(), `
+		SELECT c.table_schema || '.' || c.table_name
+		FROM information_schema.columns c
+		JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'
+		JOIN pg_class k ON k.oid = (quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass
+		WHERE c.column_name IN ('tenant_id', 'organization_id') AND c.table_schema NOT IN ('pg_catalog', 'information_schema', 'platform')
+		  AND k.relrowsecurity AND NOT k.relispartition AND (c.table_schema, c.table_name) <> ('tenants', 'users')
+		  AND NOT (has_table_privilege('greenops_fanout', quote_ident(c.table_schema) || '.' || quote_ident(c.table_name), 'DELETE')
+		       AND has_table_privilege('greenops_fanout', quote_ident(c.table_schema) || '.' || quote_ident(c.table_name), 'SELECT'))
+		ORDER BY 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var missing []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		missing = append(missing, s)
+	}
+	if len(missing) > 0 {
+		t.Errorf("greenops_fanout cannot delete from %v: GRANT SELECT, DELETE ... TO greenops_fanout in a migration (it reads the tenant column it deletes by)", missing)
+	}
+}
