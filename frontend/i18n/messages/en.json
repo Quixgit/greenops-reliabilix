@@ -1841,5 +1841,6 @@
   "invite.joining": "Joining…",
   "invite.missing": "This link has no invitation in it. Open the link from the e-mail again.",
   "invite.failed": "This invitation cannot be used: it may have expired, been used already, or was sent to another e-mail address than the one you signed in with.",
-  "bs.type.automation.plan_waiting": "Change plan waiting for approval"
+  "bs.type.automation.plan_waiting": "Change plan waiting for approval",
+  "settings.keys.role.iac": "Terraform (projects and budgets)"
 }

@@ -21,7 +21,7 @@ import { shortTime } from "@/lib/format-time";
 import { useT } from "@/i18n/provider";
 import { Panel } from "./organization-tab";
 
-const schema = z.object({ name: z.string().trim().min(1, "Name is required").max(100, "Max 100 characters"), role: z.enum(["ci", "viewer", "agent", "scim"]) });
+const schema = z.object({ name: z.string().trim().min(1, "Name is required").max(100, "Max 100 characters"), role: z.enum(["ci", "viewer", "agent", "scim", "iac"]) });
 type Values = z.infer<typeof schema>;
 
 export function ApiKeysPanel() {
@@ -61,7 +61,7 @@ export function ApiKeysPanel() {
           {key && <SecretOnce title="API key" value={key} onDismiss={() => setKey(null)} />}
           <form onSubmit={handleSubmit((v) => create.mutate(v))} className="grid gap-3" noValidate>
             <Field label="Name" error={errors.name?.message}><input {...register("name")} className={input} placeholder="e.g. github-actions" /></Field>
-            <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option><option value="agent">Kubernetes agent</option><option value="scim">{t("settings.keys.role.scim")}</option></select></Field>
+            <Field label="Access"><select {...register("role")} className={input}><option value="ci">CI gate only</option><option value="viewer">Read only</option><option value="agent">Kubernetes agent</option><option value="scim">{t("settings.keys.role.scim")}</option><option value="iac">{t("settings.keys.role.iac")}</option></select></Field>
             <button disabled={create.isPending} className="rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{create.isPending ? "Creating…" : "Create"}</button>
             {create.isError && <p role="alert" className="text-sm text-bad">{create.error.message}</p>}
           </form>

@@ -71,3 +71,17 @@ func TestSCIMRoleHoldsOnlyProvisioning(t *testing.T) {
 		}
 	}
 }
+
+func TestIaCRoleManagesProjectsAndBudgetsOnly(t *testing.T) {
+	for _, p := range []Permission{PermProjectRead, PermProjectWrite, PermBillingRead, PermBudgetWrite} {
+		if !RoleIaC.Can(p) {
+			t.Errorf("iac key must hold %s", p)
+		}
+	}
+	for _, p := range []Permission{PermCloudRead, PermCloudWrite, PermTenantAdmin, PermTenantData, PermSettingsRead, PermSettingsWrite, PermNotificationWrite,
+		PermAutomationRead, PermAutomationWrite, PermAutomationApprove, PermRecommendApply, PermSCIM, PermAuditRead, PermReportWrite} {
+		if RoleIaC.Can(p) {
+			t.Errorf("iac key must not hold %s", p)
+		}
+	}
+}

@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.164] - 2026-10-12
+
+### Added
+- **Terraform provider** (phase 5, ADR-0057, `terraform-provider-reliabilix/`): resources `reliabilix_project`, `reliabilix_project_policy`, `reliabilix_budget` and data source `reliabilix_project`; import, drift detection, and a policy resource that never touches the automatic-application list. Tested against the stand with the real `terraform` binary.
+- **API key access "Terraform (projects and budgets)"** (role `iac`, migration 0074): projects, their policies and budgets, nothing else. `contract/api` 0.45.0.
+- API guide: the roles of machine keys, a Terraform section and curl and Python examples.
+
 ## [0.1.0-alpha.163] - 2026-10-12
 
 ### Added

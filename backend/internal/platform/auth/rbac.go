@@ -17,6 +17,7 @@ const (
 	RoleCI       Role = "ci"
 	RoleAgent    Role = "agent" // API keys of the Kubernetes agent: may push workload energy and nothing else
 	RoleSCIM     Role = "scim"  // API keys of an identity provider: may provision members through /scim/v2 and nothing else
+	RoleIaC      Role = "iac"   // API keys of infrastructure as code (the Terraform provider): projects, their policies and budgets, nothing else
 	// RoleCustom is what a member with an organization-defined role resolves to; the permissions come with the claims.
 	RoleCustom Role = "custom"
 )
@@ -86,6 +87,9 @@ var matrix = map[Role]map[Permission]struct{}{
 	RoleCI:       perms([]Permission{PermCIEvaluate}),
 	RoleAgent:    perms([]Permission{PermKubernetesIngest}),
 	RoleSCIM:     perms([]Permission{PermSCIM}),
+	// The Terraform provider manages projects, their policies and budgets. It holds no access to cloud connections, members, keys,
+	// settings, notifications or automation, and cannot approve anything.
+	RoleIaC: perms([]Permission{PermProjectRead, PermProjectWrite, PermBillingRead, PermBudgetWrite}),
 }
 
 // Can reports whether the role grants the permission. Unknown roles grant nothing.

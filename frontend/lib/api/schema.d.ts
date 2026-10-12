@@ -3745,7 +3745,7 @@ export interface components {
         ApiKeyInput: {
             name: string;
             /** @enum {string} */
-            role: "ci" | "viewer" | "agent" | "scim";
+            role: "ci" | "viewer" | "agent" | "scim" | "iac";
         } & {
             [key: string]: unknown;
         };

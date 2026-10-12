@@ -66,3 +66,39 @@ The IAM role ARN must match `arn:aws:iam::<12 digits>:role/Reliabilix*`; other n
 
 - `POST /automation/jobs` plans an *approved* recommendation; `/approve`, `/result` (`completed|failed|rolled_back`) and `/cancel` follow. The platform never executes the plan.
 - `PUT/DELETE /cloud-accounts/{id}/export` points a connection at a FOCUS data export in S3 (locations only).
+
+## Keys for machines
+
+`POST /api-keys {"name": "...", "role": "..."}` (shown once). Roles: `ci` (the gate above), `viewer` (read usage, carbon, recommendations and reports), `agent` (the Kubernetes agent), `scim`
+(identity-provider provisioning, [guide](../setup/scim.md)) and `iac` (Terraform: projects, their policies and budgets only). People decide; keys never
+approve recommendations or plans.
+
+## Terraform
+
+The provider in `terraform-provider-reliabilix/` manages projects, policies and budgets as code with an `iac` key; see its README and
+[ADR-0057](../adr/0057-terraform-provider.md).
+
+## Examples
+
+```bash
+export RLX=https://api.example.com/api/v1 KEY=grk_...
+# spend and carbon of the last month, by day
+curl -sS -H "Authorization: Bearer $KEY" "$RLX/finops/summary?from=2026-09-01&to=2026-09-30"
+curl -sS -H "Authorization: Bearer $KEY" "$RLX/carbon/trend?from=2026-09-01&to=2026-09-30"
+# month-end forecast with its range
+curl -sS -H "Authorization: Bearer $KEY" "$RLX/finops/forecast"
+# reports already made: list and download (a key cannot request one: people do, or a schedule)
+curl -sS -H "Authorization: Bearer $KEY" "$RLX/reports"
+curl -sS -H "Authorization: Bearer $KEY" "$RLX/reports/<id>/download" -o report.csv
+```
+
+```python
+import requests
+s = requests.Session(); s.headers["Authorization"] = "Bearer grk_..."
+base = "https://api.example.com/api/v1"
+# budgets with their month-end forecast need billing:read, which an `iac` key has (a `viewer` key does not)
+for b in s.get(f"{base}/finops/budgets").json()["items"]:
+    print(b["currency"], b["spent"], "/", b["amount"], b["state"], "forecast", b["projected_low"], "-", b["projected_high"])
+```
+
+A `viewer` key reads usage, carbon, forecast and the list of reports; budgets need billing access (an `iac` key); requesting a report needs a person. Errors are RFC 9457 problem documents (`title`, `detail`); list answers are `{"items": [...]}`.
