@@ -27,3 +27,23 @@ func (s Service) DailyAggregates(ctx context.Context, tenantID, projectID string
 func (s Service) ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error {
 	return s.Repo.ReplaceTagged(ctx, tenantID, projectID, sourceKey, from, to, rows)
 }
+
+// The imports of vendor cost files (ADR-0062): thin passes to the repository, which the ingestion module reaches through its own port.
+func (s Service) CreateImport(ctx context.Context, tenantID string, i domain.Import) (domain.Import, error) {
+	return s.Repo.CreateImport(ctx, tenantID, i)
+}
+func (s Service) GetImport(ctx context.Context, tenantID, id string) (domain.Import, error) {
+	return s.Repo.GetImport(ctx, tenantID, id)
+}
+func (s Service) ListImports(ctx context.Context, tenantID string, limit int) ([]domain.Import, error) {
+	return s.Repo.ListImports(ctx, tenantID, limit)
+}
+func (s Service) FinishImport(ctx context.Context, tenantID, id string, res *domain.ImportResult, failure string) error {
+	return s.Repo.FinishImport(ctx, tenantID, id, res, failure)
+}
+func (s Service) MarkImportDeleting(ctx context.Context, tenantID, id string) error {
+	return s.Repo.MarkImportDeleting(ctx, tenantID, id)
+}
+func (s Service) DeleteImport(ctx context.Context, tenantID, id string) error {
+	return s.Repo.DeleteImport(ctx, tenantID, id)
+}

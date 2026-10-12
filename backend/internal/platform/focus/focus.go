@@ -13,7 +13,7 @@ import (
 
 // Record is one charge line (FOCUS: a row of the cost and usage dataset).
 type Record struct {
-	Provider          string // aws | azure | gcp | k8s
+	Provider          string // aws | azure | gcp | k8s | saas
 	Source            string // cost_explorer | cur | ...
 	ResourceID        string // FOCUS ResourceId ("" when the source has no resource granularity)
 	ResourceType      string // FOCUS ResourceType
@@ -37,11 +37,14 @@ type RawBatch struct {
 	// TagFrom is the first day (UTC date) the payload's tags cover when that is earlier than its cost lines: a source that reads tags in a
 	// separate, wider query says so, and what it reports for those days replaces what was stored. Zero: the cost lines' own days.
 	TagFrom time.Time
+	// Meta carries what a payload cannot say about itself (a CSV file does not name its vendor): small strings set by whoever made the batch.
+	Meta map[string]string
 }
 
 var categories = map[string]bool{"compute": true, "storage": true, "database": true, "networking": true, "other": true}
 
-var providers = map[string]bool{"aws": true, "azure": true, "gcp": true, "k8s": true}
+// "saas" is every vendor outside the three clouds (Datadog, Snowflake ...): cost only, no region, no carbon model.
+var providers = map[string]bool{"aws": true, "azure": true, "gcp": true, "k8s": true, "saas": true}
 
 // Validate enforces the invariants required before a record may be persisted.
 func (r Record) Validate() error {
@@ -175,7 +178,7 @@ func KeySet(keys []string) map[string]bool {
 // Validate enforces what may be stored.
 func (t TaggedCost) Validate() error {
 	switch {
-	case !providers[t.Provider] && t.Provider != "saas":
+	case !providers[t.Provider]:
 		return fmt.Errorf("focus: unknown provider %q", t.Provider)
 	case t.ServiceName == "":
 		return errors.New("focus: tagged cost needs a service name")

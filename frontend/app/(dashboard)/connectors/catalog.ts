@@ -1,6 +1,6 @@
 // The connector catalog shown to customers. `available` means the code exists and is tested; everything else is
 // labelled with its phase (docs/product/03-connectors.md) so the page never promises more than the platform does.
-export type ConnectorCategory = "cloud" | "infrastructure" | "ci-cd" | "notifications" | "data";
+export type ConnectorCategory = "cloud" | "saas" | "infrastructure" | "ci-cd" | "notifications" | "data";
 export type ConnectorStatus = "available" | "platform" | "planned";
 
 export interface CatalogItem {
@@ -18,6 +18,9 @@ export const CATALOG: CatalogItem[] = [
   { id: "aws", name: "Amazon Web Services", category: "cloud", provides: "Cost Explorer, FOCUS data export, rightsizing findings", status: "available", provider: "aws" },
   { id: "gcp", name: "Google Cloud", category: "cloud", provides: "Cloud Billing export in BigQuery, measured compute and storage", status: "available", provider: "gcp" },
   { id: "azure", name: "Microsoft Azure", category: "cloud", provides: "Costs of every service through a read-only service principal (Cost Management Reader), or a FOCUS export for measured VM hours", status: "available", provider: "azure" },
+  { id: "datadog", name: "Datadog", category: "saas", provides: "Monitoring and logging cost from a usage or billing export (CSV)", status: "available" },
+  { id: "snowflake", name: "Snowflake", category: "saas", provides: "Warehouse and storage cost from a usage export (CSV)", status: "available" },
+  { id: "custom-csv", name: "Any other vendor", category: "saas", provides: "A cost export of any SaaS or tool in CSV: a FOCUS export works as it is", status: "available" },
   { id: "kubernetes", name: "Kubernetes", category: "infrastructure", provides: "Workload energy, utilisation and rightsizing, pushed by the packaged agent", status: "available" },
   { id: "prometheus", name: "Prometheus", category: "infrastructure", provides: "Kepler energy and CPU and memory use, read from your Prometheus by the Kubernetes agent", status: "available" },
   { id: "github-actions", name: "GitHub Actions", category: "ci-cd", provides: "A carbon and cost gate for pull requests: PASS, WARN or BLOCK before a change merges", status: "available" },
@@ -33,6 +36,7 @@ export const CATALOG: CatalogItem[] = [
 export const CATEGORIES: { id: ConnectorCategory | "all"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "cloud", label: "Cloud providers" },
+  { id: "saas", label: "SaaS & other costs" },
   { id: "infrastructure", label: "Infrastructure & monitoring" },
   { id: "ci-cd", label: "CI/CD & development" },
   { id: "notifications", label: "Notifications" },

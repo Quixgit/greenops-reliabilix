@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.170] - 2026-10-12
+
+### Added
+- **Costs of SaaS and other vendors** (ADR-0062, migration 0076): Connectors > "SaaS & other costs" (Datadog, Snowflake, any other) takes the cost export of a vendor outside the three clouds as a CSV, up to 8 MB. The columns are found by name (a FOCUS export works as it is), a file that cannot be used is refused at once with the reason, a good one is read in the background and added to your costs, services, forecasts, budgets and showback, with tags. Each file can be taken back; a later file for the same days replaces them. No carbon is derived from it (no region, no energy model). `POST /imports/cost`, `GET /imports`, `DELETE /imports/{id}`; works with an API key that holds `cloud:write`. `contract/api` 0.47.0.
+
 ## [0.1.0-alpha.169] - 2026-10-12
 
 ### Added

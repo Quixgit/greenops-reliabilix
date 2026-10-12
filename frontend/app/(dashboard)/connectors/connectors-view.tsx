@@ -23,6 +23,7 @@ import { connectionState, stateTone, type ConnectionState } from "@/lib/connecti
 import { connectorSummary, formatDuration, kpis, type ConnectorFacts } from "@/lib/connectors";
 import { formatCarbon, formatCost, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { CostImportPanel } from "@/components/connectors/cost-import";
 import { CATALOG, CATEGORIES, type CatalogItem } from "./catalog";
 
 type Provider = "aws" | "gcp" | "azure";
@@ -67,6 +68,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]["id"]>("all");
   const [connectAs, setConnectAs] = useState<Provider | "" | null>(null);
   const [open, setOpen] = useState<string | null>(null);
+  const [importVendor, setImportVendor] = useState("");
   // /connectors?connect=aws opens the connect panel for that cloud (the Settings page links here)
   useEffect(() => {
     const p = new URLSearchParams(window.location.search).get("connect");
@@ -331,11 +333,13 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
         </div>
         <div key={cat} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item, i) => (
-            <CatalogCard key={item.id} item={item} index={i} facts={facts} canConnect={canConnect} onConnect={(p) => setConnectAs(p)} />
+            <CatalogCard key={item.id} item={item} index={i} facts={facts} canConnect={canConnect} onConnect={(p) => setConnectAs(p)}
+              onUpload={(v) => { setImportVendor(v); document.getElementById("cost-import")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
           ))}
         </div>
       </section>
 
+      <CostImportPanel vendor={importVendor} onVendor={setImportVendor} canWrite={canConnect} />
     </div>
   );
 }
@@ -359,7 +363,7 @@ function ConnectionRow({ main, detail, open, onToggle, index }: { main: React.Re
   );
 }
 
-function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: CatalogItem; index: number; facts: ConnectorFacts; canConnect: boolean; onConnect: (p: Provider) => void }) {
+function CatalogCard({ item, index, facts, canConnect, onConnect, onUpload }: { item: CatalogItem; index: number; facts: ConnectorFacts; canConnect: boolean; onConnect: (p: Provider) => void; onUpload: (vendor: string) => void }) {
   const t = useT();
   const s = connectorSummary(item.id, facts);
   const planned = item.status === "planned", platform = item.status === "platform";
@@ -386,7 +390,9 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
           {platform ? (live && s.lastAt ? `${t("connectors.status.platform")} · ${t("connectors.updated", { ago: timeAgo(s.lastAt) })}` : "")
             : live ? (cloud ? t("connectors.connected_count", { count: s.count }) : item.id === "kubernetes" || prom ? t("connectors.k8s.clusters", { count: s.count }) : ci ? t("connectors.ci.runs", { count: s.count }) : t("connectors.channels.destinations", { count: s.count })) : ""}
         </span>
-        {planned || platform ? null : cloud && canConnect ? (
+        {planned || platform ? null : item.category === "saas" ? (
+          <button onClick={() => onUpload(item.id === "custom-csv" ? "" : item.name)} className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">{t("imp.upload_file")}<ArrowUpRight className="size-4" /></button>
+        ) : cloud && canConnect ? (
           <button onClick={() => onConnect(item.provider as Provider)} className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">
             {s.count ? t("connectors.add_another") : t("connectors.connect_one")}<ArrowUpRight className="size-4" />
           </button>

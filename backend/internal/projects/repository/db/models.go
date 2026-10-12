@@ -659,6 +659,43 @@ type TenantsUser struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type UsageImport struct {
+	ID           string     `json:"id"`
+	TenantID     string     `json:"tenant_id"`
+	ProjectID    string     `json:"project_id"`
+	Vendor       string     `json:"vendor"`
+	Filename     string     `json:"filename"`
+	Currency     string     `json:"currency"`
+	Status       string     `json:"status"`
+	Error        string     `json:"error"`
+	RowsRead     int32      `json:"rows_read"`
+	RowsImported int32      `json:"rows_imported"`
+	RowsSkipped  int32      `json:"rows_skipped"`
+	Services     int32      `json:"services"`
+	FromDay      *time.Time `json:"from_day"`
+	ToDay        *time.Time `json:"to_day"`
+	TotalCost    float64    `json:"total_cost"`
+	Warnings     []string   `json:"warnings"`
+	CreatedBy    string     `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	FinishedAt   *time.Time `json:"finished_at"`
+}
+
+type UsageTaggedCost struct {
+	TenantID      string    `json:"tenant_id"`
+	ProjectID     string    `json:"project_id"`
+	SourceKey     string    `json:"source_key"`
+	Provider      string    `json:"provider"`
+	ServiceName   string    `json:"service_name"`
+	Currency      string    `json:"currency"`
+	Day           time.Time `json:"day"`
+	TagKey        string    `json:"tag_key"`
+	TagValue      string    `json:"tag_value"`
+	BilledCost    float64   `json:"billed_cost"`
+	EffectiveCost float64   `json:"effective_cost"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type UsageUsageRecord struct {
 	ID               string    `json:"id"`
 	TenantID         string    `json:"tenant_id"`

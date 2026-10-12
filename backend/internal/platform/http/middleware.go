@@ -87,10 +87,18 @@ func SecureHeaders() Middleware {
 }
 
 // MaxBody limits request body size.
-func MaxBody(n int64) Middleware {
+func MaxBody(n int64) Middleware { return MaxBodyFor(n, nil) }
+
+// MaxBodyFor limits request body size to n, except for the exact paths in larger (file uploads), which get their own limit. Nothing else may
+// exceed n: a limit is raised only by naming the route.
+func MaxBodyFor(n int64, larger map[string]int64) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.Body = http.MaxBytesReader(w, r.Body, n)
+			limit := n
+			if l, ok := larger[r.URL.Path]; ok && r.Method == http.MethodPost {
+				limit = l
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
 			next.ServeHTTP(w, r)
 		})
 	}

@@ -33,6 +33,7 @@ WITH g AS (
   FROM usage.usage_records
   WHERE tenant_id = sqlc.arg(tenant_id) AND project_id = sqlc.arg(project_id)
     AND recorded_at >= sqlc.arg(from_ts) AND recorded_at < sqlc.arg(to_ts)
+    AND provider <> 'saas' -- a vendor outside the clouds has cost only: no region, no energy model, so no carbon is derived from it (ADR-0062)
   GROUP BY provider, service_name, service_category, region_id, consumed_unit, currency, day
 )
 SELECT g.provider, g.service_name, g.service_category, g.region_id, g.consumed_unit,

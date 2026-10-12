@@ -100,11 +100,15 @@ func (s Service) Ingest(ctx context.Context, tenantID, projectID, connectionID s
 		}
 	}
 	if ts, ok := s.Store.(TaggedStore); ok && taggedSeen {
+		sourceKey := connectionID
+		if sourceKey == "" && len(batches) > 0 {
+			sourceKey = batches[0].Meta["source_key"] // a file import names its own source
+		}
 		from := res.From
 		if !tagFrom.IsZero() && tagFrom.Before(from) {
 			from = tagFrom
 		}
-		if err := ts.ReplaceTagged(ctx, tenantID, projectID, connectionID, from, res.To, tagged); err != nil {
+		if err := ts.ReplaceTagged(ctx, tenantID, projectID, sourceKey, from, res.To, tagged); err != nil {
 			s.Log.Warn("tagged cost could not be stored; the costs are kept", "err", err)
 		}
 	}
@@ -135,6 +139,9 @@ func (s Service) archive(ctx context.Context, tenantID, connectionID string, b f
 	now := time.Now().UTC()
 	if s.Now != nil {
 		now = s.Now().UTC()
+	}
+	if connectionID == "" {
+		connectionID = "file" // a file import has no connection
 	}
 	k, err := storage.Key(tenantID, "raw", fmt.Sprintf("%s/%s/%s.json", b.Provider, connectionID, now.Format("20060102T150405Z")))
 	if err != nil {

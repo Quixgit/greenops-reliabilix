@@ -150,6 +150,9 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	projectsM := projects.New(projects.Deps{Pool: pool, Limits: limits})
 	usageM := usage.New(pool)
 	ingestionM := ingestion.New(usageM.Svc, store, log)
+	ingestionM.EnableImports(importStore{usage: usageM.Svc}, store, q, func(ctx context.Context, tenantID string) []string {
+		return cfgr.Strings(ctx, tenantID, settings.KeyTagKeys)
+	})
 	pp := projectPorts{projects: projectsM.Svc}
 	carbonM := carbon.New(carbon.Deps{Pool: pool, Log: log, Queue: q, Provider: grid, Usage: usageForCarbon{usage: usageM.Svc},
 		Units: pp, Policies: pp, Projects: carbonProjects{projects: projectsM.Svc}, Settings: cfgr, Monthly: &emberMonthly{ints: ints, meter: meter}, Inventory: &inventoryAnnual{ints: ints, meter: meter}, Extras: []carbonapp.HourlyExtra{ukciSource{ints: ints, meter: meter}, eiaSource{ints: ints, meter: meter}, energyChartsSource{ints: ints, meter: meter}, iesoSource{ints: ints, meter: meter}, hydroQuebecSource{ints: ints, meter: meter}, entsoeSource{ints: ints, meter: meter}, onsSource{ints: ints, meter: meter}}})
@@ -174,7 +177,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	}
 	c.Settings = cfgr
 	c.BackfillIntensity = carbonM.Svc.BackfillIntensity
-	c.jobs = []queue.JobRegistrar{cloudM, carbonM, finopsM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
+	c.jobs = []queue.JobRegistrar{ingestionM, cloudM, carbonM, finopsM, recsM, reportsM, notifyM, lifecycleM, licensingM, alertsM}
 
 	switch {
 	case cfg.IsDev():

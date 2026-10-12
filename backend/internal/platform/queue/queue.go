@@ -44,6 +44,8 @@ const (
 	TaskRefreshMonthly      = "carbon:refresh_monthly"                // monthly national figures of the regions in use (daily)
 	TaskBackfillIntensity   = "carbon:backfill_intensity"             // operator-started: fetch past grid readings of some regions
 	TaskPurgeOperatorLog    = "platform:purge_operator_log"           // drop operator access records past retention (daily)
+	TaskImportCost          = "ingestion:import_cost"                 // read an uploaded cost file of a vendor outside the clouds
+	TaskDeleteImport        = "ingestion:delete_import"               // take an imported file back: its lines go
 )
 
 // Enqueuer is what domains depend on to chain jobs (sync -> calculate -> recommend). Implemented by

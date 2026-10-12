@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.46.0
+  version: 0.47.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -5861,6 +5861,78 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/imports:
+    get:
+      operationId: listImports
+      summary: Cost files uploaded from vendors outside the three clouds
+      tags: [usage]
+      description: Requires permission `cloud:read`. Newest first, at most 100.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/CostImport'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/imports/cost:
+    post:
+      operationId: uploadCostFile
+      summary: Upload the cost export of a vendor (Datadog, Snowflake, any CSV) into a project
+      tags: [usage]
+      description: |
+        Requires permission `cloud:write`. The body is the CSV file itself (at most 8 MB, 200,000 rows). The columns are found by name from the usual spellings (a FOCUS export works as it is):
+        a date (ChargePeriodStart, Date, UsageDate, ...) and a cost (BilledCost, Cost, Amount, ...) are required; service, currency, effective cost and tags (a Tags column or tag_* / label_* columns) are used when present.
+        Cost is summed per day, service and currency and kept as the provider `saas`: cost only, in no region, and no carbon is derived from it. The file is checked at once (a file that cannot be used is refused with the reason, 422)
+        and read in the background; the answer carries a preview and the import, whose `status` turns `done` or `failed`. Uploading a later file with the same service and days replaces those days.
+      parameters:
+      - {name: project_id, in: query, required: true, schema: {type: string, format: uuid}}
+      - {name: vendor, in: query, required: true, schema: {type: string, maxLength: 60}, description: Shown before the service name, for example Datadog}
+      - {name: currency, in: query, required: false, schema: {type: string, minLength: 3, maxLength: 3}, description: For rows without a currency; USD when omitted}
+      - {name: filename, in: query, required: false, schema: {type: string, maxLength: 200}}
+      requestBody:
+        required: true
+        content:
+          text/csv: {schema: {type: string, format: binary}}
+      responses:
+        '202':
+          description: Accepted for reading
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [import, preview]
+                properties:
+                  import: {$ref: '#/components/schemas/CostImport'}
+                  preview:
+                    type: object
+                    additionalProperties: true
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '413': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /api/v1/imports/{id}:
+    delete:
+      operationId: deleteImport
+      summary: Take an uploaded cost file back
+      tags: [usage]
+      description: Requires permission `cloud:write`. The lines it made, their tags and the stored file are removed in the background. Refused (409) while the file is still being read or already being removed.
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '202': {description: Accepted}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     bearerAuth:
@@ -6129,6 +6201,28 @@ components:
           type: boolean
           description: Whether the invitation e-mail (a link to /invite) went out. False when the platform has no mail transport or sending failed; the token is still returned.
       additionalProperties: true
+    CostImport:
+      type: object
+      required: [id, project_id, vendor, status]
+      properties:
+        id: {type: string}
+        project_id: {type: string}
+        vendor: {type: string}
+        filename: {type: string}
+        currency: {type: string}
+        status: {type: string, enum: [processing, done, failed, deleting]}
+        error: {type: string}
+        rows_read: {type: integer}
+        rows_imported: {type: integer}
+        rows_skipped: {type: integer}
+        services: {type: integer}
+        from: {type: string, nullable: true}
+        to: {type: string, nullable: true}
+        total_cost: {type: number}
+        warnings: {type: array, items: {type: string}}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        finished_at: {type: string, format: date-time, nullable: true}
     ApiKey:
       type: object
       properties:

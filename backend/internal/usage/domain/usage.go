@@ -39,6 +39,7 @@ type DailyAggregate struct {
 }
 
 type Repository interface {
+	ImportRepository
 	// Upsert writes records idempotently (re-syncing the same day replaces, never duplicates).
 	Upsert(ctx context.Context, tenantID, projectID, connectionID string, recs []focus.Record) error
 	List(ctx context.Context, tenantID string, projectID *string, from, to time.Time, limit int) ([]Record, error)

@@ -3613,6 +3613,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost files uploaded from vendors outside the three clouds
+         * @description Requires permission `cloud:read`. Newest first, at most 100.
+         */
+        get: operations["listImports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload the cost export of a vendor (Datadog, Snowflake, any CSV) into a project
+         * @description Requires permission `cloud:write`. The body is the CSV file itself (at most 8 MB, 200,000 rows). The columns are found by name from the usual spellings (a FOCUS export works as it is):
+         *     a date (ChargePeriodStart, Date, UsageDate, ...) and a cost (BilledCost, Cost, Amount, ...) are required; service, currency, effective cost and tags (a Tags column or tag_* / label_* columns) are used when present.
+         *     Cost is summed per day, service and currency and kept as the provider `saas`: cost only, in no region, and no carbon is derived from it. The file is checked at once (a file that cannot be used is refused with the reason, 422)
+         *     and read in the background; the answer carries a preview and the import, whose `status` turns `done` or `failed`. Uploading a later file with the same service and days replaces those days.
+         */
+        post: operations["uploadCostFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Take an uploaded cost file back
+         * @description Requires permission `cloud:write`. The lines it made, their tags and the stored file are removed in the background. Refused (409) while the file is still being read or already being removed.
+         */
+        delete: operations["deleteImport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3766,6 +3829,29 @@ export interface components {
             email_sent?: boolean;
         } & {
             [key: string]: unknown;
+        };
+        CostImport: {
+            id: string;
+            project_id: string;
+            vendor: string;
+            filename?: string;
+            currency?: string;
+            /** @enum {string} */
+            status: "processing" | "done" | "failed" | "deleting";
+            error?: string;
+            rows_read?: number;
+            rows_imported?: number;
+            rows_skipped?: number;
+            services?: number;
+            from?: string | null;
+            to?: string | null;
+            total_cost?: number;
+            warnings?: string[];
+            created_by?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            finished_at?: string | null;
         };
         ApiKey: {
             /** Format: uuid */
@@ -11263,6 +11349,96 @@ export interface operations {
             400: components["responses"]["Problem"];
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
+        };
+    };
+    listImports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CostImport"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    uploadCostFile: {
+        parameters: {
+            query: {
+                project_id: string;
+                /** @description Shown before the service name */
+                vendor: string;
+                /** @description For rows without a currency; USD when omitted */
+                currency?: string;
+                filename?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+            };
+        };
+        responses: {
+            /** @description Accepted for reading */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        import: components["schemas"]["CostImport"];
+                        preview: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
         };
     };
 }
