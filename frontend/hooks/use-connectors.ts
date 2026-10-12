@@ -6,6 +6,7 @@ import * as s from "@/lib/api/schemas";
 import type { SyncRun } from "@/lib/api/schemas";
 import { useConnectionCosts, useConnections, useK8sClusters, useProjects, useRegionFootprint, useRegions } from "./use-overview";
 import { useDestinations } from "./use-admin";
+import { useGateRuns30d } from "./use-cicd";
 
 /** Recent sync runs per connection (the same cache entries the connection page uses). */
 export function useConnectionRuns(ids: string[]) {
@@ -26,6 +27,7 @@ export function useConnectorData() {
   const footprint = useRegionFootprint();
   const costs = useConnectionCosts();
   const grid = useRegions();
+  const gate = useGateRuns30d();
   const runs = useConnectionRuns((connections.data ?? []).map((c) => c.id));
-  return { connections, clusters, destinations, projects, footprint, costs, grid, runs };
+  return { connections, clusters, destinations, projects, footprint, costs, grid, runs, gate };
 }

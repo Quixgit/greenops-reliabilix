@@ -229,7 +229,8 @@ function Impact({ r }: { r?: Recommendation }) {
   return (
     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-600">
       <span className="flex items-center gap-1 font-semibold text-leaf-deep"><IconTrend className="size-3.5" />−{nf(0).format(r.estimated_carbon_reduction_pct)}% · {nf(1).format(r.carbon_reduction_kg_month)} kg CO₂e/{t("au.mo")}</span>
-      {r.estimated_cost_impact !== null && <span className="text-slate-600">{r.estimated_cost_impact < 0 ? t("au.saving") : t("au.increase")} {formatCost(Math.abs(r.estimated_cost_impact), cur)}/{t("au.mo")}</span>}
+      {r.estimated_cost_impact === 0 && <span className="text-slate-600">{t("rec.cost_same")}</span>}
+      {r.estimated_cost_impact !== null && r.estimated_cost_impact !== 0 && <span className="text-slate-600">{r.estimated_cost_impact < 0 ? t("au.saving") : t("au.increase")} {formatCost(Math.abs(r.estimated_cost_impact), cur)}/{t("au.mo")}</span>}
     </p>
   );
 }

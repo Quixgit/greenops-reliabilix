@@ -80,7 +80,8 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const facts: ConnectorFacts = useMemo(() => ({
     connections: conns, clusters: d.clusters.data ?? [], destinations: d.destinations.data ?? [],
     gridReadings: (d.grid.data ?? []).map((r) => r.at), notificationsEnabled: notifOn,
-  }), [conns, d.clusters.data, d.destinations.data, d.grid.data, notifOn]);
+    gate: (d.gate.data?.items ?? []).filter((e) => e.source === "api_key"),
+  }), [conns, d.clusters.data, d.destinations.data, d.grid.data, notifOn, d.gate.data]);
   const k = useMemo(() => kpis(facts, d.runs.byId), [facts, d.runs.byId]);
   const projectName = (id: string) => d.projects.data?.find((p) => p.id === id)?.name ?? "—";
 
@@ -362,6 +363,7 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
   const t = useT();
   const s = connectorSummary(item.id, facts);
   const planned = item.status === "planned", platform = item.status === "platform";
+  const ci = item.id === "github-actions" || item.id === "gitlab-ci", prom = item.id === "prometheus";
   const cloud = item.category === "cloud" && (item.provider === "aws" || item.provider === "gcp" || item.provider === "azure");
   const live = !planned && s.state !== "available";
   return (
@@ -371,7 +373,7 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold leading-tight">{item.name}</p>
-            {planned ? <Badge tone="stub">{item.phase ?? t("connectors.status.planned")}</Badge>
+            {planned ? <Badge tone="stub">{t("connectors.status.planned")}</Badge>
               : platform && !live ? <Badge tone="neutral">{t("connectors.status.platform")}</Badge>
               : live ? <StateBadge state={s.state as ConnectionState} label={t(`connection.state.${s.state}`)} />
               : <Badge tone="neutral">{t("connectors.status.available")}</Badge>}
@@ -382,13 +384,15 @@ function CatalogCard({ item, index, facts, canConnect, onConnect }: { item: Cata
       <div className="mt-auto flex items-center justify-between text-sm">
         <span className="text-xs text-muted">
           {platform ? (live && s.lastAt ? `${t("connectors.status.platform")} · ${t("connectors.updated", { ago: timeAgo(s.lastAt) })}` : "")
-            : live ? (cloud ? t("connectors.connected_count", { count: s.count }) : item.id === "kubernetes" ? t("connectors.k8s.clusters", { count: s.count }) : t("connectors.channels.destinations", { count: s.count })) : ""}
+            : live ? (cloud ? t("connectors.connected_count", { count: s.count }) : item.id === "kubernetes" || prom ? t("connectors.k8s.clusters", { count: s.count }) : ci ? t("connectors.ci.runs", { count: s.count }) : t("connectors.channels.destinations", { count: s.count })) : ""}
         </span>
         {planned || platform ? null : cloud && canConnect ? (
           <button onClick={() => onConnect(item.provider as Provider)} className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">
             {s.count ? t("connectors.add_another") : t("connectors.connect_one")}<ArrowUpRight className="size-4" />
           </button>
-        ) : item.id === "kubernetes" ? (
+        ) : ci ? (
+          <Link href="/ci-cd" className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">{live ? t("connectors.manage") : t("connectors.set_up")}<ArrowUpRight className="size-4" /></Link>
+        ) : item.id === "kubernetes" || prom ? (
           <Link href="/kubernetes" className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5">{live ? t("connectors.manage") : t("connectors.set_up")}<ArrowUpRight className="size-4" /></Link>
         ) : item.category === "notifications" && canConnect ? (
           <Link href="/settings" className="inline-flex items-center gap-1 font-medium text-primary transition-transform hover:translate-x-0.5"><Bell className="size-4" />{live ? t("connectors.manage") : t("connectors.set_up")}</Link>

@@ -107,7 +107,9 @@ export function TopRecommendations() {
                   <span className="shrink-0 text-right leading-tight">
                     {r.estimated_cost_impact === null
                       ? <span className="block text-xs text-muted" title={t(`ov.rec.reason.${r.type}`, undefined, t("ov.rec.reason.other"))}>{t("ov.rec.cost_waiting")}</span>
-                      : <span className="block text-sm font-semibold">{r.estimated_cost_impact <= 0 ? "−" : "+"}{formatCost(Math.abs(r.estimated_cost_impact))}/mo</span>}
+                      : r.estimated_cost_impact === 0
+                        ? <span className="block text-xs text-muted" title={t("ov.rec.reason.same_price")}>{t("ov.rec.cost_same")}</span>
+                        : <span className="block text-sm font-semibold">{r.estimated_cost_impact < 0 ? "−" : "+"}{formatCost(Math.abs(r.estimated_cost_impact))}/mo</span>}
                     <span className="mt-0.5 flex items-center justify-end gap-1 text-xs font-medium text-leaf-deep"><Leaf className="size-3" />−{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo</span>
                   </span>
                 </Link>

@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.166] - 2026-10-12
+
+### Fixed
+- **Connectors page told the truth about what exists**: GitHub Actions and GitLab CI/CD were labelled "Phase 3" and Prometheus "Phase 2" although the CI gate (with ready snippets on the CI/CD page) and the Kubernetes agent that reads Prometheus work. They now show as available with "Set up", and become "connected" by themselves: the CI cards count the pipeline checks of the last 30 days and tell GitHub's from GitLab's by the label the snippets send; Prometheus follows the Kubernetes clusters that push data. Teams and WattTime say "Planned" instead of an internal phase number (WattTime: the client is written and waits for an account).
+- **Recommendation cost wording**: a move whose list price is the same in both regions (checked: Azure prices in Canada Central and Canada East are identical) no longer reads "−CA$0/mo" but "price: the same", and the tooltip no longer says "AWS EC2" for every cloud. "cost: awaiting price data" is now "cost: not estimated", with the real reason: there is no price index for that service (indexes exist for virtual machines, managed databases and caches).
+
 ## [0.1.0-alpha.165] - 2026-10-12
 
 ### Fixed

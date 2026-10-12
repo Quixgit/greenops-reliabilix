@@ -50,8 +50,8 @@ function Row({ r, canDecide, canPlan }: { r: Recommendation; canDecide: boolean;
             <Metric label={t("rec.carbon")} tone="leaf">−{r.estimated_carbon_reduction_pct.toFixed(0)}% <span className="font-normal opacity-80">(~{r.carbon_reduction_kg_month.toFixed(1)} kg CO₂e/mo)</span></Metric>
             {r.estimated_cost_impact === null
               ? <Metric label={t("rec.cost")} tone="slate" title={t("rec.cost_unknown")}>{t("rec.cost_unknown")}</Metric>
-              : <Metric label={t("rec.cost")} tone={r.estimated_cost_impact <= 0 ? "leaf" : "amber"} title={r.cost_basis === "region_price_index" ? "Estimated from AWS on-demand list prices of the EC2 instance basket (excludes discounts, data transfer and migration)." : undefined}>
-                  {r.estimated_cost_impact <= 0 ? t("rec.cost_saving", { amount: formatCost(Math.abs(r.estimated_cost_impact)) }) : t("rec.cost_more", { amount: formatCost(r.estimated_cost_impact) })}
+              : <Metric label={t("rec.cost")} tone={r.estimated_cost_impact < 0 ? "leaf" : r.estimated_cost_impact === 0 ? "slate" : "amber"} title={r.cost_basis === "region_price_index" ? t("rec.cost_basis_index") : undefined}>
+                  {r.estimated_cost_impact < 0 ? t("rec.cost_saving", { amount: formatCost(Math.abs(r.estimated_cost_impact)) }) : r.estimated_cost_impact === 0 ? t("rec.cost_same") : t("rec.cost_more", { amount: formatCost(r.estimated_cost_impact) })}
                 </Metric>}
             <LatencyChip details={r.details} from={r.current_region} to={r.recommended_region} />
             <span className="text-xs text-muted">confidence {(r.confidence * 100).toFixed(0)}%</span>

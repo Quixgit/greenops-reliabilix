@@ -42,3 +42,14 @@ export function useTryGate() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["ci-evaluations"] }),
   });
 }
+
+/** Pipeline decisions of the last 30 days (the Connectors page shows which CI system is in use). */
+export function useGateRuns30d() {
+  const to = new Date().toISOString().slice(0, 10);
+  const from = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+  return useQuery({
+    queryKey: ["ci-evaluations-30d", to],
+    queryFn: () => api("ci/evaluations", history, { from, to, limit: "500" }),
+    staleTime: 60_000,
+  });
+}

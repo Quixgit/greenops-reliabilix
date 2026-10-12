@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clusterState, connectorSummary, formatDuration, kpis, type ConnectionFacts } from "./connectors";
+import { clusterState, connectorSummary, formatDuration, gateSource, kpis, type ConnectionFacts } from "./connectors";
 
 const NOW = Date.parse("2026-10-11T12:00:00Z");
 const conn = (o: Partial<ConnectionFacts>): ConnectionFacts => ({
@@ -67,5 +67,26 @@ describe("formatDuration", () => {
     expect(formatDuration(252)).toBe("4.2 min");
     expect(formatDuration(1200)).toBe("20 min");
     expect(formatDuration(4000)).toBe("1.1 h");
+  });
+});
+
+describe("CI connectors", () => {
+  const base = { connections: [], clusters: [], destinations: [] };
+  it("tells GitHub's and GitLab's runs apart by the label the ready-made snippets send", () => {
+    expect(gateSource("acme/web#1234567")).toBe("github-actions");
+    expect(gateSource("https://gitlab.com/acme/web/-/pipelines/987")).toBe("gitlab-ci");
+    expect(gateSource("console test")).toBeNull();
+    expect(gateSource(undefined)).toBeNull();
+  });
+  it("is connected only by real pipeline runs, and counts them per system", () => {
+    const f = { ...base, gate: [{ ref: "acme/web#1", created_at: "2026-10-01T10:00:00Z" }, { ref: "acme/web#2", created_at: "2026-10-02T10:00:00Z" }, { ref: "x", created_at: "2026-10-03T10:00:00Z" }] };
+    expect(connectorSummary("github-actions", f)).toEqual({ state: "synced", count: 2, lastAt: "2026-10-02T10:00:00Z" });
+    expect(connectorSummary("gitlab-ci", f)).toEqual({ state: "available", count: 0, lastAt: null });
+    expect(connectorSummary("github-actions", base).state).toBe("available");
+  });
+  it("shows Prometheus as the Kubernetes clusters that read it", () => {
+    const f = { ...base, clusters: [{ cluster: "prod", last_hour: new Date().toISOString() }] };
+    expect(connectorSummary("prometheus", f).state).toBe("synced");
+    expect(connectorSummary("prometheus", base).state).toBe("available");
   });
 });

@@ -14,8 +14,13 @@ export interface RunFacts { started_at: string; finished_at: string | null; stat
 /** The state of a connector as a whole: a cloud/cluster/channel state, or "available" when there is none yet. */
 export type ConnectorState = ConnectionState | "available";
 
+/** A decision of the CI gate asked by a pipeline (not from the console); `ref` is what the pipeline sent to label the run. */
+export interface GateRunFacts { ref?: string; created_at: string }
+
 export interface ConnectorFacts {
   connections: ConnectionFacts[];
+  /** Pipeline decisions of the last 30 days. */
+  gate?: GateRunFacts[];
   clusters: ClusterFacts[];
   destinations: DestinationFacts[];
   /** Timestamps (ISO) of the newest grid-intensity reading of every region the platform follows. */
@@ -38,6 +43,17 @@ export function clusterState(c: ClusterFacts, now = Date.now()): ConnectionState
 
 export interface ConnectorSummary { state: ConnectorState; count: number; lastAt: string | null }
 
+/**
+ * Which CI system a gate call came from, by the label the ready-made snippets send: GitHub's is "owner/repo#run", GitLab's the
+ * pipeline address (".../-/pipelines/N"). A call with another label belongs to neither card.
+ */
+export function gateSource(ref: string | undefined): "github-actions" | "gitlab-ci" | null {
+  if (!ref) return null;
+  if (/\/-\/pipelines\/\d+/.test(ref)) return "gitlab-ci";
+  if (/^[\w.-]+\/[\w.-]+#\d+$/.test(ref)) return "github-actions";
+  return null;
+}
+
 /** State of one catalog connector id ("aws", "gcp", "azure", "kubernetes", "email", "slack", "webhook"). */
 export function connectorSummary(id: string, f: ConnectorFacts): ConnectorSummary {
   const now = f.now ?? Date.now();
@@ -50,6 +66,12 @@ export function connectorSummary(id: string, f: ConnectorFacts): ConnectorSummar
     const last = f.clusters.map((c) => c.last_hour).sort().at(-1) ?? null;
     return { state: worstState(f.clusters.map((c) => clusterState(c, now))) ?? "available", count: f.clusters.length, lastAt: last };
   }
+  if (id === "github-actions" || id === "gitlab-ci") {
+    const runs = (f.gate ?? []).filter((r) => gateSource(r.ref) === id);
+    const last = runs.map((r) => r.created_at).sort().at(-1) ?? null;
+    return { state: runs.length > 0 ? "synced" : "available", count: runs.length, lastAt: last };
+  }
+  if (id === "prometheus") return connectorSummary("kubernetes", f); // Prometheus is read by the Kubernetes agent: its state is the clusters'
   if (id === "electricity-maps") {
     const times = (f.gridReadings ?? []).map((x) => Date.parse(x)).filter(Number.isFinite);
     if (times.length === 0) return { state: "available", count: 0, lastAt: null };
