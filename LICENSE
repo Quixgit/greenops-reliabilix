@@ -1,0 +1,53 @@
+Reliabilix Systems Commercial License
+
+Copyright (c) 2026 Reliabilix Systems. All rights reserved.
+
+1. Ownership
+   This software, including its source code, documentation, database schema, API contract, methodology files, interface texts and
+   all copies and derivative works (the "Software"), is the proprietary property of Reliabilix Systems ("Reliabilix"). No title to
+   the Software is transferred by access to it or by a licence of it.
+
+2. No licence without an agreement
+   Nothing in this repository grants any right to use, copy, modify, merge, publish, distribute, sublicense, host, offer as a
+   service or sell the Software. A right to use the Software exists only under a written agreement with Reliabilix (a subscription,
+   an evaluation agreement or a source-code licence) and only within the scope that agreement states.
+
+3. What is permitted without a separate agreement
+   a. Reliabilix employees and contractors bound by confidentiality may use and modify the Software for Reliabilix's business.
+   b. A person who was given read access to this repository by Reliabilix may read it to evaluate the Software, for the period and
+      purpose for which access was given, and may not copy it out of the repository or use it in production.
+
+4. Restrictions
+   Unless an agreement says otherwise, you may not: (i) use the Software, or any part of it, to provide a product or service to
+   third parties; (ii) remove or alter notices of ownership; (iii) circumvent licence, plan or entitlement checks; (iv) use the
+   Software, its outputs or its methodology files to build a competing product; (v) disclose the Software or its non-public
+   documentation to anyone who is not bound by this licence.
+
+5. Third-party components
+   The Software depends on open-source components and public data sources that remain under their own licences and terms (for
+   example Cloud Carbon Footprint constants under Apache-2.0, Ember under CC BY, Energy-Charts under CC BY 4.0). Those licences
+   apply to those components and are not changed by this one. Credit the sources where the product shows their figures.
+
+6. Customer data
+   Data that a customer's cloud accounts, files or users supply to a hosted instance belongs to that customer and is processed
+   under the data processing terms of the agreement with that customer.
+
+7. No warranty
+   The Software is provided "as is", without warranty of any kind, express or implied, including fitness for a particular purpose
+   and non-infringement. Carbon and cost figures are estimates produced by a versioned methodology that is stated, with its
+   limits, in the product; they must not be presented as audited or externally verified unless the methodology says so.
+
+8. Limitation of liability
+   To the extent the law allows, Reliabilix is not liable for indirect, incidental, special or consequential damages, or for loss
+   of profit, data or goodwill, arising from the use of or inability to use the Software.
+
+9. Termination
+   Rights under this licence end automatically if you breach it. On termination you must stop using the Software and delete all
+   copies in your possession.
+
+10. Governing terms
+    The agreement that grants a right to use the Software governs; where it conflicts with this text, the agreement prevails.
+
+Contact for licences: https://reliabilix.com
+
+This text is a licence notice for the repository. It is not legal advice; have it reviewed by counsel before it is relied on.

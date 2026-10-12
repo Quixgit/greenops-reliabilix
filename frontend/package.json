@@ -1,6 +1,7 @@
 {
   "name": "greenops-frontend",
   "private": true,
+  "license": "SEE LICENSE IN ../LICENSE",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -42,5 +43,5 @@
     "typescript": "^5.9.0",
     "vitest": "^4.1.0"
   },
-  "version": "0.1.0-alpha.176"
+  "version": "0.1.0-alpha.177"
 }

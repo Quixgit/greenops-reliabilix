@@ -17,6 +17,8 @@ Whenever you change something that deserves a changelog line, in the same change
    stage, and the image tags per service.
 4. Never publish or document a `latest` image tag; production uses exact version tags.
 5. Run `go test ./internal/platform/version/...`: it fails when the manifest and the repository disagree.
+6. Run `make roadmap`: it rebuilds the generated block of `README.md` and `ROADMAP.md` from `VERSION`, `CHANGELOG.md` and
+   `docs/product/08-phases.md` (CI regenerates it on `main`, but commit it with the change so the files agree).
 
 When the stage would change (alpha -> beta -> rc -> stable), check the entry criteria in the policy first and record the
 result in the changelog; do not change the stage on your own.

@@ -5,6 +5,25 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.177] - 2026-10-12
+
+### Added
+- **README rewritten** (no pictographs, what the platform does, one cloud at a time, architecture, honest status) and a **generated
+  roadmap**: the block between `<!-- roadmap:start -->` and `<!-- roadmap:end -->` in `README.md` and `ROADMAP.md` is rebuilt by
+  `scripts/gen-roadmap.py` (`make roadmap`, `make roadmap-check`) from `VERSION`, `CHANGELOG.md`, `VERSIONS.md` and
+  `docs/product/08-phases.md`; the `roadmap` workflow commits it on `main` when one of them changes.
+- **Full platform description in Ukrainian** (`docs/architecture/platform-full.uk.md`): diagrams of the context, layers, data
+  pipeline and cloud scope; every module and platform package; the schedule of jobs; every formula as implemented (cost and currency,
+  energy, grid-intensity resolution, CO2e and SCI, Kubernetes allocation, forecast, anomalies, budgets, commitments, showback, unit
+  economics, region move and latency, rightsizing, impact verification, CI gate, GHG Scope 3); weak spots; external services still to
+  connect; extraction candidates and what is laid down for the future.
+
+### Changed
+- **Commercial licence.** `LICENSE` states that the repository is proprietary (no use without an agreement with Reliabilix Systems, third-party
+  components keep their own licences); the README says so. The text is a notice, not legal advice: have counsel review it.
+- ENTSO-E is live on the stand: the token was accepted (Test) and 30 days of hourly readings were loaded for `eu-central-1`,
+  `eu-north-1`, `eu-west-1` and `eu-west-3`.
+
 ## [0.1.0-alpha.176] - 2026-10-12
 
 ### Fixed

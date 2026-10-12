@@ -2,7 +2,7 @@ DB_OWNER_DSN ?= postgres://greenops_owner:dev-only@localhost:5432/greenops?sslmo
 DB_API_DSN   ?= postgres://greenops_api:dev-only@localhost:5432/greenops?sslmode=disable
 DEV_TENANT   ?= 00000000-0000-4000-8000-000000000001
 
-.PHONY: smoke doctor recalc sqlc api-types openapi-lint help up down build test test-integration lint vuln migrate seed seed-demo run-api run-worker run-scheduler web web-test
+.PHONY: smoke doctor recalc sqlc api-types openapi-lint help up down build test test-integration lint vuln migrate seed seed-demo run-api run-worker run-scheduler web web-test roadmap roadmap-check
 help: ; @grep -E '^[a-z-]+:' Makefile | cut -d: -f1 | tr '\n' ' '; echo
 
 up:               ; docker compose up --build -d          # whole stack -> http://localhost:3000
@@ -14,6 +14,9 @@ test:             ; cd backend && go test -race ./...
 test-integration: ; cd backend && TEST_OWNER_DSN='$(DB_OWNER_DSN)' TEST_API_DSN='$(DB_API_DSN)' \
                       TEST_WORKER_DSN='postgres://greenops_worker:dev-only@localhost:5432/greenops?sslmode=disable' \
                       go test -tags integration -count=1 ./tests/...
+# the roadmap blocks of README.md and ROADMAP.md, from VERSION, CHANGELOG.md, VERSIONS.md and docs/product/08-phases.md
+roadmap:          ; python3 scripts/gen-roadmap.py
+roadmap-check:    ; python3 scripts/gen-roadmap.py --check
 lint:             ; cd backend && golangci-lint run ./...
 vuln:             ; cd backend && govulncheck ./...
 

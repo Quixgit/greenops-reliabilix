@@ -1,0 +1,40 @@
+name: roadmap
+
+# README.md and ROADMAP.md carry a generated block (the current release, the phases, the latest releases). It is rebuilt from VERSION,
+# CHANGELOG.md, VERSIONS.md and docs/product/08-phases.md, so the roadmap cannot drift from what the repository says about itself.
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+      - VERSIONS.md
+      - CHANGELOG.md
+      - docs/product/08-phases.md
+      - scripts/gen-roadmap.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: roadmap
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate the roadmap blocks
+        run: python3 scripts/gen-roadmap.py
+      - name: Commit when something changed
+        run: |
+          if git diff --quiet -- README.md ROADMAP.md; then
+            echo "roadmap is current"
+            exit 0
+          fi
+          git config user.name "reliabilix-roadmap"
+          git config user.email "roadmap@users.noreply.github.com"
+          git add README.md ROADMAP.md
+          git commit -m "Roadmap: regenerate from VERSION, CHANGELOG and the phases [skip ci]"
+          git push
