@@ -138,6 +138,10 @@ func GenerateRegionShift(in RegionShiftInput) []Recommendation {
 			a, b := idx[w.Region], idx[target]
 			impact := round(w.Cost*monthly*(b/a-1), 2)
 			rec.CostImpact, rec.CostBasis = &impact, "region_price_index"
+			if strings.HasPrefix(ManagedFamily(w.Provider, w.Service), GenericPrefix) {
+				// every meter of the service, not a basket of sizes: a rough figure, and the confidence says so
+				rec.CostBasis, rec.Confidence = "region_price_list", round(rec.Confidence*0.8, 2)
+			}
 		}
 		rec.Details = map[string]string{"latency_budget_ms": strconv.Itoa(budget)}
 		if pick.LatencyMs != nil {
@@ -249,6 +253,31 @@ func isVMCompute(provider, service string) bool {
 	return false
 }
 
+// GenericPrefix starts the id of an index built from every meter of a service (platform/azureprice builds them; a test keeps the two
+// spellings of the id equal). Whether such an index exists for a service is decided by whether the price job built one.
+const GenericPrefix = "azure:svc:"
+
+// genericAzure are the Azure services that get a meter-by-meter index (the list of platform/azureprice.GenericServices; a test keeps them equal).
+// Networking, storage and anything else stay "not estimated" even if a stray index existed.
+var genericAzure = map[string]bool{"azure app service": true, "azure container apps": true, "functions": true, "azure cognitive search": true,
+	"azure cosmos db": true, "foundry models": true, "azure kubernetes service": true, "azure monitor": true}
+
+// GenericFamily is the id of the meter-by-meter index of an Azure service, by its billed name.
+func GenericFamily(service string) string {
+	var b strings.Builder
+	us := false
+	for _, r := range strings.ToLower(strings.TrimSpace(service)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			us = false
+		} else if !us && b.Len() > 0 {
+			b.WriteByte('_')
+			us = true
+		}
+	}
+	return GenericPrefix + strings.TrimRight(b.String(), "_")
+}
+
 // ManagedFamily is the price-index family of a managed service ("" when no index describes it).
 func ManagedFamily(provider, service string) string {
 	s := strings.ToLower(strings.TrimSpace(service))
@@ -259,6 +288,9 @@ func ManagedFamily(provider, service string) string {
 			return "azure:postgresql"
 		case s == "redis cache" || s == "azure cache for redis":
 			return "azure:redis"
+		}
+		if genericAzure[s] {
+			return GenericFamily(service) // the rougher meter-by-meter index, when the price job has built one
 		}
 	case "aws":
 		switch {

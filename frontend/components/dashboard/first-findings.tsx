@@ -27,7 +27,7 @@ export function FirstFindings() {
   const synced = conns.some((c) => !!c.last_sync_at);
   if (hidden || !synced || !o || o.open_count + o.approved_count === 0) return null;
 
-  const top = [...open].filter((r) => r.estimated_cost_impact !== null && r.estimated_cost_impact < 0).sort((a, b) => (a.estimated_cost_impact ?? 0) - (b.estimated_cost_impact ?? 0)).slice(0, 3);
+  const top = [...open].filter((r) => r.estimated_cost_impact !== null && r.estimated_cost_impact < 0 && r.cost_basis !== "region_price_list").sort((a, b) => (a.estimated_cost_impact ?? 0) - (b.estimated_cost_impact ?? 0)).slice(0, 3);
   const stats: { label: string; node: React.ReactNode; hint: string }[] = [
     { label: t("ff.saving"), hint: t("ff.saving_hint"), node: <CountUp value={o.potential_saving_month * 12} format={(n) => formatCost(n, cur)} /> },
     { label: t("ff.carbon"), hint: t("ff.carbon_hint"), node: <CountUp value={o.potential_carbon_kg_month * 12} format={(n) => formatCarbon(n)} /> },

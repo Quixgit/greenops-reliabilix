@@ -42,7 +42,7 @@ type Module struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Projects: d.Projects, Queue: d.Queue, Notify: d.Notify, Log: d.Log, Settings: d.Settings}
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Projects: d.Projects, Queue: d.Queue, Notify: d.Notify, Log: d.Log, Settings: d.Settings, ExtraFamilies: azureprice.GenericIDs()}
 	return &Module{h: rhttp.Handlers{Svc: svc}, svc: svc, Svc: svc, gcpKey: d.GCPPricingKey}
 }
 
@@ -67,7 +67,7 @@ func (m *Module) RegisterJobs(mux *asynq.ServeMux) {
 	mux.HandleFunc(queue.TaskRefreshPrices, func(ctx context.Context, _ *asynq.Task) error {
 		// One cloud failing does not hide the others' indexes; the first error is returned so the job is seen as incomplete.
 		_, err := m.svc.RefreshPriceIndex(ctx, awsPriceSource{c: awsprice.New()}, awsRegions())
-		for _, fam := range azureprice.Families {
+		for _, fam := range append(append([]azureprice.Family(nil), azureprice.Families...), azureprice.GenericFamilies()...) {
 			if _, e := m.svc.RefreshPriceIndex(ctx, azurePriceSource{c: azureprice.New(), fam: fam}, azureprice.Regions); err == nil {
 				err = e
 			}
@@ -104,6 +104,9 @@ type azurePriceSource struct {
 // Provider is the family id: "azure" for virtual machines, "azure:postgresql" and "azure:redis" for the managed services.
 func (a azurePriceSource) Provider() string { return a.fam.ID }
 func (a azurePriceSource) Basis() string {
+	if a.fam.Generic {
+		return "azure_price_list_meters"
+	}
 	switch a.fam.ID {
 	case "azure:postgresql":
 		return "azure_postgresql_flexible_vcore_basket"

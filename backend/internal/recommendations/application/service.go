@@ -40,6 +40,8 @@ type Service struct {
 	Now    func() time.Time
 	// Settings is the organization settings engine (optional: catalog defaults without it).
 	Settings settings.Reader
+	// ExtraFamilies are further price-index families read besides the fixed ones (the generic Azure services).
+	ExtraFamilies []string
 }
 
 const windowDays = 30
@@ -141,7 +143,7 @@ func (s Service) Generate(ctx context.Context, tenantID, projectID string) (int,
 		}
 	}
 	services := map[string]map[string]float64{}
-	for _, fam := range []string{"azure:postgresql", "azure:redis", "aws:rds", "aws:elasticache", "gcp:cloudsql", "gcp:memorystore"} {
+	for _, fam := range append([]string{"azure:postgresql", "azure:redis", "aws:rds", "aws:elasticache", "gcp:cloudsql", "gcp:memorystore"}, s.ExtraFamilies...) {
 		if p, err := s.Repo.PriceIndex(ctx, fam); err == nil && len(p) > 0 {
 			services[fam] = p
 		}

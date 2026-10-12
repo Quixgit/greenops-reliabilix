@@ -107,3 +107,35 @@ func TestRedisNeedsEnoughOfTheBasket(t *testing.T) {
 		t.Fatalf("%v %v", p, err) // Enterprise is another product: left out
 	}
 }
+
+func TestSlug(t *testing.T) {
+	for in, want := range map[string]string{"Azure App Service": "azure_app_service", "Functions": "functions", " Foundry  Models ": "foundry_models", "SQL/DB (v2)": "sql_db_v2"} {
+		if got := Slug(in); got != want {
+			t.Errorf("Slug(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestGenericRatioComparesEveryMeterBothRegionsHave(t *testing.T) {
+	fam := GenericFamily("Azure Container Apps")
+	base := map[string]float64{"a": 1, "b": 2, "c": 4, "d": 8, "e": 3, "only-base": 5}
+	region := map[string]float64{"a": 1.1, "b": 2.2, "c": 4.4, "d": 8.8, "e": 3.3, "only-region": 9}
+	r, n, ok := familyRatio(fam, region, base)
+	if !ok || n != 5 || r < 1.0999 || r > 1.1001 {
+		t.Fatalf("ratio %v over %d meters, ok=%v", r, n, ok)
+	}
+	// too few meters in common: no figure at all rather than a guess from two prices
+	if _, n, ok := familyRatio(fam, map[string]float64{"a": 2, "b": 4}, base); ok || n != 2 {
+		t.Fatalf("two meters must not make an index (n=%d ok=%v)", n, ok)
+	}
+}
+
+func TestGenericKeySkipsSpot(t *testing.T) {
+	fam := GenericFamily("Azure App Service")
+	if _, _, ok := fam.Key(item{Product: "p", SKUName: "S1 Spot", Meter: "m", Price: 1}); ok {
+		t.Error("spot prices are not comparable")
+	}
+	if k, _, ok := fam.Key(item{Product: "p", SKUName: "S1", Meter: "m", Price: 1}); !ok || k != "p|S1|m" {
+		t.Errorf("key %q ok=%v", k, ok)
+	}
+}

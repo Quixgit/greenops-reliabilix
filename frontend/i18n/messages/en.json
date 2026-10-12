@@ -1848,5 +1848,9 @@
   "ov.rec.cost_same": "price: the same",
   "ov.rec.reason.same_price": "The published list price of this capacity is the same in both regions: moving saves carbon and changes nothing in the bill.",
   "rec.cost_same": "same price in both regions",
-  "rec.cost_basis_index": "Estimated from the cloud's published on-demand list prices of a basket of sizes in both regions (excludes discounts, data transfer and migration)."
+  "rec.cost_basis_index": "Estimated from the cloud's published on-demand list prices of a basket of sizes in both regions (excludes discounts, data transfer and migration).",
+  "rec.cost_rough": "~{amount} cheaper (rough)",
+  "rec.cost_rough_more": "~{amount} more (rough)",
+  "rec.cost_basis_list": "A rough estimate: the ratio of the cloud's published list prices of every meter this service has in both regions, not a basket of sizes. It does not know your usage mix; excludes discounts, data transfer and migration.",
+  "ov.rec.cost_rough": "~{amount}/mo (rough)"
 }

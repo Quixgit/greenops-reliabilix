@@ -94,12 +94,13 @@ GROUP BY 1, 2;
 
 -- name: DashboardPotential :one
 -- What the open and approved recommendations could save per month, as estimated (not yet verified), and how many of
--- them have no cost estimate (their carbon effect is still counted; the cost is never guessed).
+-- them have no cost estimate (their carbon effect is still counted; the cost is never guessed). A rough estimate from the meters of a service
+-- (cost_basis region_price_list) is shown on its own card but never added into this headline figure.
 SELECT count(*) FILTER (WHERE r.status = 'open')::int AS open_count,
        count(*) FILTER (WHERE status = 'approved')::int AS approved_count,
        COALESCE(sum(carbon_reduction_kg_month) FILTER (WHERE status IN ('open','approved')), 0)::float8 AS potential_carbon_kg_month,
-       COALESCE(sum(-estimated_cost_impact) FILTER (WHERE status IN ('open','approved') AND estimated_cost_impact IS NOT NULL), 0)::float8 AS potential_saving_month,
-       count(*) FILTER (WHERE status IN ('open','approved') AND estimated_cost_impact IS NULL)::int AS cost_not_estimated,
+       COALESCE(sum(-estimated_cost_impact) FILTER (WHERE status IN ('open','approved') AND estimated_cost_impact IS NOT NULL AND cost_basis <> 'region_price_list'), 0)::float8 AS potential_saving_month,
+       count(*) FILTER (WHERE status IN ('open','approved') AND (estimated_cost_impact IS NULL OR cost_basis = 'region_price_list'))::int AS cost_not_estimated,
        count(*) FILTER (WHERE status = 'open' AND r.type = ANY(COALESCE(pol.auto_apply_types, '{}')))::int AS auto_count
 FROM recommendations.recommendations r
 LEFT JOIN projects.policies pol ON pol.project_id = r.project_id

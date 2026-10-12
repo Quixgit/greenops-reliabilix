@@ -5,6 +5,14 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.167] - 2026-10-12
+
+### Added
+- **A rough cost effect for region moves of more Azure services** (ADR-0059): App Service, Container Apps, Functions, Cognitive Search, Cosmos DB, Foundry Models, Kubernetes Service and Monitor now get a price index from every meter they have in both regions (at least five in common) from Azure's public price list. Cards say "(rough)" with the reason in the tooltip, confidence is lowered, and a rough estimate is never added into the Overview's potential saving or "What we found". Azure DevOps (no regional price), storage and networking stay "not estimated". On the stand: App Service Canada Central to East about 4.4% cheaper, Container Apps the same price.
+
+### Fixed
+- The stand kept report files in a temporary folder of an old working session; they are now under `~/reliabilix-stand/storage`.
+
 ## [0.1.0-alpha.166] - 2026-10-12
 
 ### Fixed

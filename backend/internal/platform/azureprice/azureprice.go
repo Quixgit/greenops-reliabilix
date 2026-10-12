@@ -64,6 +64,62 @@ type Family struct {
 	Key func(it item) (key string, price float64, ok bool)
 	// Filter narrows the request beyond the service name (an OData clause, optional).
 	Filter string
+	// Generic families have no curated basket: every consumption meter the service has in both regions is compared (the geometric mean of
+	// the price ratios), which is a rougher figure than a basket of sizes and is labelled so (ADR-0059).
+	Generic bool
+}
+
+// GenericServices are the Azure services an index is built for from every meter they have in both regions. Services whose price does not
+// depend on the region (Azure DevOps has no regional price at all) are not listed and stay "not estimated"; storage, with a meter for every
+// redundancy and tier, is left out because an unweighted mean over them says little.
+var GenericServices = []string{"Azure App Service", "Azure Container Apps", "Functions", "Azure Cognitive Search", "Azure Cosmos DB", "Foundry Models", "Azure Kubernetes Service", "Azure Monitor"}
+
+// GenericPrefix starts the id of a generic family ("azure:svc:azure_app_service").
+const GenericPrefix = "azure:svc:"
+
+// Slug turns a service name into the part of a family id: lower case letters and digits, anything else one underscore.
+func Slug(service string) string {
+	var b strings.Builder
+	us := false
+	for _, r := range strings.ToLower(strings.TrimSpace(service)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			us = false
+		} else if !us && b.Len() > 0 {
+			b.WriteByte('_')
+			us = true
+		}
+	}
+	return strings.TrimRight(b.String(), "_")
+}
+
+// GenericFamily is the family of one service compared meter by meter.
+func GenericFamily(service string) Family {
+	return Family{ID: GenericPrefix + Slug(service), Service: service, MinOverlap: 5, Generic: true,
+		Key: func(it item) (string, float64, bool) {
+			if strings.Contains(it.SKUName, "Spot") || strings.Contains(it.SKUName, "Low Priority") || strings.Contains(it.Meter, "Spot") {
+				return "", 0, false
+			}
+			return it.Product + "|" + it.SKUName + "|" + it.Meter, it.Price, true
+		}}
+}
+
+// GenericFamilies is one family per generic service.
+func GenericFamilies() []Family {
+	out := make([]Family, 0, len(GenericServices))
+	for _, s := range GenericServices {
+		out = append(out, GenericFamily(s))
+	}
+	return out
+}
+
+// GenericIDs are the family ids of GenericFamilies, for the code that reads the stored indexes.
+func GenericIDs() []string {
+	out := make([]string, 0, len(GenericServices))
+	for _, s := range GenericServices {
+		out = append(out, GenericPrefix+Slug(s))
+	}
+	return out
 }
 
 // VM is Linux pay-as-you-go virtual machines: the original index.
@@ -193,7 +249,7 @@ func (c *Client) FamilyPrices(ctx context.Context, fam Family, region string) (m
 				continue
 			}
 			key, price, ok := fam.Key(it)
-			if !ok || price <= 0 || !inBasket[key] {
+			if !ok || price <= 0 || (!fam.Generic && !inBasket[key]) {
 				continue
 			}
 			if old, have := out[key]; !have || price < old { // several rows are variants: the plain one is the lowest
@@ -215,7 +271,14 @@ func Ratio(region, base map[string]float64) (ratio float64, n int, ok bool) {
 
 func familyRatio(fam Family, region, base map[string]float64) (ratio float64, n int, ok bool) {
 	sum := 0.0
-	for _, it := range fam.Basket {
+	keys := fam.Basket
+	if fam.Generic {
+		keys = keys[:0:0]
+		for k := range base {
+			keys = append(keys, k)
+		}
+	}
+	for _, it := range keys {
 		a, b := region[it], base[it]
 		if a > 0 && b > 0 {
 			sum += math.Log(a / b)
