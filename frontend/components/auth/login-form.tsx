@@ -87,6 +87,17 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
   const emailOk = validEmail(email);
   const go = (v: View) => { setView(v); setTouched(false); setSent(false); setError(""); };
 
+  /** A company address goes to its company's own sign-in (SSO) when its domain has one; any other address takes the ordinary way. */
+  async function continueWith() {
+    setBusy(true);
+    let connection = "";
+    try {
+      const res = await fetch(`/api/sso/discover?email=${encodeURIComponent(email.trim())}`, { cache: "no-store" });
+      if (res.ok) connection = ((await res.json()) as { connection?: string }).connection ?? "";
+    } catch { /* the ordinary sign-in still works */ }
+    window.location.assign(loginUrl({ email, returnTo, connection: connection || undefined }));
+  }
+
   async function recover(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
@@ -195,13 +206,13 @@ export function LoginForm({ mode, returnTo, devLogin = false, error: loginError 
           <a href="/overview" className={cn(primary, "flex items-center justify-center")}>Continue as the development user</a>
         ) : (
           <form
-            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (emailOk) { keep(email); window.location.assign(loginUrl({ email, returnTo })); } }}
+            onSubmit={(e) => { e.preventDefault(); setTouched(true); if (emailOk) { keep(email); void continueWith(); } }}
             noValidate className="space-y-4"
           >
             <Input icon={Mail} id="email" aria-label="Work e-mail" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" aria-invalid={touched && !emailOk} />
             {touched && !emailOk && <p role="alert" className="-mt-2 text-xs text-red-600">Enter a valid e-mail address.</p>}
             <Remember checked={remember} onChange={setRemember} />
-            <button type="submit" className={primary}>Continue</button>
+            <button type="submit" disabled={busy} className={primary}>{busy ? "Continue…" : "Continue"}</button>
           </form>
         )}
 

@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.172] - 2026-10-12
+
+### Added
+- **Company sign-in by e-mail domain** (ADR-0064, migration 0078, guide `docs/setup/sso.md`): Settings > Security > Company sign-in. An organization claims its e-mail domain with the name of its Auth0 enterprise connection (SAML or OIDC), proves the domain with a DNS TXT record, and the sign-in page then sends addresses of that domain straight to that connection. Optionally a person who signs in with a verified address of the domain joins on their own as viewer, engineer or billing (never owner or admin). One organization can hold a verified domain. The connection itself is set up in Auth0; the platform does not enforce SSO. `GET /sso/discover` (public), `GET/POST /sso/domains`, `POST /sso/domains/{id}/verify`, `DELETE /sso/domains/{id}`. `contract/api` 0.49.0.
+
 ## [0.1.0-alpha.171] - 2026-10-12
 
 ### Added

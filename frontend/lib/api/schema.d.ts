@@ -3723,6 +3723,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sso/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Where an e-mail address signs in (public, the sign-in page asks it)
+         * @description Needs no sign-in. Returns the name of the identity-provider connection of the address's domain when an organization has verified the domain, and nothing else (`connection` is empty otherwise).
+         */
+        get: operations["discoverSSO"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sso/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organization's company sign-in domains
+         * @description Requires permission `tenant:admin`. An unverified domain carries the DNS record to publish (`record_name`, `record_value`).
+         */
+        get: operations["listSSODomains"];
+        put?: never;
+        /**
+         * Claim an e-mail domain for company sign-in
+         * @description Requires permission `tenant:admin`. `connection` is the name of the Auth0 enterprise connection (SAML or OIDC) the domain's people sign in with. `jit_role` (viewer, engineer or billing, never owner or admin)
+         *     lets a person who signs in with a verified address of the domain join without an invitation; empty keeps invitations or SCIM as the only way in. The domain is not in force until the TXT record is published and verified.
+         */
+        post: operations["addSSODomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sso/domains/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the DNS record and put the domain in force
+         * @description Requires permission `tenant:admin`. 422 while the record is not found (DNS can take minutes); 409 when another organization has verified the domain.
+         */
+        post: operations["verifySSODomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sso/domains/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a company sign-in domain
+         * @description Requires permission `tenant:admin`.
+         */
+        delete: operations["deleteSSODomain"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3935,6 +4020,20 @@ export interface components {
                     hours?: number;
                 }[];
             }[];
+        };
+        SSODomain: {
+            id: string;
+            domain: string;
+            connection: string;
+            jit_role?: string;
+            verified: boolean;
+            /** Format: date-time */
+            verified_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** @description The TXT record name to publish while the domain is not verified */
+            record_name?: string;
+            record_value?: string;
         };
         ApiKey: {
             /** Format: uuid */
@@ -11630,6 +11729,134 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
+        };
+    };
+    discoverSSO: {
+        parameters: {
+            query: {
+                email: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        connection: string;
+                    };
+                };
+            };
+        };
+    };
+    listSSODomains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["SSODomain"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    addSSODomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    domain: string;
+                    connection: string;
+                    /** @enum {string} */
+                    jit_role?: "viewer" | "engineer" | "billing" | "";
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSODomain"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    verifySSODomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+        };
+    };
+    deleteSSODomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
 }

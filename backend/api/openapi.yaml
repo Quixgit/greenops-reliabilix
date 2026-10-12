@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.48.0
+  version: 0.49.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -6014,6 +6014,100 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
+  /api/v1/sso/discover:
+    get:
+      operationId: discoverSSO
+      summary: 'Where an e-mail address signs in (public, the sign-in page asks it)'
+      tags: [tenants]
+      description: Needs no sign-in. Returns the name of the identity-provider connection of the address's domain when an organization has verified the domain, and nothing else (`connection` is empty otherwise).
+      security: []
+      parameters:
+      - {name: email, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connection]
+                properties:
+                  connection: {type: string}
+  /api/v1/sso/domains:
+    get:
+      operationId: listSSODomains
+      summary: The organization's company sign-in domains
+      tags: [tenants]
+      description: Requires permission `tenant:admin`. An unverified domain carries the DNS record to publish (`record_name`, `record_value`).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/SSODomain'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: addSSODomain
+      summary: Claim an e-mail domain for company sign-in
+      tags: [tenants]
+      description: |
+        Requires permission `tenant:admin`. `connection` is the name of the Auth0 enterprise connection (SAML or OIDC) the domain's people sign in with. `jit_role` (viewer, engineer or billing, never owner or admin)
+        lets a person who signs in with a verified address of the domain join without an invitation; empty keeps invitations or SCIM as the only way in. The domain is not in force until the TXT record is published and verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, connection]
+              properties:
+                domain: {type: string}
+                connection: {type: string}
+                jit_role: {type: string, enum: [viewer, engineer, billing, '']}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SSODomain'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /api/v1/sso/domains/{id}/verify:
+    post:
+      operationId: verifySSODomain
+      summary: Check the DNS record and put the domain in force
+      tags: [tenants]
+      description: Requires permission `tenant:admin`. 422 while the record is not found (DNS can take minutes); 409 when another organization has verified the domain.
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '204': {description: Verified}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /api/v1/sso/domains/{id}:
+    delete:
+      operationId: deleteSSODomain
+      summary: Remove a company sign-in domain
+      tags: [tenants]
+      description: Requires permission `tenant:admin`.
+      parameters:
+      - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '204': {description: Removed}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     bearerAuth:
@@ -6352,6 +6446,19 @@ components:
                     cpu_utilization_pct: {type: number, nullable: true}
                     memory_utilization_pct: {type: number, nullable: true}
                     hours: {type: integer}
+    SSODomain:
+      type: object
+      required: [id, domain, connection, verified]
+      properties:
+        id: {type: string}
+        domain: {type: string}
+        connection: {type: string}
+        jit_role: {type: string}
+        verified: {type: boolean}
+        verified_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        record_name: {type: string, description: The TXT record name to publish while the domain is not verified}
+        record_value: {type: string}
     ApiKey:
       type: object
       properties:

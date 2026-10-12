@@ -10,6 +10,14 @@ describe("safeReturnTo", () => {
   });
 });
 
+describe("loginUrl with a company connection", () => {
+  it("passes a valid connection name and drops anything else", () => {
+    expect(loginUrl({ connection: "acme-saml", email: "ann@acme.com" })).toBe("/auth/login?connection=acme-saml&login_hint=ann%40acme.com&returnTo=%2Foverview");
+    expect(loginUrl({ connection: "a b&x=1" })).toBe("/auth/login?returnTo=%2Foverview");
+    expect(loginUrl({ connection: "" })).toBe("/auth/login?returnTo=%2Foverview");
+  });
+});
+
 describe("loginUrl", () => {
   it("adds a provider and a valid e-mail hint only", () => {
     expect(loginUrl({ connection: "github" })).toBe("/auth/login?connection=github&returnTo=%2Foverview");

@@ -24,6 +24,9 @@ type Service struct {
 	// Mail and BaseURL deliver invitations by e-mail (optional: without them the token is shown to the inviter only).
 	Mail    InviteMailer
 	BaseURL string
+	// SSO keeps the company sign-in domains (ADR-0064); DNS looks up their proof (net.DefaultResolver when nil).
+	SSO domain.SSOStore
+	DNS domain.TXTResolver
 }
 
 func (s Service) cfg() settings.Reader {

@@ -48,6 +48,7 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermAuditRead)).Get("/audit-log", h.auditLog)
 	h.supportRoutes(r)
 	h.scimRoutes(r)
+	h.ssoRoutes(r)
 }
 
 func fail(w http.ResponseWriter, r *http.Request, err error) {

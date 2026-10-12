@@ -15,10 +15,16 @@ var ErrSCIMOff = errors.New("provisioning is not available")
 
 // ClaimProvisioned implements auth.Claimer: a first sign-in joins the organization that pushed the verified e-mail.
 func (s Service) ClaimProvisioned(ctx context.Context, subject, email string) (string, error) {
-	if s.SCIM == nil {
-		return "", nil
+	email = strings.ToLower(strings.TrimSpace(email))
+	if s.SCIM != nil {
+		if t, err := s.SCIM.ClaimProvisioned(ctx, subject, email); err != nil || t != "" {
+			return t, err
+		}
 	}
-	return s.SCIM.ClaimProvisioned(ctx, subject, strings.ToLower(strings.TrimSpace(email)))
+	if s.SSO != nil { // a verified company domain that lets its people join on their own
+		return s.SSO.ClaimDomain(ctx, subject, email)
+	}
+	return "", nil
 }
 
 func (s Service) SCIMList(ctx context.Context, tenantID, email string, start, count int) ([]domain.SCIMUser, int, error) {

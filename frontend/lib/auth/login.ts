@@ -14,10 +14,12 @@ export function safeReturnTo(v: unknown, fallback = "/overview"): string {
 }
 
 /** Query string of the hosted sign-in (/auth/login is the Auth0 SDK's route). `connection` pre-selects a social provider. */
-export function loginUrl(opts: { connection?: "google-oauth2" | "github"; email?: string; returnTo?: string; signup?: boolean }): string {
+const CONNECTION = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+
+export function loginUrl(opts: { connection?: string; email?: string; returnTo?: string; signup?: boolean }): string {
   const p = new URLSearchParams();
   if (opts.signup) p.set("screen_hint", "signup");
-  if (opts.connection) p.set("connection", opts.connection);
+  if (opts.connection && CONNECTION.test(opts.connection)) p.set("connection", opts.connection);
   if (opts.email && validEmail(opts.email)) p.set("login_hint", opts.email.trim());
   p.set("returnTo", safeReturnTo(opts.returnTo));
   return `/auth/login?${p}`;

@@ -9,6 +9,7 @@ import { AutomationTab } from "@/components/settings/automation-tab";
 import { BudgetsPanel } from "@/components/forms/budgets-panel";
 import { useFinopsSummary } from "@/hooks/use-overview";
 import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
+import { SsoPanel } from "@/components/settings/sso-panel";
 import { SupportAccessPanel } from "@/components/settings/support-access-panel";
 
 import { MembersPanel } from "@/components/settings/members-panel";
@@ -115,6 +116,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     notifications: <NotificationsPanel canEdit={edit} />,
     security: (
       <div className="space-y-4">
+        <SsoPanel canEdit={canManageTenant(user.role)} />
         <ApiKeysPanel />
         <SupportAccessPanel />
         <AuditPanel />

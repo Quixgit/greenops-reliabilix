@@ -28,10 +28,13 @@ type Deps struct {
 }
 
 func New(d Deps) *Module {
-	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Settings: d.Settings, Limits: d.Limits, SCIM: repository.Postgres{Pool: d.Pool}, Mail: d.Mail, BaseURL: d.BaseURL}
+	svc := application.Service{Repo: repository.Postgres{Pool: d.Pool}, Settings: d.Settings, Limits: d.Limits, SCIM: repository.Postgres{Pool: d.Pool}, SSO: repository.Postgres{Pool: d.Pool}, Mail: d.Mail, BaseURL: d.BaseURL}
 	return &Module{h: thttp.Handlers{Svc: svc, Support: repository.Postgres{Pool: d.Pool}}, Svc: svc}
 }
 
 func (*Module) Name() string                  { return "tenants" }
 func (m *Module) Routes(r chi.Router)         { m.h.Routes(r) }
 func (m *Module) IdentityRoutes(r chi.Router) { m.h.IdentityRoutes(r) }
+
+// PublicRoutes are served without a sign-in: the sign-in page asks where an address signs in.
+func (m *Module) PublicRoutes(r chi.Router) { m.h.PublicRoutes(r) }
