@@ -12,7 +12,7 @@ import (
 )
 
 // version is set by the release build (-ldflags "-X main.version=...").
-var version = "0.1.0-alpha.172"
+var version = "0.1.0-alpha.173"
 
 func main() {
 	var debug bool

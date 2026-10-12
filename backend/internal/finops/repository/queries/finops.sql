@@ -71,3 +71,21 @@ WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
   AND (CASE WHEN u.currency::text = (SELECT c FROM cur) THEN 1 ELSE finops.convert_cost(1, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END) IS NULL
 GROUP BY 1 ORDER BY 2 DESC;
+
+-- name: CostByProviderCurrency :many
+-- The cost of the window per cloud (or vendor) and billing currency: what was billed in its own currency and what that is in the reporting currency
+-- (the same dominant-currency rule and daily reference rate as every other total). One row per pair; the caller folds them per cloud.
+WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
+      AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+g AS (
+  SELECT u.provider, u.currency::text AS currency, u.recorded_at::date AS day, sum(u.billed_cost) AS cost
+  FROM usage.usage_records u
+  WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
+    AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
+  GROUP BY 1, 2, 3
+)
+SELECT g.provider, g.currency, sum(g.cost)::float8 AS native,
+       COALESCE(sum(CASE WHEN g.currency = (SELECT c FROM cur) THEN g.cost ELSE finops.convert_cost(g.cost, g.currency, (SELECT c FROM cur), g.day) END), 0)::float8 AS converted
+FROM g GROUP BY 1, 2 ORDER BY 4 DESC;

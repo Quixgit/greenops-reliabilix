@@ -55,6 +55,8 @@ export const finopsSummary = z.object({
   previous_comparable: z.boolean(),
   currency: z.string(),
   by_service: z.array(z.object({ service: z.string(), cost: z.number() })),
+  // The cost per cloud in the reporting currency, with what each was billed in its own currency.
+  by_provider: z.array(z.object({ provider: z.string(), cost: z.number(), native: z.array(z.object({ currency: z.string(), amount: z.number() })) })).default([]),
   excluded: z.array(z.object({ currency: z.string(), rows: z.number() })).default([]),
 });
 export type FinopsSummary = z.infer<typeof finopsSummary>;
@@ -80,7 +82,7 @@ export const providers = items(z.object({ provider: z.string(), carbon_kg_co2e: 
 export type ProviderShare = z.infer<typeof providers>[number];
 
 export const services = items(z.object({
-  service: z.string(), category: z.string(), cost: z.number(), carbon_kg_co2e: z.number(), trend: z.array(z.number()),
+  provider: z.string().default(""), service: z.string(), category: z.string(), cost: z.number(), carbon_kg_co2e: z.number(), trend: z.array(z.number()),
 }));
 export type ServiceRow = z.infer<typeof services>[number];
 

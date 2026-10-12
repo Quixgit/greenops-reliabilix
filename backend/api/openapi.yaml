@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.49.0
+  version: 0.50.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -7731,6 +7731,25 @@ components:
               cost:
                 type: number
             additionalProperties: true
+        by_provider:
+          type: array
+          description: The cost per cloud in `currency`, with what each cloud was billed in its own currency(ies) before conversion.
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+              cost:
+                type: number
+              native:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    currency:
+                      type: string
+                    amount:
+                      type: number
         previous_comparable:
           type: boolean
           description: False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then.
@@ -7869,6 +7888,9 @@ components:
     ServiceRow:
       type: object
       properties:
+        provider:
+          type: string
+          description: The cloud the service belongs to; the same service name can appear under two clouds.
         service:
           type: string
         category:

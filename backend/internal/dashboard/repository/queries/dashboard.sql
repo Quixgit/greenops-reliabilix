@@ -28,20 +28,20 @@ WITH cur AS (SELECT finops.reporting_currency(sqlc.arg(tenant_id), (SELECT d.cur
     WHERE d.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR d.project_id = sqlc.narg(project_id))
       AND d.recorded_at >= sqlc.arg(from_ts) AND d.recorded_at < sqlc.arg(to_ts)
     GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
-SELECT u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
+SELECT u.provider, u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR u.project_id = sqlc.narg(project_id))
   AND u.recorded_at >= sqlc.arg(from_ts) AND u.recorded_at < sqlc.arg(to_ts)
   AND (sqlc.arg(category)::text = '' OR u.service_category = sqlc.arg(category)::text)
-GROUP BY 1, 2;
+GROUP BY 1, 2, 3;
 
 -- name: DashboardServiceCarbon :many
-SELECT service_name, service_category, date_trunc('day', period_start)::timestamptz AS day, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
+SELECT provider, service_name, service_category, date_trunc('day', period_start)::timestamptz AS day, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
 FROM carbon.calculations
 WHERE tenant_id = sqlc.arg(tenant_id) AND (sqlc.narg(project_id)::uuid IS NULL OR project_id = sqlc.narg(project_id))
   AND methodology_version = sqlc.arg(methodology_version)
   AND period_start >= sqlc.arg(from_ts) AND period_start < sqlc.arg(to_ts)
   AND (sqlc.arg(category)::text = '' OR service_category = sqlc.arg(category)::text)
-GROUP BY 1, 2, 3 ORDER BY 3;
+GROUP BY 1, 2, 3, 4 ORDER BY 4;
 
 -- name: DashboardRegions :many
 -- Reference data (no tenant): per region, the figure of the most trusted FRESH source (platform setting carbon.provider_priority;

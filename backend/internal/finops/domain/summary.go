@@ -16,9 +16,25 @@ type Summary struct {
 	PreviousComparable bool   `json:"previous_comparable"`
 	Currency           string `json:"currency"`
 	ByService          []Line `json:"by_service"`
+	// ByProvider is the cost per cloud (or vendor) in the reporting currency, with what each was billed in its own currency: a cloud billed in dollars
+	// is shown in dollars next to what it comes to in the reporting currency, so the converted figure can be checked against the cloud's own bill.
+	ByProvider []ProviderCost `json:"by_provider"`
 	// Excluded lists currencies whose amounts could not be converted into Currency (no reference rate): they are not in
 	// the totals, and the client says so.
 	Excluded []Excluded `json:"excluded"`
+}
+
+// ProviderCost is one cloud's share of the window.
+type ProviderCost struct {
+	Provider string         `json:"provider"`
+	Cost     float64        `json:"cost"` // in the reporting currency
+	Native   []NativeAmount `json:"native"`
+}
+
+// NativeAmount is what was billed in one currency.
+type NativeAmount struct {
+	Currency string  `json:"currency"`
+	Amount   float64 `json:"amount"`
 }
 
 // Excluded is a currency left out of the totals and how many cost rows it has in the window.

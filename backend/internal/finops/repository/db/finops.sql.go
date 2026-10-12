@@ -76,6 +76,69 @@ func (q *Queries) Anomalies(ctx context.Context, arg AnomaliesParams) ([]Anomali
 	return items, nil
 }
 
+const costByProviderCurrency = `-- name: CostByProviderCurrency :many
+WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
+    WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
+      AND d.recorded_at >= $3 AND d.recorded_at < $4
+    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c),
+g AS (
+  SELECT u.provider, u.currency::text AS currency, u.recorded_at::date AS day, sum(u.billed_cost) AS cost
+  FROM usage.usage_records u
+  WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
+    AND u.recorded_at >= $3 AND u.recorded_at < $4
+  GROUP BY 1, 2, 3
+)
+SELECT g.provider, g.currency, sum(g.cost)::float8 AS native,
+       COALESCE(sum(CASE WHEN g.currency = (SELECT c FROM cur) THEN g.cost ELSE finops.convert_cost(g.cost, g.currency, (SELECT c FROM cur), g.day) END), 0)::float8 AS converted
+FROM g GROUP BY 1, 2 ORDER BY 4 DESC
+`
+
+type CostByProviderCurrencyParams struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID *string   `json:"project_id"`
+	FromTs    time.Time `json:"from_ts"`
+	ToTs      time.Time `json:"to_ts"`
+}
+
+type CostByProviderCurrencyRow struct {
+	Provider  string  `json:"provider"`
+	Currency  string  `json:"currency"`
+	Native    float64 `json:"native"`
+	Converted float64 `json:"converted"`
+}
+
+// The cost of the window per cloud (or vendor) and billing currency: what was billed in its own currency and what that is in the reporting currency
+// (the same dominant-currency rule and daily reference rate as every other total). One row per pair; the caller folds them per cloud.
+func (q *Queries) CostByProviderCurrency(ctx context.Context, arg CostByProviderCurrencyParams) ([]CostByProviderCurrencyRow, error) {
+	rows, err := q.db.Query(ctx, costByProviderCurrency,
+		arg.TenantID,
+		arg.ProjectID,
+		arg.FromTs,
+		arg.ToTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CostByProviderCurrencyRow{}
+	for rows.Next() {
+		var i CostByProviderCurrencyRow
+		if err := rows.Scan(
+			&i.Provider,
+			&i.Currency,
+			&i.Native,
+			&i.Converted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const costByService = `-- name: CostByService :many
 WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.usage_records d
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)

@@ -205,6 +205,24 @@ type FinopsRegionPriceIndex struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type KubernetesClusterCapacity struct {
+	TenantID    string    `json:"tenant_id"`
+	ProjectID   string    `json:"project_id"`
+	Cluster     string    `json:"cluster"`
+	PeriodStart time.Time `json:"period_start"`
+	CpuCores    float64   `json:"cpu_cores"`
+	MemoryBytes float64   `json:"memory_bytes"`
+	IngestedAt  time.Time `json:"ingested_at"`
+}
+
+type KubernetesClusterPool struct {
+	TenantID  string    `json:"tenant_id"`
+	ProjectID string    `json:"project_id"`
+	Cluster   string    `json:"cluster"`
+	Services  []string  `json:"services"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type KubernetesWorkloadEnergy struct {
 	ID                 string    `json:"id"`
 	TenantID           string    `json:"tenant_id"`
@@ -620,6 +638,18 @@ type TenantsScimUser struct {
 	UserID         *string   `json:"user_id"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type TenantsSsoDomain struct {
+	ID         string     `json:"id"`
+	TenantID   string     `json:"tenant_id"`
+	Domain     string     `json:"domain"`
+	Connection string     `json:"connection"`
+	Token      string     `json:"token"`
+	JitRole    *string    `json:"jit_role"`
+	VerifiedAt *time.Time `json:"verified_at"`
+	CreatedBy  string     `json:"created_by"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 type TenantsSubscription struct {

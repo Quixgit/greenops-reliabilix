@@ -21,6 +21,7 @@ type ProviderShare struct {
 }
 
 type ServiceRow struct {
+	Provider string    `json:"provider"` // the cloud (or vendor) the service is billed by: the same service name can exist in two clouds
 	Service  string    `json:"service"`
 	Category string    `json:"category"`
 	Cost     float64   `json:"cost"`

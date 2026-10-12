@@ -102,7 +102,7 @@ func (r Postgres) Services(ctx context.Context, f domain.Filter, category string
 			return err
 		}
 		for _, x := range costs {
-			byName[x.ServiceName] = &domain.ServiceRow{Service: x.ServiceName, Category: x.ServiceCategory, Cost: x.Cost, Spark: []float64{}}
+			byName[x.Provider+"|"+x.ServiceName] = &domain.ServiceRow{Provider: x.Provider, Service: x.ServiceName, Category: x.ServiceCategory, Cost: x.Cost, Spark: []float64{}}
 		}
 		carbonRows, err := q.DashboardServiceCarbon(ctx, db.DashboardServiceCarbonParams{TenantID: f.TenantID, ProjectID: f.Project,
 			MethodologyVersion: methodology.Version, FromTs: f.From, ToTs: f.To, Category: category})
@@ -110,10 +110,10 @@ func (r Postgres) Services(ctx context.Context, f domain.Filter, category string
 			return err
 		}
 		for _, x := range carbonRows {
-			s, ok := byName[x.ServiceName]
+			s, ok := byName[x.Provider+"|"+x.ServiceName]
 			if !ok {
-				s = &domain.ServiceRow{Service: x.ServiceName, Category: x.ServiceCategory, Spark: []float64{}}
-				byName[x.ServiceName] = s
+				s = &domain.ServiceRow{Provider: x.Provider, Service: x.ServiceName, Category: x.ServiceCategory, Spark: []float64{}}
+				byName[x.Provider+"|"+x.ServiceName] = s
 			}
 			s.CO2eKg += x.CarbonKgCo2e
 			s.Spark = append(s.Spark, x.CarbonKgCo2e)

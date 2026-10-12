@@ -1943,5 +1943,9 @@
   "sso.add": "Add domain",
   "sso.adding": "Adding…",
   "sso.readonly": "Only owners and administrators manage company sign-in.",
-  "sso.note": "The SAML or OIDC connection itself is set up in your Auth0 tenant (docs/setup/sso.md); this page ties your domain to it. Sign-in through the connection does not by itself make anyone a member: use invitations, SCIM, or the option above."
+  "sso.note": "The SAML or OIDC connection itself is set up in your Auth0 tenant (docs/setup/sso.md); this page ties your domain to it. Sign-in through the connection does not by itself make anyone a member: use invitations, SCIM, or the option above.",
+  "ov2.kpi.converted": "All figures are in {cur}: a cloud billed in another currency is converted at the day's ECB reference rate (Settings > Data & integrations > reporting currency).",
+  "ov2.kpi.providers_tip": "Each cloud's own bill, then what it comes to in {cur}",
+  "ov2.split.native_tip": "Billed in its own currency; the figure after it is the same in {cur}, converted at each day's ECB reference rate",
+  "ov2.svc.all_clouds": "All clouds"
 }

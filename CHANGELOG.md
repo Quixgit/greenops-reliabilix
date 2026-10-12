@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.173] - 2026-10-12
+
+### Changed
+- **Two clouds in one project are shown apart.** Overview > Cloud cost keeps the total in the reporting currency but now lists each cloud's own bill (for example `AWS US$783 → CA$1,114 · Azure CA$1,560`) and says that a cloud billed in another currency is converted at the day's ECB reference rate (the reporting currency is chosen in Settings). The split by cloud shows the native amount beside the converted one, and the services table shows which cloud each row belongs to, with a filter by cloud. `GET /finops/summary` gains `by_provider`, `GET /dashboard/services` rows gain `provider`. `contract/api` 0.50.0.
+
 ## [0.1.0-alpha.172] - 2026-10-12
 
 ### Added

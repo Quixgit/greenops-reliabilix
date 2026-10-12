@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -52,7 +53,7 @@ func (r Postgres) SaveRates(ctx context.Context, rates []domain.FXRate) error {
 // The reporting currency is the organization's choice, else the dominant one; other currencies are converted at the
 // day's reference rate and an amount without a rate is listed in Excluded.
 func (r Postgres) Summary(ctx context.Context, tenantID string, project *string, from, to time.Time) (domain.Summary, error) {
-	s := domain.Summary{ByService: []domain.Line{}, Excluded: []domain.Excluded{}}
+	s := domain.Summary{ByService: []domain.Line{}, ByProvider: []domain.ProviderCost{}, Excluded: []domain.Excluded{}}
 	err := database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
 		q := db.New(tx)
 		rows, err := q.CostByService(ctx, db.CostByServiceParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
@@ -69,6 +70,22 @@ func (r Postgres) Summary(ctx context.Context, tenantID string, project *string,
 				s.HasData = true
 			}
 		}
+		byProv, err := q.CostByProviderCurrency(ctx, db.CostByProviderCurrencyParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
+		if err != nil {
+			return err
+		}
+		idx := map[string]int{}
+		for _, x := range byProv {
+			i, ok := idx[x.Provider]
+			if !ok {
+				i = len(s.ByProvider)
+				idx[x.Provider] = i
+				s.ByProvider = append(s.ByProvider, domain.ProviderCost{Provider: x.Provider, Native: []domain.NativeAmount{}})
+			}
+			s.ByProvider[i].Cost += x.Converted
+			s.ByProvider[i].Native = append(s.ByProvider[i].Native, domain.NativeAmount{Currency: x.Currency, Amount: x.Native})
+		}
+		sort.Slice(s.ByProvider, func(i, j int) bool { return s.ByProvider[i].Cost > s.ByProvider[j].Cost })
 		ex, err := q.UnconvertedCost(ctx, db.UnconvertedCostParams{TenantID: tenantID, ProjectID: project, FromTs: from, ToTs: to})
 		if err != nil {
 			return err

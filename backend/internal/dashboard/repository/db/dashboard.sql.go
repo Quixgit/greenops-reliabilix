@@ -618,13 +618,13 @@ func (q *Queries) DashboardRegions(ctx context.Context) ([]DashboardRegionsRow, 
 }
 
 const dashboardServiceCarbon = `-- name: DashboardServiceCarbon :many
-SELECT service_name, service_category, date_trunc('day', period_start)::timestamptz AS day, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
+SELECT provider, service_name, service_category, date_trunc('day', period_start)::timestamptz AS day, sum(carbon_kg_co2e)::float8 AS carbon_kg_co2e
 FROM carbon.calculations
 WHERE tenant_id = $1 AND ($2::uuid IS NULL OR project_id = $2)
   AND methodology_version = $3
   AND period_start >= $4 AND period_start < $5
   AND ($6::text = '' OR service_category = $6::text)
-GROUP BY 1, 2, 3 ORDER BY 3
+GROUP BY 1, 2, 3, 4 ORDER BY 4
 `
 
 type DashboardServiceCarbonParams struct {
@@ -637,6 +637,7 @@ type DashboardServiceCarbonParams struct {
 }
 
 type DashboardServiceCarbonRow struct {
+	Provider        string    `json:"provider"`
 	ServiceName     string    `json:"service_name"`
 	ServiceCategory string    `json:"service_category"`
 	Day             time.Time `json:"day"`
@@ -660,6 +661,7 @@ func (q *Queries) DashboardServiceCarbon(ctx context.Context, arg DashboardServi
 	for rows.Next() {
 		var i DashboardServiceCarbonRow
 		if err := rows.Scan(
+			&i.Provider,
 			&i.ServiceName,
 			&i.ServiceCategory,
 			&i.Day,
@@ -680,11 +682,11 @@ WITH cur AS (SELECT finops.reporting_currency($1, (SELECT d.currency FROM usage.
     WHERE d.tenant_id = $1 AND ($2::uuid IS NULL OR d.project_id = $2)
       AND d.recorded_at >= $3 AND d.recorded_at < $4
     GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1)) AS c)
-SELECT u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
+SELECT u.provider, u.service_name, u.service_category, COALESCE(sum((CASE WHEN u.currency::text = (SELECT c FROM cur) THEN u.billed_cost ELSE finops.convert_cost(u.billed_cost, u.currency::text, (SELECT c FROM cur), u.recorded_at::date) END)), 0)::float8 AS cost FROM usage.usage_records u
 WHERE u.tenant_id = $1 AND ($2::uuid IS NULL OR u.project_id = $2)
   AND u.recorded_at >= $3 AND u.recorded_at < $4
   AND ($5::text = '' OR u.service_category = $5::text)
-GROUP BY 1, 2
+GROUP BY 1, 2, 3
 `
 
 type DashboardServiceCostParams struct {
@@ -696,6 +698,7 @@ type DashboardServiceCostParams struct {
 }
 
 type DashboardServiceCostRow struct {
+	Provider        string  `json:"provider"`
 	ServiceName     string  `json:"service_name"`
 	ServiceCategory string  `json:"service_category"`
 	Cost            float64 `json:"cost"`
@@ -716,7 +719,12 @@ func (q *Queries) DashboardServiceCost(ctx context.Context, arg DashboardService
 	items := []DashboardServiceCostRow{}
 	for rows.Next() {
 		var i DashboardServiceCostRow
-		if err := rows.Scan(&i.ServiceName, &i.ServiceCategory, &i.Cost); err != nil {
+		if err := rows.Scan(
+			&i.Provider,
+			&i.ServiceName,
+			&i.ServiceCategory,
+			&i.Cost,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

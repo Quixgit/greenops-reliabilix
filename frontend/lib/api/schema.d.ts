@@ -4789,6 +4789,15 @@ export interface components {
             } & {
                 [key: string]: unknown;
             })[];
+            /** @description The cost per cloud in `currency`, with what each cloud was billed in its own currency(ies) before conversion. */
+            by_provider?: {
+                provider?: string;
+                cost?: number;
+                native?: {
+                    currency?: string;
+                    amount?: number;
+                }[];
+            }[];
             /** @description False when the current or previous window has data for fewer than 80% of its days; clients must not show a delta then. */
             previous_comparable?: boolean;
             /** @description Currencies whose amounts could not be converted into `currency` (no reference rate) and are not in the totals. */
@@ -4875,6 +4884,8 @@ export interface components {
             [key: string]: unknown;
         };
         ServiceRow: {
+            /** @description The cloud the service belongs to; the same service name can appear under two clouds. */
+            provider?: string;
             service?: string;
             category?: string;
             cost?: number;

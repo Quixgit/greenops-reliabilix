@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCarbonSummary, useConnections, useFinopsSummary, useOptimization, useRegions, useTrend } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { carbonParts, formatCost, nf, pctChange } from "@/lib/formatters";
-import { rollup } from "@/lib/overview";
+import { providerBreakdown, rollup } from "@/lib/overview";
 import { regionName } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +80,8 @@ export function KpiStrip() {
         foot={<>
           <span className="font-semibold text-slate-800">{formatCost(roll.costPerDay, cur)}</span> {t("ov2.per_day")}
           {roll.costTrend7 !== null && <span className="text-muted"> · {t("ov2.week_vs_week")}</span>}
+          {f && f.by_provider.length > 1 && <span className="mt-1 block text-[11px] leading-snug text-muted" title={t("ov2.kpi.providers_tip", { cur })}>{providerBreakdown(f.by_provider, cur).map((p) => `${p.label} ${p.native.length === 1 && p.converted ? `${formatCost(p.native[0].amount, p.native[0].currency)} → ` : ""}${formatCost(p.cost, cur)}`).join(" · ")}</span>}
+          {f && f.by_provider.some((p) => p.native.some((n) => n.currency !== cur)) && <span className="block text-[11px] leading-snug text-muted">{t("ov2.kpi.converted", { cur })}</span>}
           {f && f.excluded.length > 0 && <span className="block text-amber-700">{t("ov.kpi.excluded", { currencies: f.excluded.map((e) => e.currency).join(", "), rows: f.excluded.reduce((n, e) => n + e.rows, 0) })}</span>}
         </>} />
       <Kpi index={1} icon={Leaf} tone="text-leaf-deep" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading}

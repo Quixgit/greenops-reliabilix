@@ -58,3 +58,15 @@ export function movingAverage(values: number[], window = 7): number[] {
 
 /** Share of a total, 0-100, with a floor so a visible bar never disappears. */
 export const share = (part: number, total: number) => (total > 0 ? (part / total) * 100 : 0);
+
+export const PROVIDER_NAME: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google Cloud", k8s: "Kubernetes", kubernetes: "Kubernetes", saas: "SaaS" };
+
+export interface ProviderBreakdown { provider: string; label: string; cost: number; native: { currency: string; amount: number }[]; converted: boolean }
+
+/**
+ * The cost per cloud, each with what it was billed in its own currency. `converted` says a cloud's own currency is not the reporting one, so
+ * the figure shown in the reporting currency is a conversion (at the day's ECB reference rate) and the native amount is worth showing beside it.
+ */
+export function providerBreakdown(by: { provider: string; cost: number; native: { currency: string; amount: number }[] }[], reporting: string): ProviderBreakdown[] {
+  return by.map((p) => ({ provider: p.provider, label: PROVIDER_NAME[p.provider] ?? p.provider, cost: p.cost, native: p.native, converted: p.native.some((n) => n.currency !== reporting) }));
+}

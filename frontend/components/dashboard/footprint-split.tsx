@@ -10,7 +10,7 @@ import { useFinopsSummary, useRegionFootprint } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { formatCarbon, formatCost } from "@/lib/formatters";
 import { intensityColor } from "@/lib/intensity-color";
-import { share } from "@/lib/overview";
+import { providerBreakdown, share } from "@/lib/overview";
 import { regionName } from "@/lib/regions";
 import { cn } from "@/lib/utils";
 
@@ -20,16 +20,18 @@ const NAME: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Google 
 export function FootprintSplit() {
   const t = useT();
   const q = useRegionFootprint();
-  const cur = useFinopsSummary().data?.currency || "USD";
+  const summary = useFinopsSummary().data;
+  const cur = summary?.currency || "USD";
+  const native = useMemo(() => new Map(providerBreakdown(summary?.by_provider ?? [], cur).map((p) => [p.provider, p])), [summary, cur]);
   const [chosen, setBy] = useState<"provider" | "region" | null>(null);
   const providers = new Set((q.data ?? []).map((r) => r.provider)).size;
   // one cloud makes the by-cloud view a single bar: open on regions then, until the person chooses
   const by = chosen ?? (providers > 1 ? "provider" : "region");
   const rows = useMemo(() => {
-    const m = new Map<string, { key: string; label: string; sub: string; cost: number; carbon: number; g: number | null }>();
+    const m = new Map<string, { key: string; label: string; sub: string; cost: number; carbon: number; g: number | null; prov: string }>();
     for (const r of q.data ?? []) {
       const key = by === "provider" ? r.provider : `${r.provider}/${r.region}`;
-      const x = m.get(key) ?? { key, label: by === "provider" ? NAME[r.provider] ?? r.provider : regionName(r.region), sub: by === "provider" ? "" : NAME[r.provider] ?? r.provider, cost: 0, carbon: 0, g: null };
+      const x = m.get(key) ?? { key, label: by === "provider" ? NAME[r.provider] ?? r.provider : regionName(r.region), sub: by === "provider" ? "" : NAME[r.provider] ?? r.provider, cost: 0, carbon: 0, g: null, prov: r.provider };
       x.cost += r.cost; x.carbon += r.carbon_kg_co2e;
       if (by === "region") x.g = r.g_per_kwh;
       m.set(key, x);
@@ -59,7 +61,10 @@ export function FootprintSplit() {
                   <span className="truncate">{r.label}</span>
                   {r.sub && <span className="shrink-0 text-xs font-normal text-muted">{r.sub}</span>}
                 </span>
-                <span className="shrink-0 text-xs tabular-nums text-muted">{formatCost(r.cost, cur)} · {formatCarbon(r.carbon)}</span>
+                <span className="shrink-0 text-right text-xs tabular-nums text-muted">
+                  {by === "provider" && native.get(r.prov)?.converted && native.get(r.prov)!.native.length === 1 && <span className="mr-1 font-medium text-slate-700" title={t("ov2.split.native_tip", { cur })}>{formatCost(native.get(r.prov)!.native[0].amount, native.get(r.prov)!.native[0].currency)} ≈</span>}
+                  {formatCost(r.cost, cur)} · {formatCarbon(r.carbon)}
+                </span>
               </div>
               <div className="mt-1.5 space-y-1">
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-pastel-blue" style={{ width: `${Math.max(2, share(r.cost, totalCost))}%`, "--d": `${i * 60}ms` } as CSSProperties} /></div>
