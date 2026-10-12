@@ -29,7 +29,7 @@ export function DataQuality() {
   return (
     <Card index={6} interactive={false} className="p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="shield" className="size-[18px] text-[#2f8f78]" />{t("ov.dq.title")}<Info>{t("info.quality")}</Info></h2>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="shield" className="size-[18px] text-[#2f8f78]" />{t("ov.dq.title")}</h2><Info corner>{t("info.quality")}</Info>
         <Link href="/methodology" className="text-xs font-semibold text-primary hover:underline">{t("ov.dq.methodology")}</Link>
       </div>
       {carbon.isLoading || conns.isLoading ? <Skeleton className="h-24" /> : !c?.has_data ? (

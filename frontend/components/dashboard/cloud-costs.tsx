@@ -105,7 +105,7 @@ export function CloudCosts() {
     <Card index={3} interactive={false} className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">
-          <Glyph name="cloud" className="size-[18px] text-[#3b93b8]" />{t("ov3.clouds.title")}{mixed && <Info>{t("ov2.kpi.converted", { cur })}</Info>}
+          <Glyph name="cloud" className="size-[18px] text-[#3b93b8]" />{t("ov3.clouds.title")}
         </h2>
         {mixed && <CurrencySwitch options={currencies} current={cur} />}
       </div>

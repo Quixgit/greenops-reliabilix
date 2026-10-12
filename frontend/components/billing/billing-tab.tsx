@@ -97,9 +97,10 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
       )}
 
       <Card index={0} interactive={false} className="overflow-hidden">
+        <Info corner>{t("bl.info.current")}</Info>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("bl.current")}<Info>{t("bl.info.current")}</Info></p>
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("bl.current")}</p>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <h2 className="text-3xl font-bold tracking-tight">{p.name}</h2>
               <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", STATUS_CHIP[p.status])}>{t(`plan.status.${p.status}`)}</span>

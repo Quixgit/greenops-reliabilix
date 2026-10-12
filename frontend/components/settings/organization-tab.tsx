@@ -31,11 +31,12 @@ export function Panel({ index = 0, icon: Icon, title, hint, info, children, foot
   index?: number; icon: LucideIcon | IconType; title: string; hint?: string; info?: ReactNode; children: ReactNode; foot?: ReactNode; action?: ReactNode; className?: string;
 }) {
   return (
-    <section className={cn("rise lift flex flex-col rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} style={{ "--i": index } as CSSProperties}>
-      <div className="flex items-start gap-3">
+    <section className={cn("info-host rise lift relative flex flex-col rounded-xl border border-line bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]", className)} style={{ "--i": index } as CSSProperties}>
+      {info && <Info corner>{info}</Info>}
+      <div className="flex items-start gap-3 pr-5">
         <Icon className={cn("mt-0.5 size-7 shrink-0", GREEN)} strokeWidth={1.5} />
         <div className="min-w-0 flex-1">
-          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold leading-tight text-ink">{title}{info && <Info>{info}</Info>}</h3>
+          <h3 className="flex items-center gap-1.5 text-[14px] font-semibold leading-tight text-ink">{title}</h3>
           {hint && <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p>}
         </div>
         {action}

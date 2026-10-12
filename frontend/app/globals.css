@@ -253,6 +253,9 @@ html[data-motion="reduced"] .phoenix-live { animation: none; }
 .login-dark .login-copy h1 span { background-image: linear-gradient(90deg, #6ee0c0, #7dd3fc); }
 @media (prefers-reduced-motion: reduce) { .sky-fade, .login-copy, .login-copy * { transition: none; } .login-star { animation: none; opacity: 0.7; } }
 
+/* A block with the info icon in its corner keeps its header row clear of it. */
+.info-host > :first-child:has(> .info-corner) { padding-right: 1.6rem; }
+
 @keyframes info-pop { from { opacity: 0; transform: translateY(4px) scale(0.98); } to { opacity: 1; transform: none; } }
 .info-pop { animation: info-pop 0.16s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .info-pop { animation: none; } }

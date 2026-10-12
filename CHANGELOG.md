@@ -5,6 +5,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.181] - 2026-10-12
+
+### Changed
+- **Hints (the info icon) are in the top-right corner of every block**, on every page (Overview tiles and cards, Carbon, Kubernetes,
+  CI/CD, Connectors, Alerts, Billing, Settings panels), and open as a light card with an arrow pointing at the icon, a small icon, soft
+  shadow and a short animation instead of the dark box. A block keeps its header clear of the corner.
+
 ## [0.1.0-alpha.180] - 2026-10-12
 
 ### Changed

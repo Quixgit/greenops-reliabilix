@@ -38,7 +38,7 @@ function Stat({ index, icon: Icon, tone, label, info, value, hint, onClick, on }
           {hint && <span className="block truncate text-xs text-muted">{hint}</span>}
         </span>
       </button>
-      <span className="absolute right-3 top-3"><Info>{info}</Info></span>
+      <Info corner>{info}</Info>
     </Card>
   );
 }

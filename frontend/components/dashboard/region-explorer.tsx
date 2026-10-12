@@ -209,9 +209,10 @@ export function RegionExplorer() {
     <Card index={11} interactive={false} className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">
-          <Glyph name="pin" className="size-[18px] text-[#2f8f78]" />{t("ov.reg.title")}<Info>{t("info.regions")}</Info>
+          <Glyph name="pin" className="size-[18px] text-[#2f8f78]" />{t("ov.reg.title")}
         </h2>
-        <div className="flex flex-wrap items-center gap-3">
+        <Info corner>{t("info.regions")}</Info>
+        <div className="flex flex-wrap items-center gap-3 pr-7">
           <Segmented size="sm" label={t("ov3.map.layer")} value={mode} onChange={setMode}
             options={[
               { value: "intensity", label: t("map.layer_intensity", undefined, "Grid intensity") },

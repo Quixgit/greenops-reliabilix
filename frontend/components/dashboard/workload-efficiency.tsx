@@ -28,7 +28,7 @@ export function WorkloadEfficiency() {
   const scale = { n, label: n === 1 ? unit : `${n === 1000 ? "1,000" : "1,000,000"} ${unit.endsWith("s") ? unit : `${unit}s`}` };
   return (
     <Card index={4} interactive={false} className="p-4">
-      <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="gauge" className="size-[18px] text-[#7461d4]" />{t("ov.eff.title")}<Info>{t("info.efficiency")}</Info></h2>
+      <h2 className="mb-3 flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="gauge" className="size-[18px] text-[#7461d4]" />{t("ov.eff.title")}</h2><Info corner>{t("info.efficiency")}</Info>
       {q.isLoading ? <Skeleton className="h-24" /> : !e || !e.has_units ? (
         <div className="space-y-3">
           <p className="text-sm leading-relaxed text-muted">{t("ov.eff.no_units")}</p>

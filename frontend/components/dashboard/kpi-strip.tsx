@@ -28,10 +28,10 @@ export function Kpi({ index, icon: Icon, tone, label, info, value, unit, delta, 
 }) {
   return (
     <Card index={index} className="group flex flex-col overflow-hidden p-0">
-      <div className="flex items-start gap-3 p-4 pb-2">
+      <div className="flex items-start gap-3 p-4 pb-2 pr-8">{info && <Info corner>{info}</Info>}
         <Icon className={cn("size-12 shrink-0 transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6", tone)} strokeWidth={1.3} />
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}{info && <Info>{info}</Info>}</p>
+          <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}</p>
           {loading ? <Skeleton className="mt-1.5 h-8 w-28" /> : value === null ? (
             <p className="mt-0.5 text-2xl font-bold text-slate-300" aria-label="no data">—</p>
           ) : (

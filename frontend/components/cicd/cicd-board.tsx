@@ -33,10 +33,11 @@ const KINDS = ["vcpu_hours", "memory_gb_hours", "storage_gb_months"] as const;
 
 function Stat({ index, icon: Icon, tone, label, info, value, hint }: { index: number; icon: typeof IconLeaf; tone: string; label: string; info: string; value: React.ReactNode; hint?: string }) {
   return (
-    <Card index={index} className="flex items-center gap-4 p-4">
+    <Card index={index} className="flex items-center gap-4 p-4 pr-8">
+      <Info corner>{info}</Info>
       <Icon className={cn("size-11 shrink-0", tone)} strokeWidth={1.4} />
       <div className="min-w-0">
-        <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}<Info>{info}</Info></p>
+        <p className="flex items-center gap-1 text-[13px] font-medium text-slate-600">{label}</p>
         <p className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">{value}</p>
         {hint && <p className="truncate text-xs text-muted">{hint}</p>}
       </div>

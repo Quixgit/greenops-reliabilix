@@ -76,7 +76,7 @@ export function RecentActivity() {
   let n = 0;
   return (
     <Card index={8} interactive={false} className="p-4">
-      <h2 className="mb-2 flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="pulse" className="size-[18px] text-[#2f8f78]" />{t("act.title")}<Info>{t("info.activity")}</Info></h2>
+      <h2 className="mb-2 flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="pulse" className="size-[18px] text-[#2f8f78]" />{t("act.title")}</h2><Info corner>{t("info.activity")}</Info>
       {q.isLoading ? <Skeleton className="h-32" /> : q.isError ? <ErrorState /> : rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-6 text-center">
           <span className="grid size-12 place-items-center rounded-full bg-slate-100 text-slate-400"><ActivityIcon className="size-6" /></span>

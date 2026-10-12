@@ -9,7 +9,7 @@ import { Info } from "./info";
 export function Card({ className, index, interactive = true, style, ...p }: HTMLAttributes<HTMLDivElement> & { index?: number; interactive?: boolean }) {
   return (
     <section
-      className={cn("glass p-5", index !== undefined && "rise", interactive && "lift", className)}
+      className={cn("glass info-host relative p-5", index !== undefined && "rise", interactive && "lift", className)}
       style={index !== undefined ? ({ "--i": index, ...style } as CSSProperties) : style}
       {...p}
     />
@@ -19,7 +19,7 @@ export function Card({ className, index, interactive = true, style, ...p }: HTML
 export function CardHeader({ title, action, icon, info }: { title: ReactNode; action?: ReactNode; icon?: ReactNode; info?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">{icon}{title}{info && <Info>{info}</Info>}</h2>
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">{icon}{title}</h2>{info && <Info corner>{info}</Info>}
       {action}
     </div>
   );

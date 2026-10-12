@@ -47,9 +47,10 @@ function StateBadge({ state, label }: { state: ConnectionState; label: string })
 
 function Kpi({ index, label, hint, info, children, ring }: { index: number; label: string; hint?: string; info?: string; children: React.ReactNode; ring?: React.ReactNode }) {
   return (
-    <Card index={index} className="flex items-center justify-between gap-3">
+    <Card index={index} className="flex items-center justify-between gap-3 pr-8">
+      {info && <Info corner>{info}</Info>}
       <div className="min-w-0">
-        <p className="flex items-center gap-1 text-sm text-muted">{label}{info && <Info>{info}</Info>}</p>
+        <p className="flex items-center gap-1 text-sm text-muted">{label}</p>
         <div className="mt-1 text-2xl font-bold tracking-tight">{children}</div>
         {hint && <p className="mt-0.5 truncate text-xs text-muted">{hint}</p>}
       </div>

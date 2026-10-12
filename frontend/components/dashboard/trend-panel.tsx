@@ -81,8 +81,9 @@ export function TrendPanel() {
     <Card index={8} interactive={false} className="flex min-w-0 flex-col p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">
-          <Glyph name="trend" className="size-[18px] text-[#4a7fd0]" />{t("ov2.trend.title")}<Info>{t("info.trend")}</Info>
+          <Glyph name="trend" className="size-[18px] text-[#4a7fd0]" />{t("ov2.trend.title")}
         </h2>
+        <Info corner>{t("info.trend")}</Info>
         <Segmented size="sm" label={t("ov2.trend.title")} value={view} onChange={setView}
           options={[{ value: "daily", label: t("ov3.trend.daily") }, { value: "monthly", label: t("ov3.months.title") }]} />
       </div>
