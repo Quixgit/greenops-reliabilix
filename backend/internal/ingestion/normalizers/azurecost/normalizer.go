@@ -25,6 +25,14 @@ type payload struct {
 		Billed    float64 `json:"billed"`
 		Effective float64 `json:"effective"`
 	} `json:"rows"`
+	Tagged []struct {
+		Day      string  `json:"day"`
+		Service  string  `json:"service"`
+		Currency string  `json:"currency"`
+		Key      string  `json:"key"`
+		Value    string  `json:"value"`
+		Billed   float64 `json:"billed"`
+	} `json:"tagged"`
 }
 
 type Normalizer struct{}
@@ -136,4 +144,27 @@ func Region(v string) string {
 		return strings.Join(words[1:], "") + "us" + digits
 	}
 	return strings.Join(words, "")
+}
+
+// NormalizeTags implements focus.TagNormalizer. Tag values of Azure are case-insensitive, so the provider sends them lower case and
+// "Payments" and "payments" are one value. The amortized view is not read for tags: effective equals billed here.
+func (Normalizer) NormalizeTags(raw focus.RawBatch) ([]focus.TaggedCost, error) {
+	var p payload
+	if err := json.Unmarshal(raw.Payload, &p); err != nil {
+		return nil, fmt.Errorf("azurecost: decode payload: %w", err)
+	}
+	out := make([]focus.TaggedCost, 0, len(p.Tagged))
+	for _, t := range p.Tagged {
+		d, err := time.Parse(time.DateOnly, t.Day)
+		if err != nil {
+			return nil, fmt.Errorf("azurecost: bad day %q", t.Day)
+		}
+		service := strings.TrimSpace(t.Service)
+		if service == "" {
+			service = "Other"
+		}
+		out = append(out, focus.TaggedCost{Provider: "azure", ServiceName: service, Currency: strings.ToUpper(strings.TrimSpace(t.Currency)), Day: d,
+			TagKey: t.Key, TagValue: t.Value, BilledCost: t.Billed, EffectiveCost: t.Billed})
+	}
+	return out, nil
 }

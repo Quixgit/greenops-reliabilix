@@ -36,6 +36,7 @@ type payload struct {
 		InstanceType string  `json:"instance_type"`
 		Hours        float64 `json:"hours"`
 	} `json:"ec2_hours"`
+	Tagged     []focus.TagRow `json:"tagged"`
 	S3GBMonths []struct {
 		Day      string  `json:"day"`
 		Region   string  `json:"region"`
@@ -98,6 +99,24 @@ func (Normalizer) Normalize(raw focus.RawBatch) ([]focus.Record, error) {
 		if s.GBMonths > 0 {
 			out = append(out, awsceusage.StorageRecord(raw.Source, region(s.Region), s.GBMonths, start, end))
 		}
+	}
+	return out, nil
+}
+
+// NormalizeTags implements focus.TagNormalizer: the cost of each value of each allocation tag key, from the same payload.
+func (Normalizer) NormalizeTags(raw focus.RawBatch) ([]focus.TaggedCost, error) {
+	var p payload
+	if err := json.Unmarshal(raw.Payload, &p); err != nil {
+		return nil, fmt.Errorf("awsexport: decode payload: %w", err)
+	}
+	out := make([]focus.TaggedCost, 0, len(p.Tagged))
+	for _, t := range p.Tagged {
+		d, _, err := day(t.Day)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, focus.TaggedCost{Provider: "aws", ServiceName: t.Service, Currency: strings.ToUpper(t.Currency), Day: d,
+			TagKey: t.Key, TagValue: t.Value, BilledCost: t.Billed, EffectiveCost: t.Effective})
 	}
 	return out, nil
 }

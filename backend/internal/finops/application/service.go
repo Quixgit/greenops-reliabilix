@@ -156,3 +156,13 @@ func (s Service) Commitments(ctx context.Context, tenantID string, project *stri
 	}
 	return domain.BuildCommitments(days, p), nil
 }
+
+// TagKeys lists the tag keys with cost in the window and what share of the bill each explains.
+func (s Service) TagKeys(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]domain.TagKeyInfo, string, error) {
+	return s.Repo.TagKeys(ctx, tenantID, project, from, to)
+}
+
+// Showback splits the window by the values of one tag key.
+func (s Service) Showback(ctx context.Context, tenantID string, project *string, tag string, from, to time.Time) (domain.Showback, error) {
+	return s.Repo.Showback(ctx, tenantID, project, tag, from, to)
+}

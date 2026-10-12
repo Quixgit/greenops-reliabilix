@@ -236,7 +236,7 @@ func (p *Provider) Validate(ctx context.Context, c domain.Connection) error {
 func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]focus.RawBatch, error) {
 	if req.Connection.Export != nil {
 		// The export is the complete, invoice-level source: Cost Explorer would only add duplicate cost lines.
-		b, err := p.exportBatch(ctx, req.Connection, req.From, req.To)
+		b, err := p.exportBatch(ctx, req.Connection, req.From, req.To, req.TagKeys)
 		if err != nil {
 			return nil, err
 		}

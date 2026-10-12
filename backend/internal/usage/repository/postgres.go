@@ -103,3 +103,36 @@ func (r Postgres) DailyAggregates(ctx context.Context, tenantID, projectID strin
 	})
 	return out, err
 }
+
+// ReplaceTagged rewrites the tagged cost of one source for the days [from, to] (UTC dates, inclusive): what a source reports for a day is the
+// whole of it, so a tag value that is gone from the bill is gone here too. An empty list clears the range.
+func (r Postgres) ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error {
+	return database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `DELETE FROM usage.tagged_cost WHERE tenant_id = $1 AND project_id = $2 AND source_key = $3 AND day >= $4::date AND day <= $5::date`,
+			tenantID, projectID, sourceKey, from, to); err != nil {
+			return err
+		}
+		for start := 0; start < len(rows); start += batchSize {
+			end := min(start+batchSize, len(rows))
+			b := &pgx.Batch{}
+			for _, x := range rows[start:end] {
+				b.Queue(`INSERT INTO usage.tagged_cost (tenant_id, project_id, source_key, provider, service_name, currency, day, tag_key, tag_value, billed_cost, effective_cost)
+					VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10, $11)
+					ON CONFLICT (tenant_id, project_id, source_key, provider, service_name, currency, day, tag_key, tag_value)
+					DO UPDATE SET billed_cost = usage.tagged_cost.billed_cost + EXCLUDED.billed_cost, effective_cost = usage.tagged_cost.effective_cost + EXCLUDED.effective_cost, updated_at = now()`,
+					tenantID, projectID, sourceKey, x.Provider, x.ServiceName, x.Currency, x.Day, x.TagKey, x.TagValue, x.BilledCost, x.EffectiveCost)
+			}
+			br := tx.SendBatch(ctx, b)
+			for range rows[start:end] {
+				if _, err := br.Exec(); err != nil {
+					_ = br.Close()
+					return err
+				}
+			}
+			if err := br.Close(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}

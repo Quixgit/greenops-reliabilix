@@ -172,7 +172,7 @@ func TestRefusedAmortizedViewFallsBackToBilled(t *testing.T) {
 	}))
 	defer arm.Close()
 	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
-	b, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC))
+	b, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), nil, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestRefusedBilledQueryIsExplainedToTheCustomer(t *testing.T) {
 	}))
 	defer arm.Close()
 	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
-	_, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC))
+	_, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), nil, time.Time{})
 	var pe domain.PublicError
 	if !errors.As(err, &pe) || !strings.Contains(pe.Message, "BadRequest") {
 		t.Errorf("err = %v", err)
@@ -256,5 +256,59 @@ func TestWindowsAreChunked(t *testing.T) {
 	ws := windows(from, from.AddDate(0, 0, 200))
 	if len(ws) != 3 || !ws[0][1].Equal(ws[1][0]) || !ws[2][1].Equal(from.AddDate(0, 0, 200)) {
 		t.Errorf("windows: %v", ws)
+	}
+}
+
+func TestTagValuesAreReadPerKeyAndNeverFailTheSync(t *testing.T) {
+	var tagQueries int32
+	arm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Type    string `json:"type"`
+			Dataset struct {
+				Grouping []map[string]string `json:"grouping"`
+			} `json:"dataset"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		tagKey := ""
+		for _, g := range body.Dataset.Grouping {
+			if g["type"] == "TagKey" {
+				tagKey = g["name"]
+			}
+		}
+		switch tagKey {
+		case "":
+			fmt.Fprint(w, `{"properties":{"columns":[{"name":"Cost"},{"name":"UsageDate"},{"name":"ServiceName"},{"name":"ResourceLocation"},{"name":"Currency"}],"rows":[[14,20261001,"Storage","EU West","EUR"]]}}`)
+		case "team":
+			atomic.AddInt32(&tagQueries, 1)
+			fmt.Fprint(w, `{"properties":{"columns":[{"name":"Cost"},{"name":"UsageDate"},{"name":"ServiceName"},{"name":"TagKey"},{"name":"TagValue"},{"name":"Currency"}],"rows":[[10,20261001,"Storage","team","Payments","EUR"],[4,20261001,"Storage","team","","EUR"]]}}`)
+		default: // another key: the API refuses it; this must only leave that key out
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `{"error":{"code":"BadRequest","message":"x"}}`)
+		}
+	}))
+	defer arm.Close()
+	a := &CostAPI{HTTP: NoRedirects(http.DefaultClient), ARM: arm.URL}
+	b, err := a.usage(context.Background(), "tok", spSub, time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC), []string{"Team", "aws:createdBy", "broken"}, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("tags must never fail a sync: %v", err)
+	}
+	var doc struct {
+		Rows   []struct{ Billed float64 } `json:"rows"`
+		Tagged []taggedRow                `json:"tagged"`
+	}
+	if err := json.Unmarshal(b.Payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Rows) != 1 || doc.Rows[0].Billed != 14 {
+		t.Fatalf("the plain cost rows are untouched by tags: %+v", doc.Rows)
+	}
+	if len(doc.Tagged) != 1 || doc.Tagged[0].Key != "team" || doc.Tagged[0].Value != "payments" || doc.Tagged[0].Billed != 10 {
+		t.Fatalf("tagged: %+v (an empty value is untagged, values are lower case, a cloud's own tag is never asked)", doc.Tagged)
+	}
+	if b.TagFrom.Format("2006-01-02") != "2026-09-20" {
+		t.Fatalf("the batch must say how far back its tags reach: %v", b.TagFrom)
+	}
+	if atomic.LoadInt32(&tagQueries) != 1 {
+		t.Fatalf("one query per allocation key and window, got %d", tagQueries)
 	}
 }

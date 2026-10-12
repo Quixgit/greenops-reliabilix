@@ -122,7 +122,7 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 		if err != nil {
 			return nil, err
 		}
-		b, err := p.Cost.usage(ctx, tok, c.AccountRef, req.From, req.To)
+		b, err := p.Cost.usage(ctx, tok, c.AccountRef, req.From, req.To, req.TagKeys, req.TagFrom)
 		if err != nil {
 			return nil, err
 		}
@@ -150,6 +150,7 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 		return nil, domain.ErrExportNotFound
 	}
 	agg := newAggregate(c.AccountRef, req.From, req.To)
+	agg.tags = focus.NewTagSums(req.TagKeys)
 	for _, f := range files {
 		if err := readDataFile(ctx, p.Blobs, e, f, agg); err != nil {
 			return nil, err

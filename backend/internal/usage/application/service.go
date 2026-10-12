@@ -22,3 +22,8 @@ func (s Service) List(ctx context.Context, tenantID string, projectID *string, f
 func (s Service) DailyAggregates(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]domain.DailyAggregate, error) {
 	return s.Repo.DailyAggregates(ctx, tenantID, projectID, from, to)
 }
+
+// ReplaceTagged lets the ingestion pipeline store cost by tag (it finds this method by its interface).
+func (s Service) ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error {
+	return s.Repo.ReplaceTagged(ctx, tenantID, projectID, sourceKey, from, to, rows)
+}

@@ -54,7 +54,34 @@ type line struct {
 	Quantity string `json:"quantity"`
 }
 
+// tagged is the optional part of the aggregate: cost by label value (see the provider's taggedCost).
+type tagged struct {
+	Tagged []focus.TagRow `json:"tagged"`
+}
+
 type Normalizer struct{}
+
+// NormalizeTags implements focus.TagNormalizer. Effective cost is cost plus credits, as for the cost lines themselves.
+func (Normalizer) NormalizeTags(raw focus.RawBatch) ([]focus.TaggedCost, error) {
+	var p tagged
+	if err := json.Unmarshal(raw.Payload, &p); err != nil {
+		return nil, fmt.Errorf("gcpbilling: decode payload: %w", err)
+	}
+	out := make([]focus.TaggedCost, 0, len(p.Tagged))
+	for _, t := range p.Tagged {
+		d, err := time.Parse(time.DateOnly, t.Day)
+		if err != nil {
+			return nil, fmt.Errorf("gcpbilling: bad day %q", t.Day)
+		}
+		service := strings.TrimSpace(t.Service)
+		if service == "" {
+			service = "Other"
+		}
+		out = append(out, focus.TaggedCost{Provider: "gcp", ServiceName: service, Currency: strings.ToUpper(strings.TrimSpace(t.Currency)), Day: d,
+			TagKey: t.Key, TagValue: t.Value, BilledCost: t.Billed, EffectiveCost: t.Effective})
+	}
+	return out, nil
+}
 
 type measure int
 

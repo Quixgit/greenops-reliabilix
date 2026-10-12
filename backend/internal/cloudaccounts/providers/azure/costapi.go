@@ -71,6 +71,7 @@ type costRow struct {
 	Service  string
 	Location string
 	Currency string
+	TagValue string // set by a query grouped by a tag key ("" = the charge has no value for it)
 	Amount   float64
 }
 
@@ -86,6 +87,11 @@ type queryResponse struct {
 
 // query runs one Cost Management query (ActualCost or AmortizedCost), grouped as asked, and follows nextLink.
 func (a *CostAPI) query(ctx context.Context, token, subscription, costType string, from, to time.Time, groupBy []string) ([]costRow, error) {
+	return a.queryGrouped(ctx, token, subscription, costType, from, to, groupBy, "")
+}
+
+// queryGrouped is query with, besides the dimensions, one tag key to group by (empty = none).
+func (a *CostAPI) queryGrouped(ctx context.Context, token, subscription, costType string, from, to time.Time, groupBy []string, tagKey string) ([]costRow, error) {
 	body := map[string]any{
 		"type": costType, "timeframe": "Custom",
 		"timePeriod": map[string]string{"from": from.UTC().Format(time.DateOnly) + "T00:00:00Z", "to": to.AddDate(0, 0, -1).UTC().Format(time.DateOnly) + "T23:59:59Z"},
@@ -94,10 +100,13 @@ func (a *CostAPI) query(ctx context.Context, token, subscription, costType strin
 			"aggregation": map[string]any{"totalCost": map[string]string{"name": "Cost", "function": "Sum"}},
 		},
 	}
-	if len(groupBy) > 0 {
+	if len(groupBy) > 0 || tagKey != "" {
 		var g []map[string]string
 		for _, d := range groupBy {
 			g = append(g, map[string]string{"type": "Dimension", "name": d})
+		}
+		if tagKey != "" {
+			g = append(g, map[string]string{"type": "TagKey", "name": tagKey})
 		}
 		body["dataset"].(map[string]any)["grouping"] = g
 	}
@@ -136,6 +145,7 @@ func (a *CostAPI) query(ctx context.Context, token, subscription, costType strin
 			return -1
 		}
 		ci, di, si, li, ri := idx("cost", "pretaxcost", "costusd"), idx("usagedate", "billingmonth"), idx("servicename"), idx("resourcelocation"), idx("currency")
+		tvi := idx("tagvalue")
 		if ci < 0 || di < 0 {
 			return nil, errors.New("azure: unexpected cost query answer (no cost or date column)")
 		}
@@ -156,6 +166,9 @@ func (a *CostAPI) query(ctx context.Context, token, subscription, costType strin
 			}
 			if ri >= 0 {
 				row.Currency, _ = r[ri].(string)
+			}
+			if tvi >= 0 {
+				row.TagValue, _ = r[tvi].(string)
 			}
 			out = append(out, row)
 			if len(out) > maxCostRows {
@@ -324,7 +337,7 @@ func windows(from, to time.Time) [][2]time.Time {
 type apiCostKey struct{ day, service, location, currency string }
 
 // usage reads billed (actual) and amortized cost per day, service, location and currency.
-func (a *CostAPI) usage(ctx context.Context, token, subscription string, from, to time.Time) (focus.RawBatch, error) {
+func (a *CostAPI) usage(ctx context.Context, token, subscription string, from, to time.Time, tagKeys []string, tagFrom time.Time) (focus.RawBatch, error) {
 	type sums struct{ billed, effective float64 }
 	agg := map[apiCostKey]*sums{}
 	amortizedUnavailable := false
@@ -376,11 +389,67 @@ func (a *CostAPI) usage(ctx context.Context, token, subscription string, from, t
 		x, y := rows[i], rows[j]
 		return x.Day+x.Service+x.Location+x.Currency < y.Day+y.Service+y.Location+y.Currency
 	})
-	payload, err := json.Marshal(map[string]any{"rows": rows})
+	if tagFrom.IsZero() || tagFrom.After(from) {
+		tagFrom = from
+	}
+	tagged := a.taggedCost(ctx, token, subscription, tagFrom, to, tagKeys)
+	payload, err := json.Marshal(map[string]any{"rows": rows, "tagged": tagged})
 	if err != nil {
 		return focus.RawBatch{}, err
 	}
-	return focus.RawBatch{Provider: "azure", Source: SourceCostManagement, Payload: payload}, nil
+	return focus.RawBatch{Provider: "azure", Source: SourceCostManagement, Payload: payload, TagFrom: tagFrom}, nil
+}
+
+// maxTagKeys bounds the extra queries of a sync: one per key and window, paced like the rest.
+const maxTagKeys = 8
+
+type taggedRow struct {
+	Day      string  `json:"day"`
+	Service  string  `json:"service"`
+	Currency string  `json:"currency"`
+	Key      string  `json:"key"`
+	Value    string  `json:"value"`
+	Billed   float64 `json:"billed"`
+}
+
+// taggedCost reads the billed cost of each value of each allocation tag key, per day and service. Tags are a view of the bill: a key the
+// API refuses, or any failure here, only leaves that key out (the sync and the costs are not affected). The amortized view is not read for
+// tags; showback is of the billed cost.
+func (a *CostAPI) taggedCost(ctx context.Context, token, subscription string, from, to time.Time, tagKeys []string) []taggedRow {
+	type k struct{ day, service, currency, key, value string }
+	sums := map[k]float64{}
+	keys := 0
+	for _, raw := range tagKeys {
+		key := focus.NormalizeTagKey(raw)
+		if key == "" {
+			continue
+		}
+		if keys++; keys > maxTagKeys {
+			break
+		}
+		for _, w := range windows(from, to) {
+			rows, err := a.queryGrouped(ctx, token, subscription, "ActualCost", w[0], w[1], []string{"ServiceName"}, key)
+			if err != nil {
+				break
+			}
+			for _, r := range rows {
+				v := strings.TrimSpace(r.TagValue)
+				if v == "" {
+					continue // no value for this key: the charge is untagged
+				}
+				sums[k{r.Day, r.Service, strings.ToUpper(strings.TrimSpace(r.Currency)), key, strings.ToLower(v)}] += r.Amount
+			}
+		}
+	}
+	out := make([]taggedRow, 0, len(sums))
+	for x, v := range sums {
+		out = append(out, taggedRow{x.day, x.service, x.currency, x.key, x.value, v})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		x, y := out[i], out[j]
+		return x.Day+x.Service+x.Key+x.Value+x.Currency < y.Day+y.Service+y.Key+y.Value+y.Currency
+	})
+	return out
 }
 
 // controlTotals reads the day totals of the billed cost with a query that has no grouping: an independent figure the

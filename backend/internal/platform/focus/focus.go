@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,9 @@ type RawBatch struct {
 	Provider string
 	Source   string
 	Payload  []byte
+	// TagFrom is the first day (UTC date) the payload's tags cover when that is earlier than its cost lines: a source that reads tags in a
+	// separate, wider query says so, and what it reports for those days replaces what was stored. Zero: the cost lines' own days.
+	TagFrom time.Time
 }
 
 var categories = map[string]bool{"compute": true, "storage": true, "database": true, "networking": true, "other": true}
@@ -98,4 +102,94 @@ type IngestResult struct {
 	From, To time.Time // first and last charge day touched
 	// Totals is the billed cost that was stored, per day and currency, for reconciliation with the cloud's totals.
 	Totals []ControlTotal
+}
+
+// TaggedCost is the cost of one day and service that carried one value of one cloud tag (or label): the input of showback. It is
+// kept apart from Record so that a charge is never counted twice: Records are the invoice, TaggedCosts are a view of the same money by tag.
+type TaggedCost struct {
+	Provider      string
+	ServiceName   string
+	Currency      string
+	Day           time.Time // the charge period start, UTC midnight
+	TagKey        string    // normalized (see NormalizeTagKey)
+	TagValue      string    // trimmed, at most MaxTagValue characters
+	BilledCost    float64
+	EffectiveCost float64
+}
+
+// Limits of a tag as stored: a tag is customer input.
+const (
+	MaxTagKey   = 64
+	MaxTagValue = 128
+)
+
+// NormalizeTagKey makes the spellings of one tag equal: lower case, and the prefix some clouds add to user-defined tags removed
+// ("user_team", "user:team" and "Team" are all "team"). Tags the cloud itself sets ("aws:...", "goog-...", "microsoft.") are not the customer's
+// allocation and give "". A key longer than MaxTagKey gives "".
+func NormalizeTagKey(k string) string {
+	k = strings.ToLower(strings.TrimSpace(k))
+	for _, sys := range []string{"aws:", "goog-", "microsoft.", "azure:", "kubernetes.io/", "k8s.io/"} {
+		if strings.HasPrefix(k, sys) {
+			return ""
+		}
+	}
+	k = strings.TrimPrefix(strings.TrimPrefix(k, "user_"), "user:")
+	if k == "" || len(k) > MaxTagKey {
+		return ""
+	}
+	return k
+}
+
+// SelectTags keeps the tags whose normalized key is in keys (already normalized), as key to trimmed value. An empty value is not a value:
+// the charge is then untagged for that key.
+func SelectTags(tags map[string]string, keys map[string]bool) map[string]string {
+	var out map[string]string
+	for k, v := range tags {
+		nk := NormalizeTagKey(k)
+		v = strings.TrimSpace(v)
+		if nk == "" || !keys[nk] || v == "" {
+			continue
+		}
+		if len(v) > MaxTagValue {
+			v = v[:MaxTagValue]
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[nk] = v
+	}
+	return out
+}
+
+// KeySet turns a list of tag keys into the set SelectTags wants, normalizing each.
+func KeySet(keys []string) map[string]bool {
+	out := map[string]bool{}
+	for _, k := range keys {
+		if nk := NormalizeTagKey(k); nk != "" {
+			out[nk] = true
+		}
+	}
+	return out
+}
+
+// Validate enforces what may be stored.
+func (t TaggedCost) Validate() error {
+	switch {
+	case !providers[t.Provider] && t.Provider != "saas":
+		return fmt.Errorf("focus: unknown provider %q", t.Provider)
+	case t.ServiceName == "":
+		return errors.New("focus: tagged cost needs a service name")
+	case !validCurrency(t.Currency):
+		return errors.New("focus: currency must be ISO 4217 (three upper-case letters)")
+	case t.TagKey == "" || len(t.TagKey) > MaxTagKey || t.TagValue == "" || len(t.TagValue) > MaxTagValue:
+		return errors.New("focus: tag key and value are required and bounded")
+	case !finite(t.BilledCost) || !finite(t.EffectiveCost):
+		return errors.New("focus: costs must be finite numbers")
+	}
+	return nil
+}
+
+// TagNormalizer is implemented by a normalizer whose payload also carries cost by tag.
+type TagNormalizer interface {
+	NormalizeTags(raw RawBatch) ([]TaggedCost, error)
 }

@@ -168,6 +168,12 @@ func NewExternalID() (string, error) {
 type UsageRequest struct {
 	Connection Connection
 	From, To   time.Time
+	// TagKeys are the cloud tag keys the organization allocates cost by (normalized, lower case): a provider that can read tags reports the
+	// cost of each value of these keys, and nothing else about tags. Empty: no tags are read.
+	TagKeys []string
+	// TagFrom is where a provider that reads tags in a query of its own starts reading them (never after From): tags are kept for at least the
+	// last month even when a sync only reads a few days, so a showback of the month is not mostly "untagged".
+	TagFrom time.Time
 }
 
 // CloudProvider is the plugin contract implemented by AWS (now), Azure and GCP (phase 2).

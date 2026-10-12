@@ -43,4 +43,6 @@ type Repository interface {
 	Upsert(ctx context.Context, tenantID, projectID, connectionID string, recs []focus.Record) error
 	List(ctx context.Context, tenantID string, projectID *string, from, to time.Time, limit int) ([]Record, error)
 	DailyAggregates(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]DailyAggregate, error)
+	// ReplaceTagged rewrites a source's cost by tag for the days [from, to] (ADR-0061).
+	ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error
 }

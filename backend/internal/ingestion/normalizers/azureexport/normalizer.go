@@ -48,8 +48,9 @@ type payload struct {
 		Billed    float64 `json:"billed"`
 		Effective float64 `json:"effective"`
 	} `json:"cost"`
-	VCPUHours  []measure `json:"vm_vcpu_hours"`
-	StorageGBM []measure `json:"storage_gb_months"`
+	Tagged     []focus.TagRow `json:"tagged"`
+	VCPUHours  []measure      `json:"vm_vcpu_hours"`
+	StorageGBM []measure      `json:"storage_gb_months"`
 }
 
 type Normalizer struct{}
@@ -130,4 +131,22 @@ func Category(focusCategory string) string {
 		return "networking"
 	}
 	return "other"
+}
+
+// NormalizeTags implements focus.TagNormalizer (values are lower case: Azure's tag values are case-insensitive).
+func (Normalizer) NormalizeTags(raw focus.RawBatch) ([]focus.TaggedCost, error) {
+	var p payload
+	if err := json.Unmarshal(raw.Payload, &p); err != nil {
+		return nil, fmt.Errorf("azureexport: decode payload: %w", err)
+	}
+	out := make([]focus.TaggedCost, 0, len(p.Tagged))
+	for _, t := range p.Tagged {
+		d, _, err := day(t.Day)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, focus.TaggedCost{Provider: "azure", ServiceName: t.Service, Currency: strings.ToUpper(strings.TrimSpace(t.Currency)), Day: d,
+			TagKey: t.Key, TagValue: t.Value, BilledCost: t.Billed, EffectiveCost: t.Effective})
+	}
+	return out, nil
 }

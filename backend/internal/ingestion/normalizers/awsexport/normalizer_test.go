@@ -74,3 +74,16 @@ func TestMalformedPayload(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeTags(t *testing.T) {
+	rows, err := Normalizer{}.NormalizeTags(focus.RawBatch{Provider: "aws", Source: "focus_export", Payload: []byte(`{"cost":[],"tagged":[
+	 {"day":"2026-09-02","service":"Amazon S3","currency":"usd","key":"team","value":"payments","billed":15,"effective":14}]}`)})
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("%v %+v", err, rows)
+	}
+	r := rows[0]
+	if err := r.Validate(); err != nil || r.Currency != "USD" || r.Provider != "aws" || r.Day.Format("2006-01-02") != "2026-09-02" || r.TagKey != "team" || r.BilledCost != 15 {
+		t.Fatalf("%v %+v", err, r)
+	}
+	var _ focus.TagNormalizer = Normalizer{}
+}

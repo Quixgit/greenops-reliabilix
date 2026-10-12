@@ -46,7 +46,7 @@ type S3Assumer func(ctx context.Context, roleARN, externalID, region string) (S3
 
 // exportBatch reads the months overlapping [from, to) of the connection's export and returns the daily
 // aggregate (see ingestion/normalizers/awsexport for the contract).
-func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, to time.Time) (focus.RawBatch, error) {
+func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, to time.Time, tagKeys []string) (focus.RawBatch, error) {
 	cfg := c.Export
 	s3c, err := p.s3(ctx, c, cfg.Region)
 	if err != nil {
@@ -54,6 +54,7 @@ func (p *Provider) exportBatch(ctx context.Context, c domain.Connection, from, t
 	}
 	owner := c.AccountRef
 	agg := newAggregate(from, to)
+	agg.tags = focus.NewTagSums(tagKeys)
 	agg.budget = maxTotalBytes
 	found := 0
 	for _, month := range monthsIn(from, to) {
@@ -227,6 +228,7 @@ func readDataFile(ctx context.Context, s3c S3API, bucket, key, owner string, agg
 type columns struct {
 	billed, effective, currency, start, region, service, category, qty, unit int
 	usageType, serviceCode                                                   int // -1 when absent
+	tags                                                                     int // the FOCUS Tags column (a JSON object), -1 when absent
 }
 
 func newColumns(header []string) (columns, error) {
@@ -261,13 +263,13 @@ func newColumns(header []string) (columns, error) {
 			return c, err
 		}
 	}
-	c.usageType, c.serviceCode = opt("x_UsageType"), opt("x_ServiceCode")
+	c.usageType, c.serviceCode, c.tags = opt("x_UsageType"), opt("x_ServiceCode"), opt("Tags")
 	return c, nil
 }
 
 func (c columns) width() int {
 	w := 0
-	for _, i := range []int{c.billed, c.effective, c.currency, c.start, c.region, c.service, c.category, c.qty, c.unit, c.usageType, c.serviceCode} {
+	for _, i := range []int{c.billed, c.effective, c.currency, c.start, c.region, c.service, c.category, c.qty, c.unit, c.usageType, c.serviceCode, c.tags} {
 		w = max(w, i+1)
 	}
 	return w
@@ -298,6 +300,7 @@ type aggregate struct {
 	cost     map[costKey]*[2]float64 // billed, effective
 	hours    map[hoursKey]float64
 	s3       map[regionDay]float64
+	tags     *focus.TagSums // the cost of each value of each allocation tag key
 }
 
 func newAggregate(from, to time.Time) *aggregate {
@@ -306,7 +309,7 @@ func newAggregate(from, to time.Time) *aggregate {
 
 func (a *aggregate) remaining() int64 { return a.budget }
 
-func (a *aggregate) size() int { return len(a.cost) + len(a.hours) + len(a.s3) }
+func (a *aggregate) size() int { return len(a.cost) + len(a.hours) + len(a.s3) + a.tags.Len() }
 
 func num(s string) float64 {
 	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
@@ -357,6 +360,9 @@ func (a *aggregate) add(c columns, rec []string) error {
 	}
 	sums[0] += num(rec[c.billed])
 	sums[1] += num(rec[c.effective])
+	if a.tags.Active() && c.tags >= 0 {
+		a.tags.Add(day, service, k.currency, focus.ParseTagsCell(rec[c.tags]), false, num(rec[c.billed]), num(rec[c.effective]))
+	}
 
 	qty := num(rec[c.qty])
 	unit := strings.TrimSpace(rec[c.unit])
@@ -414,7 +420,7 @@ func (a *aggregate) payload() map[string]any {
 		s3rows = append(s3rows, s3Row{k.day, k.region, v})
 	}
 	sort.Slice(s3rows, func(i, j int) bool { return s3rows[i].Day+s3rows[i].Region < s3rows[j].Day+s3rows[j].Region })
-	return map[string]any{"cost": cost, "ec2_hours": hours, "s3_gb_months": s3rows}
+	return map[string]any{"cost": cost, "ec2_hours": hours, "s3_gb_months": s3rows, "tagged": a.tags.Rows()}
 }
 
 // validateExport proves the role can read the export: a manifest must exist for the current or previous month.

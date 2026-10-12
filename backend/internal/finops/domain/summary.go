@@ -162,4 +162,8 @@ type Repository interface {
 	AnomalyDrivers(ctx context.Context, tenantID string, project *string, day time.Time, limit int) ([]Driver, error)
 	// DailyCost is the cost per day of [from, to) in the currency given or, when empty, the reporting currency.
 	DailyCost(ctx context.Context, tenantID string, project *string, currency string, from, to time.Time) ([]DayPoint, string, error)
+	// TagKeys lists the tag keys with cost in [from, to) and how much of the bill each explains (ADR-0061).
+	TagKeys(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]TagKeyInfo, string, error)
+	// Showback splits [from, to) by the values of one tag key, in the reporting currency.
+	Showback(ctx context.Context, tenantID string, project *string, tag string, from, to time.Time) (Showback, error)
 }

@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.45.0
+  version: 0.46.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -5777,6 +5777,90 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {description: Not found (SCIM error), content: {application/scim+json: {schema: {type: object, additionalProperties: true}}}}
         '409': {description: An owner cannot be removed (SCIM error), content: {application/scim+json: {schema: {type: object, additionalProperties: true}}}}
+  /api/v1/finops/tag-keys:
+    get:
+      operationId: listTagKeys
+      summary: Cloud tag keys with cost in the window, and how much of the bill each explains
+      tags: [finops]
+      description: |
+        Requires permission `usage:read`. The keys are the organization's allocation keys (setting `reporting.tag_keys`) that the connected clouds reported tags for. `coverage_pct` is the share of the bill
+        that carries the key. Currency is the reporting currency.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, currency]
+                properties:
+                  currency: {type: string}
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, values, coverage_pct]
+                      properties:
+                        key: {type: string}
+                        values: {type: integer}
+                        coverage_pct: {type: number}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /api/v1/finops/showback:
+    get:
+      operationId: getShowback
+      summary: The bill of the window split by the values of one cloud tag key
+      tags: [finops]
+      description: |
+        Requires permission `usage:read`. Cost without a value for the key is `untagged_cost` and is never spread over the values; `coverage_pct` says how much of the bill the key explains.
+        Billed cost in the reporting currency; carbon is not split by tag. Answers may be up to 30 seconds old.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - {name: tag, in: query, required: true, schema: {type: string}, description: The tag key, for example team}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tag, currency, has_data, total_cost, tagged_cost, untagged_cost, coverage_pct, lines]
+                properties:
+                  tag: {type: string}
+                  currency: {type: string}
+                  has_data: {type: boolean}
+                  total_cost: {type: number}
+                  tagged_cost: {type: number}
+                  untagged_cost: {type: number}
+                  coverage_pct: {type: number}
+                  tags_from: {type: string, description: First day any cost of this key is stored for; earlier days count as untagged only because tags were not read then}
+                  lines:
+                    type: array
+                    items:
+                      type: object
+                      required: [value, cost, share_pct, top_services]
+                      properties:
+                        value: {type: string}
+                        cost: {type: number}
+                        share_pct: {type: number}
+                        top_services:
+                          type: array
+                          items:
+                            type: object
+                            required: [service, cost]
+                            properties:
+                              service: {type: string}
+                              cost: {type: number}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     bearerAuth:

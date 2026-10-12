@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 )
 
 const extID = "rlx-0123456789abcdef0123456789abcdef01234567"
@@ -33,6 +34,9 @@ type fakeBigQuery struct {
 	queryBody   string
 	pages       [][][]string // result pages; page i is served on the i-th request
 	incomplete  int          // number of "jobComplete:false" answers before results
+	tagPages    [][][]string // when set, the answer to a query that reads labels (a second query of the same sync)
+	tagQuery    bool         // the last query posted was the label query
+	tagFails    bool         // the label query is refused (an old export without a labels column)
 	requests    []recorded
 }
 
@@ -67,6 +71,13 @@ func (f *fakeBigQuery) handler(t *testing.T) http.Handler {
 				_, _ = w.Write([]byte(`{"jobComplete":true}`))
 				return
 			}
+			q, _ := body["query"].(string)
+			f.tagQuery = strings.Contains(q, "UNNEST(labels)")
+			if f.tagQuery && f.tagFails {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":{"code":400,"errors":[{"reason":"invalidQuery"}],"message":"Unrecognized name: labels"}}`))
+				return
+			}
 			f.serve(w, 0)
 		default: // getQueryResults
 			page := 0
@@ -85,8 +96,12 @@ func (f *fakeBigQuery) serve(w http.ResponseWriter, page int) {
 		return
 	}
 	rows := []map[string]any{}
-	if page < len(f.pages) {
-		for _, r := range f.pages[page] {
+	pages := f.pages
+	if f.tagQuery {
+		pages = f.tagPages
+	}
+	if page < len(pages) {
+		for _, r := range pages[page] {
 			cells := []map[string]any{}
 			for _, v := range r {
 				cells = append(cells, map[string]any{"v": v})
@@ -95,7 +110,7 @@ func (f *fakeBigQuery) serve(w http.ResponseWriter, page int) {
 		}
 	}
 	out := map[string]any{"jobComplete": true, "jobReference": map[string]string{"jobId": "j1", "location": "EU"}, "rows": rows}
-	if page+1 < len(f.pages) {
+	if page+1 < len(pages) {
 		out["pageToken"] = strconv.Itoa(page + 1)
 	}
 	_ = json.NewEncoder(w).Encode(out)
@@ -460,5 +475,46 @@ func TestKeyConnectionFailuresAreSayable(t *testing.T) {
 	p.OpenSecret = func(domain.Connection) (string, error) { return `{"type":"authorized_user"}`, nil }
 	if err := p.Validate(context.Background(), c); !errors.Is(err, domain.ErrInvalidConnection) {
 		t.Errorf("malformed key: %v", err)
+	}
+}
+
+func TestLabelsAreReadInASecondQueryAndNeverFailTheSync(t *testing.T) {
+	f := &fakeBigQuery{labels: map[string]string{extID: "1"},
+		pages:    [][][]string{{row("2026-09-01", "Compute Engine", "N2 Instance Core", "europe-west3")}},
+		tagPages: [][][]string{{{"2026-09-01", "Compute Engine", "usd", "team", "Payments", "10", "-1.5"}, {"2026-09-01", "Compute Engine", "usd", "team", "payments", "2", "0"}}}}
+	req := usageReq()
+	req.TagKeys = []string{"Team", "aws:createdBy", "bad'; DROP", "env"}
+	batches, err := setup(t, f).GetUsage(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Rows   []map[string]string `json:"rows"`
+		Tagged []focus.TagRow      `json:"tagged"`
+	}
+	if err := json.Unmarshal(batches[0].Payload, &doc); err != nil || len(doc.Rows) != 1 {
+		t.Fatalf("%v %s", err, batches[0].Payload)
+	}
+	if len(doc.Tagged) != 1 || doc.Tagged[0].Key != "team" || doc.Tagged[0].Value != "payments" || doc.Tagged[0].Billed != 12 || doc.Tagged[0].Effective != 10.5 || doc.Tagged[0].Currency != "USD" {
+		t.Fatalf("tagged %+v (values are one case-insensitive value, effective is cost plus credits)", doc.Tagged)
+	}
+	var sql string
+	for _, r := range f.requests {
+		if q, _ := r.Body["query"].(string); strings.Contains(q, "UNNEST(labels)") {
+			sql = q
+		}
+	}
+	if !strings.Contains(sql, "IN ('team', 'env')") || strings.Contains(sql, "DROP") || strings.Contains(sql, "aws:") {
+		t.Fatalf("only valid allocation keys may reach the query text:\n%s", sql)
+	}
+
+	// an export without a labels column: the costs still arrive, the tags are just absent
+	f2 := &fakeBigQuery{labels: map[string]string{extID: "1"}, tagFails: true, pages: [][][]string{{row("2026-09-01", "Compute Engine", "N2 Instance Core", "europe-west3")}}}
+	b2, err := setup(t, f2).GetUsage(context.Background(), req)
+	if err != nil {
+		t.Fatalf("a refused label query must not fail the sync: %v", err)
+	}
+	if err := json.Unmarshal(b2[0].Payload, &doc); err != nil || len(doc.Rows) != 1 {
+		t.Fatalf("%v %s", err, b2[0].Payload)
 	}
 }

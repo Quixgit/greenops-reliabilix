@@ -41,6 +41,7 @@ const (
 	KeyCarbonAutoDays    = "carbon.auto_load_days"
 
 	KeyReportingCurrency = "finops.reporting_currency"
+	KeyTagKeys           = "reporting.tag_keys"
 
 	// Unit costs of serving an organization (USD): inputs of the console's estimated cost per organization.
 	KeyCostBase       = "costs.base_per_organization_month"
@@ -154,6 +155,10 @@ func definitions() []Def {
 		floatDef(KeyCostK8sSamples, "costs", "Per million Kubernetes samples", "Storage and processing of workload energy samples.", 3, 0, 100000, "USD", ""),
 
 		// ---- cost reporting (organization) ----
+		{Key: KeyTagKeys, Group: "reporting", Title: "Cost allocation tags", Description: "The cloud tag (label) keys cost is split by in Showback, for example team or environment. Only these keys are read from your bill.",
+			Scope: ScopeTenant, Type: List, MaxItems: 12, MaxLen: 64, Pattern: `^[a-z0-9][a-z0-9_.:/-]{0,63}$`,
+			Default: []string{"team", "env", "environment", "project", "product", "application", "app", "owner", "cost-center", "costcenter", "department", "business-unit"},
+			Note:    "Applies to the next sync of each connection: earlier days are filled in when they are read again."},
 		{Key: KeyReportingCurrency, Group: "reporting", Title: "Reporting currency", Description: "The currency every cost figure is shown in. Amounts in other currencies are converted at the day's ECB reference rate. \"auto\" uses the currency most of your cost is billed in.",
 			Scope: ScopeTenant, Type: Enum, Default: "auto",
 			Enum: []string{"auto", "USD", "EUR", "GBP", "CHF", "JPY", "CAD", "AUD", "SEK", "NOK", "DKK", "PLN", "CZK", "HUF", "INR", "BRL", "SGD"},

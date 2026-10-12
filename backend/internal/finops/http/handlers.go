@@ -11,6 +11,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops/application"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/readcache"
 )
@@ -25,6 +26,8 @@ func (h Handlers) Routes(r chi.Router) {
 	r.With(auth.Require(auth.PermBillingRead), readcache.Middleware).Get("/finops/anomalies", h.anomalies)
 	r.With(auth.Require(auth.PermBillingRead)).Get("/finops/commitments", h.commitments)
 	r.With(auth.Require(auth.PermUsageRead), readcache.Middleware).Get("/finops/forecast", h.forecast)
+	r.With(auth.Require(auth.PermUsageRead)).Get("/finops/tag-keys", h.tagKeys)
+	r.With(auth.Require(auth.PermUsageRead), readcache.Middleware).Get("/finops/showback", h.showback)
 }
 
 func internal(w http.ResponseWriter, r *http.Request, err error) {
@@ -178,4 +181,39 @@ func (h Handlers) forecast(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"currency": cur, "forecast": f})
+}
+
+// tagKeys lists what the bill can be split by.
+func (h Handlers) tagKeys(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	from, to, err := httpx.Period(r)
+	project, ok := httpx.OptionalUUID(r, "project_id")
+	if err != nil || !ok {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "")
+		return
+	}
+	keys, cur, err := h.Svc.TagKeys(r.Context(), c.TenantID, project, from, to)
+	if err != nil {
+		internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": keys, "currency": cur})
+}
+
+// showback splits the bill by the values of one tag key (the key is validated: the same shape the setting allows).
+func (h Handlers) showback(w http.ResponseWriter, r *http.Request) {
+	c, _ := auth.FromContext(r.Context())
+	from, to, err := httpx.Period(r)
+	project, ok := httpx.OptionalUUID(r, "project_id")
+	tag := focus.NormalizeTagKey(r.URL.Query().Get("tag"))
+	if err != nil || !ok || tag == "" {
+		httpx.WriteProblem(w, r, http.StatusBadRequest, "invalid query", "tag must be a tag key")
+		return
+	}
+	sb, err := h.Svc.Showback(r.Context(), c.TenantID, project, tag, from, to)
+	if err != nil {
+		internal(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, sb)
 }

@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -191,11 +192,72 @@ func (p *Provider) GetUsage(ctx context.Context, req domain.UsageRequest) ([]foc
 	if err != nil {
 		return nil, err
 	}
-	payload, err := json.Marshal(map[string]any{"rows": toLines(rows)})
+	tagFrom := req.TagFrom
+	if tagFrom.IsZero() || tagFrom.After(req.From) {
+		tagFrom = req.From
+	}
+	payload, err := json.Marshal(map[string]any{"rows": toLines(rows), "tagged": p.taggedCost(ctx, bq, job, t, c.AccountRef, req, tagFrom)})
 	if err != nil {
 		return nil, err
 	}
-	return []focus.RawBatch{{Provider: "gcp", Source: SourceBigQuery, Payload: payload}}, nil
+	return []focus.RawBatch{{Provider: "gcp", Source: SourceBigQuery, Payload: payload, TagFrom: tagFrom}}, nil
+}
+
+// labelKeyRe is what a label key may be in the query text: it is written as a literal, so only what the settings already allow gets in.
+var labelKeyRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_.:/-]{0,63}$`)
+
+// taggedCost reads the cost of each value of each allocation label key in a second query. Labels are a view of the bill: a failure here
+// (no labels column in an old export, a refused query) leaves the tags out and never fails the sync.
+func (p *Provider) taggedCost(ctx context.Context, bq BigQuery, job string, t domain.BigQueryTable, project string, req domain.UsageRequest, from time.Time) []focus.TagRow {
+	var keys []string
+	for _, k := range req.TagKeys {
+		if nk := focus.NormalizeTagKey(k); nk != "" && labelKeyRe.MatchString(nk) {
+			keys = append(keys, "'"+nk+"'")
+		}
+		if len(keys) == 8 {
+			break
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	rows, err := bq.Query(ctx, p.labelQuery(job, t, project, from, req.To, strings.Join(keys, ", ")))
+	if err != nil {
+		return nil
+	}
+	sums := focus.NewTagSums(req.TagKeys)
+	for _, r := range rows {
+		if len(r) < 7 {
+			continue
+		}
+		cost, _ := strconv.ParseFloat(r[5], 64)
+		credits, _ := strconv.ParseFloat(r[6], 64)
+		sums.Add(r[0], r[1], strings.ToUpper(strings.TrimSpace(r[2])), map[string]string{r[3]: r[4]}, true, cost, cost+credits)
+	}
+	return sums.Rows()
+}
+
+// labelQuery sums cost per day, service, currency and label (only the allocation keys, written as literals that passed labelKeyRe).
+func (p *Provider) labelQuery(jobProject string, t domain.BigQueryTable, project string, from, to time.Time, keyList string) Query {
+	sql := fmt.Sprintf("SELECT\n"+
+		"  FORMAT_DATE('%%Y-%%m-%%d', DATE(usage_start_time, 'UTC')) AS day,\n"+
+		"  IFNULL(service.description, '') AS service,\n"+
+		"  currency,\n"+
+		"  LOWER(l.key) AS k,\n"+
+		"  LOWER(l.value) AS v,\n"+
+		"  CAST(SUM(cost) AS STRING) AS cost,\n"+
+		"  CAST(SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) AS c), 0)) AS STRING) AS credits\n"+
+		"FROM `%s.%s.%s`, UNNEST(labels) AS l\n"+
+		"WHERE project.id = @project_id AND usage_start_time >= @from_ts AND usage_start_time < @to_ts AND LOWER(l.key) IN (%s)\n"+
+		"GROUP BY day, service, currency, k, v", t.Project, t.Dataset, t.Table, keyList)
+	return Query{
+		JobProject: jobProject, SQL: sql, MaxBytesBilled: p.maxBytes(), MaxRows: p.maxRows(), ExpectedColumnsN: 7,
+		Params: map[string]Param{
+			"project_id": {Type: "STRING", Value: project},
+			"from_ts":    {Type: "TIMESTAMP", Value: from.UTC().Format(time.RFC3339)},
+			"to_ts":      {Type: "TIMESTAMP", Value: to.UTC().Format(time.RFC3339)},
+		},
+	}
 }
 
 // line is one aggregated billing line; the ingestion module parses the same JSON (the two never share code).

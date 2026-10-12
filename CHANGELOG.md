@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.169] - 2026-10-12
+
+### Added
+- **Showback by cloud tag** (ADR-0061, migration 0075): Projects > Showback splits the bill by the values of a tag key (team, environment, project and the like; the keys are a setting), with the three biggest services of each value, how much of the bill each key explains, and the untagged part, which is never spread over the others. `GET /finops/tag-keys`, `GET /finops/showback`. Tags are read from Azure (Cost Management API and FOCUS export), AWS (FOCUS data export) and Google Cloud (billing export labels) in the allocation keys only; they never fail a sync. Read live from the stand's Azure subscription. `contract/api` 0.46.0.
+
 ## [0.1.0-alpha.168] - 2026-10-12
 
 ### Added

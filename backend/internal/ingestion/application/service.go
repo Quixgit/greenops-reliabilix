@@ -24,6 +24,11 @@ type UsageStore interface {
 	Upsert(ctx context.Context, tenantID, projectID, connectionID string, recs []focus.Record) error
 }
 
+// TaggedStore persists cost by tag (implemented by the usage module); optional.
+type TaggedStore interface {
+	ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error
+}
+
 type Service struct {
 	Normalizers map[string]Normalizer // key: provider + "/" + source
 	Store       UsageStore
@@ -39,6 +44,9 @@ func key(provider, source string) string { return provider + "/" + source }
 func (s Service) Ingest(ctx context.Context, tenantID, projectID, connectionID string, batches []focus.RawBatch) (focus.IngestResult, error) {
 	var res focus.IngestResult
 	var all []focus.Record
+	var tagged []focus.TaggedCost
+	taggedSeen := false // a source that reports tags at all: an empty answer then means "no tags left", not "unknown"
+	var tagFrom time.Time
 	for _, b := range batches {
 		n, ok := s.Normalizers[key(b.Provider, b.Source)]
 		if !ok {
@@ -58,6 +66,22 @@ func (s Service) Ingest(ctx context.Context, tenantID, projectID, connectionID s
 			}
 			all = append(all, r)
 		}
+		if tn, ok := n.(focus.TagNormalizer); ok {
+			taggedSeen = true
+			if !b.TagFrom.IsZero() && (tagFrom.IsZero() || b.TagFrom.Before(tagFrom)) {
+				tagFrom = b.TagFrom
+			}
+			rows, err := tn.NormalizeTags(b)
+			if err != nil {
+				s.Log.Warn("tags could not be read; the costs are kept", "err", err) // tags are a view: they never fail a sync
+			}
+			for _, t := range rows {
+				if err := t.Validate(); err != nil {
+					continue
+				}
+				tagged = append(tagged, t)
+			}
+		}
 	}
 	if len(all) == 0 {
 		return res, nil
@@ -73,6 +97,15 @@ func (s Service) Ingest(ctx context.Context, tenantID, projectID, connectionID s
 		}
 		if r.ChargePeriodStart.After(res.To) {
 			res.To = r.ChargePeriodStart
+		}
+	}
+	if ts, ok := s.Store.(TaggedStore); ok && taggedSeen {
+		from := res.From
+		if !tagFrom.IsZero() && tagFrom.Before(from) {
+			from = tagFrom
+		}
+		if err := ts.ReplaceTagged(ctx, tenantID, projectID, connectionID, from, res.To, tagged); err != nil {
+			s.Log.Warn("tagged cost could not be stored; the costs are kept", "err", err)
 		}
 	}
 	res.Totals = totalsOf(all)

@@ -524,6 +524,9 @@ func (s Service) RunRightsizing(ctx context.Context, tenantID, connectionID stri
 }
 
 // window computes the [from, to) days to fetch: incremental with overlap, or the initial backfill.
+// tagWindowDays is how far back tags are read on every sync, whatever the cost window is.
+const tagWindowDays = 31
+
 func (s Service) window(c domain.Connection) (from, to time.Time) {
 	to = s.now().Truncate(24 * time.Hour) // today is excluded: its cost is still estimated
 	days := s.BackfillDays
@@ -581,7 +584,15 @@ func (s Service) RunSync(ctx context.Context, tenantID, connectionID string) err
 	var res focus.IngestResult
 	quality := domain.Unchecked("nothing to fetch in this window", s.now())
 	if from.Before(to) {
-		req := domain.UsageRequest{Connection: c, From: from, To: to}
+		req := domain.UsageRequest{Connection: c, From: from, To: to, TagFrom: from}
+		if tf := to.AddDate(0, 0, -tagWindowDays); tf.Before(from) {
+			req.TagFrom = tf
+		}
+		if s.Settings != nil {
+			req.TagKeys = s.Settings.Strings(ctx, tenantID, settings.KeyTagKeys)
+		} else {
+			req.TagKeys = settings.Defaults{}.Strings(ctx, tenantID, settings.KeyTagKeys)
+		}
 		batches, err := p.GetUsage(ctx, req)
 		if err != nil {
 			return fail(err)

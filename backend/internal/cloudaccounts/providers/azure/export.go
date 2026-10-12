@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 )
 
 // Hard limits: an export is customer-controlled input, so every dimension is bounded.
@@ -200,6 +201,7 @@ func readDataFile(ctx context.Context, b Blobs, e domain.AzureExport, f dataFile
 type columns struct {
 	billed, effective, currency, start, region, service, category, qty, unit, subAccount int
 	charge, meterCategory, meterSub, meterName, cores                                    int // -1 when absent
+	tags                                                                                 int // the FOCUS Tags column, -1 when absent
 }
 
 func newColumns(header []string) (columns, error) {
@@ -229,14 +231,14 @@ func newColumns(header []string) (columns, error) {
 		return -1
 	}
 	c.charge, c.meterCategory, c.meterSub = opt("ChargeCategory"), opt("x_SkuMeterCategory"), opt("x_SkuMeterSubcategory")
-	c.meterName, c.cores = opt("x_SkuMeterName"), opt("x_SkuCoreCount")
+	c.meterName, c.cores, c.tags = opt("x_SkuMeterName"), opt("x_SkuCoreCount"), opt("Tags")
 	return c, nil
 }
 
 func (c columns) width() int {
 	w := 0
 	for _, i := range []int{c.billed, c.effective, c.currency, c.start, c.region, c.service, c.category, c.qty, c.unit,
-		c.subAccount, c.charge, c.meterCategory, c.meterSub, c.meterName, c.cores} {
+		c.subAccount, c.charge, c.meterCategory, c.meterSub, c.meterName, c.cores, c.tags} {
 		w = max(w, i+1)
 	}
 	return w
@@ -254,6 +256,7 @@ type aggregate struct {
 	vcpuHours    map[regionDay]float64
 	storageGBMo  map[regionDay]float64
 	matched      bool // a row of the subscription was seen in any period
+	tags         *focus.TagSums
 }
 
 func newAggregate(subscription string, from, to time.Time) *aggregate {
@@ -261,7 +264,9 @@ func newAggregate(subscription string, from, to time.Time) *aggregate {
 		cost: map[costKey]*[2]float64{}, vcpuHours: map[regionDay]float64{}, storageGBMo: map[regionDay]float64{}}
 }
 
-func (a *aggregate) size() int { return len(a.cost) + len(a.vcpuHours) + len(a.storageGBMo) }
+func (a *aggregate) size() int {
+	return len(a.cost) + len(a.vcpuHours) + len(a.storageGBMo) + a.tags.Len()
+}
 
 func num(s string) float64 {
 	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
@@ -352,6 +357,9 @@ func (a *aggregate) add(c columns, rec []string) error {
 	}
 	sums[0] += num(rec[c.billed])
 	sums[1] += num(rec[c.effective])
+	if a.tags.Active() && c.tags >= 0 {
+		a.tags.Add(day, service, k.currency, focus.ParseTagsCell(rec[c.tags]), true, num(rec[c.billed]), num(rec[c.effective]))
+	}
 	if vcpu > 0 {
 		a.vcpuHours[regionDay{day, region}] += vcpu
 	}
@@ -393,5 +401,5 @@ func (a *aggregate) payload() map[string]any {
 		sort.Slice(out, func(i, j int) bool { return out[i].Day+out[i].Region < out[j].Day+out[j].Region })
 		return out
 	}
-	return map[string]any{"cost": cost, "vm_vcpu_hours": rows(a.vcpuHours), "storage_gb_months": rows(a.storageGBMo)}
+	return map[string]any{"cost": cost, "vm_vcpu_hours": rows(a.vcpuHours), "storage_gb_months": rows(a.storageGBMo), "tagged": a.tags.Rows()}
 }

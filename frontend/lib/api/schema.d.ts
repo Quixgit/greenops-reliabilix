@@ -3571,6 +3571,48 @@ export interface paths {
         patch: operations["scimPatchUser"];
         trace?: never;
     };
+    "/api/v1/finops/tag-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cloud tag keys with cost in the window, and how much of the bill each explains
+         * @description Requires permission `usage:read`. The keys are the organization's allocation keys (setting `reporting.tag_keys`) that the connected clouds reported tags for. `coverage_pct` is the share of the bill
+         *     that carries the key. Currency is the reporting currency.
+         */
+        get: operations["listTagKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/finops/showback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The bill of the window split by the values of one cloud tag key
+         * @description Requires permission `usage:read`. Cost without a value for the key is `untagged_cost` and is never spread over the values; `coverage_pct` says how much of the bill the key explains.
+         *     Billed cost in the reporting currency; carbon is not split by tag. Answers may be up to 30 seconds old.
+         */
+        get: operations["getShowback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11135,6 +11177,92 @@ export interface operations {
                     };
                 };
             };
+        };
+    };
+    listTagKeys: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        currency: string;
+                        items: {
+                            key: string;
+                            values: number;
+                            coverage_pct: number;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    getShowback: {
+        parameters: {
+            query: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                /** @description The tag key */
+                tag: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        tag: string;
+                        currency: string;
+                        has_data: boolean;
+                        total_cost: number;
+                        tagged_cost: number;
+                        untagged_cost: number;
+                        coverage_pct: number;
+                        /** @description First day any cost of this key is stored for; earlier days count as untagged only because tags were not read then */
+                        tags_from?: string;
+                        lines: {
+                            value: string;
+                            cost: number;
+                            share_pct: number;
+                            top_services: {
+                                service: string;
+                                cost: number;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
         };
     };
 }

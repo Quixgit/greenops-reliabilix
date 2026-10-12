@@ -15,6 +15,7 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/quixgit/greenops-reliabilix/backend/internal/cloudaccounts/domain"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/focus"
 )
 
 // fakeS3 serves objects from a map; a missing key behaves like S3 (NoSuchKey).
@@ -208,5 +209,63 @@ func TestExportConnectionNeverCallsCostExplorer(t *testing.T) {
 	_, _ = p.GetUsage(context.Background(), domain.UsageRequest{Connection: exportConn(), From: from, To: from.AddDate(0, 0, 1)})
 	if len(ce.calls) != 0 {
 		t.Fatalf("an export connection must not issue Cost Explorer cost queries (duplicate cost lines), got %d", len(ce.calls))
+	}
+}
+
+func TestTagsAreReadForTheAllocationKeysOnly(t *testing.T) {
+	header := []string{"BilledCost", "EffectiveCost", "BillingCurrency", "ChargePeriodStart", "RegionId", "ServiceName", "ServiceCategory", "ConsumedQuantity", "ConsumedUnit", "Tags"}
+	cols, err := newColumns(header)
+	if err != nil {
+		t.Fatal(err)
+	}
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	agg := newAggregate(from, from.AddDate(0, 1, 0))
+	agg.tags = focus.NewTagSums([]string{"team", "env"})
+	rows := [][]string{
+		{"10", "9", "usd", "2026-09-02T00:00:00Z", "eu-west-1", "Amazon S3", "Storage", "0", "", `{"user_team":"payments","user_env":"prod","user_secret":"x","aws:createdBy":"me"}`},
+		{"5", "5", "usd", "2026-09-02T00:00:00Z", "eu-west-1", "Amazon S3", "Storage", "0", "", `{"user_team":"payments"}`},
+		{"3", "3", "usd", "2026-09-02T00:00:00Z", "eu-west-1", "Amazon S3", "Storage", "0", "", ``},
+		{"2", "2", "usd", "2026-09-02T00:00:00Z", "eu-west-1", "Amazon S3", "Storage", "0", "", `not json`},
+	}
+	for _, r := range rows {
+		if err := agg.add(cols, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p := agg.payload()
+	raw, _ := json.Marshal(p)
+	var doc struct {
+		Tagged []struct {
+			Key    string  `json:"key"`
+			Value  string  `json:"value"`
+			Billed float64 `json:"billed"`
+		} `json:"tagged"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	tagged := doc.Tagged
+	got := map[string]float64{}
+	for _, x := range tagged {
+		got[x.Key+"="+x.Value] = x.Billed
+	}
+	if len(got) != 2 || got["team=payments"] != 15 || got["env=prod"] != 10 {
+		t.Fatalf("tagged cost %v (only the allocation keys, only rows that have them)", got)
+	}
+	// the invoice itself is untouched by tags: every row's cost is in the plain aggregate exactly once
+	total := 0.0
+	for _, v := range agg.cost {
+		total += v[0]
+	}
+	if total != 20 {
+		t.Fatalf("plain total %v, want 20", total)
+	}
+	// no keys configured: nothing is read from the Tags column
+	agg2 := newAggregate(from, from.AddDate(0, 1, 0))
+	for _, r := range rows {
+		_ = agg2.add(cols, r)
+	}
+	if agg2.tags.Len() != 0 {
+		t.Fatal("without allocation keys no tags are read")
 	}
 }

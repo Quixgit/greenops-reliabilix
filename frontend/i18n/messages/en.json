@@ -1852,5 +1852,21 @@
   "rec.cost_rough": "~{amount} cheaper (rough)",
   "rec.cost_rough_more": "~{amount} more (rough)",
   "rec.cost_basis_list": "A rough estimate: the ratio of the cloud's published list prices of every meter this service has in both regions, not a basket of sizes. It does not know your usage mix; excludes discounts, data transfer and migration.",
-  "ov.rec.cost_rough": "~{amount}/mo (rough)"
+  "ov.rec.cost_rough": "~{amount}/mo (rough)",
+  "proj.tab.showback": "Showback",
+  "sb.title": "Showback by cloud tag",
+  "sb.info": "The cost of the selected period split by the values of a tag (label) your clouds put on resources. Cost without the tag is shown as untagged and is never spread over the others.",
+  "sb.lead": "Who spends what: pick a tag key, for example team or environment. The percentage next to a key is how much of the bill carries it.",
+  "sb.key_hint": "{values} values, {pct}% of the bill carries this tag",
+  "sb.empty": "No tagged cost in this period yet.",
+  "sb.empty_hint": "Tags are read at the next sync of each connection, for the keys chosen in Settings (team, env, project and similar by default). Earlier days are filled in when they are read again.",
+  "sb.empty_link": "Choose the tag keys",
+  "sb.total": "Total cost",
+  "sb.tagged": "With this tag",
+  "sb.coverage": "{pct}% of the bill has a value for {key}",
+  "sb.untagged": "Untagged",
+  "sb.untagged_hint": "No value for this key: assign it in your cloud to see who spends it",
+  "sb.no_values": "No cost carries the tag {key} in this period.",
+  "sb.basis": "Billed cost in the reporting currency, per day and service as the cloud reports it. Carbon is not split by tag. Azure and Google Cloud are read through their cost and billing-export APIs, AWS through the FOCUS data export; a connection through Cost Explorer only has no tags.",
+  "sb.tags_from": "Tags are stored from {date}: days before that count as untagged only because tags were not read then. Each sync keeps the last month of tags up to date."
 }
