@@ -5,6 +5,16 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.178] - 2026-10-12
+
+### Changed
+- **The README is the full description.** It is now Ukrainian and carries the whole platform description inline instead of linking to
+  it: architecture diagrams (context, layers, data pipeline, cloud scope), every module and platform package, the schedule of jobs,
+  tenancy and roles, every formula as implemented, a worked example, weak spots, external services (connected and still to connect),
+  the microservice outlook and what is laid down for the future. The section is generated from
+  `docs/architecture/platform-full.uk.md` by `scripts/gen-roadmap.py` (`make roadmap`) with its links rewritten, so there is one source.
+  The English README moved to `README.en.md`; the roadmap blocks of both and of `ROADMAP.md` are localized.
+
 ## [0.1.0-alpha.177] - 2026-10-12
 
 ### Added
