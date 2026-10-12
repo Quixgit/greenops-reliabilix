@@ -12,18 +12,19 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/finops/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/readcache"
 )
 
 type Handlers struct{ Svc application.Service }
 
 func (h Handlers) Routes(r chi.Router) {
-	r.With(auth.Require(auth.PermUsageRead)).Get("/finops/summary", h.summary)
+	r.With(auth.Require(auth.PermUsageRead), readcache.Middleware).Get("/finops/summary", h.summary)
 	r.With(auth.Require(auth.PermBillingRead)).Get("/finops/budgets", h.budgets)
 	r.With(auth.Require(auth.PermBudgetWrite)).Post("/finops/budgets", h.createBudget)
 	r.With(auth.Require(auth.PermBudgetWrite)).Delete("/finops/budgets/{id}", h.deleteBudget)
-	r.With(auth.Require(auth.PermBillingRead)).Get("/finops/anomalies", h.anomalies)
+	r.With(auth.Require(auth.PermBillingRead), readcache.Middleware).Get("/finops/anomalies", h.anomalies)
 	r.With(auth.Require(auth.PermBillingRead)).Get("/finops/commitments", h.commitments)
-	r.With(auth.Require(auth.PermUsageRead)).Get("/finops/forecast", h.forecast)
+	r.With(auth.Require(auth.PermUsageRead), readcache.Middleware).Get("/finops/forecast", h.forecast)
 }
 
 func internal(w http.ResponseWriter, r *http.Request, err error) {

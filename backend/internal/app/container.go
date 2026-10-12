@@ -35,6 +35,7 @@ import (
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/integrations"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/queue"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/readcache"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/settings"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/storage"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/projects"
@@ -77,6 +78,7 @@ func WithProviders(r *clouddomain.Registry) Option { return func(o *options) { o
 
 // Build wires the platform and all domain modules.
 func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpool.Pool, q queue.Enqueuer, opts ...Option) (*Container, error) {
+	readcache.SetDefault(readcache.New(time.Duration(cfg.ReadCacheSeconds) * time.Second)) // ADR-0060
 	var o options
 	for _, f := range opts {
 		f(&o)

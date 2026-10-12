@@ -5,7 +5,7 @@
 //
 // It is a closed-loop test: each client sends the next request when the previous answer arrived, so the numbers are what
 // the service sustains at that concurrency, not what it would do under an open arrival rate. A single endpoint is tried
-// at a time; the last row of each level is a mix of all of them. It only reads.
+// at a time; then a mix of all of them, and with -page the opening of the Overview (its widgets in parallel). It only reads.
 package main
 
 import (
@@ -30,6 +30,7 @@ func main() {
 	concs := flag.String("conc", "1,10,50", "concurrency levels")
 	from := flag.String("from", "2026-07-01", "window start")
 	to := flag.String("to", "2026-09-30", "window end")
+	page := flag.Bool("page", false, "also measure opening the Overview: its widgets asked in parallel, the time is the slowest of them")
 	flag.Parse()
 	if *token == "" {
 		fmt.Fprintln(os.Stderr, "-token is required")
@@ -57,6 +58,11 @@ func main() {
 			row(e.name, n, run(client, *base, *token, n, *dur, func(int) string { return e.path }))
 		}
 		row("mix of all", n, run(client, *base, *token, n, *dur, func(i int) string { return eps[i%len(eps)].path }))
+		if *page {
+			row("Overview page (7 widgets in parallel)", n, runPage(client, *base, *token, n, *dur, []string{
+				"/api/v1/finops/summary" + w, "/api/v1/dashboard/trend" + w, "/api/v1/dashboard/services" + w, "/api/v1/dashboard/regions" + w,
+				"/api/v1/carbon/summary" + w, "/api/v1/finops/forecast", "/api/v1/recommendations"}))
+		}
 	}
 }
 
@@ -112,4 +118,60 @@ func row(name string, n int, r result) {
 	sort.Slice(r.lat, func(i, j int) bool { return r.lat[i] < r.lat[j] })
 	q := func(p float64) float64 { return float64(r.lat[int(float64(len(r.lat)-1)*p)].Microseconds()) / 1000 }
 	fmt.Printf("| %s | %d | %.0f | %.1f | %.1f | %.1f | %.1f | %d |\n", name, n, float64(len(r.lat))/r.took.Seconds(), q(.5), q(.95), q(.99), q(1), r.bad)
+}
+
+// runPage is a person opening a page: every widget is asked at once and the page is ready when the slowest has answered.
+func runPage(c *http.Client, base, token string, n int, dur time.Duration, paths []string) result {
+	var mu sync.Mutex
+	var all []time.Duration
+	bad := 0
+	stop := time.Now().Add(dur)
+	start := time.Now()
+	var wg sync.WaitGroup
+	for g := 0; g < n; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var lat []time.Duration
+			b := 0
+			for time.Now().Before(stop) {
+				t := time.Now()
+				var inner sync.WaitGroup
+				var im sync.Mutex
+				failed := false
+				for _, p := range paths {
+					inner.Add(1)
+					go func(p string) {
+						defer inner.Done()
+						req, _ := http.NewRequest(http.MethodGet, base+p, nil)
+						req.Header.Set("Authorization", "Bearer "+token)
+						res, err := c.Do(req)
+						if err != nil {
+							im.Lock()
+							failed = true
+							im.Unlock()
+							return
+						}
+						_, _ = io.Copy(io.Discard, res.Body)
+						_ = res.Body.Close()
+						if res.StatusCode != http.StatusOK {
+							im.Lock()
+							failed = true
+							im.Unlock()
+						}
+					}(p)
+				}
+				inner.Wait()
+				lat = append(lat, time.Since(t))
+				if failed {
+					b++
+				}
+			}
+			mu.Lock()
+			all, bad = append(all, lat...), bad+b
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	return result{lat: all, bad: bad, took: time.Since(start)}
 }

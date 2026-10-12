@@ -15,6 +15,7 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/methodology"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/readcache"
 )
 
 type Handlers struct{ Svc *application.Service }
@@ -22,8 +23,8 @@ type Handlers struct{ Svc *application.Service }
 var regionID = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,38}$`)
 
 func (h Handlers) Routes(r chi.Router) {
-	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/summary", h.summary)
-	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/trend", h.trend)
+	r.With(auth.Require(auth.PermCarbonRead), readcache.Middleware).Get("/carbon/summary", h.summary)
+	r.With(auth.Require(auth.PermCarbonRead), readcache.Middleware).Get("/carbon/trend", h.trend)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/intensity", h.intensity)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/schedule", h.schedule)
 	r.With(auth.Require(auth.PermCarbonRead)).Get("/carbon/methodology", h.methodology)

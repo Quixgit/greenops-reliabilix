@@ -1,7 +1,7 @@
 # Performance: what the API sustains, how it was measured, what was fixed
 
 Figures for the read side of the API (the Overview, the cost and carbon pages) against a realistic volume of data. Measured on 2026-10-12
-with `0.1.0-alpha.165`. They are a baseline to compare against after a change, not a promise to a customer: see "What these numbers are not".
+with `0.1.0-alpha.165` (the cache measurement with `0.1.0-alpha.168`). They are a baseline to compare against after a change, not a promise to a customer: see "What these numbers are not".
 
 ## Method
 
@@ -32,28 +32,46 @@ the conversion function is called only for rows in another currency. Nothing els
 | `GET /finops/anomalies` | 2.0 s | 0.12 s |
 | same, a small organization (100,000 rows a year) | 0.2 to 1.5 s | 0.03 to 0.13 s |
 
-## Results after the change (large organization)
+## Results (large organization)
+
+Two measurements of the same build and data: **without** the answer cache (every request reaches the database) and **with** it (the default, 30 s, ADR-0060).
+"Overview page" is a person opening the Overview: its seven widgets asked at once; the time is the slowest of them.
+
+### Every request reaches the database (cold work)
 
 | Endpoint | 1 client: p50 / p95 | 10 clients: p50 / p95 | 50 clients: p50 / p95 | Best throughput |
 |---|---|---|---|---|
-| `projects`, `recommendations` (small reads) | 1.0 ms / 1.8 ms | 3 ms / 5 ms | 15 ms / 24 ms | about 3,400 req/s |
-| `carbon/trend` | 140 ms / 177 ms | 300 ms / 395 ms | 1.5 s / 2.2 s | 33 req/s |
-| `finops/forecast` | 242 ms / 279 ms | 503 ms / 727 ms | 2.4 s / 2.6 s | 20 req/s |
-| `dashboard/services` | 737 ms / 812 ms | 1.3 s / 1.6 s | 6.7 s / 7.3 s | 8 req/s |
-| `carbon/summary` | 646 ms / 725 ms | 1.4 s / 1.9 s | 6.0 s / 6.3 s | 8 req/s |
-| `finops/summary` | 1.05 s / 1.2 s | 2.2 s / 2.5 s | 9.6 s / 11.2 s | 5 req/s |
-| mix of all | 225 ms / 1.1 s | 532 ms / 1.7 s | 3.7 s / 9.0 s | 12 req/s |
+| `projects`, `recommendations` (small reads) | 1.1 ms / 2.4 ms | 3 ms / 5 ms | 15 ms / 20 ms | about 3,000 req/s |
+| `carbon/trend` | 142 ms / 167 ms | 273 ms / 364 ms | 1.5 s / 2.3 s | 36 req/s |
+| `finops/forecast` | 233 ms / 256 ms | 453 ms / 547 ms | 2.3 s / 2.5 s | 22 req/s |
+| `dashboard/services` | 655 ms / 826 ms | 1.4 s / 2.0 s | 6.3 s / 6.9 s | 7 req/s |
+| `carbon/summary` | 656 ms / 703 ms | 1.2 s / 1.8 s | 6.0 s / 6.5 s | 8 req/s |
+| `finops/summary` | 960 ms / 1.1 s | 2.0 s / 2.3 s | 9.4 s / 10.6 s | 5 req/s |
+| **Overview page** | **1.0 s** / 1.2 s | **6.2 s** / 7.6 s | **30 s timeout, all 50 failed** | 2 pages/s |
 
-No request failed at any level. Small reads are limited by the machine and keep their latency; the analytical endpoints are limited by the database and do not scale
-past a few requests a second on this host: more clients only queue.
+(Single requests made by hand on a quiet machine gave 0.27 s for `carbon/summary`; the table shows what the test measured.)
+
+### With the answer cache (the default)
+
+| Endpoint | 1 client: p50 / p95 | 10 clients: p50 / p95 | 50 clients: p50 / p95 | Best throughput |
+|---|---|---|---|---|
+| the cached analytic endpoints | 0.2 ms / 0.4 ms | 0.4 ms / 1.4 ms | 1.6 to 3.1 ms / 6 to 11 ms | 12,000 to 20,000 req/s |
+| mix of all | 0.3 ms / 1.6 ms | 0.7 ms / 4.2 ms | 0.9 ms / 24 ms | 6,700 req/s |
+| **Overview page** | **1.5 ms** / 2.9 ms | **5.6 ms** / 9.8 ms | **29 ms** / 42 ms, none failed | 1,500 pages/s |
+
+The cold work did not get cheaper: the slowest single request of each cached run (0.4 to 0.9 s) is the first one after the 30 seconds, and it is the same database work as in the first table.
+What changed is that the work is done once per organization and query instead of once per person. No request failed in either measurement except the 50-person page load without the cache.
+No request is answered with another organization's data: the key includes the organization of the verified identity (a unit test and a check on the stand).
 
 ## What this means
 
-- One large organization (a million line items a year) opening the Overview needs about a second of database time per widget. Ten such people at once are served in 2 to 3 seconds
-  each. This is fine for the product's usage (a few people looking at a page now and then); it is not fine for an integration that polls the Overview every second.
-- The limit is the database CPU reading and summing rows. The next steps, in order of effect: a daily roll-up table kept by the ingestion (a read of hundreds of rows instead of
-  hundreds of thousands), then a read replica for the dashboards. Neither is built. `carbon/summary` (0.65 s) and `carbon/trend` were not optimized in this round.
-- A dashboard's several widgets run as separate requests, so a page costs the sum of them in database time.
+- The first time an organization of this size opens the Overview, it needs about a second of database time per widget; with the cache, everyone else who asks the same within 30 seconds, and every
+  refresh, costs a millisecond. Many people looking at one organization is no longer a problem; **many different organizations each opening a large dashboard at the same moment is**: each one
+  pays the cold cost once. That is the case the cache does not help, and the first table is what to plan for.
+- The limit of the cold work is the database CPU reading and summing rows. The next steps, in order of effect: a daily roll-up table kept by the ingestion (a read of hundreds of rows instead of
+  hundreds of thousands), then a read replica for the dashboards. Neither is built.
+- The cache keeps an answer for up to 30 seconds, so a number on a dashboard can lag a sync by that long. What a person changes and then looks at (connections, recommendations, functional units,
+  budgets, commitments) is not cached.
 
 ## What these numbers are not
 
@@ -70,5 +88,5 @@ docker run -d --name rlx-load-pg -e POSTGRES_PASSWORD=load -p 127.0.0.1:55433:54
 psql ... -d greenops_load -f scripts/loadtest/seed.sql                  # about 10 minutes
 ENV=dev HTTP_ADDR=127.0.0.1:38460 DATABASE_URL=postgres://greenops_api:...@127.0.0.1:55433/greenops_load?sslmode=disable \
   RATE_PER_SEC=1000000 RATE_BURST=1000000 ... backend/bin/api
-go run scripts/loadtest/main.go -base http://127.0.0.1:38460 -token dev:load:00000000-0000-4000-8000-000000000001:owner -duration 8s -conc 1,10,50
+go run scripts/loadtest/main.go -base http://127.0.0.1:38460 -token dev:load:00000000-0000-4000-8000-000000000001:owner -duration 8s -conc 1,10,50 -page   # READ_CACHE_SECONDS=0 for the cold table
 ```

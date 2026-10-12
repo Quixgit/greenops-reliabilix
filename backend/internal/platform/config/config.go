@@ -49,7 +49,9 @@ type Config struct {
 
 	CORSOrigins []string
 	RatePerSec  float64
-	RateBurst   int
+	// ReadCacheSeconds is how long the heavy dashboard answers are kept (0 turns the cache off).
+	ReadCacheSeconds int
+	RateBurst        int
 
 	ElectricityMapsKey           string
 	EmberKey                     string
@@ -102,6 +104,7 @@ func Load() (Config, error) {
 		Auth0Audience:             String("AUTH0_AUDIENCE", ""),
 		ClaimNS:                   String("AUTH_CLAIM_NS", "https://reliabilix.com/"),
 		RatePerSec:                float64(Int("RATE_PER_SEC", 20)),
+		ReadCacheSeconds:          Int("READ_CACHE_SECONDS", 30),
 		RateBurst:                 Int("RATE_BURST", 40),
 
 		ElectricityMapsKey:           String("ELECTRICITYMAPS_API_KEY", ""),

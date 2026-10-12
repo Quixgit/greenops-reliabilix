@@ -5,6 +5,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.168] - 2026-10-12
+
+### Added
+- **A short answer cache for the heavy dashboard reads** (ADR-0060, `platform/readcache`, `READ_CACHE_SECONDS`, default 30): identical concurrent requests share one database run and an answer is kept for up to 30 seconds, per organization. Opening the Overview of a large organization with 50 people at once went from "timed out, all failed" to 29 ms; with 10 people from 6.2 s to 5.6 ms. The first request still costs what it did (about a second per widget for a million line items a year). Connections, recommendations, functional units, budgets and commitments are not cached. Response header `X-Cache`.
+- The load test gained a scenario for opening the Overview (its widgets in parallel); `docs/operations/performance.md` has both measurements.
+
 ## [0.1.0-alpha.167] - 2026-10-12
 
 ### Added

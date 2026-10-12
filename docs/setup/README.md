@@ -290,6 +290,7 @@ secret, then call the gate endpoint (see `docs/api/README.md`).
 | `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` | no | error tracking, traces |
 | `CORS_ORIGINS`, `HTTP_ADDR`, `METRICS_ADDR` | no | edge |
 | `SYNC_BACKFILL_DAYS`, `RATE_PER_SEC`, `RATE_BURST` | no | tuning |
+| `READ_CACHE_SECONDS` | no | how long the heavy dashboard answers are kept and shared (default 30, 0 turns it off; ADR-0060) |
 
 ## Final check
 

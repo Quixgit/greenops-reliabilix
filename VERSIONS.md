@@ -5,7 +5,7 @@ The single place that says which version every part of Reliabilix is at. Rules f
 A test (`backend/internal/platform/version`) fails the build when this file, `VERSION`, `frontend/package.json`,
 `backend/api/openapi.yaml` and the migrations disagree, or when a service or module has no row.
 
-**Platform release: `0.1.0-alpha.167`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
+**Platform release: `0.1.0-alpha.168`** · stage **alpha** · shown in the UI as `v0.1.0` + alpha badge.
 
 Row format (the test reads it): `` | `key` | version | ... | ``.
 
@@ -13,7 +13,7 @@ Row format (the test reads it): `` | `key` | version | ... | ``.
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform` | 0.1.0-alpha.167 | Same as the `VERSION` file and `frontend/package.json`. |
+| `platform` | 0.1.0-alpha.168 | Same as the `VERSION` file and `frontend/package.json`. |
 
 ## Services and container images
 
@@ -23,14 +23,14 @@ Image name: `<registry>/reliabilix/<service>:<version>`. Never deploy `latest` (
 
 | Item | Version | Image | Built from |
 |---|---|---|---|
-| `service/api` | 0.1.0-alpha.167 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
-| `service/worker` | 0.1.0-alpha.167 | `reliabilix/worker` | `backend/cmd/worker` |
-| `service/scheduler` | 0.1.0-alpha.167 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
-| `service/migrate` | 0.1.0-alpha.167 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
-| `service/web` | 0.1.0-alpha.167 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
-| `service/agent` | 0.1.0-alpha.167 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
-| `tool/terraform-provider` | 0.1.0-alpha.167 | `terraform-provider-reliabilix` | `terraform-provider-reliabilix/` (own Go module; not an image) |
-| `service/admin` | 0.1.0-alpha.167 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
+| `service/api` | 0.1.0-alpha.168 | `reliabilix/api` | `backend/cmd/api`, `deploy/docker/Dockerfile` (CMD=api) |
+| `service/worker` | 0.1.0-alpha.168 | `reliabilix/worker` | `backend/cmd/worker` |
+| `service/scheduler` | 0.1.0-alpha.168 | `reliabilix/scheduler` | `backend/cmd/scheduler` |
+| `service/migrate` | 0.1.0-alpha.168 | `reliabilix/migrate` | `backend/migrations` + goose (target `migrate`) |
+| `service/web` | 0.1.0-alpha.168 | `reliabilix/web` | `frontend/`, `deploy/docker/Dockerfile.web` |
+| `service/agent` | 0.1.0-alpha.168 | `reliabilix/agent` | `scripts/kepler-push.sh`, `deploy/docker/Dockerfile.agent` (runs in the customer's cluster) |
+| `tool/terraform-provider` | 0.1.0-alpha.168 | `terraform-provider-reliabilix` | `terraform-provider-reliabilix/` (own Go module; not an image) |
+| `service/admin` | 0.1.0-alpha.168 | (not an image: run from the api image or `go run`) | `backend/cmd/admin` |
 
 ## Backend domain modules
 
@@ -39,59 +39,60 @@ that module changes in a way listed in the policy.
 
 | Item | Version | Notes |
 |---|---|---|
-| `internal/app` | 0.1.0-alpha.167 | Composition root, router, gates |
-| `internal/alerts` | 0.1.0-alpha.167 | Budget and connection alerts |
-| `internal/automation` | 0.1.0-alpha.167 | Plans only, no executors |
-| `internal/carbon` | 0.1.0-alpha.167 | Engine, SCI, methodology use |
-| `internal/cloudaccounts` | 0.1.0-alpha.167 | Connections, sync, reconciliation |
-| `internal/dashboard` | 0.1.0-alpha.167 | Read models |
-| `internal/finops` | 0.1.0-alpha.167 | Spend, budgets, anomalies |
-| `internal/ingestion` | 0.1.0-alpha.167 | Normalizers to FOCUS |
-| `internal/licensing` | 0.1.0-alpha.167 | Plan view, checkout, payment webhooks, subscription expiry |
-| `internal/lifecycle` | 0.1.0-alpha.167 | Export, scheduled erasure, retention |
-| `internal/kubernetes` | 0.1.0-alpha.167 | Placeholder layers |
-| `internal/notifications` | 0.1.0-alpha.167 | Channels, outbox |
-| `internal/operator` | 0.1.0-alpha.167 | Operator console |
-| `internal/projects` | 0.1.0-alpha.167 | Projects, policies |
-| `internal/recommendations` | 0.1.0-alpha.167 | region_shift, rightsizing |
-| `internal/reports` | 0.1.0-alpha.167 | CSV, JSON, PDF |
-| `internal/settings` | 0.1.0-alpha.167 | Settings engine |
-| `internal/tenants` | 0.1.0-alpha.167 | Organizations, members, keys |
-| `internal/usage` | 0.1.0-alpha.167 | FOCUS records |
-| `internal/users` | 0.1.0-alpha.167 | Identity |
+| `internal/app` | 0.1.0-alpha.168 | Composition root, router, gates |
+| `internal/alerts` | 0.1.0-alpha.168 | Budget and connection alerts |
+| `internal/automation` | 0.1.0-alpha.168 | Plans only, no executors |
+| `internal/carbon` | 0.1.0-alpha.168 | Engine, SCI, methodology use |
+| `internal/cloudaccounts` | 0.1.0-alpha.168 | Connections, sync, reconciliation |
+| `internal/dashboard` | 0.1.0-alpha.168 | Read models |
+| `internal/finops` | 0.1.0-alpha.168 | Spend, budgets, anomalies |
+| `internal/ingestion` | 0.1.0-alpha.168 | Normalizers to FOCUS |
+| `internal/licensing` | 0.1.0-alpha.168 | Plan view, checkout, payment webhooks, subscription expiry |
+| `internal/lifecycle` | 0.1.0-alpha.168 | Export, scheduled erasure, retention |
+| `internal/kubernetes` | 0.1.0-alpha.168 | Placeholder layers |
+| `internal/notifications` | 0.1.0-alpha.168 | Channels, outbox |
+| `internal/operator` | 0.1.0-alpha.168 | Operator console |
+| `internal/projects` | 0.1.0-alpha.168 | Projects, policies |
+| `internal/recommendations` | 0.1.0-alpha.168 | region_shift, rightsizing |
+| `internal/reports` | 0.1.0-alpha.168 | CSV, JSON, PDF |
+| `internal/settings` | 0.1.0-alpha.168 | Settings engine |
+| `internal/tenants` | 0.1.0-alpha.168 | Organizations, members, keys |
+| `internal/usage` | 0.1.0-alpha.168 | FOCUS records |
+| `internal/users` | 0.1.0-alpha.168 | Identity |
 
 ## Platform packages
 
 | Item | Version | Notes |
 |---|---|---|
-| `platform/audit` | 0.1.0-alpha.167 | |
-| `platform/apiusage` | 0.1.0-alpha.167 | Request metering and daily cap for paid APIs |
-| `platform/auth` | 0.1.0-alpha.167 | OIDC, API keys, RBAC |
-| `platform/config` | 0.1.0-alpha.167 | |
-| `platform/database` | 0.1.0-alpha.167 | |
-| `platform/ec2spec` | 0.1.0-alpha.167 | |
-| `platform/awsprice` | 0.1.0-alpha.167 | Relative price indexes per region: EC2 (pricing pages), RDS and ElastiCache (bulk price list) |
-| `platform/azureprice` | 0.1.0-alpha.167 | Azure Retail Prices: relative price index per region for VMs, managed PostgreSQL and Redis |
-| `platform/gcpprice` | 0.1.0-alpha.167 | Cloud Billing Catalog: relative Compute Engine, Cloud SQL and Memorystore price indexes per region (needs a key) |
-| `platform/pricing` | 0.1.0-alpha.167 | What the price-index clients share: the "not offered in this region" answer |
-| `platform/fxrates` | 0.1.0-alpha.167 | ECB euro reference rates for currency conversion |
-| `platform/entitlements` | 0.1.0-alpha.167 | Limits port |
-| `platform/errlog` | 0.1.0-alpha.167 | Error log |
-| `platform/geo` | 0.1.0-alpha.167 | Where cloud regions are; measured (Microsoft, CloudPing) or distance-estimated round-trip time between them, with its basis |
-| `platform/focus` | 0.1.0-alpha.167 | FOCUS record contract |
-| `platform/integrations` | 0.1.0-alpha.167 | External-service credentials |
-| `platform/billing` | 0.1.0-alpha.167 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
-| `platform/http` | 0.1.0-alpha.167 | |
-| `platform/i18n` | 0.1.0-alpha.167 | Server-side language catalogs and negotiation (ADR-0036) |
-| `platform/methodology` | 0.1.0-alpha.167 | |
-| `platform/notify` | 0.1.0-alpha.167 | Producer port, event catalog |
-| `platform/observability` | 0.1.0-alpha.167 | |
-| `platform/plans` | 0.1.0-alpha.167 | Plan catalog: presets of limits and modules (ADR-0033) |
-| `platform/queue` | 0.1.0-alpha.167 | |
-| `platform/secretbox` | 0.1.0-alpha.167 | |
-| `platform/settings` | 0.1.0-alpha.167 | Settings catalog |
-| `platform/storage` | 0.1.0-alpha.167 | |
-| `platform/version` | 0.1.0-alpha.167 | |
+| `platform/audit` | 0.1.0-alpha.168 | |
+| `platform/apiusage` | 0.1.0-alpha.168 | Request metering and daily cap for paid APIs |
+| `platform/auth` | 0.1.0-alpha.168 | OIDC, API keys, RBAC |
+| `platform/config` | 0.1.0-alpha.168 | |
+| `platform/database` | 0.1.0-alpha.168 | |
+| `platform/ec2spec` | 0.1.0-alpha.168 | |
+| `platform/awsprice` | 0.1.0-alpha.168 | Relative price indexes per region: EC2 (pricing pages), RDS and ElastiCache (bulk price list) |
+| `platform/azureprice` | 0.1.0-alpha.168 | Azure Retail Prices: relative price index per region for VMs, managed PostgreSQL and Redis |
+| `platform/gcpprice` | 0.1.0-alpha.168 | Cloud Billing Catalog: relative Compute Engine, Cloud SQL and Memorystore price indexes per region (needs a key) |
+| `platform/readcache` | 0.1.0-alpha.168 | A few seconds of memory and one shared run for the heavy dashboard answers (per organization) |
+| `platform/pricing` | 0.1.0-alpha.168 | What the price-index clients share: the "not offered in this region" answer |
+| `platform/fxrates` | 0.1.0-alpha.168 | ECB euro reference rates for currency conversion |
+| `platform/entitlements` | 0.1.0-alpha.168 | Limits port |
+| `platform/errlog` | 0.1.0-alpha.168 | Error log |
+| `platform/geo` | 0.1.0-alpha.168 | Where cloud regions are; measured (Microsoft, CloudPing) or distance-estimated round-trip time between them, with its basis |
+| `platform/focus` | 0.1.0-alpha.168 | FOCUS record contract |
+| `platform/integrations` | 0.1.0-alpha.168 | External-service credentials |
+| `platform/billing` | 0.1.0-alpha.168 | Payment provider port: Stripe, Paddle, LiqPay, WayForPay, invoice (ADR-0038) |
+| `platform/http` | 0.1.0-alpha.168 | |
+| `platform/i18n` | 0.1.0-alpha.168 | Server-side language catalogs and negotiation (ADR-0036) |
+| `platform/methodology` | 0.1.0-alpha.168 | |
+| `platform/notify` | 0.1.0-alpha.168 | Producer port, event catalog |
+| `platform/observability` | 0.1.0-alpha.168 | |
+| `platform/plans` | 0.1.0-alpha.168 | Plan catalog: presets of limits and modules (ADR-0033) |
+| `platform/queue` | 0.1.0-alpha.168 | |
+| `platform/secretbox` | 0.1.0-alpha.168 | |
+| `platform/settings` | 0.1.0-alpha.168 | Settings catalog |
+| `platform/storage` | 0.1.0-alpha.168 | |
+| `platform/version` | 0.1.0-alpha.168 | |
 
 ## Connectors and plugins
 
@@ -100,14 +101,14 @@ that third party changes.
 
 | Item | Version | Notes |
 |---|---|---|
-| `connector/aws` | 0.1.0-alpha.167 | Cost Explorer, FOCUS export, rightsizing |
-| `connector/gcp` | 0.1.0-alpha.167 | Billing export in BigQuery |
-| `connector/azure` | 0.1.0-alpha.167 | Cost Management export in Blob Storage (FOCUS) |
-| `connector/electricitymaps` | 0.1.0-alpha.167 | Grid carbon intensity |
-| `connector/watttime` | 0.1.0-alpha.167 | Marginal intensity client (ADR-0049); written, not connected to ingestion |
-| `channel/email` | 0.1.0-alpha.167 | SMTP |
-| `channel/webhook` | 0.1.0-alpha.167 | Signed JSON |
-| `channel/slack` | 0.1.0-alpha.167 | Incoming webhook |
+| `connector/aws` | 0.1.0-alpha.168 | Cost Explorer, FOCUS export, rightsizing |
+| `connector/gcp` | 0.1.0-alpha.168 | Billing export in BigQuery |
+| `connector/azure` | 0.1.0-alpha.168 | Cost Management export in Blob Storage (FOCUS) |
+| `connector/electricitymaps` | 0.1.0-alpha.168 | Grid carbon intensity |
+| `connector/watttime` | 0.1.0-alpha.168 | Marginal intensity client (ADR-0049); written, not connected to ingestion |
+| `channel/email` | 0.1.0-alpha.168 | SMTP |
+| `channel/webhook` | 0.1.0-alpha.168 | Signed JSON |
+| `channel/slack` | 0.1.0-alpha.168 | Incoming webhook |
 
 ## Contracts and data
 

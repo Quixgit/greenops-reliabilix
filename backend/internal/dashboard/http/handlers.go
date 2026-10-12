@@ -10,20 +10,24 @@ import (
 	"github.com/quixgit/greenops-reliabilix/backend/internal/dashboard/domain"
 	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/auth"
 	httpx "github.com/quixgit/greenops-reliabilix/backend/internal/platform/http"
+	"github.com/quixgit/greenops-reliabilix/backend/internal/platform/readcache"
 )
 
 type Handlers struct{ Repo domain.Repository }
 
 func (h Handlers) Routes(r chi.Router) {
 	read := r.With(auth.Require(auth.PermUsageRead))
-	read.Get("/dashboard/trend", h.trend)
-	read.Get("/dashboard/providers", h.providers)
-	read.Get("/dashboard/services", h.services)
+	// The heavy questions that depend only on ingested data are answered from memory for a few seconds and shared between concurrent askers (ADR-0060).
+	// What a person changes and then looks at (connections, recommendations, functional units) is not kept.
+	heavy := r.With(auth.Require(auth.PermUsageRead), readcache.Middleware)
+	heavy.Get("/dashboard/trend", h.trend)
+	heavy.Get("/dashboard/providers", h.providers)
+	heavy.Get("/dashboard/services", h.services)
 	read.Get("/dashboard/connections", h.connections)
 	read.Get("/dashboard/grid-sources", h.gridSources)
-	read.Get("/dashboard/regions", h.regions)
-	read.Get("/dashboard/countries", h.countries)
-	read.Get("/dashboard/regions/footprint", h.footprint)
+	heavy.Get("/dashboard/regions", h.regions)
+	heavy.Get("/dashboard/countries", h.countries)
+	heavy.Get("/dashboard/regions/footprint", h.footprint)
 	read.Get("/dashboard/optimization", h.optimization)
 	read.Get("/dashboard/efficiency", h.efficiency)
 	read.Get("/dashboard/unit-economics", h.unitEconomics)
