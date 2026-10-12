@@ -5,6 +5,11 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 
 ## [Unreleased]
 
+## [0.1.0-alpha.171] - 2026-10-12
+
+### Added
+- **Kubernetes cost allocation** (ADR-0063, migration 0077): the Kubernetes page now says what each cluster costs and who uses it: the nodes' cost from your cloud bill (the services you choose for the cluster; until then every compute cost of the project, said plainly) split over namespaces and workloads by what they hold (the larger of request and use), with idle cost where the agent reports the nodes' capacity (unknown, not zero, where it does not), the cost of unused requests per workload, and CPU and memory use. `GET /kubernetes/cost`, `GET/PUT /kubernetes/clusters/pool`; the reference agent now also sends the nodes' capacity. `contract/api` 0.48.0.
+
 ## [0.1.0-alpha.170] - 2026-10-12
 
 ### Added

@@ -31,6 +31,14 @@ mem_use="$(prom 'sum by (namespace, pod) (avg_over_time(container_memory_working
 cpu_req="$(prom 'sum by (namespace, pod) (avg_over_time(kube_pod_container_resource_requests{resource="cpu"}[1h]))')"
 mem_req="$(prom 'sum by (namespace, pod) (avg_over_time(kube_pod_container_resource_requests{resource="memory"}[1h]))')"
 
+# Optional: the nodes' allocatable CPU and memory (kube-state-metrics), so that Reliabilix can tell what no workload holds as idle cost. A query that fails or is
+# empty only means the push carries no capacity (the cost report then says idle is unknown); it never stops the push.
+cap_cpu="$(prom 'sum(kube_node_status_allocatable{resource="cpu"})')"
+cap_mem="$(prom 'sum(kube_node_status_allocatable{resource="memory"})')"
+capacity="$(jq -c --arg cluster "$CLUSTER" --arg start "$period_start" --argjson c "$cap_cpu" --argjson m "$cap_mem" -n '
+  ($c.data.result[0].value[1] // null) as $cpu | ($m.data.result[0].value[1] // null) as $mem
+  | if $cpu != null and $mem != null then [{cluster: $cluster, period_start: $start, cpu_cores: ($cpu | tonumber), memory_bytes: ($mem | tonumber)}] else [] end')"
+
 # pod -> workload: strip the ReplicaSet hash and the pod suffix (a real hash contains a digit). The name is a heuristic;
 # anything it does not recognise is reported as the pod itself.
 payload="$(jq -c --argjson cpu_use "$cpu_use" --argjson mem_use "$mem_use" --argjson cpu_req "$cpu_req" --argjson mem_req "$mem_req" \
@@ -58,13 +66,14 @@ payload="$(jq -c --argjson cpu_use "$cpu_use" --argjson mem_use "$mem_use" --arg
       + (if $cr[$k] != null then {cpu_request_cores: $cr[$k]} else {} end)
       + (if $mr[$k] != null then {memory_request_bytes: $mr[$k]} else {} end))
   | {project_id: $project, samples: .}' <<<"$resp")"
+payload="$(jq -c --argjson capacity "$capacity" '. + (if ($capacity | length) > 0 then {capacity: $capacity} else {} end)' <<<"$payload")"
 
 n="$(jq '.samples | length' <<<"$payload")"
 if [ "$n" -eq 0 ]; then echo "no Kepler samples for ${period_start}"; exit 0; fi
 if [ "${DRY_RUN:-0}" = "1" ]; then echo "$payload"; exit 0; fi
 
 # at most 500 samples per request
-jq -c --argjson size 500 '. as $p | [range(0; ($p.samples | length); $size)] | map({project_id: $p.project_id, samples: $p.samples[.:(. + $size)]}) | .[]' <<<"$payload" |
+jq -c --argjson size 500 '. as $p | [range(0; ($p.samples | length); $size)] | map({project_id: $p.project_id, samples: $p.samples[.:(. + $size)]} + (if . == 0 and ($p.capacity != null) then {capacity: $p.capacity} else {} end)) | .[]' <<<"$payload" |
 while read -r chunk; do
   curl -fsS --max-time 60 -X POST "${API_URL%/}/api/v1/kubernetes/energy" \
     -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" --data "$chunk"

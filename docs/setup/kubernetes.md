@@ -43,6 +43,12 @@ spec:
 
 To back-fill a past hour: `HOUR=2026-10-10T09:00:00Z bash kepler-push.sh`. `DRY_RUN=1` prints what would be sent.
 
+## Cost
+
+The Kubernetes page also shows what the cluster costs and who uses it (ADR-0063). The cost of the nodes is read from your cloud bill: on the page, choose **which billed services pay for the cluster** (for example Virtual Machines);
+until you do, every compute cost of the project is assumed to be the cluster. The agent also sends the nodes' allocatable CPU and memory (`kube_node_status_allocatable`, from kube-state-metrics) so that what no workload holds
+is shown as idle; without it idle is "unknown". Requests and use (cAdvisor and kube-state-metrics) are what cost is shared by.
+
 ## What you see
 
 Kubernetes page: clusters and the workloads that use the most energy, with CO₂e where a grid reading exists for that

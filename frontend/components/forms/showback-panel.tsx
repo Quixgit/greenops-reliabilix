@@ -8,7 +8,7 @@ import { IconWallet } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useShowback, useTagKeys } from "@/hooks/use-showback";
 import { useT } from "@/i18n/provider";
-import { formatCost, nf } from "@/lib/formatters";
+import { formatCostFine as formatCost, nf } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 /** Who spends what: the bill split by the values of a cloud tag (team, environment ...), with how much of the bill the tag explains. */

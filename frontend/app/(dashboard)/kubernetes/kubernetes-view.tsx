@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ConnectCluster } from "@/components/kubernetes/connect-cluster";
 import { IconPlus } from "@/components/ui/icons";
 import { ClusterCards, EnergySplit, K8sSetup, K8sStats, RightSizing, WorkloadTable } from "@/components/kubernetes/k8s-board";
+import { K8sCost } from "@/components/kubernetes/k8s-cost";
 import { useK8sClusters } from "@/hooks/use-overview";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ export function KubernetesView({ canConnect = false }: { canConnect?: boolean })
         <>
           <K8sStats />
           <ClusterCards cluster={cluster} onPick={setCluster} />
+          <K8sCost cluster={cluster} canEdit={canConnect} />
           <EnergySplit cluster={cluster} />
           <RightSizing />
           <WorkloadTable cluster={cluster} onClear={() => setCluster("")} />

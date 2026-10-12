@@ -3676,6 +3676,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/kubernetes/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What each cluster costs and who in it uses that cost (namespaces and workloads)
+         * @description Requires permission `usage:read`. The cost of a cluster's nodes (from the cloud bill: the services chosen for the cluster, else every compute cost of the project) is split between CPU and memory
+         *     (65% / 35%) and each part among the workloads in proportion to what they hold of it: the larger of what they request and use. Where the agent reports the nodes' capacity, what nobody holds is `idle_cost`;
+         *     without it `idle_cost` is null (unknown, not zero) and the whole cost is shared out. `waste_cost` is the part that pays for requests a workload did not use. Only the hours the agent reported are costed.
+         *     Answers may be up to 30 seconds old.
+         */
+        get: operations["getKubernetesCost"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/kubernetes/clusters/pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The billed services that pay for a cluster, and the ones that could
+         * @description Requires permission `usage:read`. `services` empty means every compute cost of the project is assumed to be the cluster.
+         */
+        get: operations["getClusterPool"];
+        /**
+         * Choose the billed services that pay for a cluster
+         * @description Requires permission `cloud:write`. An empty list goes back to "every compute cost of the project".
+         */
+        put: operations["setClusterPool"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3852,6 +3899,42 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             finished_at?: string | null;
+        };
+        KubernetesCost: {
+            currency: string;
+            cpu_share: number;
+            clusters: {
+                project_id: string;
+                cluster: string;
+                pool_services: string[];
+                pool_assumed: boolean;
+                pool_cost: number;
+                allocated_cost: number;
+                idle_cost: number | null;
+                idle_days?: number;
+                days: number;
+                unallocated_cost?: number;
+                workloads_without_usage?: number;
+                waste_cost?: number;
+                namespaces: {
+                    namespace?: string;
+                    cost?: number;
+                    share_pct?: number;
+                    waste_cost?: number;
+                    workloads?: number;
+                }[];
+                workloads: {
+                    namespace?: string;
+                    workload?: string;
+                    cost?: number;
+                    cpu_cost?: number;
+                    memory_cost?: number;
+                    waste_cost?: number;
+                    cpu_utilization_pct?: number | null;
+                    memory_utilization_pct?: number | null;
+                    hours?: number;
+                }[];
+            }[];
         };
         ApiKey: {
             /** Format: uuid */
@@ -4447,6 +4530,14 @@ export interface components {
         KubernetesEnergyInput: {
             /** Format: uuid */
             project_id: string;
+            /** @description Optional. The nodes' allocatable CPU and memory of a cluster per UTC hour (summed over the nodes), so that what no workload holds can be told as idle cost. May be sent without samples. */
+            capacity?: {
+                cluster: string;
+                /** Format: date-time */
+                period_start: string;
+                cpu_cores: number;
+                memory_bytes: number;
+            }[];
             samples: {
                 cluster: string;
                 namespace: string;
@@ -11439,6 +11530,106 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+        };
+    };
+    getKubernetesCost: {
+        parameters: {
+            query?: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id?: components["parameters"]["project_id"];
+                cluster?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KubernetesCost"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            501: components["responses"]["Problem"];
+        };
+    };
+    getClusterPool: {
+        parameters: {
+            query: {
+                /** @description Inclusive start (default: 30 days ago) */
+                from?: components["parameters"]["from"];
+                /** @description Inclusive end (default: today) */
+                to?: components["parameters"]["to"];
+                project_id: string;
+                cluster: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        services: string[];
+                        currency: string;
+                        candidates: {
+                            name: string;
+                            cost: number;
+                        }[];
+                    };
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    setClusterPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    project_id: string;
+                    cluster: string;
+                    services: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
         };
     };
 }

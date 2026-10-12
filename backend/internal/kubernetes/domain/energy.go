@@ -115,6 +115,32 @@ type ClusterRow struct {
 	LastHour   string   `json:"last_hour"`
 }
 
+// Capacity is what a cluster's nodes could hold in one UTC hour (allocatable CPU and memory, summed over the nodes): the agent sends it so that what
+// no workload holds can be told as idle (ADR-0063).
+type Capacity struct {
+	Cluster     string    `json:"cluster"`
+	PeriodStart time.Time `json:"period_start"`
+	CPUCores    float64   `json:"cpu_cores"`
+	MemoryBytes float64   `json:"memory_bytes"`
+}
+
+// Validate refuses what cannot be real: the same rules of name and hour as a sample, and sane bounds.
+func (c Capacity) Validate(now time.Time) error {
+	switch {
+	case !namePattern.MatchString(c.Cluster):
+		return fmt.Errorf("%w: capacity cluster must be 1-127 characters of letters, digits and . _ : / -", ErrInvalidSample)
+	case !c.PeriodStart.Equal(c.PeriodStart.UTC().Truncate(time.Hour)):
+		return fmt.Errorf("%w: capacity period_start must be the start of a UTC hour", ErrInvalidSample)
+	case c.PeriodStart.Add(time.Hour).After(now.UTC()) || c.PeriodStart.Before(now.Add(-maxAge)):
+		return fmt.Errorf("%w: capacity period_start is in the future or older than 400 days", ErrInvalidSample)
+	case math.IsNaN(c.CPUCores) || math.IsInf(c.CPUCores, 0) || c.CPUCores < 0 || c.CPUCores > 1e6:
+		return fmt.Errorf("%w: cpu_cores is out of range", ErrInvalidSample)
+	case math.IsNaN(c.MemoryBytes) || math.IsInf(c.MemoryBytes, 0) || c.MemoryBytes < 0 || c.MemoryBytes > 1024*maxBytes:
+		return fmt.Errorf("%w: memory_bytes is out of range", ErrInvalidSample)
+	}
+	return nil
+}
+
 // IntensitySource is implemented in the composition root from the carbon module.
 type IntensitySource interface {
 	IntensityAt(ctx context.Context, region string, at time.Time) (g float64, ok bool, err error)
@@ -126,6 +152,32 @@ type Repository interface {
 	Upsert(ctx context.Context, tenantID, projectID string, rows []Stored) error
 	Workloads(ctx context.Context, tenantID string, project *string, cluster string, from, to time.Time, limit int) ([]WorkloadRow, error)
 	Clusters(ctx context.Context, tenantID string, project *string, from, to time.Time) ([]ClusterRow, error)
+	// UpsertCapacity stores the nodes' capacity per hour (the same hour sent again replaces it).
+	UpsertCapacity(ctx context.Context, tenantID, projectID string, rows []Capacity) error
+	// CostClusters lists the (project, cluster) pairs that have samples in the window.
+	CostClusters(ctx context.Context, tenantID string, project *string, cluster string, from, to time.Time) ([]ClusterRef, error)
+	// CostInputs gives the day-level sums the allocation works on; Unmeasured counts workloads that held nothing (no request and no use reported).
+	CostInputs(ctx context.Context, tenantID, projectID, cluster string, from, to time.Time) (CostInputs, error)
+	GetPool(ctx context.Context, tenantID, projectID, cluster string) ([]string, error)
+	SetPool(ctx context.Context, tenantID, projectID, cluster string, services []string) error
+}
+
+// ClusterRef names a cluster of a project.
+type ClusterRef struct{ ProjectID, Cluster string }
+
+// CostInputs are what the allocation reads for one cluster and window.
+type CostInputs struct {
+	Workloads  []DayWorkload
+	Days       []DayHours
+	Unmeasured int
+}
+
+// DayHours is what the samples say about one day of a cluster: how many hours were reported and the nodes' capacity over them.
+type DayHours struct {
+	Day            time.Time
+	HoursSeen      int
+	CapCPU, CapMem float64 // core-hours and GiB-hours over the hours with a capacity figure
+	CapHours       int
 }
 
 // Utilization is usage / request in percent; ok is false when there is no request to compare with.

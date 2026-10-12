@@ -31,6 +31,12 @@ export function formatCost(v: number, currency = defaultCurrency): string {
   return new Intl.NumberFormat(formatLocale, { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
 }
 
+/** Cost with cents below 100 (a namespace that costs 0.94 must not read as 0), whole units above. */
+export function formatCostFine(v: number, currency = defaultCurrency): string {
+  const d = Math.abs(v) < 100 ? 2 : 0;
+  return new Intl.NumberFormat(formatLocale, { style: "currency", currency, minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+}
+
 /** Percent change from previous to current; null when it cannot be computed honestly. */
 export function pctChange(current: number, previous: number): number | null {
   if (!isFinite(current) || !isFinite(previous) || previous === 0) return null;

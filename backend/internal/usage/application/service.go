@@ -47,3 +47,11 @@ func (s Service) MarkImportDeleting(ctx context.Context, tenantID, id string) er
 func (s Service) DeleteImport(ctx context.Context, tenantID, id string) error {
 	return s.Repo.DeleteImport(ctx, tenantID, id)
 }
+
+// DailyPool and PoolServices let the Kubernetes module read what its clusters cost (through its own port, wired in the composition root).
+func (s Service) DailyPool(ctx context.Context, tenantID, projectID string, services []string, from, to time.Time) ([]domain.PoolDay, string, error) {
+	return s.Repo.DailyPool(ctx, tenantID, projectID, services, from, to)
+}
+func (s Service) PoolServices(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]domain.PoolService, string, error) {
+	return s.Repo.PoolServices(ctx, tenantID, projectID, from, to)
+}

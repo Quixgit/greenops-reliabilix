@@ -171,7 +171,7 @@ func Build(ctx context.Context, cfg config.Config, log *slog.Logger, pool *pgxpo
 	c := &Container{}
 	c.modules = []httpx.Module{
 		gatesModule{cfg: cfgr}, settingsM, tenantsM, users.New(), projectsM, cloudM, ingestionM, usageM, carbonM, finopsM,
-		dashboard.New(pool, cfgr), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc, store, func(ctx context.Context, region string, day time.Time) (any, error) {
+		dashboard.New(pool, cfgr), recsM, kubernetes.New(kubernetes.Deps{Pool: pool, Intensity: carbonIntensity{carbon: carbonM.Svc}, Costs: clusterPool{usage: usageM.Svc}}), reportsM, notifyM, buildOperator(cfg, pool, settingsM.Svc, ints, q, notifyM.Svc, store, func(ctx context.Context, region string, day time.Time) (any, error) {
 			return carbonM.Svc.ExplainIntensity(ctx, region, day)
 		}), automation.New(automation.Deps{Pool: pool, Recs: automationRecs{recs: recsM.Svc}, Notify: notifyM.Svc}), lifecycleM, licensingM, alertsM, demoModule{pool: pool, q: q, limits: limits},
 	}

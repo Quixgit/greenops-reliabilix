@@ -17,7 +17,9 @@ var ErrProjectNotFound = errors.New("project not found")
 type Service struct {
 	Repo      domain.Repository
 	Intensity domain.IntensitySource
-	Now       func() time.Time
+	// Pool reads the cluster's cost from the cloud bill (optional: without it the cost report is not offered).
+	Pool PoolSource
+	Now  func() time.Time
 }
 
 func (s Service) now() time.Time {
@@ -37,10 +39,20 @@ type IngestResult struct {
 // Ingest validates a whole batch first (one bad sample refuses it, so an agent never half-delivers), attaches the grid
 // reading of each hour and stores the samples. The same hour sent again replaces the earlier value (idempotent).
 func (s Service) Ingest(ctx context.Context, tenantID, projectID string, samples []domain.Sample) (IngestResult, error) {
-	if len(samples) == 0 || len(samples) > domain.MaxSamplesPerRequest {
-		return IngestResult{}, fmt.Errorf("%w: send 1 to %d samples", domain.ErrInvalidSample, domain.MaxSamplesPerRequest)
+	return s.IngestWithCapacity(ctx, tenantID, projectID, samples, nil)
+}
+
+// IngestWithCapacity is Ingest plus the nodes' capacity of the hours (optional; ADR-0063). A request may carry only capacity.
+func (s Service) IngestWithCapacity(ctx context.Context, tenantID, projectID string, samples []domain.Sample, capacity []domain.Capacity) (IngestResult, error) {
+	if (len(samples) == 0 && len(capacity) == 0) || len(samples) > domain.MaxSamplesPerRequest || len(capacity) > domain.MaxSamplesPerRequest {
+		return IngestResult{}, fmt.Errorf("%w: send 1 to %d samples (and at most as many capacity hours)", domain.ErrInvalidSample, domain.MaxSamplesPerRequest)
 	}
 	now := s.now()
+	for i, c := range capacity {
+		if err := c.Validate(now); err != nil {
+			return IngestResult{}, fmt.Errorf("capacity %d: %w", i, err)
+		}
+	}
 	for i, sm := range samples {
 		if err := sm.Validate(now); err != nil {
 			return IngestResult{}, fmt.Errorf("sample %d: %w", i, err)
@@ -50,6 +62,14 @@ func (s Service) Ingest(ctx context.Context, tenantID, projectID string, samples
 		return IngestResult{}, err
 	} else if !ok {
 		return IngestResult{}, ErrProjectNotFound
+	}
+	if len(capacity) > 0 {
+		if err := s.Repo.UpsertCapacity(ctx, tenantID, projectID, capacity); err != nil {
+			return IngestResult{}, err
+		}
+	}
+	if len(samples) == 0 {
+		return IngestResult{MethodologyID: methodology.Version}, nil
 	}
 	pue := methodology.Current.PUE
 	type key struct {

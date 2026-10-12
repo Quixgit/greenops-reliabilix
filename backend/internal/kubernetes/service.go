@@ -15,12 +15,14 @@ import (
 type Deps struct {
 	Pool      *pgxpool.Pool
 	Intensity domain.IntensitySource
+	// Costs reads a cluster's cost from the cloud bill (optional; without it the cost report is not offered).
+	Costs application.PoolSource
 }
 
 type Module struct{ h khttp.Handlers }
 
 func New(d Deps) *Module {
-	return &Module{h: khttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, Intensity: d.Intensity}}}
+	return &Module{h: khttp.Handlers{Svc: application.Service{Repo: repository.Postgres{Pool: d.Pool}, Intensity: d.Intensity, Pool: d.Costs}}}
 }
 
 func (*Module) Name() string          { return "kubernetes" }

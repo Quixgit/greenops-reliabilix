@@ -46,4 +46,18 @@ type Repository interface {
 	DailyAggregates(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]DailyAggregate, error)
 	// ReplaceTagged rewrites a source's cost by tag for the days [from, to] (ADR-0061).
 	ReplaceTagged(ctx context.Context, tenantID, projectID, sourceKey string, from, to time.Time, rows []focus.TaggedCost) error
+	// DailyPool is the daily cost of the services that pay for a cluster (none given: every compute cost of the project) in the reporting currency.
+	DailyPool(ctx context.Context, tenantID, projectID string, services []string, from, to time.Time) ([]PoolDay, string, error)
+	PoolServices(ctx context.Context, tenantID, projectID string, from, to time.Time) ([]PoolService, string, error)
+}
+
+// PoolDay and PoolService serve the Kubernetes cost allocation (ADR-0063): what the nodes of a cluster cost, read from the bill.
+type PoolDay struct {
+	Day  time.Time
+	Cost float64
+}
+
+type PoolService struct {
+	Name string
+	Cost float64
 }

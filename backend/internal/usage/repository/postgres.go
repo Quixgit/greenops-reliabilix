@@ -136,3 +136,67 @@ func (r Postgres) ReplaceTagged(ctx context.Context, tenantID, projectID, source
 		return nil
 	})
 }
+
+// poolWhere selects the cost that pays for a cluster: the given services, or every compute cost when none are given.
+const poolWhere = `u.tenant_id = $1::uuid AND u.project_id = $2::uuid AND u.recorded_at >= $4 AND u.recorded_at < $5
+	AND ((cardinality($3::text[]) = 0 AND u.service_category = 'compute') OR u.service_name = ANY($3::text[]))`
+
+// DailyPool is the cost per day of the services that pay for a cluster, in the reporting currency of the window (the organization's choice, else the
+// currency most of the project's cost is billed in). A day without cost is absent.
+func (r Postgres) DailyPool(ctx context.Context, tenantID, projectID string, services []string, from, to time.Time) (days []domain.PoolDay, currency string, err error) {
+	if services == nil {
+		services = []string{}
+	}
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `WITH cur AS (SELECT finops.reporting_currency($1::uuid, (SELECT d.currency FROM usage.usage_records d
+			    WHERE d.tenant_id = $1::uuid AND d.project_id = $2::uuid AND d.recorded_at >= $4 AND d.recorded_at < $5
+			    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS c),
+			g AS (SELECT u.recorded_at::date AS day, u.currency::text AS currency, sum(u.billed_cost) AS cost FROM usage.usage_records u WHERE `+poolWhere+` GROUP BY 1, 2)
+			SELECT g.day, COALESCE((SELECT c FROM cur), ''),
+			       COALESCE(sum(CASE WHEN g.currency = (SELECT c FROM cur) THEN g.cost ELSE finops.convert_cost(g.cost, g.currency, (SELECT c FROM cur), g.day) END), 0)::float8
+			FROM g GROUP BY g.day ORDER BY g.day`, tenantID, projectID, services, from, to)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var d domain.PoolDay
+			if err := rows.Scan(&d.Day, &currency, &d.Cost); err != nil {
+				return err
+			}
+			days = append(days, d)
+		}
+		return rows.Err()
+	})
+	return
+}
+
+// PoolServices lists the billed services that could be paying for a cluster: compute services and the container and Kubernetes services of the
+// project, with their cost in the window.
+func (r Postgres) PoolServices(ctx context.Context, tenantID, projectID string, from, to time.Time) (out []domain.PoolService, currency string, err error) {
+	out = []domain.PoolService{}
+	err = database.WithTenantTx(ctx, r.Pool, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `WITH cur AS (SELECT finops.reporting_currency($1::uuid, (SELECT d.currency FROM usage.usage_records d
+			    WHERE d.tenant_id = $1::uuid AND d.project_id = $2::uuid AND d.recorded_at >= $3 AND d.recorded_at < $4
+			    GROUP BY d.currency ORDER BY sum(abs(d.billed_cost)) DESC, d.currency LIMIT 1))::text AS c),
+			g AS (SELECT u.service_name, u.recorded_at::date AS day, u.currency::text AS currency, sum(u.billed_cost) AS cost FROM usage.usage_records u
+			      WHERE u.tenant_id = $1::uuid AND u.project_id = $2::uuid AND u.recorded_at >= $3 AND u.recorded_at < $4
+			        AND (u.service_category = 'compute' OR u.service_name ~* '(kubernetes|container|eks|aks|gke)') GROUP BY 1, 2, 3)
+			SELECT g.service_name, COALESCE((SELECT c FROM cur), ''),
+			       COALESCE(sum(CASE WHEN g.currency = (SELECT c FROM cur) THEN g.cost ELSE finops.convert_cost(g.cost, g.currency, (SELECT c FROM cur), g.day) END), 0)::float8
+			FROM g GROUP BY g.service_name ORDER BY 3 DESC LIMIT 40`, tenantID, projectID, from, to)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var s domain.PoolService
+			if err := rows.Scan(&s.Name, &currency, &s.Cost); err != nil {
+				return err
+			}
+			out = append(out, s)
+		}
+		return rows.Err()
+	})
+	return
+}

@@ -2,7 +2,7 @@
 openapi: 3.0.3
 info:
   title: Reliabilix GreenOps API
-  version: 0.47.0
+  version: 0.48.0
   description: Multi-tenant FinOps + GreenOps API. Tenancy comes from the verified identity (membership in the database) or from an API key, never
     from request input. Every tenant table is protected by Row Level Security.
 servers:
@@ -5933,6 +5933,87 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /api/v1/kubernetes/cost:
+    get:
+      operationId: getKubernetesCost
+      summary: What each cluster costs and who in it uses that cost (namespaces and workloads)
+      tags: [kubernetes]
+      description: |
+        Requires permission `usage:read`. The cost of a cluster's nodes (from the cloud bill: the services chosen for the cluster, else every compute cost of the project) is split between CPU and memory
+        (65% / 35%) and each part among the workloads in proportion to what they hold of it: the larger of what they request and use. Where the agent reports the nodes' capacity, what nobody holds is `idle_cost`;
+        without it `idle_cost` is null (unknown, not zero) and the whole cost is shared out. `waste_cost` is the part that pays for requests a workload did not use. Only the hours the agent reported are costed.
+        Answers may be up to 30 seconds old.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - $ref: '#/components/parameters/project_id'
+      - {name: cluster, in: query, required: false, schema: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/KubernetesCost'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '501': {$ref: '#/components/responses/Problem'}
+  /api/v1/kubernetes/clusters/pool:
+    get:
+      operationId: getClusterPool
+      summary: The billed services that pay for a cluster, and the ones that could
+      tags: [kubernetes]
+      description: Requires permission `usage:read`. `services` empty means every compute cost of the project is assumed to be the cluster.
+      parameters:
+      - $ref: '#/components/parameters/from'
+      - $ref: '#/components/parameters/to'
+      - {name: project_id, in: query, required: true, schema: {type: string, format: uuid}}
+      - {name: cluster, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [services, candidates, currency]
+                properties:
+                  services: {type: array, items: {type: string}}
+                  currency: {type: string}
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, cost]
+                      properties:
+                        name: {type: string}
+                        cost: {type: number}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+    put:
+      operationId: setClusterPool
+      summary: Choose the billed services that pay for a cluster
+      tags: [kubernetes]
+      description: Requires permission `cloud:write`. An empty list goes back to "every compute cost of the project".
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, cluster, services]
+              properties:
+                project_id: {type: string, format: uuid}
+                cluster: {type: string}
+                services: {type: array, items: {type: string}, maxItems: 50}
+      responses:
+        '204': {description: Saved}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
     bearerAuth:
@@ -6223,6 +6304,54 @@ components:
         created_by: {type: string}
         created_at: {type: string, format: date-time}
         finished_at: {type: string, format: date-time, nullable: true}
+    KubernetesCost:
+      type: object
+      required: [currency, cpu_share, clusters]
+      properties:
+        currency: {type: string}
+        cpu_share: {type: number}
+        clusters:
+          type: array
+          items:
+            type: object
+            required: [project_id, cluster, pool_services, pool_assumed, pool_cost, allocated_cost, idle_cost, days, namespaces, workloads]
+            properties:
+              project_id: {type: string}
+              cluster: {type: string}
+              pool_services: {type: array, items: {type: string}}
+              pool_assumed: {type: boolean}
+              pool_cost: {type: number}
+              allocated_cost: {type: number}
+              idle_cost: {type: number, nullable: true}
+              idle_days: {type: integer}
+              days: {type: integer}
+              unallocated_cost: {type: number}
+              workloads_without_usage: {type: integer}
+              waste_cost: {type: number}
+              namespaces:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    namespace: {type: string}
+                    cost: {type: number}
+                    share_pct: {type: number}
+                    waste_cost: {type: number}
+                    workloads: {type: integer}
+              workloads:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    namespace: {type: string}
+                    workload: {type: string}
+                    cost: {type: number}
+                    cpu_cost: {type: number}
+                    memory_cost: {type: number}
+                    waste_cost: {type: number}
+                    cpu_utilization_pct: {type: number, nullable: true}
+                    memory_utilization_pct: {type: number, nullable: true}
+                    hours: {type: integer}
     ApiKey:
       type: object
       properties:
@@ -7187,6 +7316,18 @@ components:
         project_id:
           type: string
           format: uuid
+        capacity:
+          type: array
+          maxItems: 500
+          description: Optional. The nodes' allocatable CPU and memory of a cluster per UTC hour (summed over the nodes), so that what no workload holds can be told as idle cost. May be sent without samples.
+          items:
+            type: object
+            required: [cluster, period_start, cpu_cores, memory_bytes]
+            properties:
+              cluster: {type: string}
+              period_start: {type: string, format: date-time}
+              cpu_cores: {type: number, minimum: 0}
+              memory_bytes: {type: number, minimum: 0}
         samples:
           type: array
           maxItems: 500
