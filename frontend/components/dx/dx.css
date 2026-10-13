@@ -33,6 +33,7 @@
 
   background: var(--dx-canvas);
   color: var(--dx-ink);
+  font-family: var(--font-sans);
   font-size: 13.5px;
   line-height: 1.45;
   min-height: 100vh;
@@ -40,8 +41,19 @@
   -webkit-font-smoothing: antialiased;
 }
 .dx *, .dx *::before, .dx *::after { border-radius: 0 !important; box-sizing: border-box; }
-.dx a { color: inherit; text-decoration: none; }
-.dx button { font: inherit; color: inherit; cursor: pointer; }
+/* surfaces are flat; only what floats above the page (menus, hints, tips, dialogs) is lifted */
+.dx [class*="shadow"], .dx .glass { box-shadow: none !important; }
+.dx [data-radix-popper-content-wrapper] > *, .dx .info-pop, .dx [role="dialog"], .dx [role="menu"], .dx .dx-pop, .dx .dx-tip { box-shadow: 0 10px 28px rgba(27, 39, 66, 0.14) !important; }
+.dx [class*="backdrop-blur"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.dx [class*="bg-gradient"], .dx .brand-gradient, .dx .green-gradient, .dx .grad-tile { background-image: none; }
+.dx h1, .dx h2, .dx h3 { letter-spacing: 0; }
+.dx table { font-variant-numeric: tabular-nums; }
+@layer base { .dx input:not([type="checkbox"]):not([type="radio"]), .dx select, .dx textarea { border-color: var(--dx-line-strong); background: #fff; } }
+.dx input[type="checkbox"], .dx input[type="radio"] { accent-color: var(--dx-navy); }
+@layer base {
+  .dx a { color: inherit; text-decoration: none; }
+  .dx button { font: inherit; color: inherit; cursor: pointer; }
+}
 .dx :focus-visible { outline: 2px solid var(--dx-navy-3); outline-offset: 2px; }
 .dx ::selection { background: var(--dx-sand); }
 
@@ -63,9 +75,30 @@
 .dx-shell.is-slim .dx-link { padding: 0; justify-content: center; }
 .dx-shell.is-slim .dx-link span, .dx-shell.is-slim .dx-brand div, .dx-shell.is-slim .dx-nav-label, .dx-shell.is-slim .dx-plan { display: none; }
 .dx-shell.is-slim .dx-brand { justify-content: center; padding: 0; }
+.dx-shell.is-slim .dx-ver { display: none; }
 .dx-side-foot { border-top: 1px solid #2a3a5a; padding: 12px 16px; }
 .dx-plan { border: 1px solid #34466a; padding: 10px 12px; margin-bottom: 10px; }
 .dx-plan b { display: block; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dx-on-navy-dim); font-weight: 500; }
+.dx-plan { display: block; }
+.dx-plan-mini { display: none; font-style: normal; font-weight: 700; font-size: 12px; color: #fff; text-align: center; }
+.dx-shell.is-slim .dx-side-foot { padding: 12px 8px; }
+.dx-shell.is-slim .dx-plan { display: block; padding: 6px 0; border-color: #34466a; }
+.dx-shell.is-slim .dx-plan b, .dx-shell.is-slim .dx-plan strong { display: none; }
+.dx-shell.is-slim .dx-plan .dx-plan-mini { display: block; }
+.dx-shell.is-slim .dx-plan .dx-meter { margin: 6px 8px 0; }
+.dx-ver { height: 28px; display: flex; align-items: center; padding: 0 4px; font-size: 11.5px; color: var(--dx-on-navy-dim); white-space: nowrap; }
+/* the fold button sits at the top, under the brand; no fill on hover, the arrows just brighten and lean */
+.dx-fb { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 20px; border: 0; border-bottom: 1px solid #2a3a5a; background: transparent; color: var(--dx-on-navy-dim); font-size: 12px; cursor: pointer; transition: color 0.14s; }
+.dx-fb:hover { background: transparent; color: #fff; }
+.dx-fb-arrows { display: inline-flex; width: 20px; flex: none; justify-content: center; transition: transform 0.24s var(--dx-ease); }
+.dx-fb-arrows svg:last-child { margin-left: -9px; opacity: 0.55; }
+.dx-fb:hover .dx-fb-arrows { animation: dx-fb-nudge 0.9s ease-in-out infinite; }
+.dx-shell.is-slim .dx-fb { justify-content: center; padding: 0; }
+.dx-shell.is-slim .dx-fb-arrows { transform: rotate(180deg); }
+.dx-shell.is-slim .dx-fb-text { display: none; }
+@keyframes dx-fb-nudge { 0%, 100% { translate: 0 0; } 50% { translate: -3px 0; } }
+.dx-shell.is-slim .dx-fb:hover .dx-fb-arrows { animation-name: dx-fb-nudge-r; }
+@keyframes dx-fb-nudge-r { 0%, 100% { translate: 0 0; } 50% { translate: 3px 0; } }
 .dx-plan strong { font-size: 14px; font-weight: 600; color: #fff; }
 .dx-meter { height: 4px; background: #31446a; margin-top: 8px; }
 .dx-meter > i { display: block; height: 100%; background: var(--dx-sand); }
@@ -271,3 +304,24 @@
   .dx *, .dx *::before, .dx *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; }
   .dx-line-carbon { stroke-dashoffset: 0; }
 }
+
+/* ---- the second menu (Settings) -------------------------------------------------------------------------------- */
+.dx-sub { display: none; }
+@media (min-width: 1024px) {
+  .dx-shell.has-sub { grid-template-columns: var(--dx-sb) 264px minmax(0, 1fr); }
+  .dx-sub { display: block; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--dx-surface); border-right: 1px solid var(--dx-line); animation: dx-sub-in 0.28s var(--dx-ease) both; z-index: 35; }
+}
+@keyframes dx-sub-in { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.dx-sub-head { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--dx-line); color: var(--dx-ink); }
+.dx-sub-head b { font-size: 14px; font-weight: 600; }
+.dx-sub-group { padding: 14px 0 6px; }
+.dx-sub-label { padding: 0 20px 6px; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dx-muted); }
+.dx-sub-link { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 9px 20px; color: var(--dx-ink-2); transition: background 0.14s, color 0.14s; }
+.dx-sub-link span { min-width: 0; }
+.dx-sub-link b { display: block; font-size: 13.5px; font-weight: 600; }
+.dx-sub-link small { display: block; font-size: 12px; color: var(--dx-muted); line-height: 1.35; }
+.dx-sub-link svg { margin-top: 1px; color: var(--dx-muted); flex: none; }
+.dx-sub-link:hover { background: var(--dx-band); color: var(--dx-ink); }
+.dx-sub-link.is-on { background: var(--dx-sand); color: var(--dx-ink); }
+.dx-sub-link.is-on svg { color: var(--dx-navy); }
+.dx-sub-link.is-on::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--dx-navy); }

@@ -1,7 +1,5 @@
 "use client";
 
-import { IconCard as CreditCard, IconPalette as Palette, IconBell as Bell, IconBuilding as Building2, IconDatabase as Database, IconFlow as Workflow, IconKey as KeyRound, IconSliders as SettingsIcon, IconSliders as SlidersHorizontal, IconUsers as Users } from "@/components/ui/icons";
-import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DataTab } from "@/components/settings/data-tab";
 import { AuditPanel } from "@/components/settings/audit-panel";
@@ -23,11 +21,10 @@ import { SettingsHistory } from "@/components/settings/settings-editor";
 import { LatencyPanel } from "@/components/settings/latency-panel";
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/operator/ui";
+import { SETTINGS_ALIAS, settingsGroups } from "@/components/settings/sections";
 import { useT } from "@/i18n/provider";
-import { canBuy, canManageTenant, canSeeNotifications, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
+import { canBuy, canManageTenant, canSeeSettings, canWrite, type Role } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
-
-type Section = { id: string; label: string; icon: LucideIcon; show: boolean };
 
 const CAPABILITIES: [string, (r: Role) => boolean][] = [
   ["See the dashboards, recommendations and reports", () => true],
@@ -62,30 +59,18 @@ function ProfileCard({ user }: { user: { name: string; email: string; role: Role
   );
 }
 
-/** Addresses of the earlier layout keep working: they land on the tab that now holds the section. */
-const ALIAS: Record<string, string> = { profile: "preferences", members: "users", roles: "users", keys: "security", history: "security", projects: "policies", general: "data", overview: "organization" };
-
 /** Role checks here only decide what to show; the Go API enforces every one of them again. */
 export function SettingsView({ user }: { user: { name: string; email: string; role: Role } }) {
   const t = useT();
-  const tabs: Section[] = useMemo(() => [
-    { id: "organization", label: t("settings.tab.organization"), icon: Building2, show: true },
-    { id: "users", label: t("settings.tab.users"), icon: Users, show: canManageTenant(user.role) },
-    { id: "data", label: t("settings.tab.data"), icon: Database, show: canSeeSettings(user.role) },
-    { id: "policies", label: t("settings.tab.policies"), icon: SlidersHorizontal, show: true },
-    { id: "automation", label: t("settings.tab.automation"), icon: Workflow, show: true },
-    { id: "notifications", label: t("settings.tab.notifications"), icon: Bell, show: canSeeNotifications(user.role) },
-    { id: "security", label: t("settings.tab.security"), icon: KeyRound, show: canManageTenant(user.role) },
-    { id: "plan", label: t("settings.tab.plan_billing"), icon: CreditCard, show: canSeeSettings(user.role) || canBuy(user.role) },
-    { id: "preferences", label: t("settings.tab.preferences"), icon: Palette, show: true },
-  ].filter((x) => x.show), [t, user.role]);
+  const groups = useMemo(() => settingsGroups(user.role, t), [t, user.role]);
+  const tabs = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
   const [active, setActive] = useState("organization");
   // The tab is in the address (#users) so a link or a reload lands on it.
   useEffect(() => {
     const read = () => {
       const h = window.location.hash.slice(1);
-      const id = ALIAS[h] ?? h;
+      const id = SETTINGS_ALIAS[h] ?? h;
       if (id && tabs.some((x) => x.id === id)) setActive(id);
     };
     read();
@@ -93,7 +78,7 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
     return () => window.removeEventListener("hashchange", read);
   }, [tabs]);
   const go = (id: string) => {
-    const target = ALIAS[id] ?? id;
+    const target = SETTINGS_ALIAS[id] ?? id;
     setActive(target);
     window.history.replaceState(null, "", `#${target}`);
   };
@@ -129,38 +114,23 @@ export function SettingsView({ user }: { user: { name: string; email: string; ro
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6">
-      <div className="rise flex items-center gap-4">
-        <SettingsIcon className="size-12 text-[#5b8fdc] transition-transform duration-700 hover:rotate-90" strokeWidth={1.3} />
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("settings.title", undefined, "Settings")}</h1>
-          <p className="mt-0.5 text-sm text-muted">{t("settings.subtitle")}</p>
-        </div>
+      <div className="rise">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted">{t("settings.title", undefined, "Settings")}</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight">{current.label}</h1>
+        <p className="mt-0.5 text-sm text-muted">{current.hint}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
-        <nav role="tablist" aria-label="Settings" aria-orientation="vertical"
-          className="rise flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] lg:sticky lg:top-24 lg:flex-col lg:self-start lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden" style={{ "--i": 1 } as React.CSSProperties}>
-          {tabs.map((x) => {
-            const on = active === x.id;
-            return (
-              <button key={x.id} role="tab" type="button" aria-selected={on} onClick={() => go(x.id)}
-                className={cn("group relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 lg:w-full",
-                  on ? "bg-leaf-soft/70 text-leaf-deep" : "text-slate-600 hover:bg-slate-100 hover:text-ink")}>
-                <span aria-hidden className={cn("absolute inset-y-2 left-0 hidden w-1 rounded-full bg-leaf-deep transition-transform duration-300 lg:block", on ? "scale-y-100" : "scale-y-0")} />
-                <x.icon className={cn("size-7 shrink-0 transition-transform duration-300 group-hover:scale-110", on ? "text-leaf-deep" : "text-slate-400")} strokeWidth={1.5} />
-                <span className="min-w-0">
-                  <span className="block whitespace-nowrap text-sm font-semibold">{x.label}</span>
-                  <span className="hidden truncate text-xs font-normal text-muted lg:block">{t(`settings.tabdesc.${x.id}`)}</span>
-                </span>
-              </button>
-            );
-          })}
-        </nav>
+      {/* Below 1024 px the side menu is not there (it slides out beside the main menu on wide screens), so the sections are a strip here. */}
+      <nav role="tablist" aria-label="Settings" className="flex gap-1 overflow-x-auto border-b border-line lg:hidden [scrollbar-width:none]">
+        {tabs.map((x) => (
+          <button key={x.id} role="tab" type="button" aria-selected={active === x.id} onClick={() => go(x.id)}
+            className={cn("shrink-0 border-b-2 px-3 py-2 text-sm font-semibold", active === x.id ? "border-[var(--dx-navy)] text-ink" : "border-transparent text-muted")}>{x.label}</button>
+        ))}
+      </nav>
 
-        <section key={current.id} role="tabpanel" aria-label={current.label} className="page-enter settings-skin min-w-0">
-          {body[current.id]}
-        </section>
-      </div>
+      <section key={current.id} role="tabpanel" aria-label={current.label} className="page-enter settings-skin min-w-0">
+        {body[current.id]}
+      </section>
     </div>
   );
 }

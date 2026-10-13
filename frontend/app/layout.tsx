@@ -3,6 +3,7 @@ import { Providers } from "@/components/providers";
 import { I18nProvider } from "@/i18n/provider";
 import { getLocale, getLocaleConfig, getMessages } from "@/i18n/server";
 import "./globals.css";
+import "@/components/dx/dx.css";
 
 export const metadata = { title: "Reliabilix GreenOps", description: "Cloud cost and carbon footprint in one view" };
 
@@ -12,7 +13,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const { messages, fallback } = await getMessages(locale);
   return (
     <html lang={locale}>
-      <body>
+      <body className="dx">
         <I18nProvider locale={locale} messages={messages} fallback={fallback} enabled={config.enabled}>
           <Providers>{children}</Providers>
         </I18nProvider>

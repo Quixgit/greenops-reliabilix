@@ -2039,5 +2039,11 @@
   "dx.show_done": "Show completed",
   "dx.avg_short": "7-day avg.",
   "dx.spikes": "Spikes",
-  "dx.svc.shares": "Cost · CO₂e share"
+  "dx.svc.shares": "Cost · CO₂e share",
+  "dx.settings.group.workspace": "Workspace",
+  "dx.settings.group.rules": "Data and rules",
+  "dx.settings.group.alerts": "Alerts",
+  "dx.settings.group.access": "Access",
+  "dx.settings.group.account": "Account",
+  "dx.nav.collapse": "Collapse"
 }

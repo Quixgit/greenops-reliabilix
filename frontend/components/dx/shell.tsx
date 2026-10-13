@@ -12,12 +12,12 @@ import type { Role } from "@/lib/permissions";
 import { useUi } from "@/lib/store";
 import { timeAgo } from "@/lib/formatters";
 import { BUILD_VERSION } from "@/lib/version";
+import { settingsGroups, SETTINGS_ALIAS } from "@/components/settings/sections";
 import { Ico, type DxIconName } from "./icons";
 import { cx, Popover } from "./ui";
 
 const MAIN: { href: string; label: string; icon: DxIconName }[] = [
   { href: "/overview", label: "Overview", icon: "overview" },
-  { href: "/dev-overview", label: "dev-Overview", icon: "dev" },
   { href: "/projects", label: "Projects", icon: "projects" },
   { href: "/kubernetes", label: "Kubernetes", icon: "kubernetes" },
   { href: "/carbon", label: "Carbon & Energy", icon: "carbon" },
@@ -56,27 +56,60 @@ function Sidebar({ slim, isOperator }: { slim: boolean; isOperator: boolean }) {
           <span className="dx-mark">R</span>
           <div><b>Reliabilix</b><small>GreenOps</small></div>
         </Link>
+        <button type="button" className="dx-fb" aria-label={slim ? "Expand menu" : "Collapse menu"} aria-expanded={!slim} title={slim ? "Expand menu" : "Collapse menu"} onClick={() => setNavCollapsed(!slim)}>
+          <span className="dx-fb-arrows" aria-hidden><Ico name="chevronLeft" size={16} /><Ico name="chevronLeft" size={16} /></span>
+          <span className="dx-fb-text">{t("dx.nav.collapse", undefined, "Collapse")}</span>
+        </button>
         <nav className="dx-nav">
           <div className="dx-nav-label">{t("dx.nav.workspace", undefined, "Workspace")}</div>
           {MAIN.map(link)}
         </nav>
         <div className="dx-side-foot">
           {plan && (
-            <Link href="/settings#plan" className="dx-plan" style={{ display: "block" }}>
+            <Link href="/settings#plan" className="dx-plan" title={`${t("plan.card.title")}: ${plan.p.name}`}>
               <b>{t("plan.card.title")}</b>
               <strong>{plan.p.name}</strong>
+              <em className="dx-plan-mini">{plan.p.name.slice(0, 2)}</em>
               {plan.top && <div className="dx-meter"><i style={{ width: `${Math.max(4, pct)}%` }} /></div>}
             </Link>
           )}
           {SECONDARY.map(link)}
           {isOperator && <Link href="/operator" className="dx-link" style={{ padding: 0 }}><Ico name="shield" size={20} /><span>{t("nav.operator", undefined, "Operator")}</span></Link>}
-          <div className="dx-link" style={{ padding: 0, height: 32, fontSize: 11.5, cursor: "default" }}>
-            <button type="button" className="dx-iconbtn" style={{ color: "inherit", width: 20, height: 20 }} aria-label={slim ? "Expand menu" : "Collapse menu"} onClick={() => setNavCollapsed(!slim)}><Ico name={slim ? "expand" : "collapse"} size={18} /></button>
-            <span>v{BUILD_VERSION.number} · {BUILD_VERSION.stage}</span>
-          </div>
+          <div className="dx-ver"><span>v{BUILD_VERSION.number} · {BUILD_VERSION.stage}</span></div>
         </div>
       </aside>
     </>
+  );
+}
+
+/** The second menu: it slides out beside the main one while Settings is open, and its sections are grouped. */
+function SettingsMenu({ role }: { role: Role }) {
+  const t = useT();
+  const groups = useMemo(() => settingsGroups(role, t), [role, t]);
+  const [active, setActive] = useState("organization");
+  useEffect(() => {
+    const read = () => { const h = window.location.hash.slice(1); setActive(SETTINGS_ALIAS[h] ?? (h || "organization")); };
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, []);
+  return (
+    <aside className="dx-sub" aria-label={t("settings.title", undefined, "Settings")}>
+      <div className="dx-sub-head"><Ico name="settings" size={18} /><b>{t("settings.title", undefined, "Settings")}</b></div>
+      <nav>
+        {groups.map((g) => (
+          <div key={g.id} className="dx-sub-group">
+            <div className="dx-sub-label">{g.label}</div>
+            {g.items.map((i) => (
+              <a key={i.id} href={`/settings#${i.id}`} className={cx("dx-sub-link", active === i.id && "is-on")} aria-current={active === i.id ? "page" : undefined}>
+                <Ico name={i.icon} size={18} />
+                <span><b>{i.label}</b><small>{i.hint}</small></span>
+              </a>
+            ))}
+          </div>
+        ))}
+      </nav>
+    </aside>
   );
 }
 
@@ -92,7 +125,7 @@ function Search() {
   const input = useRef<HTMLInputElement>(null);
   const all = useMemo(() => [
     ...[...MAIN, ...SECONDARY].map((n) => ({ label: t(`nav.${slug(n.href)}`, undefined, n.label), hint: t("search.page"), run: () => router.push(n.href) })),
-    ...(projects.data ?? []).map((p) => ({ label: p.name, hint: t("search.project"), run: () => { setProject(p.id); router.push("/dev-overview"); } })),
+    ...(projects.data ?? []).map((p) => ({ label: p.name, hint: t("search.project"), run: () => { setProject(p.id); router.push("/overview"); } })),
     ...(conns.data ?? []).map((c) => ({ label: `${c.provider.toUpperCase()} ${c.account_ref}`, hint: t("search.connection"), run: () => router.push(`/cloud/${c.id}`) })),
   ], [t, router, projects.data, conns.data, setProject]);
   const items = useMemo(() => { const n = q.trim().toLowerCase(); return (n ? all.filter((i) => i.label.toLowerCase().includes(n)) : all.slice(0, 6)).slice(0, 8); }, [q, all]);
@@ -189,15 +222,20 @@ export function DxShell({ user, isOperator, children }: { user: { name: string; 
   const t = useT();
   const collapsed = useUi((s) => s.navCollapsed);
   const setNavOpen = useUi((s) => s.setNavOpen);
+  const path = usePathname();
+  const page = [...MAIN, ...SECONDARY].find((n) => path === n.href || path.startsWith(`${n.href}/`));
+  const inSettings = path === "/settings" || path.startsWith("/settings/");
+  const here = page ? t(`nav.${slug(page.href)}`, undefined, page.label) : "";
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "U";
   return (
-    <div className="dx">
-      <div className={cx("dx-shell", collapsed && "is-slim")}>
+    <>
+      <div className={cx("dx-shell", collapsed && "is-slim", inSettings && "has-sub")}>
         <Sidebar slim={collapsed} isOperator={isOperator} />
+        {inSettings && <SettingsMenu role={user.role} />}
         <div style={{ minWidth: 0 }}>
           <header className="dx-top">
             <button type="button" className="dx-iconbtn dx-burger" aria-label={t("header.menu")} onClick={() => setNavOpen(true)} style={{ display: "none" }}><Ico name="menu" size={20} /></button>
-            <div className="dx-crumb"><span>Reliabilix</span><Ico name="chevronRight" size={14} /><b>{t("nav.overview", undefined, "Overview")}</b><span className="dx-tag is-butter" style={{ marginLeft: 6 }}>dev</span></div>
+            <div className="dx-crumb"><span>Reliabilix</span><Ico name="chevronRight" size={14} /><b>{here}</b></div>
             <div className="dx-top-right">
               <Search />
               <Language />
@@ -220,6 +258,6 @@ export function DxShell({ user, isOperator, children }: { user: { name: string; 
         </div>
       </div>
       <style>{`@media (max-width: 820px) { .dx-burger { display: grid !important; } }`}</style>
-    </div>
+    </>
   );
 }

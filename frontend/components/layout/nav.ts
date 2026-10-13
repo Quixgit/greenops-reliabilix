@@ -5,7 +5,6 @@ import { IconBell as Bell, IconBranch as GitBranch, IconBulb as Lightbulb, IconC
 // a page without a backend yet says so instead of showing invented numbers.
 export const NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/dev-overview", label: "dev-Overview", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/kubernetes", label: "Kubernetes", icon: Boxes },
   { href: "/carbon", label: "Carbon & Energy", icon: Leaf },

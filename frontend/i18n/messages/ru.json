@@ -2107,5 +2107,11 @@
   "dx.show_done": "Показать выполненные",
   "dx.avg_short": "Среднее за 7 дн.",
   "dx.spikes": "Всплески",
-  "dx.svc.shares": "Доля затрат · CO₂e"
+  "dx.svc.shares": "Доля затрат · CO₂e",
+  "dx.settings.group.workspace": "Рабочее пространство",
+  "dx.settings.group.rules": "Данные и правила",
+  "dx.settings.group.alerts": "Оповещения",
+  "dx.settings.group.access": "Доступ",
+  "dx.settings.group.account": "Аккаунт",
+  "dx.nav.collapse": "Свернуть"
 }
