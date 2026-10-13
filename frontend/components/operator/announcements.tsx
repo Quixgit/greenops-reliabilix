@@ -15,11 +15,11 @@ import { ConfirmButton } from "@/components/ui/confirm-button";
 
 const KINDS: { id: "update" | "maintenance" | "notice" | "incident"; icon: IconType; tone: string; sev: "info" | "warning" | "critical"; title: string; body: string }[] = [
   { id: "update", icon: IconBolt, tone: "text-leaf-deep", sev: "info", title: `Reliabilix ${BUILD_VERSION.number} is out`, body: "What is new: " },
-  { id: "maintenance", icon: IconClock, tone: "text-[#d9a441]", sev: "warning", title: "Planned maintenance", body: "The platform will be unavailable for changes on " },
-  { id: "notice", icon: IconBell, tone: "text-[#5b8fdc]", sev: "info", title: "", body: "" },
-  { id: "incident", icon: IconWarning, tone: "text-[#d9707f]", sev: "critical", title: "We are investigating an issue", body: "" },
+  { id: "maintenance", icon: IconClock, tone: "text-[#cba649]", sev: "warning", title: "Planned maintenance", body: "The platform will be unavailable for changes on " },
+  { id: "notice", icon: IconBell, tone: "text-[#5d7fb0]", sev: "info", title: "", body: "" },
+  { id: "incident", icon: IconWarning, tone: "text-[#b8625c]", sev: "critical", title: "We are investigating an issue", body: "" },
 ];
-const SEV_CHIP = { critical: "bg-[#fdecef] text-[#c25667]", warning: "bg-[#fdf3dc] text-[#a9741a]", info: "bg-[#eef3fd] text-[#4a6fb0]" } as const;
+const SEV_CHIP = { critical: "bg-[#f8eceb] text-[#a8504b]", warning: "bg-[#faf5e3] text-[#8a6420]", info: "bg-[#eef2f8] text-[#3f6094]" } as const;
 const field = "w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-leaf focus:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]";
 
 /** Tell every organization something about the platform: a new release, maintenance, a notice or an incident. */

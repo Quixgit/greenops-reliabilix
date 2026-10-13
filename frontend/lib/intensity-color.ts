@@ -1,8 +1,8 @@
-// Pastel scale, clean -> dirty: mint, butter, peach, rose. Thresholds are the grid-intensity bands used in reports.
+// Warm scale in the DX palette, clean -> dirty: sage, butter, peach, brick. Thresholds are the grid-intensity bands used in reports.
 export const STOPS: [number, [number, number, number]][] = [
-  [0, [143, 227, 192]], [150, [214, 233, 148]], [300, [250, 214, 140]], [450, [248, 175, 140]], [600, [238, 140, 160]],
+  [0, [118, 164, 128]], [150, [186, 202, 140]], [300, [230, 205, 130]], [450, [226, 164, 120]], [600, [190, 100, 92]],
 ];
-export const NEUTRAL = "#e4eaf3";
+export const NEUTRAL = "#ddd6c8";
 
 export function intensityColor(g: number): string {
   const v = Math.max(0, Math.min(600, g));

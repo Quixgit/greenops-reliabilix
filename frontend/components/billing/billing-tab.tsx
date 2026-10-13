@@ -18,7 +18,7 @@ import { nf, timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 const PENDING_KEY = "rlx.checkout";
-const STATUS_CHIP: Record<string, string> = { active: "bg-leaf-soft text-leaf-deep", trialing: "bg-[#eef3fd] text-[#4a6fb0]", past_due: "bg-[#fdf3dc] text-[#a9741a]", canceled: "bg-[#fdecef] text-[#c25667]", none: "bg-slate-100 text-slate-500" };
+const STATUS_CHIP: Record<string, string> = { active: "bg-leaf-soft text-leaf-deep", trialing: "bg-[#eef2f8] text-[#3f6094]", past_due: "bg-[#faf5e3] text-[#8a6420]", canceled: "bg-[#f8eceb] text-[#a8504b]", none: "bg-slate-100 text-slate-500" };
 const money = (a: number, c: string) => new Intl.NumberFormat(undefined, { style: "currency", currency: c, maximumFractionDigits: a % 1 ? 2 : 0 }).format(a);
 const daysLeft = (iso: string | null) => (iso ? Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000) : null);
 
@@ -91,7 +91,7 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
   return (
     <div className="space-y-5">
       {waiting && (
-        <div role="status" className="flex items-center gap-3 rounded-2xl bg-[#eef3fd] px-4 py-3 text-sm text-[#3d5a8c]">
+        <div role="status" className="flex items-center gap-3 rounded-2xl bg-[#eef2f8] px-4 py-3 text-sm text-[#3d5a8c]">
           <IconRefresh className="size-5 animate-spin" />{t("bl.waiting", { plan: cat.find((c) => c.id === waiting)?.name ?? waiting })}
         </div>
       )}
@@ -108,12 +108,12 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
             {ends && (
               <p className="mt-2 text-sm text-slate-600">
                 {p.status === "trialing" ? t("plan.trial_ends") : expired || p.status === "canceled" ? t("plan.ended") : t("plan.period_end")}: <b className="text-ink">{new Date(ends).toLocaleDateString()}</b>
-                {left !== null && left >= 0 && <span className={cn("ml-2 rounded-full px-2 py-0.5 text-xs font-semibold", soon ? "bg-[#fdf3dc] text-[#a9741a]" : "bg-slate-100 text-slate-600")}>{t("bl.days_left", { count: left })}</span>}
+                {left !== null && left >= 0 && <span className={cn("ml-2 rounded-full px-2 py-0.5 text-xs font-semibold", soon ? "bg-[#faf5e3] text-[#8a6420]" : "bg-slate-100 text-slate-600")}>{t("bl.days_left", { count: left })}</span>}
               </p>
             )}
             {!ends && currentIsFree && <p className="mt-2 text-sm text-slate-600">{t("bl.free_note")}</p>}
-            {p.status === "past_due" && <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-sm text-[#a9741a]"><IconWarning className="mt-0.5 size-4 shrink-0" />{t("plan.past_due_note")}</p>}
-            {(soon || expired) && p.status !== "past_due" && !currentIsFree && <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-sm text-[#a9741a]"><IconClock className="mt-0.5 size-4 shrink-0" />{expired ? t("bl.expired_note") : t("bl.soon_note")}</p>}
+            {p.status === "past_due" && <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#faf5e3] px-3 py-2 text-sm text-[#8a6420]"><IconWarning className="mt-0.5 size-4 shrink-0" />{t("plan.past_due_note")}</p>}
+            {(soon || expired) && p.status !== "past_due" && !currentIsFree && <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#faf5e3] px-3 py-2 text-sm text-[#8a6420]"><IconClock className="mt-0.5 size-4 shrink-0" />{expired ? t("bl.expired_note") : t("bl.soon_note")}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-3 lg:justify-end">
             {canBuy && hasProviders && !currentIsFree && (
@@ -197,7 +197,7 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
             </dl>
             <div className="space-y-3 text-sm text-slate-600">
               <p className="flex items-start gap-2"><IconShield className="mt-0.5 size-4 shrink-0 text-leaf-deep" />{t("bl.order.note")}</p>
-              {order.intent === "downgrade" && <p className="flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-[#a9741a]"><IconWarning className="mt-0.5 size-4 shrink-0" />{t("bl.order.downgrade_note")}</p>}
+              {order.intent === "downgrade" && <p className="flex items-start gap-2 rounded-xl bg-[#faf5e3] px-3 py-2 text-[#8a6420]"><IconWarning className="mt-0.5 size-4 shrink-0" />{t("bl.order.downgrade_note")}</p>}
               {order.intent === "upgrade" && current && <p className="text-xs text-muted">{t("bl.order.upgrade_note")}</p>}
               <p className="flex items-start gap-2 text-xs text-muted"><IconLock className="mt-0.5 size-4 shrink-0" />{t("plan.wallets_note")}</p>
             </div>
@@ -215,7 +215,7 @@ export function BillingTab({ canBuy }: { canBuy: boolean }) {
       <div className="grid gap-5 lg:grid-cols-2">
         <Usage p={p} onUpgrade={() => document.getElementById("bl-plans")?.scrollIntoView({ behavior: "smooth" })} />
         <Card index={2} interactive={false}>
-          <CardHeader icon={<IconClock className="size-[18px] text-[#5b8fdc]" />} title={t("bl.history")} info={t("bl.info.history")} />
+          <CardHeader icon={<IconClock className="size-[18px] text-[#5d7fb0]" />} title={t("bl.history")} info={t("bl.info.history")} />
           {history.isLoading ? <Skeleton className="h-24" /> : history.isError ? <p className="text-sm text-muted">{t("bl.history_none_access")}</p> : (history.data?.items.length ?? 0) === 0 ? (
             <EmptyState icon={IconCard} text={t("bl.history_empty")} className="py-6" />
           ) : (
@@ -247,7 +247,7 @@ function Usage({ p, onUpgrade }: { p: PlanView; onUpgrade: () => void }) {
           return (
             <li key={l.key} className="text-sm">
               <div className="mb-1.5 flex justify-between"><span className="font-medium">{t(`plan.resource.${l.resource}`, undefined, l.resource)}</span><span className="tabular-nums text-muted"><CountUp value={l.used} format={(n) => planAmount(l.resource, Math.round(n))} /> / {l.limit === 0 ? t("plan.unlimited") : planAmount(l.resource, l.limit)}</span></div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={cn("bar-x h-full rounded-full", pct >= 100 ? "bg-[#e08b98]" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf")} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%`, "--d": `${i * 70}ms` } as CSSProperties} /></div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className={cn("bar-x h-full rounded-full", pct >= 100 ? "bg-[#d3a09b]" : pct >= 80 ? "bg-pastel-amber" : "bg-leaf")} style={{ width: `${l.limit === 0 ? 0 : Math.max(2, pct)}%`, "--d": `${i * 70}ms` } as CSSProperties} /></div>
             </li>
           );
         })}
@@ -258,7 +258,7 @@ function Usage({ p, onUpgrade }: { p: PlanView; onUpgrade: () => void }) {
         </p>
       )}
       {near.length > 0 && (
-        <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-sm text-[#a9741a]">
+        <p className="mt-4 flex items-start gap-2 rounded-xl bg-[#faf5e3] px-3 py-2 text-sm text-[#8a6420]">
           <IconWarning className="mt-0.5 size-4 shrink-0" /><span>{t("bl.near_limit")} <button type="button" onClick={onUpgrade} className="font-semibold underline">{t("bl.see_plans")}</button></span>
         </p>
       )}

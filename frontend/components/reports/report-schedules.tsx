@@ -44,16 +44,16 @@ function Row({ s, i, canAct, project }: { s: ReportSchedule; i: number; canAct: 
               <span className={cn("absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform duration-300", s.enabled && "translate-x-5")} />
             </button>
             <button type="button" aria-label={t("rs.delete")} title={t("rs.delete")} onClick={() => setAsk(true)}
-              className="grid size-8 place-items-center rounded-full text-slate-400 opacity-0 transition-all hover:bg-[#fdecef] hover:text-[#d9707f] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><IconTrash className="size-4" strokeWidth={1.8} /></button>
+              className="grid size-8 place-items-center rounded-full text-slate-400 opacity-0 transition-all hover:bg-[#f8eceb] hover:text-[#b8625c] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><IconTrash className="size-4" strokeWidth={1.8} /></button>
           </div>
         )}
       </div>
       {ask && (
-        <div className="del-wipe absolute inset-0 z-10 flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-[#fdf1f3] px-4 ring-1 ring-[#eba7b3]">
+        <div className="del-wipe absolute inset-0 z-10 flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-[#f8eceb] px-4 ring-1 ring-[#d3a09b]">
           <span className="text-sm font-medium text-[#a23b4d]">{t("rs.delete_ask")}</span>
           <span className="flex gap-2">
             <button type="button" onClick={() => setAsk(false)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-line">{t("rs.cancel")}</button>
-            <button type="button" disabled={del.isPending} onClick={() => del.mutate(s.id)} className="rounded-lg bg-[#d9707f] px-3 py-1.5 text-xs font-semibold text-white">{t("rs.delete")}</button>
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate(s.id)} className="rounded-lg bg-[#b8625c] px-3 py-1.5 text-xs font-semibold text-white">{t("rs.delete")}</button>
           </span>
         </div>
       )}

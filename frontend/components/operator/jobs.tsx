@@ -60,7 +60,7 @@ export function JobsView() {
                 <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
                   {SEGMENTS.map(([k, label, c]) => <li key={k} className="flex items-center gap-2"><span className={cn("size-2 rounded-full", c)} /><span className="text-muted">{label}</span><b className="tabular-nums">{x[k]}</b></li>)}
                 </ul>
-                <p className="mt-3 border-t border-line/70 pt-3 text-sm text-muted">Today: <b className="text-ink tabular-nums">{x.processed_today.toLocaleString()}</b> done · <b className={cn("tabular-nums", x.failed_today ? "text-[#d9707f]" : "text-ink")}>{x.failed_today}</b> failed</p>
+                <p className="mt-3 border-t border-line/70 pt-3 text-sm text-muted">Today: <b className="text-ink tabular-nums">{x.processed_today.toLocaleString()}</b> done · <b className={cn("tabular-nums", x.failed_today ? "text-[#b8625c]" : "text-ink")}>{x.failed_today}</b> failed</p>
               </Card>
             );
           })}
@@ -77,7 +77,7 @@ export function JobsView() {
                 const gaveUp = f.state === "archived";
                 return (
                   <div className="group flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-3 py-3.5 transition-colors hover:bg-slate-50">
-                    <AlertTriangle className={cn("size-10 shrink-0", gaveUp ? "text-[#d9707f]" : "text-[#d9a441]")} strokeWidth={1.4} />
+                    <AlertTriangle className={cn("size-10 shrink-0", gaveUp ? "text-[#b8625c]" : "text-[#cba649]")} strokeWidth={1.4} />
                     <div className="min-w-0 flex-1 basis-72">
                       <p className="flex flex-wrap items-center gap-2 font-semibold">{n.title}<Pill tone={gaveUp ? "bad" : "warn"}>{gaveUp ? "gave up" : "will retry"}</Pill>{f.last_error.startsWith("skip retry") && <Pill>not retried: it cannot succeed as it is</Pill>}
                         <span className="text-xs font-normal text-muted tabular-nums">attempt {f.retried}/{f.max_retry}</span></p>
@@ -93,7 +93,7 @@ export function JobsView() {
                   </div>
                 );
               }} />
-            {act.error && <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{act.error.message}</p>}
+            {act.error && <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{act.error.message}</p>}
             {failed.length > 0 && <p className="mt-3 text-xs text-muted">Running a task again puts it back in the queue now. Removing it only drops this record; the periodic schedule starts the job again when it is due.</p>}
           </>) : (
             <RowList rows={[...d.schedules].sort((a, b) => a.next.localeCompare(b.next))} rowKey={(x) => x.type} pageSize={8}
@@ -102,7 +102,7 @@ export function JobsView() {
                 const n = taskName(x.type);
                 return (
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50">
-                    <IconTimer className="size-10 shrink-0 text-[#5b8fdc]" strokeWidth={1.4} />
+                    <IconTimer className="size-10 shrink-0 text-[#5d7fb0]" strokeWidth={1.4} />
                     <div className="min-w-0 flex-1 basis-64">
                       <p className="font-semibold">{n.title}</p>
                       <p className="mt-0.5 text-xs text-muted">{n.what && <>{n.what} · </>}<code>{x.type}</code></p>

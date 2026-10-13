@@ -17,7 +17,7 @@ function Change({ pct }: { pct: number | null }) {
   const t = useT();
   if (pct === null) return <span className="text-xs text-muted">{t("ue.no_change")}</span>;
   const down = pct <= 0;
-  return <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums", down ? "bg-leaf-soft text-leaf-deep" : "bg-[#fdecef] text-[#c25667]")}>{down ? "↓" : "↑"} {Math.abs(pct).toFixed(1)}%</span>;
+  return <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums", down ? "bg-leaf-soft text-leaf-deep" : "bg-[#f8eceb] text-[#a8504b]")}>{down ? "↓" : "↑"} {Math.abs(pct).toFixed(1)}%</span>;
 }
 
 /** One bar per month; the bars grow from the baseline, the height is the cost per unit, and a short month is drawn faint. */
@@ -31,7 +31,7 @@ function Bars({ p, cur, pick }: { p: UnitProject; cur: string; pick: "cost" | "c
         const v = val(m);
         return (
           <div key={m.month} className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${m.month}: ${v === null ? "–" : pick === "cost" ? money(v, cur) : `${nf(v < 10 ? 2 : 0).format(v)} g`} · ${t("ue.days", { days: m.days })}`}>
-            <div className={cn("bar-y w-full max-w-9 rounded-t-md", m.days < 7 ? "bg-leaf/30" : pick === "cost" ? "bg-[#7aa8e6]" : "bg-leaf")} style={{ height: `${v === null ? 0 : Math.max(4, (v / max) * 100)}%`, "--d": `${i * 60}ms` } as CSSProperties} />
+            <div className={cn("bar-y w-full max-w-9 rounded-t-md", m.days < 7 ? "bg-leaf/30" : pick === "cost" ? "bg-[#9fb4d3]" : "bg-leaf")} style={{ height: `${v === null ? 0 : Math.max(4, (v / max) * 100)}%`, "--d": `${i * 60}ms` } as CSSProperties} />
             <span className="text-[10px] text-slate-400">{m.month.slice(5)}</span>
           </div>
         );

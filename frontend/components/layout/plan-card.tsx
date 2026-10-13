@@ -34,7 +34,7 @@ export function PlanCard({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <Link href="/settings#plan" title={`${t("plan.card.title")}: ${p.name}`} aria-label={`${t("plan.card.title")}: ${p.name}`}
-        className={cn("mx-auto mb-2 grid size-11 place-items-center rounded-xl transition-colors hover:bg-white/10", attention ? "text-[#f2cf8a]" : "text-slate-300")}>
+        className={cn("mx-auto mb-2 grid size-11 place-items-center rounded-xl transition-colors hover:bg-white/10", attention ? "text-[#e5cf8e]" : "text-slate-300")}>
         <IconCard className="size-[22px]" strokeWidth={1.7} />
       </Link>
     );
@@ -46,14 +46,14 @@ export function PlanCard({ collapsed }: { collapsed: boolean }) {
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/10 text-leaf"><IconCard className="size-[18px]" strokeWidth={1.7} /></span>
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("plan.card.title")}</span>
-          <span className="block truncate text-[15px] font-bold text-white">{p.name}{status && <span className="ml-1.5 text-xs font-medium text-[#f2cf8a]">{status}</span>}</span>
+          <span className="block truncate text-[15px] font-bold text-white">{p.name}{status && <span className="ml-1.5 text-xs font-medium text-[#e5cf8e]">{status}</span>}</span>
         </span>
       </div>
       {timeLeft && <p className="mt-2 text-xs text-slate-400">{timeLeft}</p>}
       {top ? (
         <div className="mt-2.5">
           <div className="mb-1 flex justify-between text-[11px] text-slate-400"><span>{t("plan.card.limit", { used: planAmount(top.resource, top.used), limit: planAmount(top.resource, top.limit), resource: t(`plan.resource.${top.resource}`, undefined, top.resource).toLowerCase() })}</span></div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className={cn("h-full rounded-full transition-[width] duration-700", pct >= 90 ? "bg-[#eba7b3]" : pct >= 70 ? "bg-[#f2cf8a]" : "bg-leaf")} style={{ width: `${Math.max(4, pct)}%` }} /></div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className={cn("h-full rounded-full transition-[width] duration-700", pct >= 90 ? "bg-[#d3a09b]" : pct >= 70 ? "bg-[#e5cf8e]" : "bg-leaf")} style={{ width: `${Math.max(4, pct)}%` }} /></div>
         </div>
       ) : <p className="mt-2 text-xs text-slate-400">{paid ? t("plan.card.unlimited_hint") : t("plan.card.hint_free")}</p>}
       <span className={cn("mt-3 flex items-center justify-center gap-1.5 rounded-xl py-1.5 text-[13px] font-semibold transition-colors", paid && !attention ? "bg-white/10 text-slate-200 group-hover:bg-white/15" : "bg-leaf-deep text-white group-hover:bg-[#277a66]")}>

@@ -212,7 +212,7 @@ export function ConnectWizard({ initialProvider, onClose }: { initialProvider?: 
             <div>
               <div className="flex items-center gap-3"><ProviderMark id={provider} size="lg" /><h2 className="text-2xl font-bold tracking-tight">{t("cw.verify.title")}</h2></div>
               <div className="mt-4"><Setup created={created} /></div>
-              {verify.isError && <p role="alert" className="mt-4 rounded-xl bg-[#fdecef] px-4 py-3 text-sm text-[#c25667]">{verify.error.message} — {t("cw.verify.retry")}{verifyHint(verify.error.message) && <span className="mt-1.5 block font-medium text-slate-600">{t(verifyHint(verify.error.message)!)}</span>}</p>}
+              {verify.isError && <p role="alert" className="mt-4 rounded-xl bg-[#f8eceb] px-4 py-3 text-sm text-[#a8504b]">{verify.error.message} — {t("cw.verify.retry")}{verifyHint(verify.error.message) && <span className="mt-1.5 block font-medium text-slate-600">{t(verifyHint(verify.error.message)!)}</span>}</p>}
             </div>
           )}
 

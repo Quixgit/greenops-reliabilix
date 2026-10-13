@@ -81,7 +81,7 @@ export function KpiStrip() {
 
   return (
     <div className="grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 min-[1000px]:grid-cols-4">
-      <Tile index={0} icon="wallet" tone="blue" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading} spark={costSeries} sparkColor="#7aa7ea" empty={empty}
+      <Tile index={0} icon="wallet" tone="blue" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading} spark={costSeries} sparkColor="#9fb4d3" empty={empty}
         value={f?.has_data ? <CountUp value={f.total_cost} format={(n) => formatCost(n, cur)} /> : null}
         delta={trendBadge(roll.costTrend7, f?.previous_comparable ? 1 : null, f?.previous_comparable ? pctChange(f.total_cost, f.previous_total_cost) : null)}
         foot={<>
@@ -90,7 +90,7 @@ export function KpiStrip() {
           {stale && <span className="block text-amber-700">{t("ov3.kpi.stale", { cloud: cloudMeta(stale.provider).name, day: stale.lastDay ? new Date(stale.lastDay).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }) : "—" })}</span>}
           {f && f.excluded.length > 0 && <span className="block text-amber-700">{t("ov.kpi.excluded", { currencies: f.excluded.map((e) => e.currency).join(", "), rows: f.excluded.reduce((n, e) => n + e.rows, 0) })}</span>}
         </>} />
-      <Tile index={1} icon="leaf" tone="green" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading} spark={carbonSeries} sparkColor="#6fc3a8" empty={empty}
+      <Tile index={1} icon="leaf" tone="green" label={t("ov.kpi.operational")} info={t("ov.kpi.operational_hint")} loading={loading} spark={carbonSeries} sparkColor="#5f8d6c" empty={empty}
         value={parts ? <CountUp value={parts.n} format={(n) => nf(1).format(n)} /> : null} unit={parts ? `${parts.unit} CO₂e` : undefined}
         delta={trendBadge(roll.carbonTrend7, c?.comparable ? 1 : null, c?.comparable ? pctChange(c.carbon_kg_co2e, c.previous.carbon_kg_co2e) : null)}
         foot={<><span><b className="font-semibold text-slate-800">{nf(roll.carbonPerDay < 10 ? 2 : 1).format(roll.carbonPerDay)} kg</b> {t("ov2.per_day")}</span><span className="block text-muted">{t("ov2.operational_only")}</span></>} />

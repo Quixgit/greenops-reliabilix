@@ -151,7 +151,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
           {loading ? <Skeleton className="h-8 w-14" /> : <CountUp value={k.active} format={(n) => String(Math.round(n))} />}
         </Kpi>
         <Kpi index={1} label={t("connectors.kpi.sources")} info={t("info.connectors_sources")} hint={k.sources.length ? undefined : t("connectors.kpi.sources_none")}
-          ring={<Cloud className="size-11 text-[#5b8fdc]" strokeWidth={1.4} />}>
+          ring={<Cloud className="size-11 text-[#5d7fb0]" strokeWidth={1.4} />}>
           {loading ? <Skeleton className="h-8 w-28" /> : k.sources.length ? (
             <span className="flex items-center -space-x-1.5">{k.sources.map((s) => <span key={s} className="rounded-full bg-white"><ProviderMark id={s} size="sm" /></span>)}</span>
           ) : <span className="text-muted">—</span>}
@@ -161,7 +161,7 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.health === null ? <span className="text-muted">—</span> : <CountUp value={k.health} format={(n) => `${Math.round(n)}%`} />}
         </Kpi>
         <Kpi index={3} label={t("connectors.kpi.sync_time")} info={t("info.connectors_time")} hint={d.runs.loading ? undefined : k.avgSyncSeconds === null ? t("connectors.kpi.no_data") : t("connectors.kpi.sync_time_hint")}
-          ring={<RefreshCw className="size-11 text-[#8a78d8]" strokeWidth={1.4} />}>
+          ring={<RefreshCw className="size-11 text-[#5a6aa0]" strokeWidth={1.4} />}>
           {d.runs.loading ? <Skeleton className="h-8 w-16" /> : k.avgSyncSeconds === null ? <span className="text-muted">—</span> : formatDuration(k.avgSyncSeconds)}
         </Kpi>
       </div>

@@ -14,9 +14,9 @@ export const metadata = { title: "Sign in · Reliabilix GreenOps" };
 
 const POINTS = [
   { icon: IconCostCarbon, tone: "text-leaf-deep", title: "Cost and carbon, side by side", text: "Every service, region and workload on one bill and one footprint." },
-  { icon: IconGridMeasure, tone: "text-[#d9a441]", title: "Measured against the grid", text: "Emissions from real grid intensity, with the basis shown, not hidden." },
-  { icon: IconInsightAction, tone: "text-[#5b8fdc]", title: "From insight to action", text: "Region moves, rightsizing and time shifting, approved by people." },
-  { icon: IconTrust, tone: "text-[#8a78d8]", title: "Built to be trusted", text: "Isolated per organization; secrets sealed; every change on the record." },
+  { icon: IconGridMeasure, tone: "text-[#cba649]", title: "Measured against the grid", text: "Emissions from real grid intensity, with the basis shown, not hidden." },
+  { icon: IconInsightAction, tone: "text-[#5d7fb0]", title: "From insight to action", text: "Region moves, rightsizing and time shifting, approved by people." },
+  { icon: IconTrust, tone: "text-[#5a6aa0]", title: "Built to be trusted", text: "Isolated per organization; secrets sealed; every change on the record." },
 ];
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ returnTo?: string; preview?: string; error?: string }> }) {

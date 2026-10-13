@@ -32,7 +32,7 @@ export function LatencyPanel({ canEdit }: { canEdit: boolean }) {
           <div className="overflow-x-auto pb-1"><Segmented label={t("lat.title")} value={String(current)} onChange={(v) => canEdit && !patch.isPending && patch.mutate(Number(v))} options={options} /></div>
         ) : null}
         <p className="text-xs text-muted">{t("lat.note")}</p>
-        {patch.isError && <p role="alert" className="text-xs text-[#c2566a]">{patch.error.message}</p>}
+        {patch.isError && <p role="alert" className="text-xs text-[#a8504b]">{patch.error.message}</p>}
       </div>
     </Panel>
   );

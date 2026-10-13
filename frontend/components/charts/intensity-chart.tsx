@@ -6,7 +6,7 @@ import type { IntensityPoint } from "@/lib/api/schemas";
 import { Chart } from "./chart";
 
 export const SOURCE_LABEL: Record<string, string> = { electricitymaps: "Electricity Maps", ember: "Ember", uk_carbon_intensity: "UK Carbon Intensity", eia: "EIA (computed from generation mix)", energy_charts: "Energy-Charts (computed from generation mix)", ieso: "IESO (Ontario, computed from generation mix)", hydroquebec: "Hydro-Québec (computed from generation mix)", entsoe: "ENTSO-E (Europe, computed from generation mix)", ons: "ONS (Brazil, computed from generation mix)" };
-const OTHER_COLORS = ["#8b5cf6", "#f2cf8a", "#06b6d4"];
+const OTHER_COLORS = ["#8b5cf6", "#e5cf8e", "#06b6d4"];
 
 /**
  * Daily grid carbon intensity of one region. The line is the source the platform trusts for each day; the band is that
@@ -42,13 +42,13 @@ export function IntensityChart({ points, from, to }: { points: IntensityPoint[];
         formatter: (raw: unknown) => {
           const day = (raw as { axisValue: string }[])[0]?.axisValue;
           const p = day ? byDay.get(day) : undefined;
-          if (!p) return `<div style="color:#6b7a94;font-size:11px">${day}</div><div style="margin-top:4px;color:#6b7a94">No reading this day</div>`;
+          if (!p) return `<div style="color:#7a766c;font-size:11px">${day}</div><div style="margin-top:4px;color:#7a766c">No reading this day</div>`;
           const note = p.basis === "month_mean" ? ` <span style="color:#6366f1">monthly national average</span>`
-            : p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#6b7a94">${p.readings} readings</span>`;
+            : p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#7a766c">${p.readings} readings</span>`;
           const rows = [`<div style="margin-top:4px"><b>${Math.round(p.g_per_kwh)}</b> gCO₂e/kWh · ${SOURCE_LABEL[p.source] ?? p.source}${note}</div>`,
-            ...(p.basis === "month_mean" ? [] : [`<div style="color:#6b7a94">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`]),
-            ...p.others.map((o) => `<div style="color:#6b7a94">${SOURCE_LABEL[o.source] ?? o.source}: ${Math.round(o.g_per_kwh)}</div>`)];
-          return `<div style="color:#6b7a94;font-size:11px">${day}</div>${rows.join("")}`;
+            ...(p.basis === "month_mean" ? [] : [`<div style="color:#7a766c">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`]),
+            ...p.others.map((o) => `<div style="color:#7a766c">${SOURCE_LABEL[o.source] ?? o.source}: ${Math.round(o.g_per_kwh)}</div>`)];
+          return `<div style="color:#7a766c;font-size:11px">${day}</div>${rows.join("")}`;
         },
       },
       xAxis: { type: "category", data: days, boundaryGap: false, ...axis, axisLabel: { ...axis.axisLabel, formatter: (v: string) => v.slice(5), hideOverlap: true } },

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const TONE = {
-  danger: { idle: "text-[#c2566a] ring-rose-200 hover:bg-rose-50", armed: "bg-[#d9707f] text-white hover:bg-[#cf6272]" },
+  danger: { idle: "text-[#a8504b] ring-rose-200 hover:bg-rose-50", armed: "bg-[#b8625c] text-white hover:bg-[#cf6272]" },
   primary: { idle: "text-leaf-deep ring-leaf/40 hover:bg-leaf-soft/60", armed: "bg-leaf-deep text-white hover:bg-[#277a66]" },
 } as const;
 

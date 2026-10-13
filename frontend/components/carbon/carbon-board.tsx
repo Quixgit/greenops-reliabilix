@@ -24,9 +24,9 @@ const PROVIDER: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "Goo
 /** The grid bands used across the platform: under 150 clean, under 300 moderate, under 450 high, above very high. */
 export function band(g: number): { key: "clean" | "moderate" | "high" | "very_high"; chip: string; dot: string } {
   if (g < 150) return { key: "clean", chip: "bg-leaf-soft text-leaf-deep", dot: "bg-leaf" };
-  if (g < 300) return { key: "moderate", chip: "bg-[#fdf3dc] text-[#a9741a]", dot: "bg-pastel-amber" };
-  if (g < 450) return { key: "high", chip: "bg-[#fdecef] text-[#c25667]", dot: "bg-pastel-rose" };
-  return { key: "very_high", chip: "bg-[#f1ecfc] text-[#7a68c8]", dot: "bg-pastel-violet" };
+  if (g < 300) return { key: "moderate", chip: "bg-[#faf5e3] text-[#8a6420]", dot: "bg-pastel-amber" };
+  if (g < 450) return { key: "high", chip: "bg-[#f8eceb] text-[#a8504b]", dot: "bg-pastel-rose" };
+  return { key: "very_high", chip: "bg-[#eceef6] text-[#5a6aa0]", dot: "bg-pastel-violet" };
 }
 
 /** Four numbers: what the period emitted, the energy behind it, how dirty the grid was, and the footprint per unit of work. */
@@ -51,7 +51,7 @@ export function CarbonKpis() {
       <Tile index={0} icon="leaf" tone="green" label={t("cb.kpi.emissions")} info={t("cb.info.emissions")} loading={q.isLoading || trend.isLoading}
         value={parts ? <CountUp value={parts.n} format={(n) => nf(1).format(n)} /> : null} unit={parts ? `${parts.unit} CO₂e` : undefined}
         delta={has && c!.comparable ? <DeltaBadge pct={pctChange(c!.carbon_kg_co2e, c!.previous.carbon_kg_co2e)} /> : null}
-        spark={series} sparkColor="#6fc3a8" empty={empty}
+        spark={series} sparkColor="#5f8d6c" empty={empty}
         foot={<><span className="font-semibold text-slate-800">{nf(perDay < 10 ? 2 : 1).format(perDay)} kg</span> {t("ov2.per_day")}<span className="block text-muted">{t("ov2.operational_only")}</span></>} />
       <Tile index={1} icon="bolt" tone="amber" label={t("carbon.energy")} info={t("cb.info.energy")} loading={q.isLoading || trend.isLoading}
         value={has ? <CountUp value={c!.energy_kwh} format={(n) => nf(c!.energy_kwh < 100 ? 1 : 0).format(n)} /> : null} unit="kWh"
@@ -126,7 +126,7 @@ export function CarbonTrend() {
           <div ref={box} className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={t("carbon.daily_co2e")}>
               <defs>
-                <linearGradient id="cb-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fc3a8" stopOpacity=".38" /><stop offset="1" stopColor="#6fc3a8" stopOpacity=".02" /></linearGradient>
+                <linearGradient id="cb-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5f8d6c" stopOpacity=".38" /><stop offset="1" stopColor="#5f8d6c" stopOpacity=".02" /></linearGradient>
               </defs>
               {[0, 0.25, 0.5, 0.75, 1].map((k) => (
                 <g key={k}>
@@ -136,13 +136,13 @@ export function CarbonTrend() {
               ))}
               {xs.map((i) => <text key={i} x={x(i)} y={H - 6} textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"} fontSize="11" fill="#7b8794">{dayLabel(pts[i].day)}</text>)}
               <path d={`${path(vals)} L${x(n - 1)},${y(0)} L${x(0)},${y(0)} Z`} fill="url(#cb-area)" className="fade-in" />
-              <path d={path(vals)} fill="none" stroke="#6fc3a8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />
-              {avg && <path d={path(smooth)} fill="none" stroke="#2f8f78" strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" />}
-              {peak >= 0 && <g><circle cx={x(peak)} cy={y(vals[peak])} r="5" fill="#f2cf8a" stroke="#fff" strokeWidth="2" /></g>}
+              <path d={path(vals)} fill="none" stroke="#5f8d6c" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />
+              {avg && <path d={path(smooth)} fill="none" stroke="#3f6a4a" strokeWidth="1.6" strokeDasharray="5 5" strokeLinecap="round" />}
+              {peak >= 0 && <g><circle cx={x(peak)} cy={y(vals[peak])} r="5" fill="#e5cf8e" stroke="#fff" strokeWidth="2" /></g>}
               {hover !== null && (
                 <g>
-                  <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#2f8f78" strokeOpacity=".35" />
-                  <circle cx={x(hover)} cy={y(vals[hover])} r="5" fill="#fff" stroke="#2f8f78" strokeWidth="2.4" />
+                  <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#3f6a4a" strokeOpacity=".35" />
+                  <circle cx={x(hover)} cy={y(vals[hover])} r="5" fill="#fff" stroke="#3f6a4a" strokeWidth="2.4" />
                 </g>
               )}
             </svg>
@@ -231,7 +231,7 @@ export function GridHistory() {
   const cover = d && d.window_days > 0 ? Math.round((d.days_with_data / d.window_days) * 100) : 0;
   return (
     <Card index={6} interactive={false}>
-      <CardHeader icon={<IconGlobe className="size-[18px] text-[#5b8fdc]" />} title={t("carbon.intensity_history")} info={t("info.carbon_history")}
+      <CardHeader icon={<IconGlobe className="size-[18px] text-[#5d7fb0]" />} title={t("carbon.intensity_history")} info={t("info.carbon_history")}
         action={d && d.points.length > 0 && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{t("cb.hist.coverage", { pct: cover })}</span>} />
       {q.isLoading ? <Skeleton className="h-72" /> : q.isError ? <ErrorState /> : !d || d.regions.length === 0 ? (
         <EmptyState icon={IconGlobe} text={t("cb.hist.no_regions")} />
@@ -251,7 +251,7 @@ export function GridHistory() {
                 {d.points.some((x) => x.source === "ember") && ` ${t("cb.hist.ember")}`}
               </p>
               {d.days_with_data < d.window_days / 2 && (
-                <div className="mt-3 rounded-2xl bg-[#eef3fd] px-4 py-3 text-xs leading-relaxed text-[#3d5a8c]">
+                <div className="mt-3 rounded-2xl bg-[#eef2f8] px-4 py-3 text-xs leading-relaxed text-[#3d5a8c]">
                   <b>{t("cb.hist.few_title")}</b> {t("cb.hist.few_body")}
                 </div>
               )}
@@ -284,7 +284,7 @@ export function ScheduleAdvisor() {
   );
   return (
     <Card index={7} interactive={false} className="flex min-w-0 flex-col">
-      <CardHeader icon={<IconClock className="size-[18px] text-[#d9a441]" />} title={t("schedule.title")} info={t("info.carbon_schedule")} />
+      <CardHeader icon={<IconClock className="size-[18px] text-[#cba649]" />} title={t("schedule.title")} info={t("info.carbon_schedule")} />
       <p className="mb-4 text-sm leading-relaxed text-muted">{t("schedule.hint")}</p>
       {regions.length === 0 ? <p className="text-sm text-muted">{t("schedule.no_regions")}</p> : (
         <div className="space-y-4">
@@ -354,7 +354,7 @@ export function IntensityOrigin() {
         <div className="relative mx-auto size-28 shrink-0">
           <svg viewBox="0 0 80 80" className="size-full -rotate-90">
             <circle cx="40" cy="40" r={r} fill="none" stroke="#eef2f7" strokeWidth="8" />
-            {measured !== null && <circle cx="40" cy="40" r={r} fill="none" stroke="#6fc3a8" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${(measured / 100) * C} ${C}`} className="transition-all duration-1000" />}
+            {measured !== null && <circle cx="40" cy="40" r={r} fill="none" stroke="#5f8d6c" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${(measured / 100) * C} ${C}`} className="transition-all duration-1000" />}
           </svg>
           <div className="absolute inset-0 grid place-items-center text-center">
             <span><span className="block text-xl font-bold tabular-nums">{measured === null ? "—" : `${nf(0).format(measured)}%`}</span><span className="block text-[10px] text-muted">{t("cb.origin.measured")}</span></span>

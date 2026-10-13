@@ -38,7 +38,7 @@ const ago = (iso: string | null) => {
   return `${Math.round(h / 24)} days ago`;
 };
 
-const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{e.message}</p> : null);
+const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{e.message}</p> : null);
 
 function Stat({ icon: Icon, label, value, note, tone, index }: { icon: typeof IconUsers; label: string; value: number | undefined; note?: string; tone: string; index: number }) {
   return (
@@ -67,7 +67,7 @@ function OperatorRow({ o, index, self, lastAdmin, maxActions, canAct, busy, onRo
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-semibold">
           <span className="truncate">{name}</span>
           {self && <Pill tone="info">you</Pill>}
-          {lastAdmin && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-[#8a6218] ring-1 ring-amber-100" title="The platform always keeps at least one admin"><IconLock className="size-3" aria-hidden />last admin</span>}
+          {lastAdmin && <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-[#77621a] ring-1 ring-amber-100" title="The platform always keeps at least one admin"><IconLock className="size-3" aria-hidden />last admin</span>}
         </p>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
           {o.email && <span className="truncate">{o.subject}</span>}

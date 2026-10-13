@@ -71,19 +71,19 @@ function ProjectCard({ p, index, total, pol, onOpen, canDelete }: { p: Project; 
     <li className={cn("rise relative", gone && "card-gone")} style={{ "--i": index } as CSSProperties}>
       {canDelete && (
         <button type="button" aria-label={t("proj.delete")} title={t("proj.delete")} onClick={() => { del.reset(); setConfirm(true); }}
-          className="del-btn absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-line transition-colors hover:bg-[#fdecef] hover:text-[#d9707f] hover:ring-[#eba7b3] focus-visible:opacity-100">
+          className="del-btn absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-line transition-colors hover:bg-[#f8eceb] hover:text-[#b8625c] hover:ring-[#d3a09b] focus-visible:opacity-100">
           <IconTrash className="del-icon size-[18px]" strokeWidth={1.8} />
         </button>
       )}
       {confirm && (
-        <div className="del-wipe absolute inset-0 z-20 flex flex-col justify-center gap-2.5 overflow-hidden rounded-2xl bg-[#fdf1f3] px-5 py-4 ring-1 ring-[#eba7b3]">
-          <p className="flex items-center gap-2 pr-10 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#d9707f]" strokeWidth={1.6} /><span className="truncate">{t("proj.delete_ask", { name: p.name })}</span></p>
+        <div className="del-wipe absolute inset-0 z-20 flex flex-col justify-center gap-2.5 overflow-hidden rounded-2xl bg-[#f8eceb] px-5 py-4 ring-1 ring-[#d3a09b]">
+          <p className="flex items-center gap-2 pr-10 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#b8625c]" strokeWidth={1.6} /><span className="truncate">{t("proj.delete_ask", { name: p.name })}</span></p>
           {del.isError
-            ? <p role="alert" className="line-clamp-3 text-xs font-medium leading-snug text-[#c25667]">{del.error.message}</p>
+            ? <p role="alert" className="line-clamp-3 text-xs font-medium leading-snug text-[#a8504b]">{del.error.message}</p>
             : <p className="line-clamp-2 text-xs leading-snug text-slate-500">{t("proj.delete_hint")}</p>}
           <div className="grid grid-cols-2 gap-2.5">
             <button type="button" onClick={() => setConfirm(false)} className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:text-ink">{t("common.cancel")}</button>
-            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#e08b98] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#d9707f] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#d3a09b] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#b8625c] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
           </div>
         </div>
       )}
@@ -173,10 +173,10 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
         <Stat index={3} glyph="shield" tone="violet" label={t("proj.stat.budgets")} info={t("proj.info.budgets")} value={budgets.isError ? "—" : `${overBudget}`} hint={overBudget ? t("proj.stat.over") : t("proj.stat.ok")} />
       </div>
 
-      <div role="tablist" className="flex gap-1 border-b border-line">
+      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
         {TABS.map((k) => (
           <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={cn("relative px-4 py-2.5 text-sm font-medium transition-colors", tab === k ? "text-leaf-deep" : "text-slate-500 hover:text-ink")}>
+            className={cn("relative shrink-0 px-4 py-2.5 text-sm font-medium transition-colors", tab === k ? "text-leaf-deep" : "text-slate-500 hover:text-ink")}>
             {t(`proj.tab.${k}`)}
             <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-leaf-deep transition-transform duration-300", tab === k ? "scale-x-100" : "scale-x-0")} />
           </button>

@@ -41,7 +41,7 @@ function UseBar({ pct, label }: { pct: number | null | undefined; label: string 
   return (
     <span className="inline-flex items-center gap-2" title={low ? label : undefined}>
       <span className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100"><span className={cn("bar-x block h-full rounded-full", low ? "bg-pastel-amber" : "bg-leaf")} style={{ width: `${Math.max(3, Math.min(100, pct))}%` }} /></span>
-      <span className={cn("w-9 text-right tabular-nums", low && "font-semibold text-[#a9741a]")}>{nf(0).format(pct)}%</span>
+      <span className={cn("w-9 text-right tabular-nums", low && "font-semibold text-[#8a6420]")}>{nf(0).format(pct)}%</span>
     </span>
   );
 }
@@ -59,16 +59,16 @@ export function K8sStats() {
   const p = carbon === null ? null : carbonParts(carbon);
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat index={0} icon={IconCluster} tone="text-[#5b8fdc]" label={t("k8.stat.clusters")} info={t("k8.info.clusters")} hint={t("k8.stat.workloads", { count: cl.reduce((s, x) => s + x.workloads, 0) })}>
+      <Stat index={0} icon={IconCluster} tone="text-[#5d7fb0]" label={t("k8.stat.clusters")} info={t("k8.info.clusters")} hint={t("k8.stat.workloads", { count: cl.reduce((s, x) => s + x.workloads, 0) })}>
         {c.isLoading ? "–" : <CountUp value={cl.length} format={(n) => String(Math.round(n))} />}
       </Stat>
-      <Stat index={1} icon={IconBolt} tone="text-[#d9a441]" label={t("k8.stat.energy")} info={t("k8.info.energy")} hint={t("k8.stat.energy_hint")}>
+      <Stat index={1} icon={IconBolt} tone="text-[#cba649]" label={t("k8.stat.energy")} info={t("k8.info.energy")} hint={t("k8.stat.energy_hint")}>
         {c.isLoading ? "–" : <><CountUp value={energy} format={(n) => nf(n < 100 ? 1 : 0).format(n)} /> <span className="text-sm font-medium text-slate-500">kWh</span></>}
       </Stat>
       <Stat index={2} icon={IconLeaf} tone="text-leaf-deep" label="CO₂e" info={t("k8.info.carbon")} hint={carbon === null && !c.isLoading ? t("k8.stat.carbon_wait") : undefined}>
         {c.isLoading ? "–" : p ? <><CountUp value={p.n} format={(n) => nf(1).format(n)} /> <span className="text-sm font-medium text-slate-500">{p.unit}</span></> : "—"}
       </Stat>
-      <Stat index={3} icon={IconGauge} tone="text-[#8a78d8]" label={t("k8.stat.oversized")} info={t("k8.info.oversized")} hint={open > 0 ? t("k8.stat.open_recs", { count: open }) : t("k8.stat.low_hint")}>
+      <Stat index={3} icon={IconGauge} tone="text-[#5a6aa0]" label={t("k8.stat.oversized")} info={t("k8.info.oversized")} hint={open > 0 ? t("k8.stat.open_recs", { count: open }) : t("k8.stat.low_hint")}>
         {w.isLoading ? "–" : <CountUp value={low} format={(n) => String(Math.round(n))} />}
       </Stat>
     </div>
@@ -94,12 +94,12 @@ export function ClusterCards({ cluster, onPick }: { cluster: string; onPick: (c:
                 <button type="button" onClick={() => onPick(on ? "" : c.cluster)} aria-pressed={on}
                   className={cn("group flex h-full w-full flex-col gap-4 rounded-2xl border bg-white p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_32px_-14px_rgba(47,143,120,0.35)]", on ? "border-leaf shadow-[0_0_0_3px_rgba(111,195,168,0.18)]" : "border-line hover:border-leaf/50")}>
                   <span className="flex items-start gap-3">
-                    <IconCluster className="size-10 shrink-0 text-[#5b8fdc] transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6" strokeWidth={1.4} />
+                    <IconCluster className="size-10 shrink-0 text-[#5d7fb0] transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6" strokeWidth={1.4} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-base font-semibold">{c.cluster}</span>
                       <span className="block text-xs text-muted">{t("k8.cluster.meta", { ns: c.namespaces, wl: c.workloads })}</span>
                     </span>
-                    <span className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold", fresh ? "bg-leaf-soft text-leaf-deep" : "bg-[#fdf3dc] text-[#a9741a]")}>
+                    <span className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold", fresh ? "bg-leaf-soft text-leaf-deep" : "bg-[#faf5e3] text-[#8a6420]")}>
                       <span className={cn("size-1.5 rounded-full", fresh ? "animate-pulse bg-leaf" : "bg-pastel-amber")} />{fresh ? t("k8.live") : t("k8.stale")}
                     </span>
                   </span>
@@ -159,7 +159,7 @@ export function RightSizing() {
   const gib = (b?: string) => (b ? `${(Number(b) / 1024 ** 3).toFixed(1)} GiB` : "");
   return (
     <Card index={6} interactive={false}>
-      <CardHeader icon={<IconGauge className="size-[18px] text-[#8a78d8]" />} title={t("k8.rs.title")} info={t("k8.info.rs")}
+      <CardHeader icon={<IconGauge className="size-[18px] text-[#5a6aa0]" />} title={t("k8.rs.title")} info={t("k8.info.rs")}
         action={<Link href="/recommendations" className="text-xs font-semibold text-leaf-deep hover:underline">{t("k8.rs.all")} →</Link>} />
       <ul className="divide-y divide-line/70">
         {rows.slice(0, 6).map((r) => {
@@ -219,7 +219,7 @@ export function WorkloadTable({ cluster, onClear }: { cluster: string; onClear: 
             <tbody key={`${cluster}${ns}${sort}${onlyLow}${pg.page}`}>
               {pg.slice.map((w, i) => (
                 <tr key={`${w.cluster}/${w.namespace}/${w.workload}`} className="row-in border-t border-line/60 transition-colors hover:bg-slate-50/70" style={{ "--i": i } as CSSProperties}>
-                  <td className="py-2.5 pr-3 font-medium">{w.workload}{!cluster && <span className="ml-2 text-xs font-normal text-muted">{w.cluster}</span>}{isLow(w) && <IconWarning className="ml-1.5 inline size-3.5 text-[#d9a441]" />}</td>
+                  <td className="py-2.5 pr-3 font-medium">{w.workload}{!cluster && <span className="ml-2 text-xs font-normal text-muted">{w.cluster}</span>}{isLow(w) && <IconWarning className="ml-1.5 inline size-3.5 text-[#cba649]" />}</td>
                   <td className="pr-3">{w.namespace}</td><td className="pr-3 text-muted">{w.kind}</td>
                   <td className="pr-3 text-right tabular-nums">{nf(2).format(w.energy_kwh)} kWh</td>
                   <td className="pr-3 text-right tabular-nums" title={w.carbon_kg_co2e === null ? t("k8.no_grid") : undefined}>{carbonText(w.carbon_kg_co2e)}</td>

@@ -51,7 +51,7 @@ function PlatformControls({ canAct }: { canAct: boolean }) {
                   <p className="flex items-center gap-2 text-sm font-medium">{s.title}{s.danger && on && <Pill tone="warn" pulse>active</Pill>}</p>
                   <p className="text-xs text-muted">{s.hint}</p>
                   {confirm === s.key && (
-                    <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#8a6218] ring-1 ring-amber-200">
+                    <p role="alert" className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#77621a] ring-1 ring-amber-200">
                       Every organization will be unable to make changes until you turn this off.
                       <button type="button" onClick={() => save.mutate({ [s.key]: true })} className="rounded-lg bg-pastel-amber px-2.5 py-1 font-semibold text-white">Turn on</button>
                       <button type="button" onClick={() => setConfirm(null)} className="font-medium underline">Cancel</button>
@@ -102,7 +102,7 @@ export function OverviewView() {
     { key: "conns", header: "Connections", align: "right", sort: (a, b) => a.connections - b.connections,
       render: (t) => <span className="tabular-nums">{t.connections}{t.connections_in_error > 0 && <span className="ml-1.5 text-bad">· {t.connections_in_error} failing</span>}</span> },
     { key: "deliv", header: "Failed deliveries 7d", align: "right", hideBelow: "lg", sort: (a, b) => a.failed_deliveries_7d - b.failed_deliveries_7d,
-      render: (t) => <span className={t.failed_deliveries_7d ? "font-medium text-[#a8761f] tabular-nums" : "tabular-nums text-muted"}>{t.failed_deliveries_7d}</span> },
+      render: (t) => <span className={t.failed_deliveries_7d ? "font-medium text-[#8a6420] tabular-nums" : "tabular-nums text-muted"}>{t.failed_deliveries_7d}</span> },
     { key: "state", header: "State", sort: (a, b) => (b.connections_in_error + b.failed_deliveries_7d) - (a.connections_in_error + a.failed_deliveries_7d),
       render: (t) => (t.connections_in_error + t.failed_deliveries_7d > 0 ? <Pill tone="warn">needs a look</Pill> : <Pill tone="good">healthy</Pill>) },
   ];
@@ -170,8 +170,8 @@ export function OverviewView() {
                 { key: "name", header: "Queue", render: (q) => q.name },
                 { key: "pending", header: "Pending", align: "right", sort: (a, b) => a.pending - b.pending, render: (q) => <span className="tabular-nums">{q.pending}</span> },
                 { key: "active", header: "Active", align: "right", render: (q) => <span className="tabular-nums">{q.active}</span> },
-                { key: "retry", header: "Retry", align: "right", render: (q) => <span className={q.retry ? "font-medium text-[#a8761f] tabular-nums" : "tabular-nums text-muted"}>{q.retry}</span> },
-                { key: "failed", header: "Failed today", align: "right", sort: (a, b) => a.failed_today - b.failed_today, render: (q) => <span className={q.failed_today ? "font-medium text-[#d9707f] tabular-nums" : "tabular-nums text-muted"}>{q.failed_today}</span> },
+                { key: "retry", header: "Retry", align: "right", render: (q) => <span className={q.retry ? "font-medium text-[#8a6420] tabular-nums" : "tabular-nums text-muted"}>{q.retry}</span> },
+                { key: "failed", header: "Failed today", align: "right", sort: (a, b) => a.failed_today - b.failed_today, render: (q) => <span className={q.failed_today ? "font-medium text-[#b8625c] tabular-nums" : "tabular-nums text-muted"}>{q.failed_today}</span> },
                 { key: "st", header: "State", render: (q) => (q.paused ? <Pill tone="warn">paused</Pill> : <Pill tone="good" pulse={q.active > 0}>running</Pill>) },
               ]} />
           )}
@@ -187,7 +187,7 @@ export function OverviewView() {
                 columns={[
                   { key: "p", header: "Provider", render: (r) => r.provider },
                   { key: "r", header: "Requests", align: "right", sort: (a, b) => a.requests - b.requests, render: (r) => <span className="tabular-nums">{r.requests}</span> },
-                  { key: "e", header: "Errors", align: "right", render: (r) => <span className={r.errors ? "font-medium text-[#d9707f] tabular-nums" : "tabular-nums text-muted"}>{r.errors}</span> },
+                  { key: "e", header: "Errors", align: "right", render: (r) => <span className={r.errors ? "font-medium text-[#b8625c] tabular-nums" : "tabular-nums text-muted"}>{r.errors}</span> },
                   { key: "c", header: "Daily cap", render: (r) => <Meter value={r.requests} max={usage.data?.daily_caps[r.provider] ?? 0} label="Share of the daily request cap" /> },
                 ]} />
             );

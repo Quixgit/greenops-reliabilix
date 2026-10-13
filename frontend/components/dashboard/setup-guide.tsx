@@ -55,7 +55,7 @@ export function SetupGuide() {
   return (
     <Card index={1} interactive={false} className="p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="unit" className="size-[18px] text-[#2f8f78]" />{t("ov2.setup.title")}</h2><Info corner>{t("info.setup")}</Info>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="unit" className="size-[18px] text-[#3f6a4a]" />{t("ov2.setup.title")}</h2><Info corner>{t("info.setup")}</Info>
         <button type="button" onClick={() => setAll((o) => !o)} aria-expanded={all} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-600 transition-colors hover:bg-slate-200">{done}/{steps.length}</button>
       </div>
       <div className="mb-2 h-1 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-leaf" style={{ width: `${Math.max(4, pct)}%` }} /></div>

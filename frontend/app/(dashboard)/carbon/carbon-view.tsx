@@ -51,7 +51,7 @@ export function CarbonView() {
           </div>
           <IntensityOrigin />
           <Card index={9} interactive={false}>
-            <CardHeader icon={<IconReport className="size-[18px] text-[#8a78d8]" />} title={t("carbon.methodology")} info={t("info.carbon_method")}
+            <CardHeader icon={<IconReport className="size-[18px] text-[#5a6aa0]" />} title={t("carbon.methodology")} info={t("info.carbon_method")}
               action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
             {!m ? <Skeleton className="h-24" /> : (
               <div className="grid gap-5 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">

@@ -8,9 +8,9 @@ export function BrandLogo({ id, className }: { id: "aws" | "azure" | "gcp" | "ku
       return (
         <svg viewBox="0 0 40 40" className={className} aria-hidden>
           <rect width="40" height="40" rx="9" fill="#FF9900" />
-          <text x="20" y="21" textAnchor="middle" fontFamily="Arial, sans-serif" fontWeight="700" fontSize="13" fill="#1b2330">aws</text>
-          <path d="M9 27c6 4 16 4 22 0" stroke="#1b2330" strokeWidth="2" fill="none" strokeLinecap="round" />
-          <path d="M28.500 25.500l3 1.500-1.200 3" stroke="#1b2330" strokeWidth="1.800" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <text x="20" y="21" textAnchor="middle" fontFamily="Arial, sans-serif" fontWeight="700" fontSize="13" fill="#1b2742">aws</text>
+          <path d="M9 27c6 4 16 4 22 0" stroke="#1b2742" strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M28.500 25.500l3 1.500-1.200 3" stroke="#1b2742" strokeWidth="1.800" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case "azure":
@@ -45,7 +45,7 @@ export function BrandLogo({ id, className }: { id: "aws" | "azure" | "gcp" | "ku
       return (
         <svg viewBox="0 0 40 40" className={className} aria-hidden>
           <rect width="40" height="40" rx="20" fill="#fff" stroke="#e3e9f3" />
-          <path d="M13 13l4 14 3-9 3 9 4-14" fill="none" stroke="#1b2330" strokeWidth="2.400" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M13 13l4 14 3-9 3 9 4-14" fill="none" stroke="#1b2742" strokeWidth="2.400" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case "ember":

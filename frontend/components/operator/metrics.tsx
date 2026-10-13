@@ -11,16 +11,16 @@ import { PageTitle } from "./parts";
 
 type Key = Exclude<keyof MetricDay, "day">;
 const SERIES: { key: Key; label: string; hint: string; color: string; kind: "bars" | "line" }[] = [
-  { key: "organizations", label: "New organizations", hint: "Organizations created per day.", color: "#6fc3a8", kind: "bars" },
-  { key: "users", label: "New users", hint: "People who signed in for the first time.", color: "#8db4ee", kind: "bars" },
-  { key: "projects", label: "Projects created", hint: "Projects created by customers per day.", color: "#b8a9ee", kind: "bars" },
-  { key: "connections", label: "Cloud connections added", hint: "Cloud accounts connected per day.", color: "#f2cf8a", kind: "bars" },
-  { key: "reports", label: "Reports requested", hint: "Reports requested per day.", color: "#6fc3a8", kind: "bars" },
-  { key: "gate_checks", label: "CI gate checks", hint: "Calls of the CI gate per day.", color: "#8db4ee", kind: "bars" },
-  { key: "recommendations", label: "Recommendations created", hint: "Recommendations generated per day.", color: "#b8a9ee", kind: "bars" },
-  { key: "active_organizations", label: "Active organizations", hint: "Organizations with at least one recorded action that day.", color: "#2f8f78", kind: "line" },
-  { key: "deliveries", label: "Notification deliveries", hint: "Messages queued per day; the failed ones are in rose.", color: "#8db4ee", kind: "bars" },
-  { key: "errors", label: "New platform errors", hint: "Error groups first seen per day.", color: "#eba7b3", kind: "bars" },
+  { key: "organizations", label: "New organizations", hint: "Organizations created per day.", color: "#5f8d6c", kind: "bars" },
+  { key: "users", label: "New users", hint: "People who signed in for the first time.", color: "#9fb4d3", kind: "bars" },
+  { key: "projects", label: "Projects created", hint: "Projects created by customers per day.", color: "#bcc4df", kind: "bars" },
+  { key: "connections", label: "Cloud connections added", hint: "Cloud accounts connected per day.", color: "#e5cf8e", kind: "bars" },
+  { key: "reports", label: "Reports requested", hint: "Reports requested per day.", color: "#5f8d6c", kind: "bars" },
+  { key: "gate_checks", label: "CI gate checks", hint: "Calls of the CI gate per day.", color: "#9fb4d3", kind: "bars" },
+  { key: "recommendations", label: "Recommendations created", hint: "Recommendations generated per day.", color: "#bcc4df", kind: "bars" },
+  { key: "active_organizations", label: "Active organizations", hint: "Organizations with at least one recorded action that day.", color: "#3f6a4a", kind: "line" },
+  { key: "deliveries", label: "Notification deliveries", hint: "Messages queued per day; the failed ones are in rose.", color: "#9fb4d3", kind: "bars" },
+  { key: "errors", label: "New platform errors", hint: "Error groups first seen per day.", color: "#d3a09b", kind: "bars" },
 ];
 const dayLabel = (d: string) => new Date(`${d.slice(0, 10)}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -49,7 +49,7 @@ function SeriesCard({ s, rows, index, wide }: { s: (typeof SERIES)[number]; rows
             <g key={i} onMouseEnter={() => setHover(i)}>
               <rect x={x(i)} y={0} width={bw} height={H} fill="transparent" />
               <rect x={x(i)} y={y(v)} width={bw} height={Math.max(1.5, H - 4 - y(v))} rx="1.5" fill={s.color} opacity={hover === null || hover === i ? 1 : 0.45} className="bar-rise" style={{ transformOrigin: "50% 100%", animationDelay: `${i * 12}ms` } as CSSProperties} />
-              {failed && failed[i] > 0 && <rect x={x(i)} y={y(failed[i])} width={bw} height={Math.max(1.5, H - 4 - y(failed[i]))} rx="1.5" fill="#e08b98" />}
+              {failed && failed[i] > 0 && <rect x={x(i)} y={y(failed[i])} width={bw} height={Math.max(1.5, H - 4 - y(failed[i]))} rx="1.5" fill="#d3a09b" />}
             </g>
           )) : (
             <>
@@ -72,7 +72,7 @@ function SeriesCard({ s, rows, index, wide }: { s: (typeof SERIES)[number]; rows
   );
 }
 
-const PLAN_COLOR: Record<string, string> = { free: "#b9c4d6", team: "#6fc3a8", business: "#8db4ee", enterprise: "#b8a9ee" };
+const PLAN_COLOR: Record<string, string> = { free: "#b9c4d6", team: "#5f8d6c", business: "#9fb4d3", enterprise: "#bcc4df" };
 
 /** The platform's size now and how it grew: totals, a chart per kind of thing created, and the plans the organizations are on. */
 export function MetricsBoard({ compact = false }: { compact?: boolean }) {
@@ -119,7 +119,7 @@ export function MetricsBoard({ compact = false }: { compact?: boolean }) {
                   {m.plans.map((p, i) => (
                     <li key={p.plan}>
                       <div className="flex justify-between text-sm"><span className="font-medium capitalize">{p.plan}</span><span className="tabular-nums text-muted">{p.organizations}</span></div>
-                      <span className="mt-1 block h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full" style={{ width: `${Math.max(3, (p.organizations / planTotal) * 100)}%`, background: PLAN_COLOR[p.plan] ?? "#8db4ee", "--d": `${i * 70}ms` } as CSSProperties} /></span>
+                      <span className="mt-1 block h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full" style={{ width: `${Math.max(3, (p.organizations / planTotal) * 100)}%`, background: PLAN_COLOR[p.plan] ?? "#9fb4d3", "--d": `${i * 70}ms` } as CSSProperties} /></span>
                     </li>
                   ))}
                 </ul>

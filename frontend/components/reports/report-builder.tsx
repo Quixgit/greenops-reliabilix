@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 
 const KINDS = [
   { id: "carbon", icon: IconLeaf, tone: "text-leaf-deep" },
-  { id: "finops", icon: IconCoin, tone: "text-[#5b8fdc]" },
-  { id: "sci", icon: IconGauge, tone: "text-[#8a78d8]" },
-  { id: "sustainability", icon: IconBolt, tone: "text-[#d9a441]" },
+  { id: "finops", icon: IconCoin, tone: "text-[#5d7fb0]" },
+  { id: "sci", icon: IconGauge, tone: "text-[#5a6aa0]" },
+  { id: "sustainability", icon: IconBolt, tone: "text-[#cba649]" },
   { id: "ghg", icon: IconLeaf, tone: "text-[#3f9d7a]" },
 ] as const;
 
@@ -96,7 +96,7 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
   return (
     <Card index={1} interactive={false} className="relative overflow-hidden">
       <div aria-hidden className={cn("absolute inset-x-0 top-0 h-[3px] bg-slate-100 transition-opacity duration-500", phase === "idle" ? "opacity-0" : "opacity-100")}>
-        <div className={cn("h-full rounded-r-full transition-[width,background-color] duration-300 ease-out", phase === "fail" ? "bg-[#e08b98]" : "bg-gradient-to-r from-leaf to-leaf-deep", busy && "progress-glow")} style={{ width: `${phase === "fail" ? 100 : pct}%` }} />
+        <div className={cn("h-full rounded-r-full transition-[width,background-color] duration-300 ease-out", phase === "fail" ? "bg-[#d3a09b]" : "bg-gradient-to-r from-leaf to-leaf-deep", busy && "progress-glow")} style={{ width: `${phase === "fail" ? 100 : pct}%` }} />
       </div>
       <CardHeader icon={<IconReport className="size-[18px] text-leaf-deep" />} title={t("rp.new")} info={t("rp.info.new")} />
 
@@ -186,7 +186,7 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
         <p className="min-w-0 truncate text-sm text-slate-600">{ok ? summary : ""}</p>
         <div className="flex items-center gap-3">
           {phase !== "idle" && (
-            <span role="status" className={cn("text-xs font-medium tabular-nums", phase === "fail" ? "text-[#c25667]" : phase === "done" ? "text-leaf-deep" : "text-slate-500")}>
+            <span role="status" className={cn("text-xs font-medium tabular-nums", phase === "fail" ? "text-[#a8504b]" : phase === "done" ? "text-leaf-deep" : "text-slate-500")}>
               {phase === "run" ? `${t("rp.progress")} ${Math.round(pct)}%` : phase === "done" ? t("rp.progress_done") : t("rp.progress_fail")}
             </span>
           )}

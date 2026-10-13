@@ -69,7 +69,7 @@ export function DiagnosticsView() {
       <section aria-label="Summary" className="rise relative overflow-hidden rounded-3xl bg-gradient-to-br from-leaf-soft/70 via-sky-50/60 to-violet-50/50 p-5 ring-1 ring-white/70">
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           <div className="flex items-center gap-4">
-            <span className={cn("grid size-16 place-items-center rounded-2xl text-xl font-bold tabular-nums", health === null ? "bg-white/70 text-slate-400" : health === 100 ? "bg-leaf-soft text-leaf-deep" : health >= 70 ? "bg-amber-50 text-[#8a6218]" : "bg-rose-50 text-[#c2566a]")}>
+            <span className={cn("grid size-16 place-items-center rounded-2xl text-xl font-bold tabular-nums", health === null ? "bg-white/70 text-slate-400" : health === 100 ? "bg-leaf-soft text-leaf-deep" : health >= 70 ? "bg-amber-50 text-[#77621a]" : "bg-rose-50 text-[#a8504b]")}>
               {health === null ? <IconGauge className="size-7" aria-hidden /> : `${health}%`}
             </span>
             <div>
@@ -78,7 +78,7 @@ export function DiagnosticsView() {
             </div>
           </div>
           <dl className="flex flex-wrap gap-3">
-            {([["ok", "Passed", "text-leaf-deep"], ["warn", "Warnings", "text-[#a8761f]"], ["fail", "Failed", "text-[#c2566a]"], ["skipped", "Not applicable", "text-slate-500"], ["pending", "Not run", "text-slate-400"]] as const).map(([k, label, cls]) => (
+            {([["ok", "Passed", "text-leaf-deep"], ["warn", "Warnings", "text-[#8a6420]"], ["fail", "Failed", "text-[#a8504b]"], ["skipped", "Not applicable", "text-slate-500"], ["pending", "Not run", "text-slate-400"]] as const).map(([k, label, cls]) => (
               <div key={k} className="rounded-2xl bg-white/70 px-4 py-2.5 ring-1 ring-white/80">
                 <dt className="text-[11px] font-medium text-muted">{label}</dt>
                 <dd className={cn("text-xl font-bold tabular-nums", cls)}>{counts[k]}</dd>
@@ -112,7 +112,7 @@ export function DiagnosticsView() {
                       r.status === "fail" ? "ring-rose-200" : r.status === "warn" ? "ring-amber-200" : "ring-line")} style={{ "--i": Math.min(i, 10) } as CSSProperties}>
                       <div className="flex items-start gap-3">
                         <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl",
-                          busy ? "bg-sky-50 text-sky-600" : r.status === "ok" ? "bg-leaf-soft text-leaf-deep" : r.status === "warn" ? "bg-amber-50 text-[#a8761f]" : r.status === "fail" ? "bg-rose-50 text-[#c2566a]" : "bg-slate-100 text-slate-400")}>
+                          busy ? "bg-sky-50 text-sky-600" : r.status === "ok" ? "bg-leaf-soft text-leaf-deep" : r.status === "warn" ? "bg-amber-50 text-[#8a6420]" : r.status === "fail" ? "bg-rose-50 text-[#a8504b]" : "bg-slate-100 text-slate-400")}>
                           {busy ? <IconRefresh className="size-[18px] animate-spin" aria-hidden /> : r.status === "ok" ? <IconCheckCircle className="size-[18px]" aria-hidden /> : r.status === "warn" || r.status === "fail" ? <IconWarning className="size-[18px]" aria-hidden /> : <IconCircleDashed className="size-[18px]" aria-hidden />}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ export function DiagnosticsView() {
                         {canRun && <Btn tone="quiet" size="sm" disabled={run.isPending} onClick={() => run.mutate([r.id])} aria-label={`Run: ${r.name}`}>Run</Btn>}
                       </div>
                       {r.message && !busy && (
-                        <p className={cn("rounded-xl px-3 py-2 text-[13px] ring-1", r.status === "fail" ? "bg-rose-50/70 text-[#a8485c] ring-rose-100" : r.status === "warn" ? "bg-amber-50/70 text-[#8a6218] ring-amber-100" : "bg-slate-50 text-slate-600 ring-line/60")}>
+                        <p className={cn("rounded-xl px-3 py-2 text-[13px] ring-1", r.status === "fail" ? "bg-rose-50/70 text-[#a8485c] ring-rose-100" : r.status === "warn" ? "bg-amber-50/70 text-[#77621a] ring-amber-100" : "bg-slate-50 text-slate-600 ring-line/60")}>
                           {r.message}{r.ms > 0 && <span className="ml-2 text-[11px] text-muted">· {r.ms} ms</span>}
                         </p>
                       )}
@@ -135,7 +135,7 @@ export function DiagnosticsView() {
           {groups.length === 0 && <p className="text-sm text-muted">Nothing in this filter.</p>}
         </div>
       )}
-      {run.isError && <p role="alert" className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{run.error.message}</p>}
+      {run.isError && <p role="alert" className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{run.error.message}</p>}
       {!canRun && <p className="text-xs text-muted">Only an operator with the admin role can run the tests.</p>}
     </div>
   );

@@ -139,7 +139,7 @@ export function SourceDetailView({ id }: { id: string }) {
 
           {id === "electricitymaps" && <RequestUsage provider="electricitymaps" />}
           {provider && (source?.in_error ?? 0) > 0 && (
-            <Link href="/operator/connections" className="flex items-center justify-between gap-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-[#c2566a] ring-1 ring-rose-200 transition hover:bg-rose-100">
+            <Link href="/operator/connections" className="flex items-center justify-between gap-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-[#a8504b] ring-1 ring-rose-200 transition hover:bg-rose-100">
               {source!.in_error} customer connection{source!.in_error === 1 ? "" : "s"} failing to synchronize<span>View →</span>
             </Link>
           )}

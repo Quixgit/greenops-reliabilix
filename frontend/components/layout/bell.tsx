@@ -14,7 +14,7 @@ import { playChime, readSoundPref, writeSoundPref } from "@/lib/chime";
 import { cn } from "@/lib/utils";
 
 const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, platform: IconSparkles, other: IconBell };
-const SEV_DOT = { critical: "bg-[#e08b98]", warning: "bg-pastel-amber", info: "bg-pastel-blue" } as const;
+const SEV_DOT = { critical: "bg-[#d3a09b]", warning: "bg-pastel-amber", info: "bg-pastel-blue" } as const;
 
 type Row = { key: string; title: string; body: string; severity: "info" | "warning" | "critical"; at: string; href: string; unread: boolean; area: string };
 
@@ -76,7 +76,7 @@ export function NotificationBell({ extra = [], extraReady = true, allHref = "/al
       <DM.Trigger aria-label={unread ? t("bell.aria_unread", { count: unread }) : t("header.notifications")}
         className="group relative grid size-10 place-items-center rounded-xl border border-line/80 bg-white text-slate-600 shadow-[0_1px_2px_rgba(16,24,40,0.04)] outline-none transition-all duration-200 hover:border-slate-300 hover:text-ink data-[state=open]:border-leaf data-[state=open]:shadow-[0_0_0_3px_rgba(111,195,168,0.22)]">
         <IconBell className={cn("size-[20px] origin-top transition-transform duration-300 group-hover:rotate-[-8deg]", ring && "bell-ring")} />
-        {unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[#e08b98] px-1 text-[10px] font-bold leading-[18px] text-white ring-2 ring-white">{unread > 9 ? "9+" : unread}</span>}
+        {unread > 0 && <span className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[#d3a09b] px-1 text-[10px] font-bold leading-[18px] text-white ring-2 ring-white">{unread > 9 ? "9+" : unread}</span>}
       </DM.Trigger>
       <DropdownPanel align="end">
         <div className="w-[380px] max-w-[92vw]">
@@ -102,7 +102,7 @@ export function NotificationBell({ extra = [], extraReady = true, allHref = "/al
                     <DM.Item asChild>
                       <Link href={r.href} onClick={() => { if (r.key.startsWith("x-")) markSeen(extra.filter((x) => `x-${x.key}` === r.key)); else if (!r.key.startsWith("a-") && r.unread) read.mutate(); }}
                         className={cn("flex gap-3 rounded-xl px-3 py-2.5 outline-none transition-colors data-[highlighted]:bg-slate-50", r.unread && "bg-leaf-soft/40")}>
-                        <Icon className={cn("mt-0.5 size-7 shrink-0", r.severity === "critical" ? "text-[#d9707f]" : r.severity === "warning" ? "text-[#d9a441]" : "text-[#5b8fdc]")} strokeWidth={1.5} />
+                        <Icon className={cn("mt-0.5 size-7 shrink-0", r.severity === "critical" ? "text-[#b8625c]" : r.severity === "warning" ? "text-[#cba649]" : "text-[#5d7fb0]")} strokeWidth={1.5} />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2"><span className="truncate text-sm font-semibold">{r.title}</span>{r.unread && <span className={cn("size-2 shrink-0 rounded-full", SEV_DOT[r.severity])} />}</span>
                           {r.body && <span className="mt-0.5 line-clamp-2 block text-xs text-slate-600">{r.body}</span>}

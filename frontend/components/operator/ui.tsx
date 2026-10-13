@@ -40,8 +40,8 @@ export function Check_({ checked, onChange, disabled, label, children }: {
 }
 
 const TONES = {
-  good: "bg-leaf-soft text-leaf-deep ring-leaf-soft", warn: "bg-amber-50 text-[#a8761f] ring-amber-200",
-  bad: "bg-rose-50 text-[#b9566a] ring-rose-200", info: "bg-sky-50 text-[#3f78b8] ring-sky-200",
+  good: "bg-leaf-soft text-leaf-deep ring-leaf-soft", warn: "bg-amber-50 text-[#8a6420] ring-amber-200",
+  bad: "bg-rose-50 text-[#a8504b] ring-rose-200", info: "bg-sky-50 text-[#3f6094] ring-sky-200",
   neutral: "bg-slate-100 text-slate-600 ring-slate-200", violet: "bg-violet-50 text-violet-700 ring-violet-200",
 } as const;
 export type PillTone = keyof typeof TONES;
@@ -230,13 +230,13 @@ export function Btn({ tone = "primary", size = "md", className, ...p }: React.Bu
       className={cn("inline-flex items-center justify-center gap-2 rounded-xl font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-leaf/50 disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
         tone === "primary" && "btn-leaf", tone === "quiet" && "bg-white text-ink ring-1 ring-line hover:bg-slate-50",
-        tone === "danger" && "bg-rose-50 text-[#c2566a] ring-1 ring-rose-200 hover:bg-rose-100", className)} />
+        tone === "danger" && "bg-rose-50 text-[#a8504b] ring-1 ring-rose-200 hover:bg-rose-100", className)} />
   );
 }
 
 /** A soft tinted initial for a name: the same name always gets the same tone, so a list is easy to scan. */
 export function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
-  const tones = ["bg-leaf-soft text-leaf-deep", "bg-sky-50 text-sky-700", "bg-violet-50 text-violet-700", "bg-amber-50 text-[#a8761f]", "bg-rose-50 text-[#c2566a]"];
+  const tones = ["bg-leaf-soft text-leaf-deep", "bg-sky-50 text-sky-700", "bg-violet-50 text-violet-700", "bg-amber-50 text-[#8a6420]", "bg-rose-50 text-[#a8504b]"];
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return <span aria-hidden className={cn("inline-grid shrink-0 place-items-center rounded-xl font-bold", tones[h % tones.length], size === "sm" ? "size-8 text-xs" : size === "lg" ? "size-12 text-lg" : "size-9 text-sm")}>{(name.match(/[\p{L}\p{N}]/u)?.[0] ?? "?").toUpperCase()}</span>;

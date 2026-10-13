@@ -40,15 +40,15 @@ function Spark({ p, currency }: { p: ProviderCommitment; currency: string }) {
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-32 w-full touch-none" role="img" aria-label={t("cm.chart_label", { name: NAMES[p.provider] ?? p.provider })}
         onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(); setHover(Math.max(0, Math.min(p.daily.length - 1, Math.round(((e.clientX - r.left) / r.width * w - pad) / (w - pad * 2) * (p.daily.length - 1))))); }}
         onPointerLeave={() => setHover(null)}>
-        <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fc3a8" stopOpacity="0.35" /><stop offset="1" stopColor="#6fc3a8" stopOpacity="0.02" /></linearGradient></defs>
-        <rect x={pad} y={base} width={w - pad * 2} height={h - pad - base} fill="#6fc3a8" opacity="0.10" />
+        <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5f8d6c" stopOpacity="0.35" /><stop offset="1" stopColor="#5f8d6c" stopOpacity="0.02" /></linearGradient></defs>
+        <rect x={pad} y={base} width={w - pad * 2} height={h - pad - base} fill="#5f8d6c" opacity="0.10" />
         <path d={area} fill={`url(#${id})`} />
-        <path d={line} fill="none" stroke="#3f9e84" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        <line x1={pad} x2={w - pad} y1={base} y2={base} stroke="#3f9e84" strokeWidth="1.2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+        <path d={line} fill="none" stroke="#4d7d59" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        <line x1={pad} x2={w - pad} y1={base} y2={base} stroke="#4d7d59" strokeWidth="1.2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
         {hd && <line x1={x(hover!)} x2={x(hover!)} y1={pad} y2={h - pad} stroke="#94a3b8" strokeWidth="1" vectorEffect="non-scaling-stroke" />}
       </svg>
-      {hd && <span aria-hidden className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#3f9e84] shadow" style={{ left: `${(x(hover!) / w) * 100}%`, top: `${(y(hd.cost) / h) * 128}px` }} />}
-      <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted"><span aria-hidden className="inline-block h-0 w-5 border-t-[1.5px] border-dashed border-[#3f9e84]" />{t("cm.baseline_note", { value: formatCost(p.baseline_daily, currency) })}</p>
+      {hd && <span aria-hidden className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#4d7d59] shadow" style={{ left: `${(x(hover!) / w) * 100}%`, top: `${(y(hd.cost) / h) * 128}px` }} />}
+      <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted"><span aria-hidden className="inline-block h-0 w-5 border-t-[1.5px] border-dashed border-[#4d7d59]" />{t("cm.baseline_note", { value: formatCost(p.baseline_daily, currency) })}</p>
       {hd && (
         <div className="pointer-events-none absolute top-1 rounded-lg bg-ink px-2.5 py-1.5 text-xs text-white shadow-lg" style={{ left: `clamp(0px, calc(${(x(hover!) / w) * 100}% - 50px), calc(100% - 110px))` }}>
           <span className="block text-[10px] opacity-70">{hd.day}</span><span className="font-semibold tabular-nums">{formatCost(hd.cost, currency)}</span>
@@ -74,7 +74,7 @@ function Existing({ p, name, currency, e, onChange }: { p: ProviderCommitment; n
       </span>
     </label>
   );
-  const tone = p.advice === "reduce" ? "bg-[#fdecef] text-[#c25667]" : p.advice === "hold" ? "bg-slate-100 text-slate-600" : "bg-leaf-soft text-leaf-deep";
+  const tone = p.advice === "reduce" ? "bg-[#f8eceb] text-[#a8504b]" : p.advice === "hold" ? "bg-slate-100 text-slate-600" : "bg-leaf-soft text-leaf-deep";
   return (
     <div className="rounded-2xl border border-line bg-slate-50/60 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -92,7 +92,7 @@ function Existing({ p, name, currency, e, onChange }: { p: ProviderCommitment; n
         </div>
       )}
       <p className="mt-3 text-sm leading-relaxed text-slate-700">{p.existing_source === "" ? t("cm.advice_unknown") : t(`cm.advice_text.${p.advice}`, { pct: Math.round(p.additional_coverage_pct), util: Math.round(p.existing_utilization_pct ?? 0) })}</p>
-      {p.existing_unused_monthly !== null && p.existing_unused_monthly > 0 && <p className="mt-1 text-sm font-semibold text-[#a9741a]">{t("cm.unused", { amount: formatCost(p.existing_unused_monthly, currency) })}</p>}
+      {p.existing_unused_monthly !== null && p.existing_unused_monthly > 0 && <p className="mt-1 text-sm font-semibold text-[#8a6420]">{t("cm.unused", { amount: formatCost(p.existing_unused_monthly, currency) })}</p>}
     </div>
   );
 }
@@ -133,16 +133,16 @@ function ProviderCard({ p, i, currency, term, onDiscount, discount, def, existin
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("cm.risk")}</p>
             <ul className="grid gap-2 sm:grid-cols-3">
               {p.scenarios.map((s, k) => (
-                <li key={s.utilization_pct} className={cn("rise rounded-xl px-3 py-2 text-sm", s.monthly_net >= 0 ? "bg-leaf-soft/60" : "bg-[#fdecef]")} style={{ "--i": k } as CSSProperties}>
+                <li key={s.utilization_pct} className={cn("rise rounded-xl px-3 py-2 text-sm", s.monthly_net >= 0 ? "bg-leaf-soft/60" : "bg-[#f8eceb]")} style={{ "--i": k } as CSSProperties}>
                   <span className="block text-xs text-slate-500">{t("cm.if_used", { pct: s.utilization_pct })}</span>
-                  <span className={cn("font-semibold tabular-nums", s.monthly_net >= 0 ? "text-leaf-deep" : "text-[#c25667]")}>{s.monthly_net >= 0 ? "+" : "−"}{f(Math.abs(s.monthly_net))}{t("cm.per_month")}</span>
+                  <span className={cn("font-semibold tabular-nums", s.monthly_net >= 0 ? "text-leaf-deep" : "text-[#a8504b]")}>{s.monthly_net >= 0 ? "+" : "−"}{f(Math.abs(s.monthly_net))}{t("cm.per_month")}</span>
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-xs text-muted">{t("cm.break_even", { pct: p.break_even_utilization, stable: Math.round(p.stable_share_pct), term })}</p>
           </div>
           )}
-          {p.possibly_committed && <p className="flex items-start gap-2 rounded-xl bg-[#fdf3dc] px-3 py-2 text-xs text-[#a9741a]"><IconWarning className="mt-0.5 size-3.5 shrink-0" />{t("cm.maybe_committed")}</p>}
+          {p.possibly_committed && <p className="flex items-start gap-2 rounded-xl bg-[#faf5e3] px-3 py-2 text-xs text-[#8a6420]"><IconWarning className="mt-0.5 size-3.5 shrink-0" />{t("cm.maybe_committed")}</p>}
         </>
       )}
     </Card>
@@ -181,7 +181,7 @@ export function CommitmentsPanel() {
           </div>
           <div>
             <p className="mb-1.5 flex justify-between text-xs font-semibold uppercase tracking-wide text-slate-500"><span>{t("cm.coverage")}</span><span className="tabular-nums text-ink">{coverage}%</span></p>
-            <input type="range" min={10} max={100} step={5} value={coverage} onChange={(e) => setCoverage(Number(e.target.value))} aria-label={t("cm.coverage")} className="w-full accent-[#3f9e84]" />
+            <input type="range" min={10} max={100} step={5} value={coverage} onChange={(e) => setCoverage(Number(e.target.value))} aria-label={t("cm.coverage")} className="w-full accent-[#4d7d59]" />
             <p className="mt-1 text-xs text-muted">{t("cm.coverage_hint")}</p>
           </div>
         </div>

@@ -45,7 +45,7 @@ export function SsoPanel({ canEdit }: { canEdit: boolean }) {
                   <p>{t("sso.dns")}</p>
                   <pre className="overflow-x-auto rounded-lg bg-white p-2.5 text-[11px] leading-snug ring-1 ring-line/60">{`TXT  ${d.record_name}\n${d.record_value}`}</pre>
                   {canEdit && <button type="button" disabled={verify.isPending} onClick={() => verify.mutate(d.id)} className="rounded-xl btn-leaf px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{verify.isPending ? t("sso.checking") : t("sso.verify")}</button>}
-                  {verify.isError && verify.variables === d.id && <p role="alert" className="text-xs text-[#a13a4b]">{verify.error.message}</p>}
+                  {verify.isError && verify.variables === d.id && <p role="alert" className="text-xs text-[#8a403d]">{verify.error.message}</p>}
                 </div>
               )}
             </div>

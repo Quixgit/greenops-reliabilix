@@ -325,3 +325,14 @@
 .dx-sub-link.is-on { background: var(--dx-sand); color: var(--dx-ink); }
 .dx-sub-link.is-on svg { color: var(--dx-navy); }
 .dx-sub-link.is-on::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--dx-navy); }
+
+/* ---- the map and the floating things on it ---------------------------------------------------------------------- */
+.dx .map-mini, .dx .map-modal, .dx .map-pill { box-shadow: 0 10px 28px rgba(27, 39, 66, 0.14) !important; }
+.dx .map-modal { box-shadow: 0 24px 64px rgba(27, 39, 66, 0.22) !important; }
+.dx .map-wrap { background: #faf8f4; border: 1px solid var(--dx-line); }
+.dx .map-backdrop { background: rgba(27, 39, 66, 0.45) !important; }
+.dx .map-pulse { animation-duration: 3.6s; }
+
+/* a grid or flex child may shrink below its content, so a long label truncates instead of widening the page */
+.dx-main { min-width: 0; overflow-x: clip; }
+.dx-main [class*="grid"] > *, .dx-main [class*="flex"] > li, .dx-main section > *, .dx-main li > * { min-width: 0; }

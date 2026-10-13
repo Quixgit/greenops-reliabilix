@@ -50,7 +50,7 @@ const DotLayer = memo(function DotLayer({ byCountry, national, inventory, hoverC
       for (const [c, idx] of groups) {
         ctx.fillStyle = c;
         ctx.beginPath();
-        for (const i of idx) { const d = dots[i]; ctx.moveTo(d.x * k + r, d.y * k); ctx.arc(d.x * k, d.y * k, r, 0, 6.2832); }
+        for (const i of idx) { const d = dots[i]; ctx.rect(d.x * k - r, d.y * k - r, r * 2, r * 2); }
         ctx.fill();
       }
     }
@@ -66,9 +66,7 @@ const DotLayer = memo(function DotLayer({ byCountry, national, inventory, hoverC
     dots.forEach((d, i) => {
       if (d.country !== hoverCountry) return;
       ctx.fillStyle = colors[i];
-      ctx.beginPath();
-      ctx.arc(d.x * k, d.y * k, r, 0, 6.2832);
-      ctx.fill();
+      ctx.fillRect(d.x * k - r, d.y * k - r, r * 2, r * 2);
     });
   }, [dots, colors, hoverCountry, W, H, k]);
 
@@ -224,29 +222,29 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitM
             const mx = (a.from.x + a.to[0]) / 2, my = Math.min(a.from.y, a.to[1]) - Math.hypot(a.from.x - a.to[0], a.from.y - a.to[1]) * 0.28;
             return (
               <g key={a.key}>
-                <path d={`M${a.from.x},${a.from.y} Q${mx},${my} ${a.to[0]},${a.to[1]}`} fill="none" stroke="#8fb4f0" strokeWidth={0.7} strokeLinecap="round" className="map-arc" />
-                <circle cx={a.to[0]} cy={a.to[1]} r={1.5} fill="#8fd4bf" stroke="#fff" strokeWidth={0.4} className="map-breathe" />
+                <path d={`M${a.from.x},${a.from.y} Q${mx},${my} ${a.to[0]},${a.to[1]}`} fill="none" stroke="#5d7fb0" strokeWidth={0.7} className="map-arc" />
+                <rect x={a.to[0] - 1.5} y={a.to[1] - 1.5} width={3} height={3} fill="#5f8d6c" stroke="#fff" strokeWidth={0.4} className="map-breathe" />
               </g>
             );
           })}
           {links.map((l) => (
             <g key={`link-${l.key}`}>
-              <path d={`M${l.a[0]},${l.a[1]} Q${l.cx},${l.cy} ${l.b[0]},${l.b[1]}`} fill="none" stroke={l.over ? "#e7a8b4" : "#8fb4f0"} strokeWidth={0.6} strokeDasharray="1.8 1.4" strokeLinecap="round" className="map-arc" />
-              <circle cx={l.b[0]} cy={l.b[1]} r={1.7} fill="none" stroke={l.over ? "#e7a8b4" : "#8fb4f0"} strokeWidth={0.5} />
+              <path d={`M${l.a[0]},${l.a[1]} Q${l.cx},${l.cy} ${l.b[0]},${l.b[1]}`} fill="none" stroke={l.over ? "#b8625c" : "#5d7fb0"} strokeWidth={0.6} strokeDasharray="1.8 1.4" strokeLinecap="round" className="map-arc" />
+              <rect x={l.b[0] - 1.7} y={l.b[1] - 1.7} width={3.4} height={3.4} fill="none" stroke={l.over ? "#b8625c" : "#5d7fb0"} strokeWidth={0.5} />
             </g>
           ))}
           {markers.map((m, i) => {
             const on = selected === m.region || hover === m.region;
-            const fill = m.g === null ? "#b9c6dc" : intensityColor(m.g);
+            const fill = m.g === null ? "#a39d90" : intensityColor(m.g);
             return (
               <g key={m.region} data-marker className="map-marker cursor-pointer" style={{ transform: `translate(${m.x}px,${m.y}px) scale(calc(1 / var(--k, 1)))` }}
                 onMouseEnter={() => setHover(m.region)} onMouseLeave={() => setHover(null)} onClick={() => onSelect(m.region)}>
-                <circle r={m.r + 3} fill="transparent" />
-                <circle r={m.r + 0.6} fill={fill} className="map-pulse" style={{ animationDelay: `${(i % 5) * 500}ms` }} />
+                <rect x={-(m.r + 3)} y={-(m.r + 3)} width={(m.r + 3) * 2} height={(m.r + 3) * 2} fill="transparent" />
+                <rect x={-(m.r + 0.6)} y={-(m.r + 0.6)} width={(m.r + 0.6) * 2} height={(m.r + 0.6) * 2} fill={fill} className="map-pulse" style={{ animationDelay: `${(i % 5) * 500}ms` }} />
                 <g className="map-pop" style={{ animationDelay: `${300 + i * 60}ms` }}>
-                  <circle r={m.r + (on ? 1.2 : 0.6)} fill="#fff" className="map-core" />
-                  <circle r={m.r + (on ? 0.4 : -0.1)} fill={fill} stroke="rgba(15,27,51,.22)" strokeWidth={0.3} className="map-core" />
-                  {selected === m.region && <circle r={m.r + 2.4} fill="none" stroke={fill} strokeWidth={0.5} strokeDasharray="1.6 1.6" className="map-ring" />}
+                  <rect x={-(m.r + (on ? 1.2 : 0.6))} y={-(m.r + (on ? 1.2 : 0.6))} width={(m.r + (on ? 1.2 : 0.6)) * 2} height={(m.r + (on ? 1.2 : 0.6)) * 2} fill="#fff" className="map-core" />
+                  <rect x={-(m.r + (on ? 0.4 : -0.1))} y={-(m.r + (on ? 0.4 : -0.1))} width={(m.r + (on ? 0.4 : -0.1)) * 2} height={(m.r + (on ? 0.4 : -0.1)) * 2} fill={fill} stroke="#1b2a46" strokeOpacity=".55" strokeWidth={0.3} className="map-core" />
+                  {selected === m.region && <rect x={-(m.r + 2.4)} y={-(m.r + 2.4)} width={(m.r + 2.4) * 2} height={(m.r + 2.4) * 2} fill="none" stroke="#1b2a46" strokeWidth={0.5} className="map-ring" />}
                 </g>
               </g>
             );
@@ -268,7 +266,7 @@ function DotMap({ regions, footprint, mode, big, selected, onSelect, own, limitM
         {links.filter((l) => l.ms !== null).map((l) => (
           <div key={`lat-${l.key}`} className="map-pill pointer-events-none absolute z-10 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-[0_6px_16px_rgba(31,52,110,.14)] ring-1"
             title={`${l.city}: ${l.basis === "estimated" ? "≈ " : ""}${l.ms} ms (${nf(0).format(l.km ?? 0)} km) · ${latencyBasisLabel(t, l.basis, l.errorPct)}`}
-            style={{ left: `${(l.mx / MAP_W) * 100}%`, top: `${(l.my / MAP_H) * 100}%`, transform: "translate(-50%, -50%) scale(calc(1 / var(--k, 1)))", background: l.over ? "#fbeef1" : "#eef5ff", color: l.over ? "#b9566a" : "#3f78b8", ["--tw-ring-color" as string]: l.over ? "#f4d3da" : "#d4e4fb" }}>
+            style={{ left: `${(l.mx / MAP_W) * 100}%`, top: `${(l.my / MAP_H) * 100}%`, transform: "translate(-50%, -50%) scale(calc(1 / var(--k, 1)))", background: l.over ? "#f8eceb" : "#eef2f8", color: l.over ? "#a8504b" : "#3f6094", ["--tw-ring-color" as string]: l.over ? "#f4d3da" : "#d4e4fb" }}>
             {l.basis === "estimated" ? "≈ " : ""}{l.ms} ms<span className="ml-1 font-medium opacity-70">· {l.city}</span>
           </div>
         ))}

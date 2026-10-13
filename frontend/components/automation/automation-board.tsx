@@ -19,19 +19,19 @@ import { cn } from "@/lib/utils";
 
 const LIVE = new Set(["planned", "approved"]);
 const KIND_ICON: Record<string, IconType> = { ec2_resize: IconServer, ec2_terminate: IconPower, region_shift: IconGlobe };
-const RISK: Record<string, string> = { low: "bg-leaf-soft text-leaf-deep", medium: "bg-[#fdf3dc] text-[#a9741a]", high: "bg-[#fdecef] text-[#c25667]" };
+const RISK: Record<string, string> = { low: "bg-leaf-soft text-leaf-deep", medium: "bg-[#faf5e3] text-[#8a6420]", high: "bg-[#f8eceb] text-[#a8504b]" };
 const STATUS: Record<string, string> = {
-  planned: "bg-[#eef3fd] text-[#4a6fb0]", approved: "bg-[#fdf3dc] text-[#a9741a]", completed: "bg-leaf-soft text-leaf-deep",
-  failed: "bg-[#fdecef] text-[#c25667]", rolled_back: "bg-[#f1ecfc] text-[#7a68c8]", cancelled: "bg-slate-100 text-slate-500",
+  planned: "bg-[#eef2f8] text-[#3f6094]", approved: "bg-[#faf5e3] text-[#8a6420]", completed: "bg-leaf-soft text-leaf-deep",
+  failed: "bg-[#f8eceb] text-[#a8504b]", rolled_back: "bg-[#eceef6] text-[#5a6aa0]", cancelled: "bg-slate-100 text-slate-500",
 };
 const PLANNABLE = (r: Recommendation) => r.type === "region_shift" || (r.type === "rightsizing" && (r.details?.action === "modify" || r.details?.action === "terminate"));
 
 export type Stage = "ready" | "review" | "apply" | "done";
 const STAGES: { id: Stage; icon: IconType; tone: string }[] = [
-  { id: "ready", icon: IconClipboard, tone: "text-[#5b8fdc]" },
-  { id: "review", icon: IconShield, tone: "text-[#d9a441]" },
+  { id: "ready", icon: IconClipboard, tone: "text-[#5d7fb0]" },
+  { id: "review", icon: IconShield, tone: "text-[#cba649]" },
   { id: "apply", icon: IconPlay, tone: "text-leaf-deep" },
-  { id: "done", icon: IconCheckCircle, tone: "text-[#8a78d8]" },
+  { id: "done", icon: IconCheckCircle, tone: "text-[#5a6aa0]" },
 ];
 
 function useBoard() {
@@ -171,12 +171,12 @@ function DryRun({ id }: { id: string }) {
       {run.isError && <p role="alert" className="mt-2 text-sm text-bad">{run.error.message}</p>}
       {r && (
         <div className="form-swap mt-3 rounded-2xl bg-slate-50 p-4">
-          <p className={cn("text-sm font-semibold", r.ready ? "text-leaf-deep" : "text-[#a9741a]")}>{r.ready ? t("au.dry.ready") : t("au.dry.not_ready")}</p>
+          <p className={cn("text-sm font-semibold", r.ready ? "text-leaf-deep" : "text-[#8a6420]")}>{r.ready ? t("au.dry.ready") : t("au.dry.not_ready")}</p>
           <p className="mb-2 text-xs text-muted">{t("au.dry.note")}</p>
           <ul className="space-y-1 text-sm">
             {r.checks.map((c) => (
               <li key={c.id} className="flex gap-2">
-                {c.ok ? <IconCheck className="mt-0.5 size-4 shrink-0 text-leaf-deep" strokeWidth={2.4} /> : <IconWarning className="mt-0.5 size-4 shrink-0 text-[#d9a441]" />}
+                {c.ok ? <IconCheck className="mt-0.5 size-4 shrink-0 text-leaf-deep" strokeWidth={2.4} /> : <IconWarning className="mt-0.5 size-4 shrink-0 text-[#cba649]" />}
                 <span><span className="font-medium">{t(`au.dry.c.${c.id}`)}</span>{!c.ok && c.detail ? <span className="text-slate-600"> — {c.detail}</span> : null}</span>
               </li>
             ))}
@@ -203,7 +203,7 @@ function History({ id }: { id: string }) {
       <ol className="relative space-y-3 border-l border-line pl-5">
         {rows.map((e, i) => (
           <li key={i} className="relative text-sm">
-            <span className={cn("absolute -left-[26px] top-1.5 size-2.5 rounded-full ring-4 ring-white", e.action === "failed" || e.action === "rolled_back" ? "bg-[#e08b98]" : e.action === "cancelled" ? "bg-slate-300" : "bg-leaf")} />
+            <span className={cn("absolute -left-[26px] top-1.5 size-2.5 rounded-full ring-4 ring-white", e.action === "failed" || e.action === "rolled_back" ? "bg-[#d3a09b]" : e.action === "cancelled" ? "bg-slate-300" : "bg-leaf")} />
             <p className="font-semibold text-ink">{t(`au.hist.${e.action}`, undefined, e.action)} <span className="font-normal text-muted">· {e.actor} · {timeAgo(e.at)}</span></p>
             {e.note && <p className="mt-0.5 text-slate-600">{e.note}</p>}
           </li>
@@ -216,7 +216,7 @@ function History({ id }: { id: string }) {
 function Dot({ on, bad, label, sub }: { on: boolean; bad?: boolean; label: string; sub?: string }) {
   return (
     <li className="flex items-start gap-2.5">
-      <span className={cn("mt-1 size-2.5 shrink-0 rounded-full ring-4", on ? (bad ? "bg-[#e08b98] ring-[#fdecef]" : "bg-leaf ring-leaf-soft") : "bg-slate-200 ring-slate-100")} />
+      <span className={cn("mt-1 size-2.5 shrink-0 rounded-full ring-4", on ? (bad ? "bg-[#d3a09b] ring-[#f8eceb]" : "bg-leaf ring-leaf-soft") : "bg-slate-200 ring-slate-100")} />
       <span className="text-xs leading-snug"><span className={cn("block font-semibold", on ? "text-ink" : "text-slate-400")}>{label}</span>{sub && <span className="block text-muted">{sub}</span>}</span>
     </li>
   );
@@ -272,7 +272,7 @@ function JobCard({ job, rec, project, canAct, index }: { job: AutomationJob; rec
             </ol>
             {!!job.risk.factors?.length && (
               <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><IconWarning className="size-4 text-[#d9a441]" />{t("automation.risk_factors")}</p>
+                <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500"><IconWarning className="size-4 text-[#cba649]" />{t("automation.risk_factors")}</p>
                 <ul className="space-y-1 text-sm text-slate-600">{job.risk.factors.map((f, i) => <li key={i} className="flex gap-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-slate-300" />{f}</li>)}</ul>
               </div>
             )}
@@ -285,8 +285,8 @@ function JobCard({ job, rec, project, canAct, index }: { job: AutomationJob; rec
             {!!job.plan.cli?.length && <CopyBlock title={t("automation.cli")} text={job.plan.cli.join("\n")} />}
             {job.plan.terraform && <CopyBlock title="Terraform" text={job.plan.terraform} />}
             {job.rollback_plan && (
-              <div className="rounded-2xl bg-[#f1ecfc]/60 p-4">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#7a68c8]">{t("automation.rollback")}</p>
+              <div className="rounded-2xl bg-[#eceef6]/60 p-4">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#5a6aa0]">{t("automation.rollback")}</p>
                 <p className="whitespace-pre-line text-sm text-slate-600">{job.rollback_plan}</p>
               </div>
             )}
@@ -295,7 +295,7 @@ function JobCard({ job, rec, project, canAct, index }: { job: AutomationJob; rec
             <div className="flex flex-wrap items-center gap-2">
               {canAct && job.status === "planned" && <button type="button" className="btn-leaf rounded-xl px-4 py-2 text-sm font-semibold" disabled={act.isPending} onClick={() => act.mutate("approve")}>{t("automation.approve")}</button>}
               {canAct && job.status === "approved" && <button type="button" className="btn-leaf rounded-xl px-4 py-2 text-sm font-semibold" disabled={act.isPending} onClick={() => setReporting(!reporting)}>{t("automation.report")}</button>}
-              {canAct && job.status === "completed" && <button type="button" className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-[#f1ecfc] hover:text-[#7a68c8]" onClick={() => setReporting(!reporting)}>{t("au.mark_rollback")}</button>}
+              {canAct && job.status === "completed" && <button type="button" className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-[#eceef6] hover:text-[#5a6aa0]" onClick={() => setReporting(!reporting)}>{t("au.mark_rollback")}</button>}
               {canAct && LIVE.has(job.status) && <button type="button" className="rounded-xl px-4 py-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-ink" disabled={act.isPending} onClick={() => act.mutate("cancel")}>{t("automation.cancel")}</button>}
               <Link href="/recommendations" className="ml-auto text-sm font-medium text-leaf-deep hover:underline">{t("automation.open_recommendation")} →</Link>
             </div>
@@ -318,7 +318,7 @@ function ReadyCard({ r, project, canAct, index }: { r: Recommendation; project: 
   const Icon = r.type === "region_shift" ? IconGlobe : r.details?.action === "terminate" ? IconPower : IconServer;
   return (
     <li className="rise flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-white p-4 transition-shadow duration-300 hover:shadow-[0_10px_28px_-18px_rgba(47,143,120,0.5)]" style={{ "--i": Math.min(index, 8) } as CSSProperties}>
-      <Icon className="size-11 shrink-0 text-[#5b8fdc]" strokeWidth={1.4} />
+      <Icon className="size-11 shrink-0 text-[#5d7fb0]" strokeWidth={1.4} />
       <div className="min-w-0 flex-1 basis-64">
         <p className="text-sm font-semibold text-ink">{r.title}</p>
         <p className="mt-0.5 truncate text-xs text-muted">{project && `${project} · `}{r.provider} · {r.service_name} · {r.current_region}{r.recommended_region && ` → ${r.recommended_region}`}</p>
@@ -356,7 +356,7 @@ export function StageList({ stage, canAct }: { stage: Stage; canAct: boolean }) 
 export function SafetyNote() {
   const t = useT();
   return (
-    <div className="flex items-start gap-3 rounded-2xl bg-[#eef3fd] px-4 py-3 text-sm leading-relaxed text-[#3d5a8c]">
+    <div className="flex items-start gap-3 rounded-2xl bg-[#eef2f8] px-4 py-3 text-sm leading-relaxed text-[#3d5a8c]">
       <IconShield className="mt-0.5 size-5 shrink-0" strokeWidth={1.6} />
       <p>{t("automation.banner")} <Info>{t("au.info.safety")}</Info></p>
     </div>

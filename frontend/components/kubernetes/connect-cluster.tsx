@@ -94,7 +94,7 @@ export function ConnectCluster({ onClose }: { onClose: () => void }) {
         <div key={stepKey} className={dir > 0 ? "form-swap" : "form-swap-back"}>
           {stepKey === "cluster" && (
             <div>
-              <IconCluster className="size-12 text-[#5b8fdc]" strokeWidth={1.3} />
+              <IconCluster className="size-12 text-[#5d7fb0]" strokeWidth={1.3} />
               <h2 className="mt-3 text-2xl font-bold tracking-tight">{t("kc.cluster.title")}</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{t("kc.cluster.body")}</p>
               <div className="mt-5 grid gap-4 sm:grid-cols-2">

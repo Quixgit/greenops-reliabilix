@@ -157,7 +157,7 @@ export function SettingsEditor({ mode, path, canEdit = true, scopes, onlyGroup, 
               <div className="space-y-1.5">
                 <Control item={i} value={value} disabled={!editableHere(i) || save.isPending} onChange={(v) => { setSaved(false); setDraft((d) => ({ ...d, [i.key]: v })); }} />
                 {!editableHere(i) && <p className="text-xs text-muted">{i.scope === "operator" && mode === "tenant" ? "Managed by the platform." : i.locked ? "Fixed by the platform for your organization." : "Read-only for your role."}</p>}
-                {fieldErrors[i.key] && <p role="alert" className="text-xs text-[#c2566a]">{fieldErrors[i.key]}</p>}
+                {fieldErrors[i.key] && <p role="alert" className="text-xs text-[#a8504b]">{fieldErrors[i.key]}</p>}
                 {resettable(i) && !(i.key in draft) && (
                   <button type="button" disabled={reset.isPending} onClick={() => reset.mutate([i.key])} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"><RotateCcw className="size-3" />{resetLabel}</button>
                 )}
@@ -198,7 +198,7 @@ export function SettingsEditor({ mode, path, canEdit = true, scopes, onlyGroup, 
                         <span className={cn("block truncate text-sm font-semibold", on ? "text-leaf-deep" : "text-ink")}>{g.title}</span>
                         <span className="block truncate text-xs text-muted">{g.description}</span>
                       </span>
-                      {n > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#f2cf8a] text-[10px] font-bold text-[#6b4e12]">{n}</span>}
+                      {n > 0 && <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#e5cf8e] text-[10px] font-bold text-[#6b4e12]">{n}</span>}
                     </button>
                   </li>
                 );
@@ -231,8 +231,8 @@ export function SettingsEditor({ mode, path, canEdit = true, scopes, onlyGroup, 
             className="rounded-xl btn-leaf px-4 py-2 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-50">{save.isPending ? "Saving…" : mode === "operator-tenant" ? `Save and lock ${dirty.length || ""}` : `Save ${dirty.length || ""} change${dirty.length === 1 ? "" : "s"}`}</button>
           {dirty.length > 0 && <button type="button" onClick={() => setDraft({})} className="text-sm text-muted hover:underline">Discard</button>}
           {saved && dirty.length === 0 && <span role="status" className="text-sm text-leaf-deep">Saved.</span>}
-          {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-[#c2566a]">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}
-          {otherError && <span role="alert" className="text-sm text-[#c2566a]">{otherError}</span>}
+          {Object.keys(fieldErrors).length > 0 && <span role="alert" className="text-sm text-[#a8504b]">{Object.keys(fieldErrors).length} setting(s) were rejected; nothing was saved.</span>}
+          {otherError && <span role="alert" className="text-sm text-[#a8504b]">{otherError}</span>}
         </div>
       )}
     </div>

@@ -43,7 +43,7 @@ export function FinopsStrip() {
       <Tile index={4} icon="calendar" tone="sky" label={t("ov2.fin.forecast")} info={t("info.fin_forecast")} loading={loading}
         value={fc ? formatCost(fc.forecast, fcur) : null} empty={<span>{t("ov2.fin.forecast_none")}</span>}
         foot={fc && <>
-          {seasonal && sf.forecast.high - sf.forecast.low > 1 && <span className="block font-medium text-[#3f78b8]" title={t("ov2.fin.range_hint")}>{t("ov2.fin.range", { low: formatCost(sf.forecast.low, fcur), high: formatCost(sf.forecast.high, fcur) })}</span>}
+          {seasonal && sf.forecast.high - sf.forecast.low > 1 && <span className="block font-medium text-[#3f6094]" title={t("ov2.fin.range_hint")}>{t("ov2.fin.range", { low: formatCost(sf.forecast.low, fcur), high: formatCost(sf.forecast.high, fcur) })}</span>}
           <span className="block text-muted">{seasonal ? t("ov2.fin.forecast_seasonal", { spent: formatCost(fc.spent, fcur), days: fc.daysLeft }) : t("ov2.fin.forecast_basis", { spent: formatCost(fc.spent, fcur), days: fc.daysLeft })}</span>
           {staleCloud && <span className="block text-amber-700">{t("ov3.fin.stale_note", { cloud: cloudMeta(staleCloud.provider).name, day: dayLabel(staleCloud.last_day) })}</span>}
         </>} />
@@ -62,7 +62,7 @@ export function FinopsStrip() {
         empty={<span>{t("ov2.fin.anomalies_short")}</span>}
         foot={spikes.length ? <>
           {worst && <span className="block">{worst.provider && multi ? `${cloudMeta(worst.provider).name} · ` : ""}{t("ov2.fin.worst", { day: new Date(worst.day).toLocaleDateString(undefined, { month: "short", day: "numeric" }), over: formatCost(worst.cost - worst.expected, cur) })}</span>}
-          {worst?.drivers[0] && <span className="block truncate font-medium text-[#a9741a]" title={worst.drivers.map((d) => `${d.service} · ${d.region}: +${formatCost(d.delta, cur)}`).join("\n")}>{t(worst.drivers[0].new ? "ov2.fin.driver_new" : "ov2.fin.driver", { service: worst.drivers[0].service, region: worst.drivers[0].region, amount: formatCost(worst.drivers[0].delta, cur) })}</span>}
+          {worst?.drivers[0] && <span className="block truncate font-medium text-[#8a6420]" title={worst.drivers.map((d) => `${d.service} · ${d.region}: +${formatCost(d.delta, cur)}`).join("\n")}>{t(worst.drivers[0].new ? "ov2.fin.driver_new" : "ov2.fin.driver", { service: worst.drivers[0].service, region: worst.drivers[0].region, amount: formatCost(worst.drivers[0].delta, cur) })}</span>}
         </> : <span>{t("ov2.fin.anomalies_none")}</span>} />
       <Tile index={7} icon="scale" tone="violet" label={t("ov2.fin.per_currency")} info={t("info.fin_per_currency")} loading={loading || carbon.isLoading}
         value={r.gramsPerCurrency !== null && carbon.data?.has_data ? nf(r.gramsPerCurrency < 10 ? 1 : 0).format(r.gramsPerCurrency) : null} unit={`g CO₂e / ${cur}`}

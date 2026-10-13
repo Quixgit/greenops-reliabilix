@@ -59,12 +59,12 @@ export function CostImportPanel({ vendor, onVendor, canWrite }: { vendor: string
             <button disabled={upload.isPending || !chosen || !projectId || !vendor.trim()} className="self-end rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-60">{upload.isPending ? t("imp.uploading") : t("imp.upload")}</button>
           </form>
         ) : <p className="mt-3 text-sm text-muted">{t("imp.readonly")}</p>}
-        {upload.isError && <p role="alert" className="mt-3 rounded-xl bg-[#fdecef] px-3 py-2 text-sm text-[#a13a4b]">{upload.error.message}</p>}
+        {upload.isError && <p role="alert" className="mt-3 rounded-xl bg-[#f8eceb] px-3 py-2 text-sm text-[#8a403d]">{upload.error.message}</p>}
         {res && !upload.isError && (
           <div className="mt-3 rounded-xl bg-leaf-soft/60 px-3 py-2 text-sm text-slate-700">
             <p className="font-medium">{t("imp.accepted", { rows: res.preview.rows_read, services: res.preview.services, total: formatCost(res.preview.total_cost, res.preview.currency), from: res.preview.from ?? "", to: res.preview.to ?? "" })}</p>
             <p className="mt-1 text-xs text-muted">{t("imp.columns")} {Object.entries(res.preview.columns).map(([k, v]) => `${k}: ${v}`).join(" · ")}</p>
-            {(res.preview.warnings ?? []).map((w) => <p key={w} className="mt-1 text-xs text-[#9a6b12]">⚠ {w}</p>)}
+            {(res.preview.warnings ?? []).map((w) => <p key={w} className="mt-1 text-xs text-[#77621a]">⚠ {w}</p>)}
           </div>
         )}
         <details className="mt-3 text-xs text-muted">
@@ -80,8 +80,8 @@ export function CostImportPanel({ vendor, onVendor, canWrite }: { vendor: string
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{i.vendor} <span className="font-normal text-muted">· {i.filename || t("imp.nofile")}</span></span>
                 <span className="block truncate text-[11px] text-muted">{name(i.project_id)} · {shortTime(i.created_at)}{i.from ? ` · ${i.from} → ${i.to}` : ""}{i.status === "done" ? ` · ${t("imp.rows", { rows: i.rows_imported, services: i.services })}` : ""}</span>
-                {i.error && <span className="block truncate text-[11px] text-[#a13a4b]" title={i.error}>{i.error}</span>}
-                {i.warnings.map((w) => <span key={w} className="block truncate text-[11px] text-[#9a6b12]" title={w}>⚠ {w}</span>)}
+                {i.error && <span className="block truncate text-[11px] text-[#8a403d]" title={i.error}>{i.error}</span>}
+                {i.warnings.map((w) => <span key={w} className="block truncate text-[11px] text-[#77621a]" title={w}>⚠ {w}</span>)}
               </span>
               <span className="text-sm font-semibold tabular-nums sm:text-right">{i.status === "done" ? formatCost(i.total_cost, i.currency) : ""}</span>
               <span><StatusBadge i={i} /></span>

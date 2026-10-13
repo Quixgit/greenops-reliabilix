@@ -8,7 +8,7 @@ export const selectCls = "rounded-lg bg-white/80 px-2.5 py-1.5 text-sm ring-1 ri
 
 // The drawn icon of a tile, in the same tones the client's cards use.
 const TILE = {
-  sage: "text-leaf-deep", lavender: "text-[#8a78d8]", peach: "text-[#d9707f]", sky: "text-[#5b8fdc]", butter: "text-[#d9a441]",
+  sage: "text-leaf-deep", lavender: "text-[#5a6aa0]", peach: "text-[#b8625c]", sky: "text-[#5d7fb0]", butter: "text-[#cba649]",
 } as const;
 export type TileColor = keyof typeof TILE;
 
@@ -37,7 +37,7 @@ export function Tile({ label, value, icon: Icon, color = "sage", tone, note, ind
         {Icon && <Icon className={cn("size-10 shrink-0 transition-transform duration-500 ease-[var(--ease-out-soft)] group-hover:scale-110 group-hover:rotate-3", TILE[color])} strokeWidth={1.4} aria-hidden />}
         <div className="min-w-0">
           <p className="text-sm font-medium text-slate-700">{label}</p>
-          <p className={cn("text-2xl font-bold leading-tight tracking-tight", tone === "bad" && "text-[#d9707f]", tone === "warn" && "text-[#cf9a3c]")}>
+          <p className={cn("text-2xl font-bold leading-tight tracking-tight", tone === "bad" && "text-[#b8625c]", tone === "warn" && "text-[#cf9a3c]")}>
             {value == null ? <span className="text-slate-300">—</span> : <CountUp value={value} format={(n) => Math.round(n).toLocaleString()} />}
           </p>
         </div>

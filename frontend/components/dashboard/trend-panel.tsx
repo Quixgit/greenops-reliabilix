@@ -103,8 +103,8 @@ export function TrendPanel() {
           <div ref={box} className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={t("ov2.trend.title")}>
               <defs>
-                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8db4ee" stopOpacity=".38" /><stop offset="1" stopColor="#8db4ee" stopOpacity="0.03" /></linearGradient>
-                <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#6fc3a8" stopOpacity=".36" /><stop offset="1" stopColor="#6fc3a8" stopOpacity="0.02" /></linearGradient>
+                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9fb4d3" stopOpacity=".38" /><stop offset="1" stopColor="#9fb4d3" stopOpacity="0.03" /></linearGradient>
+                <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5f8d6c" stopOpacity=".36" /><stop offset="1" stopColor="#5f8d6c" stopOpacity="0.02" /></linearGradient>
               </defs>
               {ticks.map((k) => (
                 <g key={k}>
@@ -126,16 +126,16 @@ export function TrendPanel() {
                 return <path key={l.id} d={`${up} ${down} Z`} fill={l.color} fillOpacity=".5" className="fade-in" />;
               }) : <path d={`${line(costs, yC)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-cost)" className="fade-in" />)}
               {showCarbon && <path d={`${line(carbons, yK)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-carbon)" className="fade-in" />}
-              {showCost && <path d={line(costs, yC)} fill="none" stroke="#7aa7ea" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />}
-              {showCarbon && <path d={line(carbons, yK)} fill="none" stroke="#6fc3a8" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />}
+              {showCost && <path d={line(costs, yC)} fill="none" stroke="#9fb4d3" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />}
+              {showCarbon && <path d={line(carbons, yK)} fill="none" stroke="#5f8d6c" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />}
               {showCost && pts.map((p, i) => spikeDays.has(p.day.slice(0, 10)) && (
                 <circle key={p.day} cx={x(i)} cy={yC(costs[i])} r="4" className="fill-pastel-amber stroke-amber-200" strokeWidth="3" />
               ))}
               {hover !== null && (
                 <g>
                   <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#94a3b8" strokeDasharray="3 3" />
-                  {showCost && <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#7aa7ea" strokeWidth="2" />}
-                  {showCarbon && <circle cx={x(hover)} cy={yK(carbons[hover])} r="4.5" fill="#fff" stroke="#6fc3a8" strokeWidth="2" />}
+                  {showCost && <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#9fb4d3" strokeWidth="2" />}
+                  {showCarbon && <circle cx={x(hover)} cy={yK(carbons[hover])} r="4.5" fill="#fff" stroke="#5f8d6c" strokeWidth="2" />}
                 </g>
               )}
             </svg>

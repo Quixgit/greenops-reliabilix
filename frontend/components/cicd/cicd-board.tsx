@@ -26,8 +26,8 @@ import { z } from "zod";
 
 const VERDICT: Record<string, { chip: string; ring: string; text: string; label: string }> = {
   PASS: { chip: "bg-leaf-soft text-leaf-deep", ring: "border-leaf bg-leaf-soft/60", text: "text-leaf-deep", label: "cd.v.pass" },
-  WARN: { chip: "bg-[#fdf3dc] text-[#a9741a]", ring: "border-pastel-amber bg-[#fdf3dc]/70", text: "text-[#a9741a]", label: "cd.v.warn" },
-  BLOCK: { chip: "bg-[#fdecef] text-[#c25667]", ring: "border-pastel-rose bg-[#fdecef]/70", text: "text-[#c25667]", label: "cd.v.block" },
+  WARN: { chip: "bg-[#faf5e3] text-[#8a6420]", ring: "border-pastel-amber bg-[#faf5e3]/70", text: "text-[#8a6420]", label: "cd.v.warn" },
+  BLOCK: { chip: "bg-[#f8eceb] text-[#a8504b]", ring: "border-pastel-rose bg-[#f8eceb]/70", text: "text-[#a8504b]", label: "cd.v.block" },
 };
 const KINDS = ["vcpu_hours", "memory_gb_hours", "storage_gb_months"] as const;
 
@@ -52,13 +52,13 @@ export function GateStats() {
   const rate = s && s.total > 0 ? (s.pass / s.total) * 100 : null;
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Stat index={0} icon={IconBranch} tone="text-[#5b8fdc]" label={t("cd.stat.checks")} info={t("cd.info.checks")} hint={t("cd.stat.checks_hint")}
+      <Stat index={0} icon={IconBranch} tone="text-[#5d7fb0]" label={t("cd.stat.checks")} info={t("cd.info.checks")} hint={t("cd.stat.checks_hint")}
         value={q.isLoading ? "–" : <CountUp value={s?.total ?? 0} format={(n) => String(Math.round(n))} />} />
       <Stat index={1} icon={IconCheck} tone="text-leaf-deep" label={t("cd.stat.pass_rate")} info={t("cd.info.pass_rate")} hint={s ? t("cd.stat.pass_hint", { count: s.pass }) : undefined}
         value={q.isLoading ? "–" : rate === null ? "—" : <CountUp value={rate} format={(n) => `${Math.round(n)}%`} />} />
-      <Stat index={2} icon={IconWarning} tone="text-[#d9a441]" label={t("cd.stat.warned")} info={t("cd.info.warned")} hint={t("cd.stat.warned_hint")}
+      <Stat index={2} icon={IconWarning} tone="text-[#cba649]" label={t("cd.stat.warned")} info={t("cd.info.warned")} hint={t("cd.stat.warned_hint")}
         value={q.isLoading ? "–" : <CountUp value={s?.warn ?? 0} format={(n) => String(Math.round(n))} />} />
-      <Stat index={3} icon={IconShield} tone="text-[#d9707f]" label={t("cd.stat.blocked")} info={t("cd.info.blocked")}
+      <Stat index={3} icon={IconShield} tone="text-[#b8625c]" label={t("cd.stat.blocked")} info={t("cd.info.blocked")}
         hint={s && s.block > 0 ? t("cd.stat.kept_out", { kg: nf(1).format(s.carbon_blocked_kg_month) }) : t("cd.stat.nothing_blocked")}
         value={q.isLoading ? "–" : <CountUp value={s?.block ?? 0} format={(n) => String(Math.round(n))} />} />
     </div>
@@ -106,7 +106,7 @@ export function GatePlayground() {
                 <input value={r.amount} inputMode="decimal" aria-label={t("cd.f.amount")} placeholder={t("cd.f.amount")} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, amount: e.target.value } : x)))} className={field} />
                 <input value={r.region} list="cd-regions" aria-label={t("cd.f.region")} placeholder="eu-central-1" onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, region: e.target.value } : x)))} className={field} />
                 <input value={r.cost} inputMode="decimal" aria-label={t("cd.f.cost")} placeholder={t("cd.f.cost")} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, cost: e.target.value } : x)))} className={field} />
-                <button type="button" aria-label={t("cd.f.remove")} disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-slate-400 transition-colors hover:bg-[#fdecef] hover:text-[#d9707f] disabled:invisible"><IconTrash className="size-4" strokeWidth={1.8} /></button>
+                <button type="button" aria-label={t("cd.f.remove")} disabled={rows.length === 1} onClick={() => setRows(rows.filter((_, j) => j !== i))} className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-slate-400 transition-colors hover:bg-[#f8eceb] hover:text-[#b8625c] disabled:invisible"><IconTrash className="size-4" strokeWidth={1.8} /></button>
               </div>
             ))}
             <datalist id="cd-regions">{regions.map((r) => <option key={r} value={r} />)}</datalist>
@@ -242,7 +242,7 @@ export function Integrate({ canKeys }: { canKeys: boolean }) {
   const code = tab === "github" ? yaml(project || "<project id>", base) : tab === "gitlab" ? gitlab(project || "<project id>", base) : schedule(base);
   return (
     <Card index={6} interactive={false}>
-      <CardHeader icon={<IconBranch className="size-[18px] text-[#5b8fdc]" />} title={t("cd.int.title")} info={t("cd.info.integrate")} />
+      <CardHeader icon={<IconBranch className="size-[18px] text-[#5d7fb0]" />} title={t("cd.int.title")} info={t("cd.info.integrate")} />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <div className="space-y-4">
           <div>
@@ -257,10 +257,10 @@ export function Integrate({ canKeys }: { canKeys: boolean }) {
             )}
           </div>
           {fresh && (
-            <div className="rounded-xl bg-[#fdf3dc] p-3 text-sm">
-              <p className="font-semibold text-[#a9741a]">{t("cd.int.fresh")}</p>
+            <div className="rounded-xl bg-[#faf5e3] p-3 text-sm">
+              <p className="font-semibold text-[#8a6420]">{t("cd.int.fresh")}</p>
               <code className="mt-1 block break-all rounded-lg bg-white px-3 py-2 font-mono text-xs">{fresh}</code>
-              <p className="mt-1 text-xs text-[#a9741a]">{t("cd.int.fresh_note")}</p>
+              <p className="mt-1 text-xs text-[#8a6420]">{t("cd.int.fresh_note")}</p>
             </div>
           )}
           {canKeys && <button type="button" disabled={create.isPending} onClick={() => create.mutate()} className="btn-leaf inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold"><IconPlus className="size-4" strokeWidth={2.2} />{t("cd.int.create")}</button>}

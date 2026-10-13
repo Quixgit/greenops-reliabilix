@@ -19,7 +19,7 @@ function FieldRow({ f, draft, onChange, onReset, canEdit, index }: {
   return (
     <div className="rise rounded-2xl bg-slate-50/60 p-4 ring-1 ring-line/70 transition-shadow focus-within:ring-leaf/40" style={{ "--i": index } as React.CSSProperties}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <label htmlFor={`f-${f.key}`} className="text-sm font-semibold">{f.label}{f.required && <span className="text-[#d9707f]"> *</span>}</label>
+        <label htmlFor={`f-${f.key}`} className="text-sm font-semibold">{f.label}{f.required && <span className="text-[#b8625c]"> *</span>}</label>
         <span className="flex items-center gap-2">
           <code className="rounded-md bg-white px-1.5 py-0.5 text-[11px] text-slate-500 ring-1 ring-line">{f.env}</code>
           <Pill tone={tone}>{SOURCE[f.source]}</Pill>
@@ -83,7 +83,7 @@ export function IntegrationForm({ st, canEdit }: { st: ManagedIntegration; canEd
       </div>
       {resets.size > 0 && <p className="mt-3 text-xs text-muted">Will return to the environment: {[...resets].join(", ")}.</p>}
       {msg && (
-        <p role="status" className={`rise mt-4 flex items-start gap-2 rounded-xl p-3 text-sm ring-1 ${msg.ok ? "bg-leaf-soft text-leaf-deep ring-leaf/20" : "bg-rose-50 text-[#c2566a] ring-rose-200"}`}>
+        <p role="status" className={`rise mt-4 flex items-start gap-2 rounded-xl p-3 text-sm ring-1 ${msg.ok ? "bg-leaf-soft text-leaf-deep ring-leaf/20" : "bg-rose-50 text-[#a8504b] ring-rose-200"}`}>
           {msg.ok ? <CheckCircle2 className="mt-0.5 size-4 shrink-0" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0" />}{msg.text}
         </p>
       )}
@@ -91,7 +91,7 @@ export function IntegrationForm({ st, canEdit }: { st: ManagedIntegration; canEd
         <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-line/70 pt-4">
           {canEdit && <Btn disabled={!dirty || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save"}</Btn>}
           {st.testable && canEdit && <Btn tone="quiet" disabled={test.isPending || dirty} onClick={() => test.mutate()} title={dirty ? "Save first: the test uses the saved values" : undefined}>{test.isPending ? "Testing…" : "Test connection"}</Btn>}
-          {dirty && <span className="text-xs text-[#a8761f]">Unsaved changes</span>}
+          {dirty && <span className="text-xs text-[#8a6420]">Unsaved changes</span>}
         </div>
       )}
     </div>

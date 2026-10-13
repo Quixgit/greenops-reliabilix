@@ -14,7 +14,7 @@ import { Pill, Segmented, type PillTone } from "./ui";
 
 export const ACCESS: Record<DataSourceAccess, { label: string; cls: string }> = {
   free: { label: "Free", cls: "bg-leaf-soft text-leaf-deep ring-leaf-soft" },
-  paid: { label: "Paid / plan-dependent", cls: "bg-amber-50 text-[#a8761f] ring-amber-200" },
+  paid: { label: "Paid / plan-dependent", cls: "bg-amber-50 text-[#8a6420] ring-amber-200" },
   customer_provided: { label: "Customer-provided", cls: "bg-sky-50 text-sky-700 ring-sky-200" },
   internal: { label: "Internal", cls: "bg-violet-50 text-violet-700 ring-violet-200" },
 };
@@ -34,7 +34,7 @@ function settingsLine(st: ManagedIntegration | undefined) {
   const secret = st.fields.find((f) => f.secret && f.required) ?? st.fields.find((f) => f.required);
   if (st.ready && !st.fields.some((f) => f.secret && f.required)) return <span className="inline-flex items-center gap-1.5 text-slate-500"><KeyRound className="size-3.5" aria-hidden />No key needed</span>;
   if (st.ready) return <span className="inline-flex items-center gap-1.5 text-leaf-deep"><KeyRound className="size-3.5" aria-hidden />{st.prepared ? "Credentials stored" : "Settings complete"}</span>;
-  return <span className="inline-flex items-center gap-1.5 text-[#a8761f]"><KeyRound className="size-3.5" aria-hidden />{secret ? `${secret.label} not set` : "Needs setup"}</span>;
+  return <span className="inline-flex items-center gap-1.5 text-[#8a6420]"><KeyRound className="size-3.5" aria-hidden />{secret ? `${secret.label} not set` : "Needs setup"}</span>;
 }
 
 // The order and the voice of the sections: what a person wants to know first, from the climate data to the platform's own rules.
@@ -43,7 +43,7 @@ const SECTIONS: { id: string; title: string; text: string; icon: typeof Database
   { id: "inventory", title: "Emissions inventory", text: "Independent sector and country inventories to check our estimates against.", icon: Leaf, tint: "bg-emerald-50 text-emerald-700" },
   { id: "billing", title: "Cloud billing", text: "What customers' clouds cost and use. Read-only, with the customer's own access.", icon: Cloud, tint: "bg-sky-50 text-sky-700" },
   { id: "kubernetes", title: "Kubernetes", text: "Workload energy pushed by the customer's agent.", icon: Cpu, tint: "bg-violet-50 text-violet-700" },
-  { id: "methodology", title: "Methodology", text: "The platform's own coefficients and rules.", icon: Calculator, tint: "bg-amber-50 text-[#a8761f]" },
+  { id: "methodology", title: "Methodology", text: "The platform's own coefficients and rules.", icon: Calculator, tint: "bg-amber-50 text-[#8a6420]" },
 ];
 // the source ids of billing and Kubernetes differ from the ids of their drawn marks
 const MARK_OF: Record<string, string> = { "aws-cost": "aws", "gcp-billing": "gcp", "azure-billing": "azure", "k8s-agent": "kubernetes" };

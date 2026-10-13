@@ -22,9 +22,9 @@ import { cn } from "@/lib/utils";
 const TABS = ["messages", "alerts", "anomalies", "delivery"] as const;
 type Tab = (typeof TABS)[number];
 const AREA_ICON: Record<string, IconType> = { billing: IconCard, reports: IconReport, automation: IconFlow, recommendations: IconLeaf, connections: IconCluster, platform: IconSparkles, other: IconBell };
-const SEV_TEXT = { critical: "text-[#d9707f]", warning: "text-[#d9a441]", info: "text-[#5b8fdc]" } as const;
-const SEV_CHIP = { critical: "bg-[#fdecef] text-[#c25667]", warning: "bg-[#fdf3dc] text-[#a9741a]", info: "bg-[#eef3fd] text-[#4a6fb0]" } as const;
-const STATUS_CHIP: Record<string, string> = { new: "bg-[#eef3fd] text-[#4a6fb0]", acknowledged: "bg-slate-100 text-slate-600", muted: "bg-slate-100 text-slate-400", resolved: "bg-leaf-soft text-leaf-deep" };
+const SEV_TEXT = { critical: "text-[#b8625c]", warning: "text-[#cba649]", info: "text-[#5d7fb0]" } as const;
+const SEV_CHIP = { critical: "bg-[#f8eceb] text-[#a8504b]", warning: "bg-[#faf5e3] text-[#8a6420]", info: "bg-[#eef2f8] text-[#3f6094]" } as const;
+const STATUS_CHIP: Record<string, string> = { new: "bg-[#eef2f8] text-[#3f6094]", acknowledged: "bg-slate-100 text-slate-600", muted: "bg-slate-100 text-slate-400", resolved: "bg-leaf-soft text-leaf-deep" };
 
 function Stat({ index, icon: Icon, tone, label, info, value, hint, onClick, on }: { index: number; icon: IconType; tone: string; label: string; info: string; value: number | null; hint?: string; onClick: () => void; on: boolean }) {
   // The ⓘ is a button too and a button cannot hold a button: it sits in the card's corner, beside the clickable area.
@@ -162,10 +162,10 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat index={0} icon={IconSend} tone="text-[#5b8fdc]" label={t("nc.stat.messages")} info={t("nc.info.messages")} value={inbox.isLoading ? null : inbox.data?.unread ?? 0} hint={t("nc.stat.unread")} on={tab === "messages"} onClick={() => go("messages")} />
-        <Stat index={1} icon={IconWarning} tone="text-[#d9707f]" label={t("nc.stat.alerts")} info={t("nc.info.alerts")} value={alerts.isLoading ? null : alerts.data?.length ?? 0} hint={t("nc.stat.need_decision")} on={tab === "alerts"} onClick={() => go("alerts")} />
-        <Stat index={2} icon={IconTrend} tone="text-[#d9a441]" label={t("nc.stat.anomalies")} info={t("nc.info.anomalies")} value={anomalies.isLoading ? null : anomalies.data?.length ?? 0} hint={t("nc.stat.period")} on={tab === "anomalies"} onClick={() => go("anomalies")} />
-        <Stat index={3} icon={IconCluster} tone="text-[#8a78d8]" label={t("nc.stat.delivery")} info={t("nc.info.delivery")} value={deliveries.isLoading ? null : failed.length} hint={t("nc.stat.failed")} on={tab === "delivery"} onClick={() => go("delivery")} />
+        <Stat index={0} icon={IconSend} tone="text-[#5d7fb0]" label={t("nc.stat.messages")} info={t("nc.info.messages")} value={inbox.isLoading ? null : inbox.data?.unread ?? 0} hint={t("nc.stat.unread")} on={tab === "messages"} onClick={() => go("messages")} />
+        <Stat index={1} icon={IconWarning} tone="text-[#b8625c]" label={t("nc.stat.alerts")} info={t("nc.info.alerts")} value={alerts.isLoading ? null : alerts.data?.length ?? 0} hint={t("nc.stat.need_decision")} on={tab === "alerts"} onClick={() => go("alerts")} />
+        <Stat index={2} icon={IconTrend} tone="text-[#cba649]" label={t("nc.stat.anomalies")} info={t("nc.info.anomalies")} value={anomalies.isLoading ? null : anomalies.data?.length ?? 0} hint={t("nc.stat.period")} on={tab === "anomalies"} onClick={() => go("anomalies")} />
+        <Stat index={3} icon={IconCluster} tone="text-[#5a6aa0]" label={t("nc.stat.delivery")} info={t("nc.info.delivery")} value={deliveries.isLoading ? null : failed.length} hint={t("nc.stat.failed")} on={tab === "delivery"} onClick={() => go("delivery")} />
       </div>
 
       <Card interactive={false}>

@@ -57,7 +57,7 @@ function SourceCard({ s, st, index, canEdit, position }: { s: AggSource; st: Man
         {s.pinned_regions ? ` · pinned in ${s.pinned_regions}` : ""}
       </p>
       {k.needsKey && k.tone === "warn" && (
-        <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#8a6218] ring-1 ring-amber-100">
+        <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#77621a] ring-1 ring-amber-100">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />Without it this source is skipped; regions it would cover use the next source in the order.
         </p>
       )}
@@ -90,7 +90,7 @@ export function SourcesTab({ data }: { data: Aggregation }) {
       <p className="rise rounded-2xl bg-leaf-soft/50 px-4 py-3 text-sm text-slate-700 ring-1 ring-leaf/15">
         Keys and addresses of the grid-data sources. A key is stored sealed and is never shown again; a source without its key is skipped, not failed.
         The order between sources and their accepted age are on the Policy tab.
-        {needKey > 0 && <b className="ml-1 text-[#8a6218]">{needKey} source{needKey === 1 ? " needs" : "s need"} a key.</b>}
+        {needKey > 0 && <b className="ml-1 text-[#77621a]">{needKey} source{needKey === 1 ? " needs" : "s need"} a key.</b>}
       </p>
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         {data.sources.map((s, i) => <SourceCard key={s.id} s={s} st={byId.get(s.id)} index={i} canEdit={!!canEdit} position={pos.get(s.id) ?? 0} />)}
@@ -113,7 +113,7 @@ export function DivergenceTab({ data }: { data: Aggregation }) {
         Each figure is the <b>median of a source&apos;s hourly readings of the last 7 days</b> (one spike does not move it). Sources that differ by
         1.5× or more are marked; the figure a client sees is the one the policy takes (&quot;Used&quot;). The monthly national figure from Ember is an
         independent anchor: it is a country average, so a single region may differ from it for real reasons.
-        {flagged > 0 ? <b className="ml-1 text-[#8a6218]">{flagged} region{flagged === 1 ? "" : "s"} to look at.</b> : <b className="ml-1 text-leaf-deep">No region where sources disagree.</b>}
+        {flagged > 0 ? <b className="ml-1 text-[#77621a]">{flagged} region{flagged === 1 ? "" : "s"} to look at.</b> : <b className="ml-1 text-leaf-deep">No region where sources disagree.</b>}
       </p>
       {rows.length === 0 ? (
         <Card interactive={false}><p className="text-sm text-muted">Nothing to compare yet: a region needs two sources with at least six hourly readings, or one source and a monthly national figure.</p></Card>

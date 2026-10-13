@@ -14,7 +14,7 @@ import type { Report } from "@/lib/api/schemas";
 import { timeAgo } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
-const KIND_ICON = { carbon: [IconLeaf, "text-leaf-deep"], finops: [IconCoin, "text-[#5b8fdc]"], sci: [IconGauge, "text-[#8a78d8]"], sustainability: [IconBolt, "text-[#d9a441]"], ghg: [IconLeaf, "text-[#3f9d7a]"] } as const;
+const KIND_ICON = { carbon: [IconLeaf, "text-leaf-deep"], finops: [IconCoin, "text-[#5d7fb0]"], sci: [IconGauge, "text-[#5a6aa0]"], sustainability: [IconBolt, "text-[#cba649]"], ghg: [IconLeaf, "text-[#3f9d7a]"] } as const;
 const STATUS = [["", "rp.f.all"], ["ready", "rp.f.ready"], ["pending", "rp.f.pending"], ["failed", "rp.f.failed"]] as const;
 
 function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: boolean; projectName: string }) {
@@ -42,7 +42,7 @@ function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: bool
               {t("rp.rendering")}
             </span>
           )}
-          {r.status === "failed" && <span className="flex items-center gap-1.5 rounded-full bg-[#fdecef] px-2.5 py-1 text-xs font-semibold text-[#c25667]"><IconWarning className="size-3.5" />{t("rp.failed")}</span>}
+          {r.status === "failed" && <span className="flex items-center gap-1.5 rounded-full bg-[#f8eceb] px-2.5 py-1 text-xs font-semibold text-[#a8504b]"><IconWarning className="size-3.5" />{t("rp.failed")}</span>}
           {r.status === "ready" && (
             <a href={`/api/proxy/reports/${r.id}/download`} download className="btn-leaf inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold"><IconDownload className="size-3.5" strokeWidth={2.2} />{t("rp.download")}</a>
           )}
@@ -52,17 +52,17 @@ function Row({ r, i, canAct, projectName }: { r: Report; i: number; canAct: bool
           )}
           {canAct && r.status !== "pending" && (
             <button type="button" aria-label={t("rp.delete")} title={t("rp.delete")} onClick={() => setAsk(true)}
-              className="grid size-8 place-items-center rounded-full text-slate-400 opacity-0 transition-all hover:bg-[#fdecef] hover:text-[#d9707f] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><IconTrash className="size-4" strokeWidth={1.8} /></button>
+              className="grid size-8 place-items-center rounded-full text-slate-400 opacity-0 transition-all hover:bg-[#f8eceb] hover:text-[#b8625c] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><IconTrash className="size-4" strokeWidth={1.8} /></button>
           )}
         </div>
-        {r.status === "failed" && r.error && <p className="basis-full pl-14 text-xs text-[#c25667]">{r.error}</p>}
+        {r.status === "failed" && r.error && <p className="basis-full pl-14 text-xs text-[#a8504b]">{r.error}</p>}
       </div>
       {ask && (
-        <div className="del-wipe absolute inset-0 z-10 flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-[#fdf1f3] px-4 ring-1 ring-[#eba7b3]">
-          <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#d9707f]" strokeWidth={1.6} /><span className="truncate">{t("rp.delete_ask")}</span></p>
+        <div className="del-wipe absolute inset-0 z-10 flex items-center justify-between gap-3 overflow-hidden rounded-2xl bg-[#f8eceb] px-4 ring-1 ring-[#d3a09b]">
+          <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#b8625c]" strokeWidth={1.6} /><span className="truncate">{t("rp.delete_ask")}</span></p>
           <div className="flex shrink-0 gap-2">
             <button type="button" onClick={() => setAsk(false)} className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-line hover:text-ink">{t("common.cancel")}</button>
-            <button type="button" disabled={del.isPending} onClick={() => del.mutate(r.id)} className="rounded-lg bg-[#e08b98] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#d9707f] disabled:opacity-60">{t("rp.delete_do")}</button>
+            <button type="button" disabled={del.isPending} onClick={() => del.mutate(r.id)} className="rounded-lg bg-[#d3a09b] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#b8625c] disabled:opacity-60">{t("rp.delete_do")}</button>
           </div>
         </div>
       )}

@@ -26,7 +26,7 @@ function PoolEditor({ c, currency, canEdit }: { c: K8sClusterCost; currency: str
   return (
     <div className="rounded-xl border border-line px-3 py-2.5 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className={cn("min-w-0 text-[13px]", c.pool_assumed ? "text-[#9a6b12]" : "text-slate-700")}>
+        <p className={cn("min-w-0 text-[13px]", c.pool_assumed ? "text-[#77621a]" : "text-slate-700")}>
           {c.pool_assumed ? t("k8c.pool_assumed") : t("k8c.pool_services", { services: c.pool_services.join(", ") })}
         </p>
         {canEdit && <button type="button" onClick={() => setOpen(!open)} className="text-xs font-semibold text-primary hover:underline">{open ? t("k8c.close") : t("k8c.choose")}</button>}
@@ -48,7 +48,7 @@ function PoolEditor({ c, currency, canEdit }: { c: K8sClusterCost; currency: str
           <div className="flex items-center gap-2">
             <button type="button" disabled={save.isPending} onClick={() => save.mutate({ projectId: c.project_id, cluster: c.cluster, services: current }, { onSuccess: () => { setOpen(false); setPicked(null); } })} className="rounded-xl btn-leaf px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-60">{t("k8c.save")}</button>
             <button type="button" onClick={() => setPicked([])} className="text-xs text-muted hover:underline">{t("k8c.reset")}</button>
-            {save.isError && <span role="alert" className="text-xs text-[#a13a4b]">{save.error.message}</span>}
+            {save.isError && <span role="alert" className="text-xs text-[#8a403d]">{save.error.message}</span>}
           </div>
         </div>
       )}
@@ -71,8 +71,8 @@ function ClusterCostCard({ c, currency, cpuShare, canEdit, index }: { c: K8sClus
         <Kpi label={t("k8c.allocated")} value={formatCost(c.allocated_cost, currency)} hint={pct(c.allocated_cost)} />
         {c.idle_cost === null
           ? <Kpi label={t("k8c.idle")} value="—" hint={t("k8c.idle_unknown")} />
-          : <Kpi label={t("k8c.idle")} value={formatCost(c.idle_cost, currency)} hint={t("k8c.idle_hint", { pct: pct(c.idle_cost) })} tone={c.pool_cost > 0 && c.idle_cost / c.pool_cost > 0.4 ? "text-[#b7791f]" : undefined} />}
-        <Kpi label={t("k8c.waste")} value={formatCost(c.waste_cost, currency)} hint={t("k8c.waste_hint")} tone={c.waste_cost > 0 ? "text-[#b7791f]" : undefined} />
+          : <Kpi label={t("k8c.idle")} value={formatCost(c.idle_cost, currency)} hint={t("k8c.idle_hint", { pct: pct(c.idle_cost) })} tone={c.pool_cost > 0 && c.idle_cost / c.pool_cost > 0.4 ? "text-[#b3822c]" : undefined} />}
+        <Kpi label={t("k8c.waste")} value={formatCost(c.waste_cost, currency)} hint={t("k8c.waste_hint")} tone={c.waste_cost > 0 ? "text-[#b3822c]" : undefined} />
       </div>
       <PoolEditor c={c} currency={currency} canEdit={canEdit} />
       {c.namespaces.length > 0 && (
@@ -82,7 +82,7 @@ function ClusterCostCard({ c, currency, cpuShare, canEdit, index }: { c: K8sClus
             {c.namespaces.map((n, i) => (
               <div key={n.namespace} className="row-in grid items-center gap-x-3 sm:grid-cols-[9rem_minmax(0,1fr)_7rem]" style={{ "--i": i } as CSSProperties}>
                 <span className="truncate text-sm" title={n.namespace}>{n.namespace}</span>
-                <span className="h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-[#7aa8e6]" style={{ width: `${Math.max(1, n.share_pct)}%` }} /></span>
+                <span className="h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-[#9fb4d3]" style={{ width: `${Math.max(1, n.share_pct)}%` }} /></span>
                 <span className="text-right text-sm tabular-nums">{formatCost(n.cost, currency)} <span className="text-[11px] text-muted">{n.share_pct.toFixed(0)}%</span></span>
               </div>
             ))}
@@ -97,9 +97,9 @@ function ClusterCostCard({ c, currency, cpuShare, canEdit, index }: { c: K8sClus
               {c.workloads.slice(0, 15).map((w) => (
                 <tr key={`${w.namespace}/${w.workload}`} className="border-t border-line/70">
                   <td className="max-w-[14rem] truncate py-2" title={`${w.namespace}/${w.workload}`}><span className="text-muted">{w.namespace}/</span>{w.workload}</td>
-                  <td className="py-2 pr-3"><span className="flex items-center gap-2"><span className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-[#7aa8e6]" style={{ width: `${Math.max(2, (w.cost / maxWl) * 100)}%` }} /></span><span className="tabular-nums">{formatCost(w.cost, currency)}</span></span></td>
-                  <td className={cn("py-2 text-right tabular-nums", w.cpu_utilization_pct !== null && w.cpu_utilization_pct < 30 && "text-[#b7791f]")}>{w.cpu_utilization_pct === null ? "—" : `${w.cpu_utilization_pct.toFixed(0)}%`}</td>
-                  <td className={cn("py-2 text-right tabular-nums", w.memory_utilization_pct !== null && w.memory_utilization_pct < 30 && "text-[#b7791f]")}>{w.memory_utilization_pct === null ? "—" : `${w.memory_utilization_pct.toFixed(0)}%`}</td>
+                  <td className="py-2 pr-3"><span className="flex items-center gap-2"><span className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-[#9fb4d3]" style={{ width: `${Math.max(2, (w.cost / maxWl) * 100)}%` }} /></span><span className="tabular-nums">{formatCost(w.cost, currency)}</span></span></td>
+                  <td className={cn("py-2 text-right tabular-nums", w.cpu_utilization_pct !== null && w.cpu_utilization_pct < 30 && "text-[#b3822c]")}>{w.cpu_utilization_pct === null ? "—" : `${w.cpu_utilization_pct.toFixed(0)}%`}</td>
+                  <td className={cn("py-2 text-right tabular-nums", w.memory_utilization_pct !== null && w.memory_utilization_pct < 30 && "text-[#b3822c]")}>{w.memory_utilization_pct === null ? "—" : `${w.memory_utilization_pct.toFixed(0)}%`}</td>
                   <td className="py-2 text-right tabular-nums">{w.waste_cost > 0 ? formatCost(w.waste_cost, currency) : "—"}</td>
                 </tr>
               ))}
@@ -108,7 +108,7 @@ function ClusterCostCard({ c, currency, cpuShare, canEdit, index }: { c: K8sClus
         </div>
       )}
       {c.workloads_without_usage > 0 && <p className="text-xs text-muted">{t("k8c.unmeasured", { count: c.workloads_without_usage })}</p>}
-      {c.unallocated_cost > 0 && <p className="text-xs text-[#9a6b12]">{t("k8c.unallocated", { amount: formatCost(c.unallocated_cost, currency) })}</p>}
+      {c.unallocated_cost > 0 && <p className="text-xs text-[#77621a]">{t("k8c.unallocated", { amount: formatCost(c.unallocated_cost, currency) })}</p>}
       <p className="text-[11px] leading-snug text-muted">{t("k8c.basis", { cpu: Math.round(cpuShare * 100), mem: Math.round((1 - cpuShare) * 100) })}</p>
     </Card>
   );

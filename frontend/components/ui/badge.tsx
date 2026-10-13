@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 type Tone = "good" | "warn" | "bad" | "neutral" | "stub";
 const TONES: Record<Tone, string> = {
   good: "bg-leaf-soft text-leaf-deep ring-leaf-soft",
-  warn: "bg-amber-50 text-[#8a6218] ring-amber-200",
-  bad: "bg-rose-50 text-[#b9566a] ring-rose-200",
+  warn: "bg-amber-50 text-[#77621a] ring-amber-200",
+  bad: "bg-rose-50 text-[#a8504b] ring-rose-200",
   neutral: "bg-slate-100 text-slate-600 ring-slate-200",
   stub: "bg-violet-50 text-violet-700 ring-violet-200",
 };

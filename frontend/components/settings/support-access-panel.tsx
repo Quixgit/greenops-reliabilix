@@ -43,7 +43,7 @@ export function SupportAccessPanel() {
         <div className="space-y-4">
           {open ? (
             <div className="rise flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50/70 px-4 py-3 ring-1 ring-amber-100">
-              <p className="text-sm text-[#8a6218]"><b>Open</b> until {shortTime(open.expires_at)}{open.note ? ` · “${open.note}”` : ""}. Opened by {open.granted_by.slice(0, 24)}.</p>
+              <p className="text-sm text-[#77621a]"><b>Open</b> until {shortTime(open.expires_at)}{open.note ? ` · “${open.note}”` : ""}. Opened by {open.granted_by.slice(0, 24)}.</p>
               <ConfirmButton label="Close now" confirmLabel="Close support access" disabled={revoke.isPending} onConfirm={() => revoke.mutate()} />
             </div>
           ) : (

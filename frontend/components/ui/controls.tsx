@@ -57,7 +57,7 @@ export function CheckChip({ checked, onChange, children, color }: { checked: boo
     <button type="button" role="checkbox" aria-checked={checked} onClick={() => onChange(!checked)}
       className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition-all duration-200 focus-visible:outline-2",
         checked ? "bg-white text-ink ring-slate-300 shadow-sm" : "bg-slate-50 text-slate-400 ring-line hover:text-slate-600")}>
-      <span aria-hidden className={cn("grid size-3.5 place-items-center rounded-[5px] ring-1 transition-all duration-200", checked ? "ring-transparent" : "bg-white ring-slate-300")} style={checked ? { background: color ?? "#6fc3a8" } : undefined}>
+      <span aria-hidden className={cn("grid size-3.5 place-items-center rounded-[5px] ring-1 transition-all duration-200", checked ? "ring-transparent" : "bg-white ring-slate-300")} style={checked ? { background: color ?? "#5f8d6c" } : undefined}>
         {checked && <svg viewBox="0 0 12 12" className="pop size-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m2.500 6.200 2.300 2.200 4.700-5" /></svg>}
       </span>
       {children}

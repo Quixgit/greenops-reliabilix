@@ -6,17 +6,13 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 ## [Unreleased]
 
 ### Added
-- **dev-Overview**: a second Overview in the menu (`/dev-overview`) in a new interface system, "DX", to try a full redesign on real data.
-  Flat and strict: no rounded corners and no shadows on surfaces, a navy sidebar, warm grey and white with soft warm pastel accents, one
-  hairline border, one hand-drawn icon family (`components/dx/icons.tsx`), short purposeful motion (bars grow, numbers count up, the line
-  draws, folds open, pop-overs fade in; all of it off with reduced motion). Four figures first and four more behind a switch; the trend
-  with checkboxes and switches; the breakdown by cloud or region with rows that open into facts; services with an icon category filter, a
-  "carbon-heavy" checkbox and show-all; regions with the map and a detail panel; next actions, a setup list that shows only what is left,
-  accounts and (optional) activity on the right. Everything on the page is a choice kept on the device (the Display menu). It lives in its
-  own route group `app/(dx)` with its own shell, styles (`components/dx/dx.css`, everything under `.dx`) and components
-  (`components/dx/`), and uses the same hooks and data as the Overview. The Overview and every other page are unchanged. To drop it:
-  delete `app/(dx)`, `components/dx`, the `dev-Overview` line in `components/layout/nav.ts`, its two `nav.dev_overview` keys, the `dx.*`
-  keys of the catalogs and `"/dev-overview"` in `hooks/use-overview.ts`.
+- **Redesign of the whole interface** (branch `feature/frontend-redesign`): every page, dialog, menu, chart and the region map now wear the DX
+  system: warm canvas, navy shell, hairline borders, no rounded corners or shadows on surfaces, one drawn icon family (square caps, no fills),
+  flat marks for clouds and data sources, a warm sage-to-brick scale on the map. The Tailwind palette is re-tuned, so pages keep their classes.
+- **Settings**: a second menu slides out beside the main one, in groups (Workspace, Data and rules, Alerts, Access, Account); below 1024 px
+  the sections are a strip above the page.
+- **Main menu**: the fold button is at the top, its arrows lean on hover without a white fill, and the plan card stays readable when folded.
+- **dev-Overview** is gone: `/overview` is the new Overview.
 
 ## [0.1.0-alpha.181] - 2026-10-12
 

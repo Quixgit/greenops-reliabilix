@@ -48,7 +48,7 @@ function LatencyGauge({ ms, km, limit, title, basis, errorPct, right }: { ms: nu
         <span className="absolute -top-0.5 h-3 w-px bg-slate-400/70" style={{ left: `${(limit / (limit * 1.6)) * 100}%` }} aria-hidden />
       </div>
       <p className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-muted">
-        <span className={cn("font-semibold", over ? "text-[#b9566a]" : "text-[#3f78b8]")}>{basis === "estimated" || !basis ? "≈ " : ""}{ms} ms · {t("ov2.reg.km", { km: nf(0).format(km) })}</span>
+        <span className={cn("font-semibold", over ? "text-[#a8504b]" : "text-[#3f6094]")}>{basis === "estimated" || !basis ? "≈ " : ""}{ms} ms · {t("ov2.reg.km", { km: nf(0).format(km) })}</span>
         {right}
       </p>
       {basis && <p className={cn("mt-0.5 text-[10px]", isMeasured(basis) ? "text-leaf-deep" : "text-slate-400")}>{latencyBasisLabel(t, basis, errorPct)}</p>}
@@ -98,7 +98,7 @@ function Placement({ row, rows, limit }: { row: Row; rows: Row[]; limit: number 
                 <p className="mb-1.5 text-xs font-medium"><span className="font-normal text-muted">{t("ov2.pl.from")} </span>{regionName(o.region)}</p>
                 {ms !== null && km !== null && (
                   <LatencyGauge ms={ms} km={km} limit={limit} basis={lat?.basis} errorPct={lat?.errorPct} title={`${regionName(o.region)} → ${regionName(row.region)}: ${ms} ms`}
-                    right={<span className={cn("shrink-0 rounded-full px-2 py-0.5 font-semibold ring-1", Math.abs(diff) < 5 ? "bg-slate-50 text-slate-600 ring-line" : diff > 0 ? "bg-leaf-soft text-leaf-deep ring-leaf/20" : "bg-amber-50 text-[#8a6218] ring-amber-100")}>
+                    right={<span className={cn("shrink-0 rounded-full px-2 py-0.5 font-semibold ring-1", Math.abs(diff) < 5 ? "bg-slate-50 text-slate-600 ring-line" : diff > 0 ? "bg-leaf-soft text-leaf-deep ring-leaf/20" : "bg-amber-50 text-[#77621a] ring-amber-100")}>
                       {Math.abs(diff) < 5 ? t("ov2.reg.same_grid") : diff > 0 ? t("ov2.reg.cleaner_by", { pct: nf(0).format(diff) }) : t("ov2.reg.dirtier_by", { pct: nf(0).format(-diff) })}
                     </span>} />
                 )}
@@ -148,7 +148,7 @@ function Detail({ row, rows, cur, limit }: { row: Row; rows: Row[]; cur: string;
         {series.length > 1 && (
           <div className="mt-3">
             <p className="mb-1 text-[11px] font-medium text-muted">{t("ov2.reg.history", { days: hist.data?.days_with_data ?? series.length })}</p>
-            <MiniArea values={series} stroke={row.g !== null ? "#2f8f78" : "#94a3b8"} height={40} />
+            <MiniArea values={series} stroke={row.g !== null ? "#3f6a4a" : "#94a3b8"} height={40} />
           </div>
         )}
       </div>
@@ -209,7 +209,7 @@ export function RegionExplorer() {
     <Card index={11} interactive={false} className="p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink">
-          <Glyph name="pin" className="size-[18px] text-[#2f8f78]" />{t("ov.reg.title")}
+          <Glyph name="pin" className="size-[18px] text-[#3f6a4a]" />{t("ov.reg.title")}
         </h2>
         <Info corner>{t("info.regions")}</Info>
         <div className="flex flex-wrap items-center gap-3 pr-7">

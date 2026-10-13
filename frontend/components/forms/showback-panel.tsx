@@ -49,14 +49,14 @@ export function ShowbackPanel() {
           <div className="grid gap-4 sm:grid-cols-3">
             <Card index={1} interactive={false}><p className="text-[13px] font-medium text-slate-600">{t("sb.total")}</p><p className="mt-1 text-2xl font-bold tabular-nums">{formatCost(d.total_cost, cur)}</p></Card>
             <Card index={2} interactive={false}><p className="text-[13px] font-medium text-slate-600">{t("sb.tagged")}</p><p className="mt-1 text-2xl font-bold tabular-nums">{formatCost(d.tagged_cost, cur)}</p><p className="text-xs text-muted">{t("sb.coverage", { pct: d.coverage_pct.toFixed(0), key: d.tag })}</p></Card>
-            <Card index={3} interactive={false}><p className="text-[13px] font-medium text-slate-600">{t("sb.untagged")}</p><p className={cn("mt-1 text-2xl font-bold tabular-nums", d.coverage_pct < 50 && "text-[#b7791f]")}>{formatCost(d.untagged_cost, cur)}</p><p className="text-xs text-muted">{t("sb.untagged_hint")}</p></Card>
+            <Card index={3} interactive={false}><p className="text-[13px] font-medium text-slate-600">{t("sb.untagged")}</p><p className={cn("mt-1 text-2xl font-bold tabular-nums", d.coverage_pct < 50 && "text-[#b3822c]")}>{formatCost(d.untagged_cost, cur)}</p><p className="text-xs text-muted">{t("sb.untagged_hint")}</p></Card>
           </div>
           <Card index={4} interactive={false} className="space-y-1">
             {d.lines.length === 0 ? <p className="py-6 text-center text-sm text-muted">{t("sb.no_values", { key: d.tag })}</p> : d.lines.map((l, i) => (
               <div key={l.value} className="row-in grid items-center gap-x-4 gap-y-1 rounded-xl px-2 py-2.5 hover:bg-slate-50 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_7rem]" style={{ "--i": i } as CSSProperties}>
                 <span className="truncate text-sm font-medium" title={l.value}>{l.value}</span>
                 <span className="min-w-0">
-                  <span className="block h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-[#7aa8e6]" style={{ width: `${Math.max(1, (Math.max(l.cost, 0) / max) * 100)}%` }} /></span>
+                  <span className="block h-2 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-[#9fb4d3]" style={{ width: `${Math.max(1, (Math.max(l.cost, 0) / max) * 100)}%` }} /></span>
                   <span className="mt-1 block truncate text-[11px] text-muted">{l.top_services.map((s) => `${s.service} ${formatCost(s.cost, cur)}`).join(" · ")}</span>
                 </span>
                 <span className="text-right text-sm tabular-nums"><span className="font-semibold">{formatCost(l.cost, cur)}</span><span className="block text-[11px] text-muted">{nf(1).format(l.share_pct)}%</span></span>

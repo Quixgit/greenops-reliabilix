@@ -25,7 +25,7 @@ export function parseOptions(details: Record<string, string> | null | undefined)
 
 /** Three facts a move changes at once: how much carbon, how much it costs and how far the new region is. */
 export function Metric({ label, children, tone, title }: { label: string; children: React.ReactNode; tone: "leaf" | "sky" | "amber" | "slate" | "rose"; title?: string }) {
-  const c = { leaf: "bg-leaf-soft text-leaf-deep ring-leaf/20", sky: "bg-sky-50 text-[#3f78b8] ring-sky-100", amber: "bg-amber-50 text-[#8a6218] ring-amber-100", slate: "bg-slate-50 text-slate-600 ring-line", rose: "bg-rose-50 text-[#b9566a] ring-rose-100" }[tone];
+  const c = { leaf: "bg-leaf-soft text-leaf-deep ring-leaf/20", sky: "bg-sky-50 text-[#3f6094] ring-sky-100", amber: "bg-amber-50 text-[#77621a] ring-amber-100", slate: "bg-slate-50 text-slate-600 ring-line", rose: "bg-rose-50 text-[#a8504b] ring-rose-100" }[tone];
   return (
     <span title={title} className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1", c)}>
       <span className="font-medium opacity-70">{label}</span><span className="font-semibold">{children}</span>
@@ -70,7 +70,7 @@ export function CompareOptions({ options, budget }: { options: RegionOption[]; b
                       <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
                         {o.chosen && <span className="rounded-full bg-leaf-deep px-1.5 py-px text-[10px] font-semibold text-white">{t("rec.opt.chosen")}</span>}
                         {o.tags?.map((g) => <span key={g} className="rounded-full bg-white px-1.5 py-px text-[10px] font-semibold text-slate-600 ring-1 ring-line">{t(`rec.tag.${g}`)}</span>)}
-                        {!o.within_latency_budget && <span className="rounded-full bg-rose-50 px-1.5 py-px text-[10px] font-semibold text-[#b9566a]">{t("rec.opt.far", { budget: budget ?? "" })}</span>}
+                        {!o.within_latency_budget && <span className="rounded-full bg-rose-50 px-1.5 py-px text-[10px] font-semibold text-[#a8504b]">{t("rec.opt.far", { budget: budget ?? "" })}</span>}
                       </span></td>
                     <td className="px-3 py-2 tabular-nums">−{Math.round(o.carbon_reduction_pct)}% <span className="text-slate-400">({formatCarbon(o.carbon_reduction_kg_month)}/mo)</span></td>
                     <td className="px-3 py-2 tabular-nums" title={latencyBasisLabel(t, o.latency_basis, o.latency_error_pct)}>{o.latency_ms != null ? `${o.latency_basis === "estimated" || !o.latency_basis ? "≈ " : ""}${o.latency_ms} ms` : "—"}{o.latency_ms != null && o.latency_basis && <span className={cn("ml-1 text-[10px]", isMeasured(o.latency_basis) ? "text-leaf-deep" : "text-slate-400")}>{isMeasured(o.latency_basis) ? t("lat.measured_tag") : `±${o.latency_error_pct ?? 0}%`}</span>}</td>

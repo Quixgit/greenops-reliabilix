@@ -89,7 +89,7 @@ export function OrganizationsView() {
                   <span className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted">
                     <span><b className="tabular-nums text-ink">{t.members}</b> members</span>
                     <span><b className="tabular-nums text-ink">{t.projects}</b> projects</span>
-                    <span><b className="tabular-nums text-ink">{t.connections}</b> connection{t.connections === 1 ? "" : "s"}{t.connections_in_error > 0 && <span className="ml-1 font-medium text-[#d9707f]">· {t.connections_in_error} failing</span>}</span>
+                    <span><b className="tabular-nums text-ink">{t.connections}</b> connection{t.connections === 1 ? "" : "s"}{t.connections_in_error > 0 && <span className="ml-1 font-medium text-[#b8625c]">· {t.connections_in_error} failing</span>}</span>
                     {t.failed_deliveries_7d > 0 && <Pill tone="warn">{t.failed_deliveries_7d} failed deliveries</Pill>}
                   </span>
                   <span className="w-24 text-right"><span className="block text-sm font-semibold tabular-nums">{cost.has(t.id) ? usd(cost.get(t.id)!.estimated_cost_usd) : "—"}</span><span className="block text-[11px] text-muted">serving, 30 d</span></span>

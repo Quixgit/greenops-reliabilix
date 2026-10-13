@@ -43,7 +43,7 @@ const ago = (iso: string | null) => {
 
 function useCanAct() { return useOperatorMe().data?.role === "admin"; }
 const invalidate = (qc: ReturnType<typeof useQueryClient>) => { for (const k of ["op-aggregation", "op-region-sources", "op-settings", "settings", "op-explain"]) void qc.invalidateQueries({ queryKey: [k] }); };
-const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{e.message}</p> : null);
+const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{e.message}</p> : null);
 const Note = ({ children }: { children: ReactNode }) => <p role="status" className="rise mt-3 rounded-xl bg-leaf-soft/60 px-3.5 py-2.5 text-sm text-slate-700 ring-1 ring-leaf/15">{children}</p>;
 
 // ---- Policy -------------------------------------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ function PolicyTab({ data }: { data: Aggregation }) {
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line/70 pt-4">
           <Btn disabled={!canAct || !dirty || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save policy"}</Btn>
           {dirty && <Btn tone="quiet" onClick={() => { setOrder(initial.order); setAges(initial.ages); setMin(initial.min); setMax(initial.max); }}>Discard</Btn>}
-          {dirty && <span className="text-xs text-[#a8761f]">Unsaved changes</span>}
+          {dirty && <span className="text-xs text-[#8a6420]">Unsaved changes</span>}
           {save.isSuccess && !dirty && <span role="status" className="rise inline-flex items-center gap-1.5 text-sm text-leaf-deep"><CheckCircle2 className="size-4" />Saved. It applies to the next calculation; recalculate to apply it to history.</span>}
           {!canAct && <span className="text-xs text-muted">Only an operator with the admin role can change the policy.</span>}
         </div>
@@ -305,7 +305,7 @@ function ExplainTab({ data }: { data: Aggregation }) {
         <div key={`${e.region}-${e.day}`} className="space-y-4">
           <div className={cn("rise rounded-2xl p-5 ring-1", e.chosen ? "bg-leaf-soft/50 ring-leaf/20" : "bg-rose-50 ring-rose-200")}>
             <div className="flex flex-wrap items-center gap-4">
-              {e.chosen ? <ProviderMark id={e.chosen.source} size="lg" /> : <AlertTriangle className="size-9 text-[#d9707f]" aria-hidden />}
+              {e.chosen ? <ProviderMark id={e.chosen.source} size="lg" /> : <AlertTriangle className="size-9 text-[#b8625c]" aria-hidden />}
               <div className="min-w-0 flex-1">
                 <p className="text-lg font-bold tracking-tight">{e.chosen ? <>{label(e.chosen.source)} · {Math.round(e.chosen.g_per_kwh)} <span className="text-sm font-medium text-muted">gCO₂e/kWh</span></> : "No figure can be calculated"}</p>
                 <p className="mt-0.5 text-sm text-muted">{e.region} · {e.day}</p>

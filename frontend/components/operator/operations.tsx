@@ -23,7 +23,7 @@ import { Btn, EmptyPanel, Meter, Pill, RowList, SearchBox, Segmented, Select, ty
 
 const ORDER = { missing: 0, stub: 1, ready: 2 } as const;
 function useCanAct() { return useOperatorMe().data?.role === "admin"; }
-const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{e.message}</p> : null);
+const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{e.message}</p> : null);
 const ago = (iso: string | null | undefined) => {
   if (!iso) return "never";
   const m = (Date.now() - new Date(iso).getTime()) / 60_000;
@@ -73,7 +73,7 @@ export function ErrorsView() {
           empty={status === "open" && !q ? <EmptyPanel title="No open errors" text="The platform is quiet. Errors of the api, the worker and their integrations appear here, grouped, the moment they happen." /> : <EmptyPanel tone="quiet" icon={AlertTriangle} title="No errors in this view" text="Change the status, the service or the search." />}
           row={(e) => (
             <div className="group flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-3 py-3.5 transition-colors hover:bg-slate-50">
-              <AlertTriangle className={cn("size-10 shrink-0", e.status !== "open" ? "text-slate-300" : e.severity === "warning" ? "text-[#d9a441]" : "text-[#d9707f]")} strokeWidth={1.4} />
+              <AlertTriangle className={cn("size-10 shrink-0", e.status !== "open" ? "text-slate-300" : e.severity === "warning" ? "text-[#cba649]" : "text-[#b8625c]")} strokeWidth={1.4} />
               <div className="min-w-0 flex-1 basis-80">
                 <p className="flex flex-wrap items-center gap-2 font-semibold">{e.service}<code className="text-xs font-normal text-muted">{e.component}</code>
                   <Pill tone={e.status === "open" ? SEVERITY_TONE[e.severity] : e.status === "resolved" ? "good" : "neutral"}>{e.status === "open" ? e.severity : e.status}</Pill></p>
@@ -215,7 +215,7 @@ function Health({ ok, label, detail, icon: Icon, index, children }: { ok: boolea
   return (
     <Card index={index} interactive={false} className="p-4">
       <div className="flex items-center gap-3.5">
-        <Icon className={cn("size-10 shrink-0", ok ? "text-leaf-deep" : "text-[#d9707f]")} strokeWidth={1.4} />
+        <Icon className={cn("size-10 shrink-0", ok ? "text-leaf-deep" : "text-[#b8625c]")} strokeWidth={1.4} />
         <div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-700">{label}</p><p className="font-semibold">{detail}</p></div>
         <span className={cn("size-3 shrink-0 rounded-full", ok ? "animate-pulse bg-leaf" : "bg-pastel-rose")} aria-label={ok ? "healthy" : "not healthy"} />
       </div>
@@ -230,7 +230,7 @@ function ServiceMark({ name }: { name: string }) {
   const mark = n.includes("electricity") ? "electricitymaps" : n.includes("aws") ? "aws" : n.includes("gcp") ? "gcp" : n.includes("azure") ? "azure" : n.includes("watttime") ? "watttime" : n.includes("e-mail") ? "email" : "";
   if (mark) return <ProviderMark id={mark} size="sm" />;
   const Icon = n.includes("auth0") ? IconShield : n.includes("storage") ? Database : n.includes("payment") ? IconCard : n.includes("sentry") ? AlertTriangle : n.includes("tracing") ? IconCpu : IconKey;
-  return <Icon className="size-10 shrink-0 text-[#5b8fdc]" strokeWidth={1.4} />;
+  return <Icon className="size-10 shrink-0 text-[#5d7fb0]" strokeWidth={1.4} />;
 }
 
 export function SystemView() {
@@ -268,7 +268,7 @@ export function SystemView() {
             {db && <div className="mt-3"><div className="mb-1 flex justify-between text-xs text-muted"><span>Connections in use</span><span className="tabular-nums">{db.in_use} of {db.max} · {db.connections} open</span></div><Meter value={db.in_use} max={db.max} label="Connections in use" /></div>}
           </Health>
           <Health index={3} ok={queueOk} icon={Gauge} label="Job queue (Redis)" detail={queueOk ? `${waiting} waiting` : "unreachable"}>
-            {queueOk && <p className="mt-3 text-xs text-muted">{gaveUp ? <Link href="/operator/jobs" className="font-medium text-[#a8761f] hover:underline">{gaveUp} task{gaveUp === 1 ? "" : "s"} gave up →</Link> : "no task has given up"}</p>}
+            {queueOk && <p className="mt-3 text-xs text-muted">{gaveUp ? <Link href="/operator/jobs" className="font-medium text-[#8a6420] hover:underline">{gaveUp} task{gaveUp === 1 ? "" : "s"} gave up →</Link> : "no task has given up"}</p>}
           </Health>
         </div>
 

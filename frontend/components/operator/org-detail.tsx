@@ -22,7 +22,7 @@ import { Tile } from "./parts";
 import { Avatar, Btn, inputCls, Pill, Select } from "./ui";
 
 const planTone = (p: string) => (p === "enterprise" ? "violet" : p === "business" ? "info" : p === "team" ? "good" : "neutral") as "violet" | "info" | "good" | "neutral";
-const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#c2566a] ring-1 ring-rose-200">{e.message}</p> : null);
+const Err = ({ e }: { e: Error | null }) => (e ? <p role="alert" className="rise mt-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-sm text-[#a8504b] ring-1 ring-rose-200">{e.message}</p> : null);
 
 const supportStatus = z.object({ active: z.boolean(), expires_at: z.string().nullable().optional(), granted_by: z.string().nullable().optional(), note: z.string().nullable().optional() });
 const supportOverview = z.object({
@@ -224,7 +224,7 @@ function ErasurePanel({ id, canAct }: { id: string; canAct: boolean }) {
   const o = q.data.overview;
   return (
     <Card index={0} interactive={false} className="ring-1 ring-rose-100">
-      <CardHeader title="Erasure" icon={<IconWarning className="size-4 text-[#d9707f]" />} action={o.erasure_requested ? <Pill tone="bad" pulse>Scheduled</Pill> : <Pill>None</Pill>} />
+      <CardHeader title="Erasure" icon={<IconWarning className="size-4 text-[#b8625c]" />} action={o.erasure_requested ? <Pill tone="bad" pulse>Scheduled</Pill> : <Pill>None</Pill>} />
       {o.erasure_requested ? (
         <>
           <p className="text-sm text-slate-700">Scheduled by <b>{o.erasure_requested.by.replace("operator:", "operator ")}</b>; the organization and everything in it is erased on <b>{shortTime(o.erasure_requested.execute_after)}</b> unless cancelled.</p>

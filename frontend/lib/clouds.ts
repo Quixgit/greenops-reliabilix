@@ -4,7 +4,7 @@ export interface CloudMeta { id: string; name: string; /** the colour of its bar
 
 const KNOWN: Record<string, CloudMeta> = {
   aws: { id: "aws", name: "AWS", color: "#f0b866", soft: "#fdf3df", ink: "#8a5a12" },
-  azure: { id: "azure", name: "Azure", color: "#7aa7ea", soft: "#e8f0fd", ink: "#2f5fa8" },
+  azure: { id: "azure", name: "Azure", color: "#9fb4d3", soft: "#e8f0fd", ink: "#2f5fa8" },
   gcp: { id: "gcp", name: "Google Cloud", color: "#ee9aa6", soft: "#fdecee", ink: "#9a3a4a" },
   digitalocean: { id: "digitalocean", name: "DigitalOcean", color: "#6cc4e0", soft: "#e3f5fb", ink: "#1f6f8c" },
   kubernetes: { id: "kubernetes", name: "Kubernetes", color: "#9b8fe0", soft: "#eeebfb", ink: "#4f43a6" },
