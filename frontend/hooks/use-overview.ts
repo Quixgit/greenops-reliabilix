@@ -15,7 +15,7 @@ import { periodRange, useUi } from "@/lib/store";
  * belongs to the Overview alone: another page that reuses these hooks keeps showing everything.
  */
 /** The pages that carry the cloud switch: where cost and carbon of several clouds would otherwise be poured together. */
-const SCOPED_PAGES = ["/overview", "/carbon", "/recommendations", "/projects"];
+const SCOPED_PAGES = ["/overview", "/dev-overview", "/carbon", "/recommendations", "/projects"];
 
 function useEffectiveScope(): { cloud: string | null; ready: boolean } {
   const stored = useUi((s) => s.cloudFilter);
