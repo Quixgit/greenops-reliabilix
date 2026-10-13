@@ -14,6 +14,9 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - **Main menu**: the fold button is at the top, its arrows lean on hover without a white fill, and the plan card stays readable when folded.
 - **Page frame**: every page has a title with its purpose, its main action on the right and a bar of sections (kept in the address): Kubernetes,
   Carbon, Reports, CI/CD, Connectors, Projects, Alerts, Recommendations. Projects are a list, not cards; connector catalog and clusters are lists.
+- **White page, no cards**: blocks are told apart by space, a rule above each (with a short navy lead-in) and a pale band for table heads
+  and toolbars; nothing on the page is a boxed card. The report kind picker is a radio list.
+- **Fixed**: the hydration error on `/projects` and `/overview` (a `<div>` inside a `<p>`: the loading placeholder and the pop-over root).
 - **No tiles**: figures sit in one bordered strip divided by hairlines; icon boxes are gone. All content icons use the menu's drawing and a
   line that stays 1.6 px at any size.
 - **Operator console** is in the same frame as the workspace (navy menu in groups, top bar, page title with its purpose).

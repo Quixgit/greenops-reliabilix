@@ -24,10 +24,10 @@ export function Tile({ index, icon, tone, label, info, value, unit, delta, foot,
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-1 truncate text-xs font-medium text-slate-500">{label}</p>
           {loading ? <Skeleton className="mt-1 h-7 w-24" /> : value === null ? <p className="text-xl font-bold leading-7 text-slate-300">—</p> : (
-            <p className="flex flex-wrap items-baseline gap-x-1.5 text-[22px] font-bold leading-7 tracking-tight text-ink tabular-nums">
+            <div className="flex flex-wrap items-baseline gap-x-1.5 text-[22px] font-bold leading-7 tracking-tight text-ink tabular-nums">
               <span className="whitespace-nowrap">{value}{unit && <span className="ml-1 text-xs font-medium text-slate-500">{unit}</span>}</span>
               {delta}
-            </p>
+            </div>
           )}
         </div>
         {!loading && value !== null && spark && spark.length > 1 && <div className="hidden h-9 w-20 shrink-0 @[18.5rem]/tile:block"><MiniArea values={spark} stroke={sparkColor} height={36} className="h-9" /></div>}

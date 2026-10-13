@@ -8,7 +8,7 @@ export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Bool
 /** Closes on an outside press and on Escape; the trigger sets `aria-expanded`. */
 export function usePopover() {
   const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!open) return;
     const down = (e: MouseEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
@@ -36,10 +36,10 @@ export function Popover({ trigger, children, align = "left", up = false, classNa
   };
   const place = align === "auto" ? side : align;
   return (
-    <div className="dx-pop-root" ref={root}>
+    <span className="dx-pop-root" ref={root}>
       {trigger(open, toggle)}
       {open && <div className={cx("dx-pop", place === "right" ? "is-right" : "is-left", up && "is-up", className)} role="dialog">{typeof children === "function" ? children(() => setOpen(false)) : children}</div>}
-    </div>
+    </span>
   );
 }
 

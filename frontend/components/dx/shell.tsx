@@ -226,7 +226,8 @@ export function DxShell({ user, isOperator, children }: { user: { name: string; 
   const path = usePathname();
   const page = [...MAIN, ...SECONDARY].find((n) => path === n.href || path.startsWith(`${n.href}/`));
   const inSettings = path === "/settings" || path.startsWith("/settings/");
-  const here = page ? t(`nav.${slug(page.href)}`, undefined, page.label) : "";
+  const extra = path.startsWith("/methodology") ? t("nav.methodology", undefined, "Methodology") : path.startsWith("/cloud/") ? t("nav.connectors", undefined, "Connectors") : "";
+  const here = page ? t(`nav.${slug(page.href)}`, undefined, page.label) : extra;
   const initials = user.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "U";
   return (
     <>

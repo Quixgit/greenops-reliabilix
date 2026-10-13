@@ -16,6 +16,7 @@ import { settingsView, type OperatorTenant } from "@/lib/api/schemas";
 import { shortTime } from "@/lib/format-time";
 import { useOperatorAttention } from "./attention";
 import { describe } from "./audit";
+import { Sections } from "@/components/dx/page";
 import { PageTitle, Tile } from "./parts";
 import { DataTable, Meter, Pill, Switch, type Column, type PillTone } from "./ui";
 
@@ -108,9 +109,17 @@ export function OverviewView() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageTitle title="Overview" sub="The state of the platform and the people who run it. Only counts and statuses: usage data, reports, payloads and addresses of organizations are never available here." />
 
+      <Sections label="Overview" tabs={[
+        { id: "now", label: "Now" },
+        { id: "growth", label: "Growth" },
+        { id: "customers", label: "Customers" },
+        { id: "platform", label: "Platform" },
+      ]}>
+        {(tab) => tab === "now" ? (
+          <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Tile index={0} label="Organizations" value={tenants.data?.length} icon={Building2} color="sage" />
         <Tile index={1} label="Members" value={sum((t) => t.members)} icon={Users} color="lavender" />
@@ -121,11 +130,6 @@ export function OverviewView() {
         <Tile index={6} label="Queue backlog" value={backlog} icon={Layers} color="lavender" note="pending and retrying jobs" tone={backlog && backlog > 50 ? "warn" : undefined} />
         <Tile index={7} label="Failed jobs today" value={failedJobs} icon={Zap} color="peach" tone={failedJobs ? "bad" : undefined} />
       </div>
-
-      <section className="space-y-3">
-        <div className="flex items-center justify-between"><h2 className="text-[15px] font-semibold tracking-tight">Growth, last 30 days</h2><Link href="/operator/metrics" className="text-sm font-semibold text-primary hover:underline">All metrics →</Link></div>
-        <MetricsBoard compact />
-      </section>
 
       <div className="grid gap-4 xl:grid-cols-3">
         <PlatformControls canAct={me.data?.role === "admin"} />
@@ -152,6 +156,17 @@ export function OverviewView() {
         </Card>
       </div>
 
+          </>
+        ) : tab === "growth" ? (
+          <>
+      <section className="space-y-3">
+        <div className="flex items-center justify-between"><h2 className="text-[15px] font-semibold tracking-tight">Growth, last 30 days</h2><Link href="/operator/metrics" className="text-sm font-semibold text-primary hover:underline">All metrics →</Link></div>
+        <MetricsBoard compact />
+      </section>
+
+          </>
+        ) : tab === "customers" ? (
+          <>
       <Card index={6} interactive={false}>
         <CardHeader title="Organizations" icon={<Building2 className="size-4 text-leaf-deep" />}
           action={<Link href="/operator/organizations" className="text-xs font-semibold text-primary hover:underline">All organizations →</Link>} />
@@ -161,6 +176,9 @@ export function OverviewView() {
         )}
       </Card>
 
+          </>
+        ) : (
+          <>
       <div className="grid gap-4 xl:grid-cols-2">
         <Card index={7} interactive={false}>
           <CardHeader title="Queues" icon={<Cpu className="size-4 text-violet-500" />} action={<Link href="/operator/jobs" className="text-xs font-semibold text-primary hover:underline">Jobs →</Link>} />
@@ -269,6 +287,9 @@ export function OverviewView() {
           )}
         </Card>
       </div>
+          </>
+        )}
+      </Sections>
     </div>
   );
 }

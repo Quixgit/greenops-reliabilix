@@ -9,6 +9,7 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useOperatorDataSources, useOperatorIntegrations, useOperatorSystem } from "@/hooks/use-admin";
 import type { DataSource, DataSourceAccess, DataSourceState, ManagedIntegration } from "@/lib/api/schemas";
+import { PillTabs } from "@/components/ui/tabs";
 import { PageTitle, Tile } from "./parts";
 import { Pill, Segmented, type PillTone } from "./ui";
 
@@ -119,7 +120,7 @@ export function DataSourcesView() {
   return (
     <div className="space-y-6">
       <PageTitle title="Data sources" sub="Everything the platform reads, by what it is for. Open a source to see its terms and state and to set its keys and addresses on the same page." />
-      <Segmented value={tab} onChange={setTab} label="Data sources sections" options={[{ value: "sources", label: "Data sources" }, { value: "services", label: "Platform services" }]} />
+      <PillTabs value={tab} onChange={setTab} label="Data sources sections" tabs={[{ value: "sources", label: "Data sources" }, { value: "services", label: "Platform services" }]} />
 
       {tab === "sources" ? (<>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

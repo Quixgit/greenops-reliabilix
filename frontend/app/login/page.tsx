@@ -31,7 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="relative z-10 mx-auto grid min-h-screen max-w-[1240px] items-center gap-12 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-10">
         <section className="login-copy hidden lg:block">
           <div className="login-reveal flex items-center gap-3.5" style={{ "--i": 0 } as React.CSSProperties}>
-            <Logo className="h-14 w-11" />
+            <Logo className="h-14 w-11 text-white" />
             <span className="leading-tight">
               <span className="block text-2xl font-bold tracking-tight text-slate-900">Reliabilix</span>
               <span className="block text-xs font-medium uppercase tracking-[0.22em] text-leaf-deep">Systems</span>

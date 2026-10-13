@@ -1,7 +1,7 @@
 "use client";
 
 import { SelectField } from "@/components/ui/select-field";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { DateField } from "@/components/ui/date-field";
 import { IconBolt, IconCheck, IconCoin, IconDownload, IconGauge, IconLeaf, IconReport } from "@/components/ui/icons";
@@ -101,24 +101,21 @@ export function ReportBuilder({ onRequested }: { onRequested: () => void }) {
       <CardHeader icon={<IconReport className="size-[18px] text-leaf-deep" />} title={t("rp.new")} info={t("rp.info.new")} />
 
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{t("rp.step.kind")}</p>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" role="radiogroup" aria-label={t("rp.step.kind")}>
-        {KINDS.map((k, i) => {
+      <div className="flex flex-col border-y border-[var(--dx-line)]" role="radiogroup" aria-label={t("rp.step.kind")}>
+        {KINDS.map((k) => {
           const on = kind === k.id;
           return (
-            <button key={k.id} type="button" role="radio" aria-checked={on} onClick={() => setKind(k.id)} style={{ "--i": i } as CSSProperties}
-              className={cn("rise group relative flex items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-300 hover:-translate-y-0.5",
-                on ? "border-leaf bg-leaf-soft/60 shadow-[0_0_0_3px_rgba(111,195,168,0.18)]" : "border-line bg-white hover:border-leaf/50")}>
-              <k.icon className={cn("size-10 shrink-0 transition-transform duration-500 group-hover:scale-110", k.tone)} strokeWidth={1.4} />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-ink">{t(`rp.kind.${k.id}`)}</span>
-                <span className="mt-0.5 block text-xs leading-snug text-muted">{t(`rp.kind.${k.id}_hint`)}</span>
+            <button key={k.id} type="button" role="radio" aria-checked={on} onClick={() => setKind(k.id)}
+              className={cn("flex items-center gap-4 border-t border-[var(--dx-line)] px-3 py-3 text-left transition-colors first:border-t-0", on ? "bg-[var(--dx-sand)]" : "hover:bg-[var(--dx-band)]")}>
+              <span className={cn("grid size-4 shrink-0 place-items-center border", on ? "border-[var(--dx-navy)] bg-[var(--dx-navy)] text-white" : "border-[var(--dx-line-strong)] bg-white")}>
+                {on && <IconCheck className="size-3" />}
               </span>
-              <span className={cn("absolute right-3 top-3 grid size-5 place-items-center rounded-full bg-leaf text-white transition-all duration-300", on ? "scale-100 opacity-100" : "scale-50 opacity-0")}><IconCheck className="size-3" strokeWidth={3} /></span>
+              <span className="w-56 shrink-0 text-sm font-semibold text-ink">{t(`rp.kind.${k.id}`)}</span>
+              <span className="min-w-0 text-sm text-muted">{t(`rp.kind.${k.id}_hint`)}</span>
             </button>
           );
         })}
       </div>
-
       <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <div>

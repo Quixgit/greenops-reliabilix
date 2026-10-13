@@ -55,7 +55,7 @@ body {
   min-height: 100%;
   font-family: var(--font-sans);
   color: var(--color-ink);
-  background-color: #f6f3ee; /* a warm canvas; surfaces are told apart by their hairline border */
+  background-color: #ffffff; /* a white page; blocks are told apart by rules, spacing and a pale band */
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
