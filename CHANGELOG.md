@@ -12,6 +12,12 @@ All notable changes. Format: [Keep a Changelog](https://keepachangelog.com), ver
 - **Settings**: a second menu slides out beside the main one, in groups (Workspace, Data and rules, Alerts, Access, Account); below 1024 px
   the sections are a strip above the page.
 - **Main menu**: the fold button is at the top, its arrows lean on hover without a white fill, and the plan card stays readable when folded.
+- **Page frame**: every page has a title with its purpose, its main action on the right and a bar of sections (kept in the address): Kubernetes,
+  Carbon, Reports, CI/CD, Connectors, Projects, Alerts, Recommendations. Projects are a list, not cards; connector catalog and clusters are lists.
+- **No tiles**: figures sit in one bordered strip divided by hairlines; icon boxes are gone. All content icons use the menu's drawing and a
+  line that stays 1.6 px at any size.
+- **Operator console** is in the same frame as the workspace (navy menu in groups, top bar, page title with its purpose).
+- **Phoenix** logo and favicon: one flat shape in the colour of its surroundings, no gradient, glow or motion.
 - **dev-Overview** is gone: `/overview` is the new Overview.
 
 ## [0.1.0-alpha.181] - 2026-10-12
