@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHead, PageTabs } from "@/components/dx/page";
 import { Tile } from "@/components/dashboard/tile";
 import type { GlyphName, Tone } from "@/components/ui/glyphs";
 import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
@@ -41,20 +42,20 @@ function Stat({ index, glyph, tone, label, value, hint, info }: { index: number;
 }
 
 function Chip({ on, children, title }: { on: boolean; children: React.ReactNode; title?: string }) {
-  return <span title={title} className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium", on ? "bg-leaf-soft text-leaf-deep" : "bg-slate-100 text-slate-500")}><span className={cn("size-1.5 rounded-full", on ? "bg-leaf" : "bg-slate-300")} />{children}</span>;
+  return <span title={title} className={cn("dx-tag", on ? "is-sage" : "is-line")}>{children}</span>;
 }
 
-/** One project at a glance: what it costs, where it runs, what rules it has; a click opens everything about it. */
-function ProjectCard({ p, index, total, pol, onOpen, canDelete }: { p: Project; index: number; total: number; pol?: Policy; onOpen: () => void; canDelete: boolean }) {
+const ROW = "minmax(180px,1.6fr) minmax(130px,1fr) minmax(140px,1.2fr) minmax(200px,1.6fr) 44px";
+
+/** One project in the table: what it costs, where it runs, what rules it has; a click on the row opens everything about it. */
+function ProjectRow({ p, total, pol, onOpen, canDelete }: { p: Project; total: number; pol?: Policy; onOpen: () => void; canDelete: boolean }) {
   const t = useT();
   const qc = useQueryClient();
   const [confirm, setConfirm] = useState(false);
-  const [gone, setGone] = useState(false);
   const del = useMutation({
     mutationFn: () => apiVoid(`projects/${p.id}`, { method: "DELETE" }),
     onSuccess: () => {
-      setGone(true);
-      window.setTimeout(() => { void qc.invalidateQueries({ queryKey: ["projects"] }); void qc.invalidateQueries({ queryKey: ["allocation"] }); void qc.invalidateQueries({ queryKey: ["budgets"] }); }, 450);
+      void qc.invalidateQueries({ queryKey: ["projects"] }); void qc.invalidateQueries({ queryKey: ["allocation"] }); void qc.invalidateQueries({ queryKey: ["budgets"] });
     },
   });
   const cur = useFinopsSummary().data?.currency || "USD";
@@ -67,46 +68,39 @@ function ProjectCard({ p, index, total, pol, onOpen, canDelete }: { p: Project; 
   const team = teams.find((x) => x.id === p.team_id)?.name;
   const clouds = [...new Set(conns.map((c) => c.provider))];
   const sh = share(cost, total);
-  return (
-    <li className={cn("rise relative", gone && "card-gone")} style={{ "--i": index } as CSSProperties}>
-      {canDelete && (
-        <button type="button" aria-label={t("proj.delete")} title={t("proj.delete")} onClick={() => { del.reset(); setConfirm(true); }}
-          className="del-btn absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-line transition-colors hover:bg-[#f8eceb] hover:text-[#b8625c] hover:ring-[#d3a09b] focus-visible:opacity-100">
-          <IconTrash className="del-icon size-[18px]" strokeWidth={1.8} />
-        </button>
-      )}
-      {confirm && (
-        <div className="del-wipe absolute inset-0 z-20 flex flex-col justify-center gap-2.5 overflow-hidden rounded-2xl bg-[#f8eceb] px-5 py-4 ring-1 ring-[#d3a09b]">
-          <p className="flex items-center gap-2 pr-10 text-sm font-semibold text-ink"><IconTrash className="size-5 shrink-0 text-[#b8625c]" strokeWidth={1.6} /><span className="truncate">{t("proj.delete_ask", { name: p.name })}</span></p>
-          {del.isError
-            ? <p role="alert" className="line-clamp-3 text-xs font-medium leading-snug text-[#a8504b]">{del.error.message}</p>
-            : <p className="line-clamp-2 text-xs leading-snug text-slate-500">{t("proj.delete_hint")}</p>}
-          <div className="grid grid-cols-2 gap-2.5">
-            <button type="button" onClick={() => setConfirm(false)} className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-line transition-colors hover:text-ink">{t("common.cancel")}</button>
-            <button type="button" disabled={del.isPending} onClick={() => del.mutate()} className="rounded-xl bg-[#d3a09b] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#b8625c] disabled:opacity-60">{del.isPending ? "…" : t("proj.delete_do")}</button>
-          </div>
+  if (confirm) {
+    return (
+      <li className="dx-row" style={{ background: "var(--dx-rose)" }} role="alert">
+        <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <b style={{ color: "var(--dx-rose-ink)" }}>{t("proj.delete_ask", { name: p.name })}</b>
+          <span style={{ color: "var(--dx-ink-2)", fontSize: 12.5, flex: 1, minWidth: 200 }}>{del.isError ? del.error.message : t("proj.delete_hint")}</span>
+          <button type="button" className="dx-btn is-sm" onClick={() => setConfirm(false)}>{t("common.cancel")}</button>
+          <button type="button" className="dx-btn is-sm is-primary" disabled={del.isPending} onClick={() => del.mutate()}>{t("proj.delete")}</button>
         </div>
-      )}
-      <button type="button" onClick={onOpen}
-        className="group flex h-full w-full flex-col gap-4 rounded-2xl border border-line bg-white p-5 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-leaf/50 hover:shadow-[0_14px_32px_-14px_rgba(47,143,120,0.35)]">
-        <span className="flex items-start gap-3">
-          <IconFolder className="size-10 shrink-0 text-leaf-deep transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110" strokeWidth={1.4} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-base font-semibold tracking-tight">{p.name}</span>
-            <span className="block truncate text-xs text-muted">{t("proj.per", { unit: p.functional_unit.replace(/_/g, " ") })}{team ? ` · ${team}` : ""}</span>
-          </span>
-        </span>
-        <span>
-          <span className="flex items-baseline justify-between"><span className="text-2xl font-bold tabular-nums tracking-tight">{formatCost(cost, cur)}</span><span className="text-xs text-muted">{nf(sh < 10 ? 1 : 0).format(sh)}% {t("proj.of_total")}</span></span>
-          <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100"><span className="bar-x block h-full rounded-full bg-leaf" style={{ width: `${Math.max(3, sh)}%`, "--d": `${index * 70}ms` } as CSSProperties} /></span>
-        </span>
-        <span className="flex flex-wrap gap-1.5">
-          {clouds.length > 0 ? clouds.map((c) => <Chip key={c} on>{PROVIDER[c] ?? c}</Chip>) : <Chip on={false}>{t("proj.no_cloud")}</Chip>}
-          <Chip on={(pol?.allowed_regions.length ?? 0) > 0} title={t("proj.regions_tip")}>{pol ? (pol.allowed_regions.length > 0 ? t("proj.regions", { count: pol.allowed_regions.length }) : t("proj.no_regions")) : "…"}</Chip>
-          <Chip on={pol?.ci_carbon_block_kg != null || pol?.ci_cost_block != null}>{t("proj.ci_gate")}</Chip>
-          {budget && <Chip on={budget.state === "ok"} title={t("proj.budget_tip")}>{Math.round(budget.used_pct)}% {t("proj.budget")}</Chip>}
-        </span>
-      </button>
+      </li>
+    );
+  }
+  return (
+    <li className="dx-row is-click" style={{ gridTemplateColumns: ROW }} onClick={onOpen}>
+      <div style={{ minWidth: 0 }}>
+        <button type="button" className="dx-link-btn" onClick={(e) => { e.stopPropagation(); onOpen(); }}>{p.name}</button>
+        <div style={{ color: "var(--dx-muted)", fontSize: 12 }}>{t("proj.per", { unit: p.functional_unit.replace(/_/g, " ") })}{team ? ` · ${team}` : ""}</div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {clouds.length > 0 ? clouds.map((c) => <Chip key={c} on>{PROVIDER[c] ?? c}</Chip>) : <Chip on={false}>{t("proj.no_cloud")}</Chip>}
+      </div>
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}><b className="tabular-nums">{formatCost(cost, cur)}</b><span style={{ color: "var(--dx-muted)", fontSize: 12 }}>{nf(sh < 10 ? 1 : 0).format(sh)}%</span></div>
+        <div className="dx-meter-line"><i style={{ width: `${Math.max(3, sh)}%` }} /></div>
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        <Chip on={(pol?.allowed_regions.length ?? 0) > 0} title={t("proj.regions_tip")}>{pol ? (pol.allowed_regions.length > 0 ? t("proj.regions", { count: pol.allowed_regions.length }) : t("proj.no_regions")) : "…"}</Chip>
+        <Chip on={pol?.ci_carbon_block_kg != null || pol?.ci_cost_block != null}>{t("proj.ci_gate")}</Chip>
+        {budget && <Chip on={budget.state === "ok"} title={t("proj.budget_tip")}>{Math.round(budget.used_pct)}% {t("proj.budget")}</Chip>}
+      </div>
+      <div style={{ textAlign: "right" }}>
+        {canDelete && <button type="button" className="dx-iconbtn" aria-label={t("proj.delete")} title={t("proj.delete")} onClick={(e) => { e.stopPropagation(); del.reset(); setConfirm(true); }}><IconTrash className="size-[18px]" /></button>}
+      </div>
     </li>
   );
 }
@@ -119,6 +113,10 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
   const alloc = useAllocation();
   const budgets = useBudgets();
   const [tab, setTab] = useState<(typeof TABS)[number]>("projects");
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if ((TABS as readonly string[]).includes(h)) setTab(h as (typeof TABS)[number]);
+  }, []);
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [detailTab, setDetailTab] = useState<"overview" | "policy" | "units">("overview");
@@ -144,53 +142,41 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
   const conns = (useConnections().data ?? []).filter((c) => c.project_id === openId);
 
   return (
-    <div className="page-enter space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("proj.title")}</h1>
-          <p className="mt-1 text-sm text-muted">{t("proj.subtitle")}</p>
-        </div>
+    <div className="page-enter">
+      <PageHead title={t("proj.title")} sub={t("proj.subtitle")} actions={<>
         <CloudSwitcher />
-        {canCreate && !adding && (
-          <button type="button" onClick={() => setAdding(true)} className="inline-flex items-center gap-2 rounded-xl btn-leaf px-4 py-2.5 text-sm font-semibold text-white ">
-            <IconPlus className="size-4" strokeWidth={2.2} />{t("proj.new")}
-          </button>
-        )}
-      </div>
+        {canCreate && !adding && <button type="button" className="dx-btn is-primary" onClick={() => setAdding(true)}><IconPlus className="size-4" />{t("proj.new")}</button>}
+      </>} />
 
-      <div className={cn("grid transition-[grid-template-rows,opacity] duration-500 ease-out", adding ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")} aria-hidden={!adding}>
-        <div className="overflow-hidden">
-          <div className="pb-1">
-            {adding && <ProjectWizard onClose={() => setAdding(false)} onOpen={(id) => { setAdding(false); setTab("projects"); setOpenId(id); setDetailTab("overview"); }} />}
-          </div>
+      {adding && (
+        <div style={{ marginBottom: 20 }}>
+          <ProjectWizard onClose={() => setAdding(false)} onOpen={(id) => { setAdding(false); setTab("projects"); setOpenId(id); setDetailTab("overview"); }} />
         </div>
-      </div>
+      )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" style={{ marginBottom: 20 }}>
         <Stat index={0} glyph="list" tone="green" label={t("proj.stat.projects")} info={t("proj.info.projects")} value={q.isLoading ? <Skeleton className="h-7 w-10" /> : <CountUp value={projects.length} format={(n) => String(Math.round(n))} />} />
         <Stat index={1} glyph="wallet" tone="blue" label={t("proj.stat.cost")} info={t("proj.info.cost")} value={alloc.isLoading ? <Skeleton className="h-7 w-24" /> : <CountUp value={total} format={(n) => formatCost(n, cur)} />} hint={t("proj.stat.cost_hint")} />
         <Stat index={2} glyph="pin" tone="sky" label={t("proj.stat.regions")} info={t("proj.info.regions")} value={`${withRegions}/${projects.length}`} hint={t("proj.stat.regions_hint")} />
         <Stat index={3} glyph="shield" tone="violet" label={t("proj.stat.budgets")} info={t("proj.info.budgets")} value={budgets.isError ? "—" : `${overBudget}`} hint={overBudget ? t("proj.stat.over") : t("proj.stat.ok")} />
       </div>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
-        {TABS.map((k) => (
-          <button key={k} role="tab" type="button" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={cn("relative shrink-0 px-4 py-2.5 text-sm font-medium transition-colors", tab === k ? "text-leaf-deep" : "text-slate-500 hover:text-ink")}>
-            {t(`proj.tab.${k}`)}
-            <span aria-hidden className={cn("absolute inset-x-3 -bottom-px h-0.5 origin-left rounded-full bg-leaf-deep transition-transform duration-300", tab === k ? "scale-x-100" : "scale-x-0")} />
-          </button>
-        ))}
-      </div>
-
+      <PageTabs label={t("proj.title")} value={tab} onChange={(k) => { setTab(k as (typeof TABS)[number]); window.history.replaceState(null, "", `#${k}`); }}
+        tabs={TABS.map((k) => ({ id: k, label: t(`proj.tab.${k}`), count: k === "projects" ? projects.length : null }))} />
+      <div className="dxp-body">
       {tab === "projects" && (
-        q.isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-44" />)}</div>
+        q.isLoading ? <div className="grid gap-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
           : q.isError ? <ErrorState />
           : projects.length === 0 ? <Card interactive={false}><EmptyState icon={IconFolder} text={t("proj.empty")} /></Card>
           : (
-            <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {projects.map((p, i) => <ProjectCard key={p.id} p={p} index={i} total={total} pol={polOf(p.id)} canDelete={canCreate} onOpen={() => { setOpenId(p.id); setDetailTab("overview"); }} />)}
-            </ul>
+            <div className="dx-panel">
+              <div className="dx-row dx-head-row" style={{ gridTemplateColumns: ROW }}>
+                <span>{t("dx.proj.col.project", undefined, "Project")}</span><span>{t("dx.proj.col.clouds", undefined, "Clouds")}</span><span>{t("dx.proj.col.cost", undefined, "Cost")}</span><span>{t("dx.proj.col.rules", undefined, "Rules")}</span><span />
+              </div>
+              <ul className="dx-rows">
+                {projects.map((p) => <ProjectRow key={p.id} p={p} total={total} pol={polOf(p.id)} canDelete={canCreate} onOpen={() => { setOpenId(p.id); setDetailTab("overview"); }} />)}
+              </ul>
+            </div>
           )
       )}
       {tab === "teams" && (
@@ -199,11 +185,12 @@ export function ProjectsView({ canCreate, canBudget }: { canCreate: boolean; can
       {tab === "showback" && <ShowbackPanel />}
       {tab === "unit" && <UnitEconomicsPanel />}
       {tab === "budgets" && <BudgetsPanel canEdit={canBudget} currency={cur} />}
+      </div>
 
       <Drawer open={!!open} onClose={() => setOpenId(null)} title={open?.name ?? ""} closeLabel={t("common.cancel")}>
         {open && (
           <div className="space-y-5">
-            <div role="tablist" className="flex gap-1 rounded-xl bg-slate-100 p-1 text-sm">
+            <div role="tablist" className="dx-seg-inline">
               {(["overview", "policy", "units"] as const).map((k) => (
                 <button key={k} role="tab" type="button" aria-selected={detailTab === k} onClick={() => setDetailTab(k)}
                   className={cn("flex-1 rounded-lg px-3 py-1.5 font-medium transition-all", detailTab === k ? "bg-white text-ink shadow-sm" : "text-slate-500 hover:text-ink")}>{t(`proj.detail.${k}`)}</button>

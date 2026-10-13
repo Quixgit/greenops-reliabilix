@@ -1,37 +1,36 @@
-import { IconGauge as Gauge, IconSend as Megaphone, IconTrend as TrendIcon, IconCalculator as Calculator, IconMerge as GitMerge, IconHistory as History, IconReceipt as Receipt, IconServer as Server, IconTimer as Timer, IconBell as Bell, IconCloud as Cloud, IconCluster as Boxes, IconDatabase as Database, IconOverview as LayoutDashboard, IconSliders as SlidersHorizontal, IconUsers as Users, IconWarning as AlertTriangle } from "@/components/ui/icons";
-import type { AnyIcon as LucideIcon } from "@/components/ui/icons";
+import type { DxIconName } from "@/components/dx/icons";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; planned?: boolean };
+export type NavItem = { href: string; label: string; icon: DxIconName; hint: string; planned?: boolean };
 export type NavGroup = { title: string; items: NavItem[] };
 
 /** The console menu. Items marked `planned` open a page that says what is there today and what is next. */
 export const OPERATOR_NAV: NavGroup[] = [
   { title: "Overview", items: [
-    { href: "/operator", label: "Overview", icon: LayoutDashboard, hint: "What needs attention now" },
-    { href: "/operator/metrics", label: "Metrics", icon: TrendIcon, hint: "What was created, and when" },
-    { href: "/operator/announcements", label: "Announcements", icon: Megaphone, hint: "Updates and notices to organizations" },
+    { href: "/operator", label: "Overview", icon: "overview", hint: "What needs attention now" },
+    { href: "/operator/metrics", label: "Metrics", icon: "forecast", hint: "What was created, and when" },
+    { href: "/operator/announcements", label: "Announcements", icon: "alerts", hint: "Updates and notices to organizations" },
   ] },
   { title: "Customers", items: [
-    { href: "/operator/organizations", label: "Organizations", icon: Users, hint: "Tenants, plans, limits" },
-    { href: "/operator/plans", label: "Plans & billing", icon: Receipt, hint: "Plan catalog, limits, modules" },
+    { href: "/operator/organizations", label: "Organizations", icon: "user", hint: "Tenants, plans, limits" },
+    { href: "/operator/plans", label: "Plans & billing", icon: "cost", hint: "Plan catalog, limits, modules" },
   ] },
   { title: "Data", items: [
-    { href: "/operator/data-sources", label: "Data sources", icon: Database, hint: "Sources, services, keys and settings" },
-    { href: "/operator/aggregation", label: "Aggregation & policies", icon: GitMerge, hint: "Source priority, freshness, provenance" },
-    { href: "/operator/methodology", label: "Methodology & SCI", icon: Calculator, hint: "Versions, coefficients, provenance" },
+    { href: "/operator/data-sources", label: "Data sources", icon: "database", hint: "Sources, services, keys and settings" },
+    { href: "/operator/aggregation", label: "Aggregation & policies", icon: "layers", hint: "Source priority, freshness, provenance" },
+    { href: "/operator/methodology", label: "Methodology & SCI", icon: "scale", hint: "Versions, coefficients, provenance" },
   ] },
   { title: "Operations", items: [
-    { href: "/operator/errors", label: "Errors", icon: AlertTriangle, hint: "Grouped errors of the services" },
-    { href: "/operator/notifications", label: "Notifications", icon: Bell, hint: "Deliveries, retries" },
-    { href: "/operator/connections", label: "Connections", icon: Cloud, hint: "Customer cloud accounts needing attention" },
-    { href: "/operator/system", label: "System", icon: Server, hint: "Build, schema, integration state" },
-    { href: "/operator/jobs", label: "Jobs & scheduler", icon: Timer, hint: "Queues, schedules, failed tasks" },
-    { href: "/operator/diagnostics", label: "Diagnostics", icon: Gauge, hint: "Self-tests of the platform's services" },
+    { href: "/operator/errors", label: "Errors", icon: "anomaly", hint: "Grouped errors of the services" },
+    { href: "/operator/notifications", label: "Notifications", icon: "alerts", hint: "Deliveries, retries" },
+    { href: "/operator/connections", label: "Connections", icon: "cloud", hint: "Customer cloud accounts needing attention" },
+    { href: "/operator/system", label: "System", icon: "storage", hint: "Build, schema, integration state" },
+    { href: "/operator/jobs", label: "Jobs & scheduler", icon: "clock", hint: "Queues, schedules, failed tasks" },
+    { href: "/operator/diagnostics", label: "Diagnostics", icon: "intensity", hint: "Self-tests of the platform's services" },
   ] },
   { title: "Governance", items: [
-    { href: "/operator/settings", label: "Platform settings", icon: SlidersHorizontal, hint: "Limits, modules, security, retention" },
-    { href: "/operator/audit", label: "Audit log", icon: History, hint: "What operators looked at and changed" },
-    { href: "/operator/access", label: "Access & security", icon: Boxes, hint: "Operators, roles" },
+    { href: "/operator/settings", label: "Platform settings", icon: "sliders", hint: "Limits, modules, security, retention" },
+    { href: "/operator/audit", label: "Audit log", icon: "reports", hint: "What operators looked at and changed" },
+    { href: "/operator/access", label: "Access & security", icon: "shield", hint: "Operators, roles" },
   ] },
 ];
 

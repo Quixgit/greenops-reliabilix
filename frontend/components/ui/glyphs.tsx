@@ -36,22 +36,8 @@ export function Glyph({ name, className }: { name: GlyphName; className?: string
 }
 
 export type Tone = "blue" | "green" | "amber" | "violet" | "rose" | "sky" | "slate";
-// one flat tint per tone, taken from the DX palette (the text colour is the tint's own ink)
-const TONE: Record<Tone, string> = {
-  blue: "bg-[#d9e2ee] text-[#2c4b78]",
-  green: "bg-[#d7e3d3] text-[#3f6a4a]",
-  amber: "bg-[#f1e7bd] text-[#77621a]",
-  violet: "bg-[#d6dbec] text-[#384673]",
-  rose: "bg-[#ecd5d2] text-[#8a403d]",
-  sky: "bg-[#d9e2ee] text-[#2c4b78]",
-  slate: "bg-[#eadfca] text-[#6e5a33]",
-};
 
-/** A glyph on a flat tinted square: the one way an icon appears on a figure. */
-export function IconTile({ name, tone = "blue", size = "md", className }: { name: GlyphName; tone?: Tone; size?: "sm" | "md" | "lg"; className?: string }) {
-  return (
-    <span className={cn("grid shrink-0 place-items-center", size === "sm" ? "size-8" : size === "lg" ? "size-11" : "size-10", TONE[tone], className)}>
-      <Glyph name={name} className={size === "sm" ? "size-[18px]" : "size-[22px]"} />
-    </span>
-  );
+/** Kept for the pages that still ask for a tile: it draws only the glyph, in ink, with no box behind it. */
+export function IconTile({ name, size = "md", className }: { name: GlyphName; tone?: Tone; size?: "sm" | "md" | "lg"; className?: string }) {
+  return <Glyph name={name} className={cn("dx-ic dx-ic-lg text-[var(--dx-ink-2)]", size === "sm" ? "size-[18px]" : "size-5", className)} />;
 }

@@ -14,13 +14,13 @@ export type TileColor = keyof typeof TILE;
 
 export function PageTitle({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-        {sub && <p className="mt-1 max-w-3xl text-sm text-muted">{sub}</p>}
+    <header className="dxp-head">
+      <div style={{ minWidth: 0 }}>
+        <h1>{title}</h1>
+        {sub && <p>{sub}</p>}
       </div>
-      {action}
-    </div>
+      {action && <div className="dxp-actions">{action}</div>}
+    </header>
   );
 }
 

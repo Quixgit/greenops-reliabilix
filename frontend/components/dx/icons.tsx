@@ -4,7 +4,7 @@ import type { SVGProps } from "react";
  * The icon set of the DX interface, drawn on one 24-unit grid: a 1.6 stroke, square ends, mitred joins, geometric shapes,
  * no fills. They are a family: same weight, same corner, same optical size, so any two read as made by one hand.
  */
-const P: Record<string, string> = {
+export const DX_PATHS: Record<string, string> = {
   overview: "M3 3h8v9H3z M13 3h8v5h-8z M13 10h8v11h-8z M3 14h8v7H3z",
   projects: "M3 5h7l2 3h9v12H3z M3 12h18",
   kubernetes: "M12 2.5l8.5 4.7v9.6L12 21.5l-8.5-4.7V7.2z M12 7.5v9 M8 9.8l8 4.4 M16 9.8l-8 4.4",
@@ -69,7 +69,8 @@ const P: Record<string, string> = {
   dev: "M8 7l-5 5 5 5 M16 7l5 5-5 5 M14 4l-4 16",
 };
 
-export type DxIconName = keyof typeof P;
+const P = DX_PATHS;
+export type DxIconName = keyof typeof DX_PATHS;
 
 export function Ico({ name, size = 20, strokeWidth = 1.6, ...rest }: { name: DxIconName; size?: number; strokeWidth?: number } & Omit<SVGProps<SVGSVGElement>, "name">) {
   return (

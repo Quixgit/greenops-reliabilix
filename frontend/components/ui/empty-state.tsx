@@ -8,9 +8,7 @@ export function EmptyState({
 }: { icon: LucideIcon; text: string; action?: { href: string; label: string }; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-2 py-8 text-center", className)}>
-      <span className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-        <Icon className="size-5" />
-      </span>
+      <span className="text-[var(--dx-muted)]"><Icon className="size-6" /></span>
       <p className="max-w-xs text-sm text-muted">{text}</p>
       {action && (
         <Link href={action.href} className="mt-1 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-primary shadow-sm ring-1 ring-line hover:bg-slate-50">

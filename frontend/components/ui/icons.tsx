@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
+import { DX_PATHS } from "@/components/dx/icons";
 import { cn } from "@/lib/utils";
 
 /**
@@ -12,10 +13,23 @@ export type IconType = ComponentType<IconProps>;
 /** Either set: the screens still holding a stock glyph keep working while the drawn set takes over. */
 export type AnyIcon = LucideIcon | IconType;
 
+// Names of this set that are the same thing as a menu icon: they use the menu's drawing, so the menu and the content never differ.
+const SAME: Record<string, string> = {
+  overview: "overview", folder: "projects", cluster: "kubernetes", leaf: "carbon", report: "reports", bulb: "recommendations", flow: "automation",
+  branch: "cicd", plug: "connectors", bell: "alerts", sliders: "settings", shield: "shield", coin: "cost", wallet: "cost", cloud: "cloud", bolt: "bolt",
+  globe: "globe", trend: "forecast", clock: "clock", database: "database", pin: "pin", user: "user", download: "download", menu: "menu", refresh: "refresh",
+  plus: "plus", close: "close", check: "check", search: "search", info: "info", server: "storage", network: "networking", users: "user", target: "pin",
+  "cost-carbon": "emissions", "grid-measure": "intensity", "insight-action": "potential", trust: "shield", cpu: "compute", layers: "layers", table: "list",
+  calendar: "calendar", filter: "filter", scale: "scale", budget: "budget",
+};
+
+/** The icon family: one 24 grid, a 1.6 px line that stays 1.6 px at any size, square ends, mitred joins, no fills. */
 function make(name: string, d: string): IconType {
-  const Icon = ({ className, strokeWidth = 1.6, "aria-label": label }: IconProps) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="square" strokeLinejoin="miter" className={cn("size-5 shrink-0", className)} aria-hidden={label ? undefined : true} aria-label={label} role={label ? "img" : undefined}>
-      <path d={d} />
+  const path = DX_PATHS[SAME[name] ?? ""] ?? d;
+  const Icon = ({ className, "aria-label": label }: IconProps) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="square" strokeLinejoin="miter" vectorEffect="non-scaling-stroke"
+      className={cn("dx-ic size-5 shrink-0", /\bsize-(9|10|11|12|14|16)\b/.test(className ?? "") && "dx-ic-lg", className)} aria-hidden={label ? undefined : true} aria-label={label} role={label ? "img" : undefined}>
+      <path d={path} vectorEffect="non-scaling-stroke" />
     </svg>
   );
   Icon.displayName = `Icon(${name})`;

@@ -336,3 +336,61 @@
 /* a grid or flex child may shrink below its content, so a long label truncates instead of widening the page */
 .dx-main { min-width: 0; overflow-x: clip; }
 .dx-main [class*="grid"] > *, .dx-main [class*="flex"] > li, .dx-main section > *, .dx-main li > * { min-width: 0; }
+
+/* ---- page frame: head, section bar, body ---------------------------------------------------------------------- */
+.dxp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; padding: 4px 0 20px; }
+.dxp-head h1 { margin: 0; font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; color: var(--dx-ink); }
+.dxp-head p { margin: 6px 0 0; max-width: 760px; font-size: 13.5px; line-height: 1.5; color: var(--dx-muted); }
+.dxp-eyebrow { margin-bottom: 6px; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dx-muted); }
+.dxp-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dxp-tabs { position: sticky; top: 56px; z-index: 20; display: flex; gap: 2px; margin: 0 -24px 20px; padding: 0 24px; overflow-x: auto; background: var(--dx-canvas); border-bottom: 1px solid var(--dx-line-strong); scrollbar-width: none; }
+.dxp-tabs::-webkit-scrollbar { display: none; }
+.dxp-tabs button { position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 14px; border: 0; background: transparent; color: var(--dx-muted); font-weight: 500; white-space: nowrap; transition: color 0.14s; }
+.dxp-tabs button:hover { color: var(--dx-ink); }
+.dxp-tabs button.is-on { color: var(--dx-ink); font-weight: 600; }
+.dxp-tabs button::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--dx-navy); transform: scaleX(0); transition: transform 0.2s var(--dx-ease); }
+.dxp-tabs button.is-on::after { transform: scaleX(1); }
+.dxp-tabs em { font-style: normal; font-size: 11px; font-weight: 600; padding: 1px 6px; background: var(--dx-sand); color: var(--dx-ink-2); }
+.dxp-body { display: grid; gap: 20px; animation: dx-sub-in 0.22s var(--dx-ease) both; }
+.dxp-split { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1200px) { .dxp-split { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } .dxp-split.is-even { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 820px) { .dxp-tabs { margin: 0 -16px 16px; padding: 0 16px; } }
+.dx-note { margin: 0; padding: 10px 14px; border: 1px solid var(--dx-line-strong); background: var(--dx-sand); font-size: 13px; }
+.dx-note.is-rose { background: var(--dx-rose); border-color: #d9b8b4; color: var(--dx-rose-ink); }
+.dx-head-row { background: var(--dx-band) !important; color: var(--dx-muted); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding-top: 8px; padding-bottom: 8px; }
+.dx-link-btn { border: 0; background: transparent; padding: 0; font-weight: 600; color: var(--dx-ink); text-align: left; }
+.dx-link-btn:hover { color: var(--dx-sky-ink); text-decoration: underline; }
+.dx-meter-line { height: 4px; margin-top: 6px; background: var(--dx-line); }
+.dx-meter-line > i { display: block; height: 100%; background: var(--dx-navy); }
+.dx-seg-inline { display: flex; border: 1px solid var(--dx-line-strong); }
+.dx-seg-inline button { flex: 1; height: 34px; border: 0; background: transparent; font-weight: 500; color: var(--dx-ink-2); }
+.dx-seg-inline button[aria-selected="true"] { background: var(--dx-navy); color: #fff; }
+@media (max-width: 900px) { .dx-row[style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) auto !important; } .dx-head-row { display: none !important; } }
+
+/* ---- one icon scale: content icons never outgrow the menu's; decorative large ones go away inside a stat strip -------------- */
+.dx svg.dx-ic { max-width: 28px; max-height: 28px; }
+
+/* ---- stat strip: figures sit in one bordered bar, divided by hairlines; no tiles, no icon boxes -------------------------- */
+.dx-main [class~="xl:grid-cols-4"]:has(> .glass), .dx-kpis { gap: 1px !important; background: var(--dx-line); border: 1px solid var(--dx-line); }
+.dx-main [class~="xl:grid-cols-4"]:has(> .glass) > .glass, .dx-kpis > .dx-kpi { border: 0 !important; background: var(--dx-surface); }
+.dx-kpi::before { display: none; }
+.dx-kpi-top .dx-ico { display: none; }
+.dx-main [class~="xl:grid-cols-4"]:has(> .glass) .dx-ic-lg, .dx-main [class~="xl:grid-cols-4"]:has(> .glass) [class*="size-11"] { display: none; }
+.dx-main [class~="xl:grid-cols-4"]:has(> .glass) > .glass { padding: 14px 18px !important; }
+.dx-phx { color: var(--dx-sand); width: 26px; height: 32px; flex: none; display: grid; place-items: center; }
+.dx-phx svg { width: 100%; height: 100%; overflow: visible; }
+.dx-shell.is-slim .dx-phx { width: 28px; }
+.dx-soon { margin-left: auto; font-style: normal; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 6px; border: 1px solid #3a4c70; color: var(--dx-on-navy-dim); }
+.dx-shell.is-slim .dx-soon { display: none; }
+
+/* ---- lists, not tiles: grids of cards become one bordered list of rows ---------------------------------------------- */
+.dx-main [class~="xl:grid-cols-3"]:has(> .glass, > li) { grid-template-columns: minmax(0, 1fr) !important; gap: 0 !important; border: 1px solid var(--dx-line); background: var(--dx-surface); }
+.dx-main [class~="xl:grid-cols-3"]:has(> .glass, > li) > * { border: 0 !important; border-top: 1px solid var(--dx-line) !important; background: transparent; }
+.dx-main [class~="xl:grid-cols-3"]:has(> .glass, > li) > :first-child { border-top: 0 !important; }
+.dx-main [class~="xl:grid-cols-3"] > li > button { border: 0 !important; flex-direction: row !important; align-items: center !important; gap: 24px !important; padding: 12px 16px !important; }
+.dx-main [class~="xl:grid-cols-3"] > li > button:hover { background: var(--dx-band); }
+.dx-main .connector-card { flex-direction: row !important; align-items: center !important; gap: 24px !important; padding: 12px 16px !important; }
+.dx-main .connector-card > :first-child { flex: 1; min-width: 0; }
+.dx-main .connector-card > :last-child { margin-top: 0 !important; min-width: 240px; flex: none; }
+.dx-ico, .dx-ico.is-sage, .dx-ico.is-sky, .dx-ico.is-rose, .dx-ico.is-butter, .dx-ico.is-peach, .dx-ico.is-navy { background: transparent; color: var(--dx-ink-2); width: auto; }
+@media (max-width: 760px) { .dx-main .connector-card { flex-direction: column !important; align-items: stretch !important; } .dx-main .connector-card > :last-child { min-width: 0; } }

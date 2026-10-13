@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHead, PageTabs } from "@/components/dx/page";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Segmented } from "@/components/ui/controls";
 import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
@@ -148,13 +149,11 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
   const q = useRecommendations(status);
   const pg = usePaged(q.data ?? [], 10);
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Recommendations</h1>
-        <CloudSwitcher />
-      </div>
-      <Segmented label="Recommendations" value={tab} onChange={setTab} options={(["moves", "commitments"] as const).map((k) => ({ value: k, label: t(`cm.tab.${k}`) }))} />
-      {tab === "commitments" ? <div className="form-swap"><CommitmentsPanel /></div> : <>
+    <div className="page-enter">
+      <PageHead title="Recommendations" sub={t("dx.rec.sub", undefined, "Moves to a cleaner or cheaper place and commitments, each with its measured result once applied.")} actions={<CloudSwitcher />} />
+      <PageTabs label="Recommendations" value={tab} onChange={(k) => setTab(k as "moves" | "commitments")}
+        tabs={(["moves", "commitments"] as const).map((k) => ({ id: k, label: t(`cm.tab.${k}`) }))} />
+      {tab === "commitments" ? <div className="dxp-body"><CommitmentsPanel /></div> : <div className="dxp-body">
       <Segmented size="sm" label="Status" value={status} onChange={setStatus} options={FILTERS.map((f) => ({ value: f, label: <span className="capitalize">{f}</span> }))} className="max-w-full overflow-x-auto" />
       <Card>
         {q.isLoading ? <Skeleton className="h-24" /> : q.isError ? <ErrorState /> : q.data!.length === 0 ?
@@ -163,7 +162,7 @@ export function RecommendationsView({ canDecide, canPlan }: { canDecide: boolean
           )}
         <Pagination page={pg.page} pages={pg.pages} total={pg.total} size={pg.size} onPage={pg.setPage} onSize={pg.setSize} />
       </Card>
-      </>}
+      </div>}
     </div>
   );
 }

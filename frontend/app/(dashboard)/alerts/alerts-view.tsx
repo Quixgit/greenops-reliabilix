@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHead, PageTabs } from "@/components/dx/page";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -152,21 +153,15 @@ export function AlertsView({ canAct = false }: { canAct?: boolean }) {
   }, []);
   const go = (x: Tab) => { setTab(x); window.history.replaceState(null, "", `#${x}`); };
   return (
-    <div className="page-enter space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("nc.title")}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted">{t("nc.subtitle")}</p>
-        </div>
-        <Link href="/settings#notifications" className="rounded-xl px-4 py-2.5 text-sm font-semibold text-leaf-deep ring-1 ring-line transition-colors hover:bg-leaf-soft">{t("nc.configure")}</Link>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat index={0} icon={IconSend} tone="text-[#5d7fb0]" label={t("nc.stat.messages")} info={t("nc.info.messages")} value={inbox.isLoading ? null : inbox.data?.unread ?? 0} hint={t("nc.stat.unread")} on={tab === "messages"} onClick={() => go("messages")} />
-        <Stat index={1} icon={IconWarning} tone="text-[#b8625c]" label={t("nc.stat.alerts")} info={t("nc.info.alerts")} value={alerts.isLoading ? null : alerts.data?.length ?? 0} hint={t("nc.stat.need_decision")} on={tab === "alerts"} onClick={() => go("alerts")} />
-        <Stat index={2} icon={IconTrend} tone="text-[#cba649]" label={t("nc.stat.anomalies")} info={t("nc.info.anomalies")} value={anomalies.isLoading ? null : anomalies.data?.length ?? 0} hint={t("nc.stat.period")} on={tab === "anomalies"} onClick={() => go("anomalies")} />
-        <Stat index={3} icon={IconCluster} tone="text-[#5a6aa0]" label={t("nc.stat.delivery")} info={t("nc.info.delivery")} value={deliveries.isLoading ? null : failed.length} hint={t("nc.stat.failed")} on={tab === "delivery"} onClick={() => go("delivery")} />
-      </div>
+    <div className="page-enter">
+      <PageHead title={t("nc.title")} sub={t("nc.subtitle")}
+        actions={<Link href="/settings#notifications" className="dx-btn">{t("nc.configure")}</Link>} />
+      <PageTabs label={t("nc.title")} value={tab} onChange={(k) => go(k as Tab)} tabs={[
+        { id: "messages", label: t("nc.stat.messages"), count: inbox.data?.unread ?? 0 },
+        { id: "alerts", label: t("nc.stat.alerts"), count: alerts.data?.length ?? 0 },
+        { id: "anomalies", label: t("nc.stat.anomalies"), count: anomalies.data?.length ?? 0 },
+        { id: "delivery", label: t("nc.stat.delivery"), count: failed.length },
+      ]} />
 
       <Card interactive={false}>
         <div key={tab} className="form-swap">

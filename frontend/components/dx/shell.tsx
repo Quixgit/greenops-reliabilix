@@ -13,6 +13,7 @@ import { useUi } from "@/lib/store";
 import { timeAgo } from "@/lib/formatters";
 import { BUILD_VERSION } from "@/lib/version";
 import { settingsGroups, SETTINGS_ALIAS } from "@/components/settings/sections";
+import { Phoenix } from "@/components/layout/phoenix";
 import { Ico, type DxIconName } from "./icons";
 import { cx, Popover } from "./ui";
 
@@ -53,7 +54,7 @@ function Sidebar({ slim, isOperator }: { slim: boolean; isOperator: boolean }) {
       {navOpen && <button className="dx-scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} />}
       <aside className={cx("dx-side", navOpen && "is-open")} aria-label="Main">
         <Link href="/overview" className="dx-brand" title="Reliabilix">
-          <span className="dx-mark">R</span>
+          <span className="dx-phx"><Phoenix /></span>
           <div><b>Reliabilix</b><small>GreenOps</small></div>
         </Link>
         <button type="button" className="dx-fb" aria-label={slim ? "Expand menu" : "Collapse menu"} aria-expanded={!slim} title={slim ? "Expand menu" : "Collapse menu"} onClick={() => setNavCollapsed(!slim)}>
@@ -163,7 +164,7 @@ function Search() {
   );
 }
 
-function Bell() {
+export function Bell() {
   const t = useT();
   const inbox = useInbox();
   const alerts = useAlerts("new");
@@ -193,7 +194,7 @@ function Bell() {
   );
 }
 
-function Language() {
+export function Language() {
   const t = useT();
   const locale = useLocale();
   const enabled = useEnabledLocales();

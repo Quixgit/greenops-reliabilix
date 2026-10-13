@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Info } from "@/components/ui/info";
 import { Card, CardHeader } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/count-up";
+import { PageHead, Sections } from "@/components/dx/page";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNotificationsEnabled } from "@/hooks/use-admin";
@@ -126,25 +127,21 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
   const loading = d.connections.isLoading;
 
   return (
-    <div className="page-enter space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("connectors.title")}</h1>
-          <p className="mt-1 text-sm text-muted">{t("connectors.subtitle")}</p>
-        </div>
-        {canConnect && connectAs === null && (
-          <button onClick={() => setConnectAs("")} className="btn-leaf inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold">
-            <Plus className="size-4" strokeWidth={2.2} />{t("connectors.connect")}
-          </button>
-        )}
-      </div>
+    <div className="page-enter">
+      <PageHead title={t("connectors.title")} sub={t("connectors.subtitle")}
+        actions={canConnect && connectAs === null && <button type="button" onClick={() => setConnectAs("")} className="dx-btn is-primary"><Plus className="size-4" />{t("connectors.connect")}</button>} />
 
-      <div className={cn("grid transition-[grid-template-rows,opacity] duration-500 ease-out", connectAs !== null && canConnect ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")} aria-hidden={connectAs === null}>
-        <div className="overflow-hidden"><div className="pb-1">
-          {connectAs !== null && canConnect && <ConnectWizard key={connectAs} initialProvider={connectAs || null} onClose={() => setConnectAs(null)} />}
-        </div></div>
-      </div>
+      {connectAs !== null && canConnect && (
+        <div style={{ marginBottom: 20 }}><ConnectWizard key={connectAs} initialProvider={connectAs || null} onClose={() => setConnectAs(null)} /></div>
+      )}
 
+      <Sections label={t("connectors.title")} tabs={[
+        { id: "connections", label: t("connectors.section.connections"), count: d.connections.data?.length ?? null },
+        { id: "catalog", label: t("connectors.catalog.title") },
+        { id: "import", label: t("dx.cn.import", undefined, "Import costs") },
+      ]}>
+        {(tab) => tab === "connections" ? (
+          <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi index={0} label={t("connectors.kpi.active")} info={t("info.connectors_active")} hint={t("connectors.kpi.active_of", { total: k.total })}
           ring={<Zap className="size-11 text-leaf-deep" strokeWidth={1.4} />}>
@@ -319,6 +316,8 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
         </div>
       </div>
 
+          </>
+        ) : tab === "catalog" ? (
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold tracking-tight">{t("connectors.catalog.title")}</h2>
@@ -335,12 +334,12 @@ export function ConnectorsView({ canConnect }: { canConnect: boolean }) {
         <div key={cat} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map((item, i) => (
             <CatalogCard key={item.id} item={item} index={i} facts={facts} canConnect={canConnect} onConnect={(p) => setConnectAs(p)}
-              onUpload={(v) => { setImportVendor(v); document.getElementById("cost-import")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+              onUpload={(v) => { setImportVendor(v); window.location.hash = "import"; }} />
           ))}
         </div>
       </section>
-
-      <CostImportPanel vendor={importVendor} onVendor={setImportVendor} canWrite={canConnect} />
+        ) : <CostImportPanel vendor={importVendor} onVendor={setImportVendor} canWrite={canConnect} />}
+      </Sections>
     </div>
   );
 }

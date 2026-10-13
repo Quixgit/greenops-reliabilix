@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { IconLeaf, IconReport } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCarbonSummary, useMethodologyVersions } from "@/hooks/use-overview";
+import { PageHead, Sections } from "@/components/dx/page";
 import { CloudSwitcher } from "@/components/dashboard/cloud-switcher";
 import { useT } from "@/i18n/provider";
 
@@ -19,37 +20,42 @@ export function CarbonView() {
   const m = sum.data?.methodology;
   const empty = !!sum.data && !sum.data.has_data;
   return (
-    <div className="page-enter space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("carbon.title")}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted">{t("cb.subtitle")}</p>
-        </div>
+    <div className="page-enter">
+      <PageHead title={t("carbon.title")} sub={t("cb.subtitle")} actions={<>
         <CloudSwitcher />
         {m && (
-          <Link href="/methodology" className="group inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-all hover:border-leaf/50 hover:text-ink">
-            <span className={`size-2 rounded-full ${m.status === "verified" ? "bg-leaf" : "bg-pastel-amber"}`} />
-            {t("cb.method.chip", { version: m.version })}
-            <span className="text-muted">· {m.status}</span>
+          <Link href="/methodology" className="dx-btn is-sm" title={t("cb.method.read")}>
+            <span className="dx-swatch" style={{ background: m.status === "verified" ? "var(--dx-good)" : "var(--dx-butter-ink)" }} />
+            {t("cb.method.chip", { version: m.version })} · {m.status}
           </Link>
         )}
-      </div>
+      </>} />
 
       {empty ? (
         <Card interactive={false}><EmptyState icon={IconLeaf} text={t("cb.empty")} action={{ href: "/connectors", label: t("ov2.empty.connect") }} /></Card>
       ) : (
-        <>
-          <CarbonKpis />
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-            <CarbonTrend />
-            <CarbonBreakdown />
-          </div>
-          <GridHistory />
-          <div className="grid gap-5 xl:grid-cols-2">
-            <ScheduleAdvisor />
-            {sum.data?.has_data ? <SciCalculator summary={sum.data} /> : <Skeleton className="h-72" />}
-          </div>
-          <IntensityOrigin />
+        <Sections label={t("carbon.title")} tabs={[
+          { id: "emissions", label: t("dx.cb.emissions", undefined, "Emissions") },
+          { id: "grid", label: t("dx.cb.grid", undefined, "Grid") },
+          { id: "plan", label: t("dx.cb.plan", undefined, "Plan and SCI") },
+          { id: "method", label: t("dx.cb.method", undefined, "Method") },
+        ]}>
+          {(tab) => tab === "emissions" ? (
+            <>
+              <CarbonKpis />
+              <div className="dxp-split"><CarbonTrend /><CarbonBreakdown /></div>
+            </>
+          ) : tab === "grid" ? (
+            <>
+              <GridHistory />
+              <IntensityOrigin />
+            </>
+          ) : tab === "plan" ? (
+            <div className="dxp-split is-even">
+              <ScheduleAdvisor />
+              {sum.data?.has_data ? <SciCalculator summary={sum.data} /> : <Skeleton className="h-72" />}
+            </div>
+          ) : (
           <Card index={9} interactive={false}>
             <CardHeader icon={<IconReport className="size-[18px] text-[#5a6aa0]" />} title={t("carbon.methodology")} info={t("info.carbon_method")}
               action={m && <Badge tone={m.status === "verified" ? "good" : "warn"}>{m.status}</Badge>} />
@@ -69,7 +75,8 @@ export function CarbonView() {
               </div>
             )}
           </Card>
-        </>
+          )}
+        </Sections>
       )}
     </div>
   );

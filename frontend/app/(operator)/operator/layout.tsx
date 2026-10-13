@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { OperatorShell } from "@/components/operator/shell";
+import { DxOperatorShell } from "@/components/dx/operator-shell";
 import { getOperator } from "@/lib/api/server";
 import { getUser } from "@/lib/auth/session";
 
@@ -13,5 +13,5 @@ export default async function OperatorLayout({ children }: { children: ReactNode
   if (!user) redirect("/login");
   const op = await getOperator();
   if (!op) notFound();
-  return <OperatorShell operator={op} user={user}>{children}</OperatorShell>;
+  return <DxOperatorShell operator={op} user={user}>{children}</DxOperatorShell>;
 }
