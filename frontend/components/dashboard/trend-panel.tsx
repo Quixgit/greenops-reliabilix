@@ -15,7 +15,7 @@ import { formatCost, nf } from "@/lib/formatters";
 import { movingAverage } from "@/lib/overview";
 import { cn } from "@/lib/utils";
 
-const W = 640, H = 270, P = { l: 50, r: 44, t: 10, b: 24 };
+const W = 640, H = 350, P = { l: 50, r: 44, t: 10, b: 24 };
 
 /** A rounded-up axis maximum with four even steps (1, 2, 2.5, 5 times a power of ten). */
 function niceMax(v: number): number {
@@ -103,12 +103,12 @@ export function TrendPanel() {
           <div ref={box} className="relative" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
             <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={t("ov2.trend.title")}>
               <defs>
-                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#9fb4d3" stopOpacity=".38" /><stop offset="1" stopColor="#9fb4d3" stopOpacity="0.03" /></linearGradient>
+                <linearGradient id="trend-cost" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a9d1b9" stopOpacity=".38" /><stop offset="1" stopColor="#a9d1b9" stopOpacity="0.03" /></linearGradient>
                 <linearGradient id="trend-carbon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5f8d6c" stopOpacity=".36" /><stop offset="1" stopColor="#5f8d6c" stopOpacity="0.02" /></linearGradient>
               </defs>
               {ticks.map((k) => (
                 <g key={k}>
-                  <line x1={P.l} x2={W - P.r} y1={yC(maxC * k)} y2={yC(maxC * k)} stroke="#e6ecf5" strokeDasharray={k === 0 ? "" : "3 4"} />
+                  <line x1={P.l} x2={W - P.r} y1={yC(maxC * k)} y2={yC(maxC * k)} stroke="#e8f2ea" strokeDasharray={k === 0 ? "" : "3 4"} />
                   {showCost && <text x={P.l - 8} y={yC(maxC * k) + 4} textAnchor="end" className="fill-slate-400 text-[11px]">{formatCost(maxC * k, cur)}</text>}
                   {showCarbon && <text x={showCost ? W - P.r + 8 : P.l - 8} y={yK(maxK * k) + 4} textAnchor={showCost ? "start" : "end"} className="fill-leaf-deep/80 text-[11px]">{fmtK(maxK * k)}</text>}
                 </g>
@@ -126,15 +126,15 @@ export function TrendPanel() {
                 return <path key={l.id} d={`${up} ${down} Z`} fill={l.color} fillOpacity=".5" className="fade-in" />;
               }) : <path d={`${line(costs, yC)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-cost)" className="fade-in" />)}
               {showCarbon && <path d={`${line(carbons, yK)} L${x(n - 1)},${H - P.b} L${x(0)},${H - P.b} Z`} fill="url(#trend-carbon)" className="fade-in" />}
-              {showCost && <path d={line(costs, yC)} fill="none" stroke="#9fb4d3" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />}
+              {showCost && <path d={line(costs, yC)} fill="none" stroke="#a9d1b9" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100 }} />}
               {showCarbon && <path d={line(carbons, yK)} fill="none" stroke="#5f8d6c" strokeWidth="2" strokeLinejoin="round" pathLength={100} className="draw" style={{ ["--len" as string]: 100, ["--d" as string]: "150ms" }} />}
               {showCost && pts.map((p, i) => spikeDays.has(p.day.slice(0, 10)) && (
                 <circle key={p.day} cx={x(i)} cy={yC(costs[i])} r="4" className="fill-pastel-amber stroke-amber-200" strokeWidth="3" />
               ))}
               {hover !== null && (
                 <g>
-                  <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#94a3b8" strokeDasharray="3 3" />
-                  {showCost && <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#9fb4d3" strokeWidth="2" />}
+                  <line x1={x(hover)} x2={x(hover)} y1={P.t} y2={H - P.b} stroke="#94aa9c" strokeDasharray="3 3" />
+                  {showCost && <circle cx={x(hover)} cy={yC(costs[hover])} r="4.5" fill="#fff" stroke="#a9d1b9" strokeWidth="2" />}
                   {showCarbon && <circle cx={x(hover)} cy={yK(carbons[hover])} r="4.5" fill="#fff" stroke="#5f8d6c" strokeWidth="2" />}
                 </g>
               )}

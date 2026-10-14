@@ -47,7 +47,7 @@ export function FootprintSplit() {
   return (
     <Card index={9} interactive={false} className="min-w-0 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="layers" className="size-[18px] text-[#5a6aa0]" />{t("ov2.split.title")}</h2><Info corner>{t("info.split")}</Info>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="layers" className="size-[18px] text-[#5ea17c]" />{t("ov2.split.title")}</h2><Info corner>{t("info.split")}</Info>
         <Segmented size="sm" label={t("ov2.split.title")} value={by} onChange={setBy}
           options={[{ value: "provider", label: t("ov2.split.by_provider"), disabled: providers < 2 }, { value: "region", label: t("ov2.split.by_region") }]} />
       </div>
@@ -70,7 +70,7 @@ export function FootprintSplit() {
                 </span>
               </div>
               <div className="mt-1.5 space-y-1">
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full" style={{ width: `${Math.max(2, share(r.cost, totalCost))}%`, background: by === "provider" ? cloudMeta(r.prov).color : "#9fb4d3", "--d": `${i * 60}ms` } as CSSProperties} /></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full" style={{ width: `${Math.max(2, share(r.cost, totalCost))}%`, background: by === "provider" ? cloudMeta(r.prov).color : "#a9d1b9", "--d": `${i * 60}ms` } as CSSProperties} /></div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100"><div className="bar-x h-full rounded-full bg-leaf" style={{ width: `${Math.max(2, share(r.carbon, totalCarbon))}%`, "--d": `${i * 60 + 80}ms` } as CSSProperties} /></div>
               </div>
             </li>

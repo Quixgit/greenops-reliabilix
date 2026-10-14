@@ -44,11 +44,11 @@ function LatencyGauge({ ms, km, limit, title, basis, errorPct, right }: { ms: nu
   return (
     <div title={title}>
       <div className="relative h-2 rounded-full bg-slate-100">
-        <span className={cn("absolute inset-y-0 left-0 rounded-full transition-all duration-700", over ? "bg-[#eab3bf]" : "bg-[#9cc3f2]")} style={{ width: `${Math.max(4, Math.min(100, (ms / (limit * 1.6)) * 100))}%` }} />
+        <span className={cn("absolute inset-y-0 left-0 rounded-full transition-all duration-700", over ? "bg-[#a9d1b9]" : "bg-[#9cc3f2]")} style={{ width: `${Math.max(4, Math.min(100, (ms / (limit * 1.6)) * 100))}%` }} />
         <span className="absolute -top-0.5 h-3 w-px bg-slate-400/70" style={{ left: `${(limit / (limit * 1.6)) * 100}%` }} aria-hidden />
       </div>
       <p className="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-muted">
-        <span className={cn("font-semibold", over ? "text-[#a8504b]" : "text-[#3f6094]")}>{basis === "estimated" || !basis ? "≈ " : ""}{ms} ms · {t("ov2.reg.km", { km: nf(0).format(km) })}</span>
+        <span className={cn("font-semibold", over ? "text-[#a8504b]" : "text-[#3d8b62]")}>{basis === "estimated" || !basis ? "≈ " : ""}{ms} ms · {t("ov2.reg.km", { km: nf(0).format(km) })}</span>
         {right}
       </p>
       {basis && <p className={cn("mt-0.5 text-[10px]", isMeasured(basis) ? "text-leaf-deep" : "text-slate-400")}>{latencyBasisLabel(t, basis, errorPct)}</p>}
@@ -148,7 +148,7 @@ function Detail({ row, rows, cur, limit }: { row: Row; rows: Row[]; cur: string;
         {series.length > 1 && (
           <div className="mt-3">
             <p className="mb-1 text-[11px] font-medium text-muted">{t("ov2.reg.history", { days: hist.data?.days_with_data ?? series.length })}</p>
-            <MiniArea values={series} stroke={row.g !== null ? "#3f6a4a" : "#94a3b8"} height={40} />
+            <MiniArea values={series} stroke={row.g !== null ? "#3f6a4a" : "#94aa9c"} height={40} />
           </div>
         )}
       </div>
@@ -232,7 +232,7 @@ export function RegionExplorer() {
                 <button key={r.region} type="button" onClick={() => setSel(r.region)} aria-pressed={current?.region === r.region} style={{ "--i": i } as CSSProperties}
                   className={cn("rise group relative inline-flex items-center gap-1.5 overflow-hidden rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition-all duration-200",
                     current?.region === r.region ? "bg-leaf-soft/70 text-ink ring-leaf-deep/40" : "bg-white text-slate-700 ring-line hover:ring-slate-300")}>
-                  <span className="size-2 shrink-0 rounded-full" style={{ background: r.g === null ? "#e4eaf3" : intensityColor(r.g) }} />
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: r.g === null ? "#e8f2ea" : intensityColor(r.g) }} />
                   {regionName(r.region)}
                   <span className="tabular-nums text-muted">{formatCarbon(r.fp!.carbon_kg_co2e)}</span>
                   <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-leaf/70" style={{ transform: `scaleX(${Math.max(0.05, r.fp!.carbon_kg_co2e / maxCarbon)})` }} />

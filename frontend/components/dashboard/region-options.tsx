@@ -25,7 +25,7 @@ export function parseOptions(details: Record<string, string> | null | undefined)
 
 /** Three facts a move changes at once: how much carbon, how much it costs and how far the new region is. */
 export function Metric({ label, children, tone, title }: { label: string; children: React.ReactNode; tone: "leaf" | "sky" | "amber" | "slate" | "rose"; title?: string }) {
-  const c = { leaf: "bg-leaf-soft text-leaf-deep ring-leaf/20", sky: "bg-sky-50 text-[#3f6094] ring-sky-100", amber: "bg-amber-50 text-[#77621a] ring-amber-100", slate: "bg-slate-50 text-slate-600 ring-line", rose: "bg-rose-50 text-[#a8504b] ring-rose-100" }[tone];
+  const c = { leaf: "bg-leaf-soft text-leaf-deep ring-leaf/20", sky: "bg-sky-50 text-[#3d8b62] ring-sky-100", amber: "bg-amber-50 text-[#77621a] ring-amber-100", slate: "bg-slate-50 text-slate-600 ring-line", rose: "bg-rose-50 text-[#a8504b] ring-rose-100" }[tone];
   return (
     <span title={title} className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs ring-1", c)}>
       <span className="font-medium opacity-70">{label}</span><span className="font-semibold">{children}</span>

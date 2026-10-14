@@ -4,11 +4,11 @@ export interface CloudMeta { id: string; name: string; /** the colour of its bar
 
 const KNOWN: Record<string, CloudMeta> = {
   aws: { id: "aws", name: "AWS", color: "#f0b866", soft: "#fdf3df", ink: "#8a5a12" },
-  azure: { id: "azure", name: "Azure", color: "#9fb4d3", soft: "#e8f0fd", ink: "#2f5fa8" },
-  gcp: { id: "gcp", name: "Google Cloud", color: "#ee9aa6", soft: "#fdecee", ink: "#9a3a4a" },
-  digitalocean: { id: "digitalocean", name: "DigitalOcean", color: "#6cc4e0", soft: "#e3f5fb", ink: "#1f6f8c" },
-  kubernetes: { id: "kubernetes", name: "Kubernetes", color: "#9b8fe0", soft: "#eeebfb", ink: "#4f43a6" },
-  saas: { id: "saas", name: "SaaS", color: "#b7a6d9", soft: "#f2eefa", ink: "#5e4a8c" },
+  azure: { id: "azure", name: "Azure", color: "#a9d1b9", soft: "#e8f2ea", ink: "#2f5fa8" },
+  gcp: { id: "gcp", name: "Google Cloud", color: "#8fd3ac", soft: "#e8f2ea", ink: "#9a3a4a" },
+  digitalocean: { id: "digitalocean", name: "DigitalOcean", color: "#6cc4e0", soft: "#e8f2ea", ink: "#1f6f8c" },
+  kubernetes: { id: "kubernetes", name: "Kubernetes", color: "#9b8fe0", soft: "#e8f2ea", ink: "#4f43a6" },
+  saas: { id: "saas", name: "SaaS", color: "#b7a6d9", soft: "#e8f2ea", ink: "#5e4a8c" },
 };
 const ALIAS: Record<string, string> = { do: "digitalocean", "digital ocean": "digitalocean", digital_ocean: "digitalocean", k8s: "kubernetes", google: "gcp", "google cloud": "gcp", "google-cloud": "gcp", amazon: "aws", microsoft: "azure" };
 const SPARE = ["#8bd0b4", "#e7b48f", "#a9c3e8", "#d6a3c8", "#c4cf8b"];
@@ -24,5 +24,5 @@ export function cloudMeta(provider: string): CloudMeta {
   let h = 0;
   for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const color = SPARE[h % SPARE.length];
-  return { id, name: provider || "—", color, soft: "#f3f5f9", ink: "#475569" };
+  return { id, name: provider || "—", color, soft: "#f1f6ef", ink: "#4c5e54" };
 }

@@ -1,0 +1,85 @@
+/* ======================================================================================================================
+   Soft skin: a dark green-black menu with the green phoenix and two banners at its foot; the Overview (.legacy-dash) in white
+   rounded cards on a pale green ground; one radius scale for every control (cards 18, panels 14, controls 10, tags 6).
+   ====================================================================================================================== */
+:root { --sd-line: #e2e9df; --sd-shadow: 0 1px 2px rgba(11, 61, 42, 0.04), 0 4px 14px rgba(11, 61, 42, 0.05); --sd-shadow-up: 0 2px 4px rgba(11, 61, 42, 0.05), 0 12px 28px rgba(11, 61, 42, 0.09); }
+
+/* ---- the menu ---------------------------------------------------------------------------------------------------------------- */
+.dx .dx-side { background: linear-gradient(180deg, #0f1c16 0%, #0a140f 100%); border-right: 0; box-shadow: 4px 0 24px rgba(5, 12, 9, 0.18); }
+.dx .dx-brand { height: 72px; gap: 12px; padding: 0 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.dx .dx-phx { display: grid; place-items: center; width: 38px; height: 44px; flex: none; color: #5db347; filter: drop-shadow(0 0 14px rgba(93, 179, 71, 0.35)); }
+.dx .dx-phx svg { width: 100%; height: 100%; }
+.dx .dx-brand b { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: #fff; }
+.dx .dx-brand small { margin-top: 1px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.2em; color: #6fbf7c; }
+.dx .dx-fb { border-bottom: 1px solid rgba(255, 255, 255, 0.06); color: #7f9488; }
+.dx .dx-nav-label { color: #66786e; }
+.dx .dx-link { height: 42px; margin: 2px 10px; padding: 0 12px; border-radius: 12px !important; color: #b4c4ba; font-weight: 500; }
+.dx .dx-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.dx .dx-link.is-on { background: linear-gradient(90deg, rgba(93, 179, 71, 0.24), rgba(93, 179, 71, 0.08)); color: #fff; }
+.dx .dx-link.is-on::before { left: -10px; top: 9px; bottom: 9px; width: 4px; border-radius: 0 4px 4px 0 !important; background: #5db347; box-shadow: 0 0 12px rgba(93, 179, 71, 0.7); }
+.dx .dx-link.is-on svg { color: #8fd98a; }
+.dx .dx-side-foot { border-top: 1px solid rgba(255, 255, 255, 0.06); padding: 10px 0 6px; overflow-y: auto; max-height: 62vh; }
+.dx .dx-side-foot > .dx-link { margin: 1px 10px; }
+.dx .dx-promo { display: block; }
+@media (max-height: 900px) { .dx .dx-promo { display: none; } }
+.dx .dx-ver { padding: 0 20px; color: #5f7267; }
+.dx.dx-shell.is-slim .dx-side-foot { padding: 10px 6px; }
+
+/* ---- one radius scale ------------------------------------------------------------------------------------------------------- */
+.dx :is(.dx-btn, .dx-iconbtn, .dx-search, .dx-field, .dx-opt, .dx-datepill, .dx-kbd, input:not([type="checkbox"]):not([type="radio"]), select, textarea) { border-radius: 10px !important; }
+.dx :is(.dx-seg, .dx-seg-inline, [role="tablist"]) { border-radius: 12px !important; }
+.dx :is(.dx-seg button, .dx-seg-ind, [role="tablist"] [role="tab"]) { border-radius: 9px !important; }
+.dx :is(.dx-pop, .dx-popover, [role="dialog"], [role="menu"]) { border-radius: 14px !important; }
+.dx :is(.dx-tag, .dx-info) { border-radius: 6px !important; }
+.dx .dx-mark { border-radius: 50% !important; }
+.dx :is(.dx-dot, .dx-meter, .dx-meter > i, .dx-bar, .dx-bar > i) { border-radius: 999px !important; }
+.dx .dx-top { box-shadow: 0 1px 0 var(--sd-line); }
+.dx .dx-search { background: #f1f6ee; border-color: transparent; }
+.dx .dx-search:focus-within { background: #fff; border-color: #5fae84; }
+.dx-main:has(.legacy-dash) { background: linear-gradient(180deg, #f1f7ee 0%, #f8fbf6 360px, #fafcf9 100%); }
+
+/* ---- the Overview: soft cards ------------------------------------------------------------------------------------------------- */
+.legacy-dash {
+  --radius-xs: 6px; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 14px; --radius-xl: 18px; --radius-2xl: 22px; --radius-3xl: 26px;
+}
+.dx .legacy-dash .glass, .dx .legacy-dash [class*="grid-cols-4"] > .glass {
+  background: #fff !important; border: 1px solid var(--sd-line) !important; border-radius: 18px !important; box-shadow: var(--sd-shadow) !important;
+  padding: 16px 18px !important; transition: transform 0.3s var(--ease-out-soft), box-shadow 0.3s var(--ease-out-soft), border-color 0.3s;
+}
+.dx .legacy-dash .glass.lift:hover { transform: translateY(-2px); box-shadow: var(--sd-shadow-up) !important; border-color: #cfdccb !important; }
+.dx .legacy-dash [class*="grid-cols-4"]:has(> .glass), .dx .legacy-dash [class*=":grid-cols-3"]:has(> .glass, > li), .dx .legacy-dash .dx-kpis {
+  background: transparent !important; border: 0 !important; gap: 10px !important; column-gap: 10px !important; row-gap: 10px !important;
+}
+.dx .legacy-dash [class*="grid-cols-4"] > .glass:nth-child(4n+1), .dx .legacy-dash .glass:first-child { padding-left: 18px !important; }
+.dx .legacy-dash [class*="grid-cols"] > :is(.glass, .dx-panel)::after { content: none !important; }
+.dx .legacy-dash .dx-ic-lg, .dx .legacy-dash [class*="size-11"] { display: grid !important; }
+.dx .legacy-dash .col-divider::before { display: none; }
+
+/* titles: calm, not uppercase ribbons; no band, no rule */
+.dx .legacy-dash .dx-sec > .dx-sec-h, .dx .legacy-dash :is(.glass, .dx-panel) > :first-child:is(.dx-ph, .dx-sec-h, :has(> h2:first-child), :has(> :first-child > h2)) {
+  background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 28px 0 0 !important; margin: 0 0 12px !important; min-height: 0;
+}
+.dx .legacy-dash .dx-sec-t, .dx .legacy-dash :is(.glass, .dx-panel) > :first-child h2 {
+  font-size: 15px !important; font-weight: 650 !important; letter-spacing: -0.005em !important; text-transform: none !important; color: var(--color-ink) !important; white-space: normal !important;
+}
+.dx .legacy-dash .dx-sec-t svg { color: #3d8b62 !important; }
+.dx .legacy-dash :is(.glass, .dx-panel) :is(.glass, .dx-panel) { border: 1px solid var(--sd-line) !important; border-radius: 14px !important; padding: 12px !important; box-shadow: none !important; }
+
+/* round things stay round: dots, chips, tiles, bars */
+.dx .legacy-dash [class*="rounded-full"] { border-radius: 9999px !important; }
+.dx .legacy-dash [class*="rounded-2xl"] { border-radius: 18px !important; }
+.dx .legacy-dash [class*="rounded-xl"] { border-radius: 14px !important; }
+.dx .legacy-dash [class*="rounded-lg"] { border-radius: 10px !important; }
+.dx .legacy-dash [class*="rounded-md"] { border-radius: 8px !important; }
+.dx .legacy-dash [class*="rounded"]:not([class*="rounded-full"]):not([class*="rounded-2xl"]):not([class*="rounded-xl"]):not([class*="rounded-lg"]):not([class*="rounded-md"]) { border-radius: 6px !important; }
+.dx .legacy-dash :is(a, li)[class*="rounded-"][class*="border"] { border: 1px solid var(--sd-line) !important; background: #fff !important; padding-left: revert !important; padding-right: revert !important; }
+.dx .legacy-dash a[class*="rounded-"][class*="border"]:hover { background: #f3f9f0 !important; }
+.dx .legacy-dash [class*="size-8"], .dx .legacy-dash [class*="size-9"], .dx .legacy-dash [class*="size-10"] { border-radius: 12px; }
+.dx .legacy-dash :is(.h-1, .h-1\.5, .h-2)[class*="rounded"], .dx .legacy-dash [class*="bg-slate-100"][class*="rounded"] { border-radius: 999px !important; }
+.dx .legacy-dash .tabular-nums + * { border-radius: 6px; }
+.dx .legacy-dash [role="tablist"] { background: #eef4eb !important; padding: 3px !important; border: 0 !important; }
+.dx .legacy-dash [role="tablist"] [role="tab"][aria-selected="true"] { background: #fff !important; box-shadow: 0 1px 3px rgba(11, 61, 42, 0.12) !important; color: var(--color-ink) !important; }
+
+
+/* no dark tick above the cards */
+.dx .legacy-dash :is(.glass, .dx-panel)::before { display: none !important; }

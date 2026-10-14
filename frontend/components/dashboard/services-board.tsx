@@ -45,7 +45,7 @@ export function ServicesBoard() {
   return (
     <Card index={10} interactive={false} id="services-table" className="min-w-0 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="layers" className="size-[18px] text-[#5a6aa0]" />{t("ov2.svc.title")}</h2><Info corner>{t("info.services")}</Info>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="layers" className="size-[18px] text-[#5ea17c]" />{t("ov2.svc.title")}</h2><Info corner>{t("info.services")}</Info>
         <Segmented size="sm" label={t("ov2.svc.title")} value={tab} onChange={(v) => { setTab(v); pg.setPage(1); }} options={CATS.map((c) => ({ value: c, label: t(`ov2.cat.${c}`) }))} className="max-w-full overflow-x-auto" />
       </div>
       {q.isLoading ? <Skeleton className="h-64" /> : q.isError ? <ErrorState /> : rows.length === 0 ? <EmptyState icon={Table2} text={t("ov2.svc.empty")} /> : (

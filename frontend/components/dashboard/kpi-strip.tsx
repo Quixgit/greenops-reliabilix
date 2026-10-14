@@ -81,7 +81,7 @@ export function KpiStrip() {
 
   return (
     <div className="grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 min-[1000px]:grid-cols-4">
-      <Tile index={0} icon="wallet" tone="blue" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading} spark={costSeries} sparkColor="#9fb4d3" empty={empty}
+      <Tile index={0} icon="wallet" tone="blue" label={t("ov2.kpi.cost")} info={t("info.kpi_cost")} loading={loading} spark={costSeries} sparkColor="#a9d1b9" empty={empty}
         value={f?.has_data ? <CountUp value={f.total_cost} format={(n) => formatCost(n, cur)} /> : null}
         delta={trendBadge(roll.costTrend7, f?.previous_comparable ? 1 : null, f?.previous_comparable ? pctChange(f.total_cost, f.previous_total_cost) : null)}
         foot={<>

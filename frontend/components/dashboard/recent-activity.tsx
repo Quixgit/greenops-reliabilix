@@ -24,11 +24,11 @@ const money = (v: string) => { const n = Number(v); return Number.isFinite(n) ? 
 function describe(a: Activity, { t }: Ctx): View {
   const d = a.detail ?? {};
   switch (a.action) {
-    case "project.created": return { icon: IconFolder, tone: "bg-sky-50 text-[#3f6094]", title: t("act.project_created"), detail: d.name, href: "/projects" };
+    case "project.created": return { icon: IconFolder, tone: "bg-sky-50 text-[#3d8b62]", title: t("act.project_created"), detail: d.name, href: "/projects" };
     case "project.deleted": return { icon: IconTrash, tone: "bg-rose-50 text-[#a8504b]", title: t("act.project_deleted"), href: "/projects" };
     case "project.policy_updated": return { icon: IconFolder, tone: "bg-slate-100 text-slate-600", title: t("act.project_policy"), href: "/settings#policies" };
     case "cloud_connection.created": return { icon: IconCloud, tone: "bg-leaf-soft text-leaf-deep", title: t("act.cloud_connected"), detail: d.provider?.toUpperCase(), href: "/connectors" };
-    case "cloud_sync.completed": return { icon: IconRefresh, tone: "bg-sky-50 text-[#3f6094]", title: t("act.sync"), detail: d.records ? t("act.sync_detail", { records: Number(d.records).toLocaleString(getFormatLocale()) }) : undefined, href: "/connectors" };
+    case "cloud_sync.completed": return { icon: IconRefresh, tone: "bg-sky-50 text-[#3d8b62]", title: t("act.sync"), detail: d.records ? t("act.sync_detail", { records: Number(d.records).toLocaleString(getFormatLocale()) }) : undefined, href: "/connectors" };
     case "report.generated": return { icon: IconReport, tone: "bg-leaf-soft text-leaf-deep", title: d.kind ? t("act.report", { kind: t(`rp.kind.${d.kind}`, undefined, d.kind) }) : t("act.report_plain"), detail: d.format?.toUpperCase(), href: "/reports" };
     case "recommendation.created": return { icon: IconBulb, tone: "bg-amber-50 text-[#77621a]", title: t("act.rec_created"), detail: d.type ? t(`act.type.${d.type}`, undefined, d.type) : undefined, href: "/recommendations" };
     case "recommendation.approved": return { icon: IconBulb, tone: "bg-violet-50 text-violet-600", title: t("act.rec_approved"), href: "/recommendations" };

@@ -27,7 +27,7 @@ export function DemoBanner({ canWrite }: { canWrite: boolean }) {
   return (
     <section className={cn("rise flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-2xl px-5 py-4 ring-1", active ? "bg-[#faf5e3]/70 ring-[#e5cf8e]" : "bg-sky-50/70 ring-sky-100")} aria-label={t("dm.title")}>
       <div className="flex min-w-0 flex-1 basis-80 items-start gap-3">
-        <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl", active ? "bg-[#f8e3b4] text-[#8a6420]" : "bg-white text-[#3f6094]")}><IconSparkles className="size-[18px]" /></span>
+        <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl", active ? "bg-[#f8e3b4] text-[#8a6420]" : "bg-white text-[#3d8b62]")}><IconSparkles className="size-[18px]" /></span>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-ink">{active ? t("dm.active_title") : t("dm.title")}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{active ? t("dm.active_body") : t("dm.body")}</p>

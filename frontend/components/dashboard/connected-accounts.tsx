@@ -35,7 +35,7 @@ export function ConnectedAccounts() {
   return (
     <Card index={9} interactive={false} className="p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="cloud" className="size-[18px] text-[#3b93b8]" />{t("ov3.accounts.title")}</h2><Info corner>{t("info.accounts")}</Info>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="cloud" className="size-[18px] text-[#4aa38a]" />{t("ov3.accounts.title")}</h2><Info corner>{t("info.accounts")}</Info>
         <Link href="/connectors" className="text-xs font-semibold text-leaf-deep hover:underline">{t("ov3.recs.all")}</Link>
       </div>
       {q.isLoading ? <Skeleton className="h-28" /> : q.isError ? <ErrorState /> : (

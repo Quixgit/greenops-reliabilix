@@ -43,7 +43,7 @@ export function FinopsStrip() {
       <Tile index={4} icon="calendar" tone="sky" label={t("ov2.fin.forecast")} info={t("info.fin_forecast")} loading={loading}
         value={fc ? formatCost(fc.forecast, fcur) : null} empty={<span>{t("ov2.fin.forecast_none")}</span>}
         foot={fc && <>
-          {seasonal && sf.forecast.high - sf.forecast.low > 1 && <span className="block font-medium text-[#3f6094]" title={t("ov2.fin.range_hint")}>{t("ov2.fin.range", { low: formatCost(sf.forecast.low, fcur), high: formatCost(sf.forecast.high, fcur) })}</span>}
+          {seasonal && sf.forecast.high - sf.forecast.low > 1 && <span className="block font-medium text-[#3d8b62]" title={t("ov2.fin.range_hint")}>{t("ov2.fin.range", { low: formatCost(sf.forecast.low, fcur), high: formatCost(sf.forecast.high, fcur) })}</span>}
           <span className="block text-muted">{seasonal ? t("ov2.fin.forecast_seasonal", { spent: formatCost(fc.spent, fcur), days: fc.daysLeft }) : t("ov2.fin.forecast_basis", { spent: formatCost(fc.spent, fcur), days: fc.daysLeft })}</span>
           {staleCloud && <span className="block text-amber-700">{t("ov3.fin.stale_note", { cloud: cloudMeta(staleCloud.provider).name, day: dayLabel(staleCloud.last_day) })}</span>}
         </>} />

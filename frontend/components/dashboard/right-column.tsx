@@ -93,7 +93,7 @@ export function TopRecommendations() {
   return (
     <Card index={2} interactive={false} className="p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="spark" className="size-[18px] text-[#5a6aa0]" />{t("ov3.recs.title")}</h2><Info corner>{t("info.recs")}</Info>
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-ink"><Glyph name="spark" className="size-[18px] text-[#5ea17c]" />{t("ov3.recs.title")}</h2><Info corner>{t("info.recs")}</Info>
         <Link href="/recommendations" className="text-xs font-semibold text-primary hover:underline">{t("ov3.recs.all")}</Link>
       </div>
       <PotentialSummary />

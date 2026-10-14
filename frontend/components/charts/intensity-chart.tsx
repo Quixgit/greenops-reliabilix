@@ -35,20 +35,20 @@ export function IntensityChart({ points, from, to }: { points: IntensityPoint[];
     const lo = days.map((d) => get(d, (p) => p.min));
     return {
       grid: { left: 4, right: 8, top: 36, bottom: 4, containLabel: true },
-      legend: { top: 0, right: 4, icon: "roundRect", itemWidth: 14, itemHeight: 3, textStyle: { color: "#475569", fontSize: 12 } },
+      legend: { top: 0, right: 4, icon: "roundRect", itemWidth: 14, itemHeight: 3, textStyle: { color: "#4c5e54", fontSize: 12 } },
       tooltip: {
-        trigger: "axis", backgroundColor: "#fff", borderColor: "#e8edf5", borderWidth: 1, padding: [10, 14], extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(31,52,110,.16);",
+        trigger: "axis", backgroundColor: "#fff", borderColor: "#e8f2ea", borderWidth: 1, padding: [10, 14], extraCssText: "border-radius:12px;box-shadow:0 10px 30px rgba(31,52,110,.16);",
         textStyle: { color: "#0f1b33", fontSize: 12 },
         formatter: (raw: unknown) => {
           const day = (raw as { axisValue: string }[])[0]?.axisValue;
           const p = day ? byDay.get(day) : undefined;
-          if (!p) return `<div style="color:#7a766c;font-size:11px">${day}</div><div style="margin-top:4px;color:#7a766c">No reading this day</div>`;
+          if (!p) return `<div style="color:#76827a;font-size:11px">${day}</div><div style="margin-top:4px;color:#76827a">No reading this day</div>`;
           const note = p.basis === "month_mean" ? ` <span style="color:#6366f1">monthly national average</span>`
-            : p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#7a766c">${p.readings} readings</span>`;
+            : p.basis === "partial_day_mean" ? ` <span style="color:#b45309">partial (${p.readings} readings)</span>` : ` <span style="color:#76827a">${p.readings} readings</span>`;
           const rows = [`<div style="margin-top:4px"><b>${Math.round(p.g_per_kwh)}</b> gCO₂e/kWh · ${SOURCE_LABEL[p.source] ?? p.source}${note}</div>`,
-            ...(p.basis === "month_mean" ? [] : [`<div style="color:#7a766c">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`]),
-            ...p.others.map((o) => `<div style="color:#7a766c">${SOURCE_LABEL[o.source] ?? o.source}: ${Math.round(o.g_per_kwh)}</div>`)];
-          return `<div style="color:#7a766c;font-size:11px">${day}</div>${rows.join("")}`;
+            ...(p.basis === "month_mean" ? [] : [`<div style="color:#76827a">range ${Math.round(p.min)}–${Math.round(p.max)}</div>`]),
+            ...p.others.map((o) => `<div style="color:#76827a">${SOURCE_LABEL[o.source] ?? o.source}: ${Math.round(o.g_per_kwh)}</div>`)];
+          return `<div style="color:#76827a;font-size:11px">${day}</div>${rows.join("")}`;
         },
       },
       xAxis: { type: "category", data: days, boundaryGap: false, ...axis, axisLabel: { ...axis.axisLabel, formatter: (v: string) => v.slice(5), hideOverlap: true } },

@@ -3,35 +3,35 @@
 @theme {
   /* The DX palette: navy, warm greys and white, with soft warm pastel accents. Every Tailwind palette the pages use is re-tuned
      to it, so a page written with slate / sky / amber / rose / emerald reads in the same system without being rewritten. */
-  --color-ink: #1b2742;
-  --color-muted: #8a8578;
-  --color-line: #e6e0d6;
-  --color-primary: #2f4670;
+  --color-ink: #1c2b24;
+  --color-muted: #84907f;
+  --color-line: #e2e8de;
+  --color-primary: #3d8b62;
   --color-leaf: #5f8d6c;
   --color-leaf-soft: #e3ede1;
   --color-leaf-deep: #3f6a4a;
-  --color-pastel-blue: #9fb4d3;
+  --color-pastel-blue: #a9d1b9;
   --color-pastel-amber: #e5cf8e;
   --color-pastel-rose: #dcb5b1;
-  --color-pastel-violet: #b9bdd6;
-  --color-violet: #4a5a8a;
+  --color-pastel-violet: #bcd9c7;
+  --color-violet: #4d9370;
   --color-carbon: #3f6a4a;
   --color-carbon-soft: #e3ede1;
-  --color-cost-soft: #d9e2ee;
+  --color-cost-soft: #dcede2;
   --color-bad: #a8504b;
-  --color-navy: #1b2a46;
-  --color-navy-2: #16233a;
-  --color-navy-active: #2f4670;
+  --color-navy: #0b3d2a;
+  --color-navy-2: #082f20;
+  --color-navy-active: #3d8b62;
 
-  --color-slate-50: #faf8f4;  --color-slate-100: #f4f1ea; --color-slate-200: #e6e0d6; --color-slate-300: #cfc7b8; --color-slate-400: #a39d90;
-  --color-slate-500: #7a766c; --color-slate-600: #5a5f72; --color-slate-700: #3d4863; --color-slate-800: #27324f; --color-slate-900: #1b2742;
-  --color-gray-50: #faf8f4; --color-gray-100: #f4f1ea; --color-gray-200: #e6e0d6; --color-gray-300: #cfc7b8; --color-gray-400: #a39d90; --color-gray-500: #7a766c; --color-gray-600: #5a5f72; --color-gray-700: #3d4863; --color-gray-800: #27324f; --color-gray-900: #1b2742;
-  --color-zinc-50: #faf8f4; --color-zinc-100: #f4f1ea; --color-zinc-200: #e6e0d6; --color-zinc-300: #cfc7b8; --color-zinc-400: #a39d90; --color-zinc-500: #7a766c; --color-zinc-600: #5a5f72; --color-zinc-700: #3d4863; --color-zinc-800: #27324f; --color-zinc-900: #1b2742;
-  --color-sky-50: #eef2f8; --color-sky-100: #d9e2ee; --color-sky-200: #c0cfe3; --color-sky-300: #9fb4d3; --color-sky-400: #7f98c0; --color-sky-500: #5d7fb0; --color-sky-600: #3f6094; --color-sky-700: #2f4a78; --color-sky-800: #243a60; --color-sky-900: #1b2a46;
-  --color-blue-50: #eef2f8; --color-blue-100: #d9e2ee; --color-blue-200: #c0cfe3; --color-blue-300: #9fb4d3; --color-blue-400: #7f98c0; --color-blue-500: #5d7fb0; --color-blue-600: #2f4670; --color-blue-700: #243a60; --color-blue-800: #1b2a46; --color-blue-900: #16233a;
-  --color-indigo-50: #eceef6; --color-indigo-100: #d6dbec; --color-indigo-200: #bcc4df; --color-indigo-500: #5a6aa0; --color-indigo-600: #46568a; --color-indigo-700: #384673; --color-indigo-800: #2c385c; --color-indigo-900: #1f2a47;
-  --color-violet-50: #eceef6; --color-violet-100: #d6dbec; --color-violet-200: #bcc4df; --color-violet-500: #5a6aa0; --color-violet-600: #46568a; --color-violet-700: #384673;
-  --color-purple-50: #eceef6; --color-purple-100: #d6dbec; --color-purple-500: #5a6aa0; --color-purple-600: #46568a;
+  --color-slate-50: #f8faf5;  --color-slate-100: #f1f5ee; --color-slate-200: #e2e8de; --color-slate-300: #c9d3c4; --color-slate-400: #a0aa9d;
+  --color-slate-500: #76827a; --color-slate-600: #66786d; --color-slate-700: #4c5e54; --color-slate-800: #2a3b33; --color-slate-900: #1c2b24;
+  --color-gray-50: #f8faf5; --color-gray-100: #f1f5ee; --color-gray-200: #e2e8de; --color-gray-300: #c9d3c4; --color-gray-400: #a0aa9d; --color-gray-500: #76827a; --color-gray-600: #66786d; --color-gray-700: #4c5e54; --color-gray-800: #2a3b33; --color-gray-900: #1c2b24;
+  --color-zinc-50: #f8faf5; --color-zinc-100: #f1f5ee; --color-zinc-200: #e2e8de; --color-zinc-300: #c9d3c4; --color-zinc-400: #a0aa9d; --color-zinc-500: #76827a; --color-zinc-600: #66786d; --color-zinc-700: #4c5e54; --color-zinc-800: #2a3b33; --color-zinc-900: #1c2b24;
+  --color-sky-50: #f0f7f1; --color-sky-100: #dcede2; --color-sky-200: #c3dfcf; --color-sky-300: #a9d1b9; --color-sky-400: #7dbb98; --color-sky-500: #5fae84; --color-sky-600: #3d8b62; --color-sky-700: #2f7550; --color-sky-800: #14503a; --color-sky-900: #0b3d2a;
+  --color-blue-50: #f0f7f1; --color-blue-100: #dcede2; --color-blue-200: #c3dfcf; --color-blue-300: #a9d1b9; --color-blue-400: #7dbb98; --color-blue-500: #5fae84; --color-blue-600: #3d8b62; --color-blue-700: #14503a; --color-blue-800: #0b3d2a; --color-blue-900: #082f20;
+  --color-indigo-50: #edf5ee; --color-indigo-100: #d6e8dc; --color-indigo-200: #bcd8c8; --color-indigo-500: #5ea17c; --color-indigo-600: #3f8564; --color-indigo-700: #2f6b4d; --color-indigo-800: #244f3b; --color-indigo-900: #17382a;
+  --color-violet-50: #edf5ee; --color-violet-100: #d6e8dc; --color-violet-200: #bcd8c8; --color-violet-500: #5ea17c; --color-violet-600: #3f8564; --color-violet-700: #2f6b4d;
+  --color-purple-50: #edf5ee; --color-purple-100: #d6e8dc; --color-purple-500: #5ea17c; --color-purple-600: #3f8564;
   --color-amber-50: #faf5e3; --color-amber-100: #f1e7bd; --color-amber-200: #e5d58e; --color-amber-300: #d9c06a; --color-amber-400: #cba649; --color-amber-500: #c79a36; --color-amber-600: #b3822c; --color-amber-700: #8a6420; --color-amber-800: #6e4f1a; --color-amber-900: #55401a;
   --color-yellow-50: #faf5e3; --color-yellow-100: #f1e7bd; --color-yellow-200: #e5d58e; --color-yellow-500: #c79a36; --color-yellow-700: #8a6420;
   --color-orange-50: #fbf1e9; --color-orange-100: #f6e2d3; --color-orange-200: #f3dac8; --color-orange-300: #e9c3a8; --color-orange-500: #c9834f; --color-orange-600: #b06a39; --color-orange-700: #8a4d27; --color-orange-800: #6e3d1f;
@@ -42,7 +42,7 @@
   --color-green-50: #eef4ec; --color-green-100: #d7e3d3; --color-green-200: #bfd3b9; --color-green-500: #5f8d6c; --color-green-600: #4d7d59; --color-green-700: #3f6a4a; --color-green-800: #34573d;
   --color-teal-50: #eef4ec; --color-teal-100: #d7e3d3; --color-teal-500: #5f8d6c; --color-teal-600: #4d7d59; --color-teal-700: #3f6a4a;
   --color-lime-50: #f1f5e6; --color-lime-100: #e3ecc9; --color-lime-200: #d3e0a8; --color-lime-500: #85a14a; --color-lime-600: #6f8c3a; --color-lime-700: #5a7a2f;
-  --color-cyan-50: #eef2f8; --color-cyan-100: #d9e2ee; --color-cyan-500: #5d7fb0; --color-cyan-600: #3f6094;
+  --color-cyan-50: #f0f7f1; --color-cyan-100: #dcede2; --color-cyan-500: #5fae84; --color-cyan-600: #3d8b62;
 
   --radius-xs: 0; --radius-sm: 0; --radius-md: 0; --radius-lg: 0; --radius-xl: 0; --radius-2xl: 0; --radius-3xl: 0; --radius-4xl: 0;
   --shadow-xs: none; --shadow-sm: none; --shadow-md: none; --shadow-lg: none; --shadow-xl: none; --shadow-2xl: none;
@@ -59,7 +59,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-::selection { background: #eadfca; }
+::selection { background: #d7ead8; }
 
 /* ---- Cards ------------------------------------------------------------------------------------------------------
    White surface, hairline border, layered soft shadow. ".glass" is the historical class name used all over the app. */
@@ -106,7 +106,7 @@ button:not(:disabled):active { transform: none; opacity: 0.88; }
 .draw { stroke-dasharray: var(--len, 200); stroke-dashoffset: var(--len, 200); animation: draw 1.1s var(--ease-out-soft) forwards; animation-delay: var(--d, 0ms); }
 .pop { animation: pop 0.5s var(--ease-out-soft) both; animation-delay: var(--d, 0ms); }
 .skeleton {
-  background: linear-gradient(100deg, #e6e0d6 30%, #f0ebe2 50%, #e6e0d6 70%);
+  background: linear-gradient(100deg, #e2e8de 30%, #eef2e9 50%, #e2e8de 70%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
 }
@@ -118,7 +118,7 @@ button:not(:disabled):active { transform: none; opacity: 0.88; }
 .nav-link:hover .nav-icon { transform: translateX(2px) scale(1.08); }
 .nav-link::before {
   content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0;
-  background: #4cb8d8; box-shadow: 0 0 12px rgba(76, 184, 216, 0.7);
+  background: #5db347; box-shadow: 0 0 12px rgba(93, 179, 71, 0.55);
   transform: scaleY(0); transition: transform 0.35s var(--ease-out-soft);
 }
 .nav-link[aria-current="page"]::before { transform: scaleY(1); }
@@ -181,7 +181,7 @@ button:not(:disabled):active { transform: none; opacity: 0.88; }
 @keyframes map-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes map-pill-in { from { opacity: 0; margin-top: 4px; } to { opacity: 1; margin-top: 0; } }
 .map-sweep { animation: map-sweep 0.9s cubic-bezier(0.22, 0.8, 0.24, 1) both; }
-.map-wrap { background: #faf8f4; border: 1px solid var(--color-line); touch-action: none; }
+.map-wrap { background: #f8faf5; border: 1px solid var(--color-line); touch-action: none; }
 .map-grabbing { cursor: grabbing; }
 .map-stage { will-change: transform; transform: translate3d(0, 0, 0); }
 .map-stage.map-fly { transition: transform 0.75s cubic-bezier(0.22, 0.8, 0.24, 1); }

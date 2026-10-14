@@ -106,7 +106,7 @@ function Content({ onClose }: { onClose: () => void }) {
                     <span className="block truncate font-mono text-[11px] text-muted">{o.region}{o.used ? ` · ${t("allow.in_use")}` : ""}</span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end text-xs tabular-nums">
-                    <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: o.g === null ? "#e4eaf3" : intensityColor(o.g) }} />{o.g === null ? "—" : `${nf(0).format(o.g)} g`}</span>
+                    <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: o.g === null ? "#e8f2ea" : intensityColor(o.g) }} />{o.g === null ? "—" : `${nf(0).format(o.g)} g`}</span>
                     {better !== null && better > 0 && <span className="font-semibold text-leaf-deep">−{better}%</span>}
                   </span>
                 </button>

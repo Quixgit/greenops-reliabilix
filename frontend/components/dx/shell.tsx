@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePlanState } from "@/components/layout/plan-card";
+import { PlanCard } from "@/components/layout/plan-card";
+import { PromoCard } from "@/components/layout/promo-card";
 import { eventArea, useInbox, useMarkInboxRead } from "@/hooks/use-inbox";
 import { useAlerts, useConnections, useProjects } from "@/hooks/use-overview";
 import { LOCALE_NAMES, isLocale } from "@/i18n/config";
@@ -38,7 +39,6 @@ function Sidebar({ slim, isOperator }: { slim: boolean; isOperator: boolean }) {
   const t = useT();
   const path = usePathname();
   const { navOpen, setNavOpen, setNavCollapsed } = useUi();
-  const plan = usePlanState();
   const link = (n: (typeof MAIN)[number]) => {
     const on = path === n.href || path.startsWith(`${n.href}/`);
     const text = t(`nav.${slug(n.href)}`, undefined, n.label);
@@ -48,7 +48,6 @@ function Sidebar({ slim, isOperator }: { slim: boolean; isOperator: boolean }) {
       </Link>
     );
   };
-  const pct = plan?.top ? Math.min(100, (plan.top.used / plan.top.limit) * 100) : 0;
   return (
     <>
       {navOpen && <button className="dx-scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} />}
@@ -66,15 +65,9 @@ function Sidebar({ slim, isOperator }: { slim: boolean; isOperator: boolean }) {
           {MAIN.map(link)}
         </nav>
         <div className="dx-side-foot">
-          {plan && (
-            <Link href="/settings#plan" className="dx-plan" title={`${t("plan.card.title")}: ${plan.p.name}`}>
-              <b>{t("plan.card.title")}</b>
-              <strong>{plan.p.name}</strong>
-              <em className="dx-plan-mini">{plan.p.name.slice(0, 2)}</em>
-              {plan.top && <div className="dx-meter"><i style={{ width: `${Math.max(4, pct)}%` }} /></div>}
-            </Link>
-          )}
           {SECONDARY.map(link)}
+          <PlanCard collapsed={slim} />
+          {!slim && <div className="dx-promo"><PromoCard /></div>}
           {isOperator && <Link href="/operator" className="dx-link" style={{ padding: 0 }}><Ico name="shield" size={20} /><span>{t("nav.operator", undefined, "Operator")}</span></Link>}
           <div className="dx-ver"><span>v{BUILD_VERSION.number} · {BUILD_VERSION.stage}</span></div>
         </div>

@@ -38,7 +38,7 @@ export function Info({ title, children, className, label = "More information", c
     <button ref={btn} type="button" aria-label={label} aria-describedby={pos ? id : undefined}
       onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (pos) hide(); else show(); }}
       className={cn("inline-grid size-[22px] shrink-0 cursor-help place-items-center rounded-full align-middle text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-primary focus-visible:bg-slate-100 focus-visible:text-primary", pos && "bg-slate-100 text-primary", className)}>
-      <IconInfo className="size-[15px]" strokeWidth={1.7} />
+      <svg viewBox="0 0 24 24" className="size-[15px]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5" /><circle cx="12" cy="7.6" r=".6" fill="currentColor" /></svg>
     </button>
   );
   return (

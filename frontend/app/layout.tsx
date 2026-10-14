@@ -4,6 +4,7 @@ import { I18nProvider } from "@/i18n/provider";
 import { getLocale, getLocaleConfig, getMessages } from "@/i18n/server";
 import "./globals.css";
 import "@/components/dx/dx.css";
+import "@/components/dx/soft.css";
 
 export const metadata = { title: "Reliabilix GreenOps", description: "Cloud cost and carbon footprint in one view" };
 
